@@ -1,0 +1,330 @@
+﻿@*
+    _ArtistLayout.cshtml
+    Theme: Black/Gold/Red, collapsible sidebar, icons included - aligned with Admin
+    Updates: ALL buttons red, main color black, GOLD BORDER AROUND buttons and textboxes (always visible)
+*@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - BeautyArtist Artist</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        :root {
+            --bs-primary: #000; /* Black */
+            --bs-secondary: #FFD700; /* Gold */
+            --bs-accent: #8B0000; /* Dark Red (for buttons) */
+            --bs-light: #f8f9fa;
+            --bs-dark: #212529;
+        }
+
+        body {
+            background-color: var(--bs-primary); /* Consistent black background */
+            color: #fff; /* White text for contrast */
+            font-family: 'Segoe UI', sans-serif; /* Consistent font */
+        }
+
+        .sidebar {
+            width: 250px;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #000, #111); /* Darker gradient for depth */
+            position: fixed;
+            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.4); /* Stronger shadow for sidebar */
+            transition: all 0.3s ease-in-out; /* Smoother transition */
+            z-index: 1000;
+        }
+
+        .sidebar-collapsed {
+            width: 80px;
+        }
+
+            .sidebar-collapsed .nav-link span {
+                display: none;
+            }
+
+            .sidebar-collapsed .sidebar-brand {
+                font-size: 0; /* Hide full text */
+            }
+
+                .sidebar-collapsed .sidebar-brand::after {
+                    content: "BSG"; /* Abbreviated brand */
+                    font-size: 1.25rem;
+                    color: var(--bs-secondary);
+                }
+
+        .main-content {
+            margin-left: 250px;
+            transition: all 0.3s ease-in-out; /* Smoother transition */
+            padding: 2rem; /* Consistent padding */
+        }
+
+        .main-content-collapsed {
+            margin-left: 80px;
+        }
+
+        .sidebar-brand {
+            color: var(--bs-secondary);
+            font-weight: 700;
+            font-size: 1.5rem; /* Consistent brand font size */
+            padding: 1.5rem 1rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.3); /* Consistent border */
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.85); /* Slightly brighter default link color */
+            padding: 0.75rem 1.5rem;
+            margin: 0.25rem 0;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 600; /* Consistent font weight */
+        }
+
+            .nav-link:hover, .nav-link.active {
+                color: var(--bs-secondary);
+                background-color: rgba(255, 215, 0, 0.1);
+                border-left: 3px solid var(--bs-secondary);
+            }
+
+            .nav-link i {
+                margin-right: 0.5rem;
+                width: 20px;
+                text-align: center;
+            }
+
+        .toggle-btn {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1100; /* Higher z-index for the button */
+            background-color: var(--bs-secondary);
+            color: #000; /* Black text on gold button */
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); /* Glowing shadow */
+        }
+
+        /* --- THEME CUSTOMIZATIONS START HERE --- */
+
+        /* Headings - make H1 gold as per image */
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--bs-secondary); /* All headings are gold */
+        }
+
+        /* General Button Styling (ALL buttons) */
+        .btn {
+            background-color: var(--bs-accent) !important; /* Red background (Fix: removed darken() ) */
+            border: 1px solid var(--bs-secondary) !important; /* Always visible Gold border */
+            color: #fff !important; /* White text */
+            transition: all 0.3s ease-in-out;
+            box-shadow: none; /* No initial shadow, border handles "gold around" */
+        }
+
+            .btn:hover {
+                background-color: #7A0000 !important; /* Slightly darker red on hover (direct hex value) */
+                border-color: var(--bs-secondary) !important; /* Keep gold border on hover */
+                box-shadow: 0 0 10px rgba(255, 215, 0, 0.6) !important; /* Gold glow on hover */
+            }
+
+            .btn:focus, .btn.focus {
+                box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.5) !important; /* Gold focus outline */
+                outline: none;
+                background-color: #7A0000 !important; /* Keep red on focus */
+                border-color: var(--bs-secondary) !important; /* Keep gold border on focus */
+            }
+
+        /* Textboxes and Form Controls with Gold Border/Highlight */
+        .form-control,
+        .form-select {
+            background-color: #333; /* Dark background for inputs */
+            color: #fff; /* White text for inputs */
+            border: 1px solid var(--bs-secondary) !important; /* Gold border (always visible) */
+            box-shadow: none; /* No initial shadow */
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+
+            .form-control:focus,
+            .form-select:focus {
+                background-color: #2a2a2a; /* Slightly lighter on focus */
+                border-color: var(--bs-secondary) !important; /* Gold border on focus */
+                box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.4) !important; /* Gold glow on focus */
+                outline: none;
+            }
+
+            /* Ensure placeholders are visible */
+            .form-control::placeholder {
+                color: rgba(255, 255, 255, 0.6); /* Lighter white for placeholders */
+            }
+
+        /* Table styling (re-applying for clarity and consistency) */
+        .card {
+            background-color: #1a1a1a; /* Darker card background for contrast */
+            color: #fff;
+            border: 1px solid rgba(255, 215, 0, 0.2); /* Subtle gold border */
+        }
+
+        .table {
+            color: #fff; /* White text for table body */
+        }
+
+            .table thead {
+                background-color: #333; /* Darker header for tables */
+                color: var(--bs-secondary); /* Gold text for table headers */
+            }
+
+            .table tbody tr:hover {
+                background-color: #2a2a2a; /* Slightly lighter on hover */
+            }
+        /* Specific column gold color, apply text-secondary-column to the <td> or <a> in your views */
+        .table-primary-text { /* Use this class on your <td> for gold text */
+            color: var(--bs-secondary);
+        }
+
+        /* Alert styling */
+        .alert-info {
+            background-color: rgba(255, 215, 0, 0.1); /* Light gold background for info alerts */
+            border-color: var(--bs-secondary);
+            color: var(--bs-secondary);
+        }
+
+        /* Modal styling */
+        .modal-content {
+            background-color: #1a1a1a; /* Dark background for modal content */
+            color: #fff;
+            border: 1px solid var(--bs-secondary); /* Gold border for modals */
+        }
+
+        .modal-header {
+            border-bottom-color: rgba(255, 215, 0, 0.3);
+        }
+
+        .modal-footer {
+            border-top-color: rgba(255, 215, 0, 0.3);
+        }
+
+        .btn-close {
+            filter: invert(1); /* Makes the close button white */
+        }
+
+        /* Sidebar logout button consistency */
+        button.nav-link {
+            background: none;
+            border: none;
+            /* Inherits nav-link styles for color and hover */
+        }
+        /* If you wanted the logout button to also be red with gold glow, uncomment the block below */
+        /*
+                .nav-item form button.nav-link {
+                    background-color: var(--bs-accent) !important;
+                    border: 1px solid var(--bs-secondary) !important;
+                    color: #fff !important;
+                    box-shadow: none;
+                }
+                .nav-item form button.nav-link:hover {
+                    background-color: #7A0000 !important;
+                    border-color: var(--bs-secondary) !important;
+                    box-shadow: 0 0 10px rgba(255, 215, 0, 0.6) !important;
+                }
+                .nav-item form button.nav-link:focus {
+                    box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.5) !important;
+                }
+                */
+
+        /* --- THEME CUSTOMIZATIONS END HERE --- */
+    </style>
+    @RenderSection("Styles", required: false)
+</head>
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            BeautySpotGlam Artist
+        </div>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link" asp-controller="Artist" asp-action="Dashboard">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" asp-controller="Artist" asp-action="Profile">
+                    <i class="fas fa-user"></i>
+                    <span>Profile</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" asp-controller="Portfolio" asp-action="ManagePortfolio">
+                    <i class="fas fa-images"></i>
+                    <span>Portfolio</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" asp-controller="PortfolioItem" asp-action="ManagePortfolioItem">
+                    <i class="fas fa-images"></i>
+                    <span>Portfolio Items</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" asp-controller="Artist" asp-action="ManageServices">
+                    <i class="fas fa-spa"></i>
+                    <span>Services</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" asp-controller="Artist" asp-action="Appointments">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Appointments</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" asp-controller="Artist" asp-action="Earnings">
+                    <i class="fas fa-wallet"></i>
+                    <span>Earnings</span>
+                </a>
+            </li>
+            <li class="nav-item mt-4">
+                <form asp-area="Identity" asp-page="/Account/Logout" method="post">
+                    <button type="submit" class="nav-link text-start w-100">
+                        <i class="fas fa-sign-out-alt"></i>
+                        <span>Logout</span>
+                    </button>
+                </form>
+            </li>
+        </ul>
+    </div>
+
+    <div class="main-content" id="main-content">
+        @RenderBody()
+    </div>
+
+    <button class="toggle-btn" id="sidebarToggle">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Sidebar toggle functionality
+        document.getElementById('sidebarToggle').addEventListener('click', function () {
+            document.getElementById('sidebar').classList.toggle('sidebar-collapsed');
+            document.getElementById('main-content').classList.toggle('main-content-collapsed');
+        });
+
+        // Bootstrap 5 Tooltip Initialization (if you use tooltips)
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    </script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

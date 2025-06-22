@@ -1,0 +1,95 @@
+﻿@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - BeautyArtists</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="~/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" />
+
+    <!-- Custom Styles -->
+    <link href="~/css/site.css" rel="stylesheet" asp-append-version="true" />
+
+    <style>
+        /* Custom color scheme */
+        :root {
+            --gold: #d4af37;
+            --red-btn: #c0392b;
+            --bg-dark: #111;
+        }
+
+        body {
+            background: #000;
+            color: #eee;
+        }
+
+        .navbar, .footer {
+            background: var(--bg-dark);
+        }
+
+        .text-gold {
+            color: var(--gold);
+        }
+
+        .btn-danger-custom {
+            background: var(--red-btn);
+            color: #fff;
+            border: none;
+        }
+
+            .btn-danger-custom:hover {
+                background: darken(var(--red-btn), 10%);
+            }
+
+        .border-gold {
+            border: 2px solid var(--gold) !important;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container">
+                <a class="navbar-brand text-gold" asp-controller="Home" asp-action="Index">BeautyArtists</a>
+                <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navMenu">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navMenu">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Home</a></li>
+                        <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="About">About</a></li>
+                        <li class="nav-item"><a class="nav-link" asp-controller="Services" asp-action="Index">Services</a></li>
+                        <li class="nav-item"><a class="nav-link" asp-controller="CustomerPortfolio" asp-action="Index">Portfolios</a></li>
+                        <li class="nav-item"><a class="nav-link" asp-controller="Booking" asp-action="Book">Book</a></li>
+                        <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="BrowseArtists">Browse Artists</a></li>
+
+                    </ul>
+                    <partial name="_LoginPartial" />
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid px-0">
+        @RenderBody()
+    </div>
+
+    <footer class="footer py-4 mt-5">
+        <div class="container text-center">
+            <p class="mb-1 text-gold">&copy; 2025 BeautyArtists</p>
+            <p><a class="text-light" asp-controller="Home" asp-action="Contact">Contact Us</a></p>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @RenderSection("Scripts", required: false)
+</body>
+</html>

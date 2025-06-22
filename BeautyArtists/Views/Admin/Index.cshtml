@@ -1,0 +1,58 @@
+﻿@model BeautyArtists.Models.ViewModels.AdminDashboardViewModel
+@{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<h2>Admin Dashboard</h2>
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card card-red p-4">
+            <h4>Total Users</h4>
+            <p class="display-6">@Model.TotalUsers</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-red p-4">
+            <h4>Total Artists</h4>
+            <p class="display-6">@Model.TotalArtists</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-red p-4">
+            <h4>Total Customers</h4>
+            <p class="display-6">@Model.TotalCustomers</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-red p-4">
+            <h4>Total Bookings</h4>
+            <p class="display-6">@Model.TotalBookings</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-red p-4">
+            <h4>Total Revenue</h4>
+            <p class="display-6">R @Model.TotalRevenue.ToString("N2")</p>
+        </div>
+    </div>
+</div><p>Total Revenue: @Model.TotalRevenue</p>
+
+<h3>Revenue per Artist</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Artist ID</th>
+            <th>Total Revenue</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var artist in Model.RevenuePerArtist)
+        {
+            <tr>
+                <td>@artist.ArtistId</td>
+                <td>@artist.TotalRevenue</td>
+            </tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,33 @@
+﻿@model IEnumerable<BeautyArtists.Models.UserService>
+@{
+    ViewData["Title"] = "My Services";
+}
+
+<h2>My Services</h2>
+
+<a asp-action="Create" class="btn btn-primary">Add Service</a>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Service</th>
+            <th>Price</th>
+            <th>Description</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Service?.Name</td>
+                <td>@item.Price.ToString("C")</td>
+                <td>@item.CustomDescription</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.Id">Edit</a> |
+                    <a asp-action="Delete" asp-route-id="@item.Id">Delete</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

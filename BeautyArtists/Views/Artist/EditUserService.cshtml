@@ -1,0 +1,77 @@
+﻿@model BeautyArtists.Models.ViewModels.EditUserServiceViewModel
+
+@{
+    ViewData["Title"] = "Edit Service Pricing";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+}
+
+<div class="container mt-5">
+    <h1 class="text-warning fw-bold">@Model.ServiceName</h1>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <form asp-action="EditUserService" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="Id" />
+
+        <div class="mb-3">
+            <label class="form-label text-light">Base Price</label>
+            <input class="form-control" value="@($"R{Model.BasePrice:F2}")" readonly />
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Price" class="form-label text-light"></label>
+            <input asp-for="Price" class="form-control" id="priceInput" />
+            <span asp-validation-for="Price" class="text-danger"></span>
+            <div id="priceWarning" class="text-danger mt-1" style="display:none;">Price must be greater than zero.</div>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Duration" class="form-label text-light"></label>
+            <select asp-for="Duration" class="form-select">
+                <option value="">-- Select Duration --</option>
+                <option value="15" selected="@(Model.Duration == 15)">15 min</option>
+                <option value="30" selected="@(Model.Duration == 30)">30 min</option>
+                <option value="45" selected="@(Model.Duration == 45)">45 min</option>
+                <option value="60" selected="@(Model.Duration == 60)">60 min</option>
+                <option value="90" selected="@(Model.Duration == 90)">90 min</option>
+            </select>
+            <span asp-validation-for="Duration" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="CustomDescription" class="form-label text-light"></label>
+            <textarea asp-for="CustomDescription" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="CustomDescription" class="text-danger"></span>
+        </div>
+
+        <div class="form-check form-switch mb-3">
+            <input asp-for="IsActive" class="form-check-input" type="checkbox" role="switch" />
+            <label asp-for="IsActive" class="form-check-label text-light"></label>
+        </div>
+
+        <button type="submit" class="btn btn-warning text-dark">Save Changes</button>
+        <a asp-action="ManageServices" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.getElementById('priceInput').addEventListener('input', function () {
+            const price = parseFloat(this.value);
+            const warning = document.getElementById('priceWarning');
+            if (isNaN(price) || price <= 0) {
+                warning.style.display = 'block';
+            } else {
+                warning.style.display = 'none';
+            }
+        });
+    </script>
+}

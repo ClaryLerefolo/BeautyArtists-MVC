@@ -1,0 +1,52 @@
+﻿@model BeautyArtists.Models.ArtistProfile
+@{
+    ViewData["Title"] = "My Profile";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+
+}
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-4">
+            <img src="@(!string.IsNullOrEmpty(Model.ProfilePictureUrl) ? Model.ProfilePictureUrl : "/images/default-profile.png")"
+                 class="img-fluid rounded-circle mb-3"
+                 style="width: 200px; height: 200px; object-fit: cover;" />
+        </div>
+        <div class="col-md-8">
+            <h2>@Model.FullName</h2>
+            <p><strong>Bio:</strong> @Model.Bio</p>
+            <p><strong>Experience:</strong> @Model.YearsExperience years</p>
+            <p><strong>Location:</strong> @Model.Location</p>
+            <p><strong>Contact:</strong> @Model.ContactInfo</p>
+            @if (!string.IsNullOrEmpty(Model.InstagramUrl))
+            {
+                <p><a href="@Model.InstagramUrl" target="_blank">Instagram</a></p>
+            }
+
+            <a asp-action="EditProfile" class="btn btn-primary mt-3">Edit Profile</a>
+        </div>
+    </div>
+</div>
+
+
+@section Styles {
+    <style>
+        .profile-display-card {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
+        .bio-content, .certifications {
+            white-space: pre-line;
+            line-height: 1.6;
+        }
+
+        .border-gold {
+            border-color: var(--bs-secondary) !important;
+        }
+
+        .social-links a {
+            min-width: 120px;
+        }
+    </style>
+}

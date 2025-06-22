@@ -1,0 +1,62 @@
+﻿/* 
+    -profile.css */
+
+.edit-profile-card {
+    background: linear-gradient(135deg, #111, #222);
+    border: 2px solid #d4af37; /* Gold */
+    box-shadow: 0 10px 25px rgba(212, 175, 55, 0.6);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.form-label.text-gold {
+    color: #d4af37;
+    letter-spacing: 0.05em;
+}
+
+input.form-control,
+textarea.form-control {
+    border-width: 2px;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+    input.form-control:focus,
+    textarea.form-control:focus {
+        border-color: #f5d061;
+        box-shadow: 0 0 8px #f5d061aa;
+        background-color: #111 !important;
+        color: #fff !important;
+    }
+
+.btn-gold {
+    background-color: #d4af37;
+    color: #111;
+    transition: background-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+}
+
+    .btn-gold:hover,
+    .btn-gold:focus {
+        background-color: #b38f1b;
+        color: #fff;
+        box-shadow: 0 0 15px #d4af37;
+    }
+
+.img-thumbnail {
+    border: 2px solid #d4af37;
+    background-color: #222;
+}
+
+.fst-italic {
+    font-style: italic;
+}
+
+@media (max-width: 576px) {
+    .edit-profile-card {
+        padding: 2rem 1.5rem;
+        border-width: 1.5px;
+    }
+
+    .btn-gold {
+        font-size: 1.15rem;
+        padding: 1rem 0;
+    }
+}

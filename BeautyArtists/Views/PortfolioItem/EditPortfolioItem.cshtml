@@ -1,0 +1,105 @@
+﻿@model BeautyArtists.Models.ViewModels.PortfolioItemViewModel
+@{
+    ViewData["Title"] = "Edit Portfolio Item";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<form asp-action="EditPortfolioItem"
+      asp-route-id="@Model.Id"
+      enctype="multipart/form-data"
+      novalidate>
+    <input type="hidden" asp-for="Id" />
+
+    @* ——— Portfolio & Category dropdowns ——— *@
+    <div class="mb-3">
+        <label asp-for="PortfolioId" class="form-label"></label>
+        <select asp-for="PortfolioId"
+                asp-items="Model.PortfoliosSelectList"
+                class="form-select">
+        </select>
+        <span asp-validation-for="PortfolioId" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="CategoryId" class="form-label"></label>
+        <select asp-for="CategoryId"
+                asp-items="Model.Categories"
+                class="form-select">
+        </select>
+        <span asp-validation-for="CategoryId" class="text-danger"></span>
+    </div>
+
+    @* ——— Main fields ——— *@
+    <div class="mb-3">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" />
+        <span asp-validation-for="Title" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+
+    @* ——— Existing media preview ——— *@
+    @if (!string.IsNullOrWhiteSpace(Model.ExistingMediaUrl))
+    {
+        <div class="mb-3">
+            <label class="form-label">Current Media</label><br />
+            @if (Model.MediaType == "Image")
+            {
+                <img src="@Model.ExistingMediaUrl" style="max-width:200px;" class="img-thumbnail" />
+            }
+            else
+            {
+                <video src="@Model.ExistingMediaUrl" style="max-width:200px;" controls></video>
+            }
+        </div>
+    }
+
+    <div class="row g-3 mb-3">
+        <div class="col">
+            <label asp-for="MediaFile" class="form-label">Replace Media</label>
+            <input asp-for="MediaFile" type="file" class="form-control" accept="image/*,video/*" />
+            <span asp-validation-for="MediaFile" class="text-danger"></span>
+        </div>
+        <div class="col">
+            <label asp-for="ThumbnailFile" class="form-label">Replace Thumbnail</label>
+            <input asp-for="ThumbnailFile" type="file" class="form-control" accept="image/*" />
+            <span asp-validation-for="ThumbnailFile" class="text-danger"></span>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <label asp-for="DisplayOrder" class="form-label"></label>
+            <input asp-for="DisplayOrder" class="form-control" />
+            <span asp-validation-for="DisplayOrder" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="MediaType" class="form-label"></label>
+            <select asp-for="MediaType" class="form-select">
+                <option value="Image">Image</option>
+                <option value="Video">Video</option>
+            </select>
+            <span asp-validation-for="MediaType" class="text-danger"></span>
+        </div>
+        <div class="col-md-4 d-flex align-items-center">
+            <div class="form-check mt-4">
+                <input asp-for="IsFeatured" class="form-check-input" />
+                <label asp-for="IsFeatured" class="form-check-label"></label>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Update</button>
+    <a asp-action="ManagePortfolioItem" class="btn btn-secondary ms-2">Cancel</a>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

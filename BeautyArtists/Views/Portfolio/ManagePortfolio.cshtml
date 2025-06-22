@@ -1,0 +1,95 @@
+﻿@model IEnumerable<BeautyArtists.Models.Portfolio>
+
+@{
+    ViewData["Title"] = "Manage Your Portfolios";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+}
+
+<h1 class="text-gold mb-4">Manage Your Portfolios</h1>
+
+<p>
+    <a asp-action="CreatePortfolio" class="btn btn-danger">Create New Portfolio</a>
+</p>
+
+@if (Model != null && Model.Any())
+{
+    <div class="table-responsive">
+        <table class="table table-dark table-bordered table-hover align-middle">
+            <thead class="table-gold">
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.Name</td>
+                        <td>@item.Description</td>
+                        <td>@item.CreatedAt.ToString("dd MMM yyyy")</td>
+                        <td>
+                            <a asp-action="DetailsPortfolio" asp-route-id="@item.Id" class="btn btn-outline-info btn-sm me-1">Details</a>
+                            <a asp-action="EditPortfolio" asp-route-id="@item.Id" class="btn btn-outline-warning btn-sm me-1">Edit</a>
+                            <button class="btn btn-outline-danger btn-sm"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#deletePortfolioModal"
+                                    data-id="@item.Id"
+                                    data-name="@item.Name">
+                                Delete
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="alert alert-info text-dark">
+        You don't have any portfolios yet. Click <strong>"Create New Portfolio"</strong> to get started!
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deletePortfolioModal" tabindex="-1" aria-labelledby="deletePortfolioModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-light border-gold">
+            <div class="modal-header border-bottom-gold">
+                <h5 class="modal-title" id="deletePortfolioModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete the portfolio "<strong id="portfolioName"></strong>"? This action cannot be undone.
+            </div>
+            <div class="modal-footer border-top-gold">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" asp-action="DeletePortfolio" method="post">
+                    <input type="hidden" name="id" id="portfolioIdToDelete" />
+                    <button type="submit" class="btn btn-danger">Delete Portfolio</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var deletePortfolioModal = document.getElementById('deletePortfolioModal');
+            if (deletePortfolioModal) {
+                deletePortfolioModal.addEventListener('show.bs.modal', function (event) {
+                    var button = event.relatedTarget;
+                    var portfolioId = button.getAttribute('data-id');
+                    var portfolioName = button.getAttribute('data-name');
+
+                    deletePortfolioModal.querySelector('#portfolioName').textContent = portfolioName;
+                    deletePortfolioModal.querySelector('#portfolioIdToDelete').value = portfolioId;
+                });
+            }
+        });
+    </script>
+}

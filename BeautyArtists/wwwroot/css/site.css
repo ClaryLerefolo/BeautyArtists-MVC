@@ -1,0 +1,30 @@
+.card-service {
+    background-color: #7b0000;
+    color: #fff;
+    border: 2px solid #FFD700;
+    border-radius: 10px;
+    transition: transform 0.3s;
+}
+
+    .card-service:hover {
+        transform: scale(1.02);
+        box-shadow: 0 0 15px #FFD700;
+    }
+
+.text-gold {
+    color: #FFD700 !important;
+}
+
+.border-gold {
+    border: 2px solid #FFD700 !important;
+}
+
+.btn-danger-custom {
+    background: #b30000;
+    color: #fff;
+    border: none;
+}
+
+    .btn-danger-custom:hover {
+        background: #990000;
+    }

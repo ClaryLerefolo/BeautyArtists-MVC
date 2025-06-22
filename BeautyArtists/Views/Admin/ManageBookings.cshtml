@@ -1,0 +1,64 @@
+﻿@model IEnumerable<BeautyArtists.Models.Booking>
+
+@{
+    ViewData["Title"] = "Manage Bookings";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+
+}
+
+<h2>Manage Bookings</h2>
+
+<!-- Search Form -->
+<form method="get" asp-action="ManageBookings">
+    <div class="form-group">
+        <input type="text" name="search" class="form-control" placeholder="Search by customer, artist, or service" value="@Context.Request.Query["search"]" />
+    </div>
+    <button type="submit" class="btn btn-primary">Search</button>
+</form>
+
+<hr />
+
+<!-- Booking List -->
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Customer</th>
+            <th>Artist</th>
+            <th>Service</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var booking in Model)
+        {
+            <tr>
+                <td>@booking.Customer.FullName</td>
+                <td>@booking.UserService.Artist.FullName</td>
+                <td>@booking.UserService.Service.Name</td>
+                <td>@booking.UserService.Price</td>
+                <td>@booking.Status</td>
+                <td>
+                    <!-- View Details -->
+                    <a href="@Url.Action("BookingDetails", new { id = booking.Id })" class="btn btn-info btn-sm">View</a>
+
+                    <!-- Delete Booking -->
+                    <form method="post" asp-action="DeleteBooking" asp-route-id="@booking.Id" class="d-inline-block" onsubmit="return confirm('Are you sure you want to delete this booking?');">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<!-- Show success or error message -->
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success mt-2">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger mt-2">@TempData["Error"]</div>
+}

@@ -1,0 +1,143 @@
+﻿@model List<BeautyArtists.Models.Service>
+@{
+    ViewData["Title"] = "Select Services";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+    var selectedIds = ViewBag.SelectedServiceIds as HashSet<int>;
+    var userServices = ViewBag.UserServices as List<BeautyArtists.Models.UserService>;
+}
+
+<div class="container mt-5">
+    <h2 class="text-primary mb-4">Available Services</h2>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        @foreach (var service in Model)
+        {
+            var isSelected = selectedIds.Contains(service.Id);
+            var userService = userServices.FirstOrDefault(us => us.ServiceId == service.Id);
+            <div class="col">
+                <div class="card h-100 @(isSelected ? "border-success" : "")">
+                    <div class="card-body">
+                        <h5 class="card-title">@service.Name</h5>
+                        <p class="card-text">@service.Description</p>
+
+                        @if (isSelected)
+                        {
+                            <p class="text-success">Already Added</p>
+                            <p><strong>Price:</strong> R @userService.Price.ToString("N2")</p>
+                            @if (!string.IsNullOrEmpty(userService.CustomDescription))
+                            {
+                                <p><strong>Your Description:</strong> @userService.CustomDescription</p>
+                            }
+                            <button class="btn btn-outline-primary btn-sm edit-btn"
+                                    data-id="@userService.Id"
+                                    data-service-name="@service.Name"
+                                    data-price="@userService.Price"
+                                    data-description="@userService.CustomDescription">
+                                Edit
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm remove-btn" data-id="@userService.Id">Remove</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-success btn-sm select-btn" data-id="@service.Id" data-name="@service.Name">Select</button>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal fade" id="serviceModal" tabindex="-1" aria-labelledby="serviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="serviceForm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-primary" id="serviceModalLabel">Add Service</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="serviceId" />
+                    <input type="hidden" id="userServiceId" />
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Price (R)</label>
+                        <input type="number" class="form-control" id="price" required min="1" step="0.01" />
+                    </div>
+                    <div class="mb-3">
+                        <label for="customDescription" class="form-label">Custom Description (optional)</label>
+                        <textarea class="form-control" id="customDescription" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary">Save Service</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const serviceModal = new bootstrap.Modal(document.getElementById('serviceModal'));
+
+        document.querySelectorAll('.select-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('serviceId').value = btn.dataset.id;
+                document.getElementById('userServiceId').value = '';
+                document.getElementById('price').value = '';
+                document.getElementById('customDescription').value = '';
+                document.getElementById('serviceModalLabel').innerText = `Add ${btn.dataset.name}`;
+                serviceModal.show();
+            });
+        });
+
+        document.querySelectorAll('.edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('serviceId').value = '';
+                document.getElementById('userServiceId').value = btn.dataset.id;
+                document.getElementById('price').value = btn.dataset.price;
+                document.getElementById('customDescription').value = btn.dataset.description || '';
+                document.getElementById('serviceModalLabel').innerText = `Edit ${btn.dataset.serviceName}`;
+                serviceModal.show();
+            });
+        });
+
+        document.querySelectorAll('.remove-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.id;
+                if (confirm("Remove this service from your list?")) {
+                    fetch('/Artist/RemoveUserService', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                        },
+                        body: JSON.stringify({ userServiceId: id })
+                    }).then(() => location.reload());
+                }
+            });
+        });
+
+        document.getElementById('serviceForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const serviceId = document.getElementById('serviceId').value;
+            const userServiceId = document.getElementById('userServiceId').value;
+            const price = parseFloat(document.getElementById('price').value);
+            const customDescription = document.getElementById('customDescription').value;
+
+            const url = userServiceId ? '/Artist/UpdateUserService' : '/Artist/AddServiceToArtist';
+            const data = userServiceId
+                ? { userServiceId: parseInt(userServiceId), price, customDescription }
+                : { serviceId: parseInt(serviceId), price, customDescription };
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val()
+                },
+                body: JSON.stringify(data)
+            }).then(() => location.reload());
+        });
+    </script>
+}

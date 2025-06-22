@@ -1,0 +1,46 @@
+﻿@model List<BeautyArtists.Models.Service>
+@{
+    ViewData["Title"] = "Manage Services";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="container mt-5">
+    <h1 class="text-warning fw-bold mb-4">Service Management</h1>
+
+    <a class="btn btn-danger mb-3" asp-action="CreateService">Add New Service</a>
+
+    <table class="table table-dark table-bordered table-hover">
+        <thead class="table-light">
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Duration</th>
+                <th>Base Price</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+
+            @using System.Globalization
+
+            @foreach (var service in Model)
+            {
+                <tr>
+                    <td class="text-warning">@service.Name</td>
+                    <td>@service.Description</td>
+                    <td>@service.Category?.Name</td>
+                    <td>@service.Duration</td>
+                    <td>@service.BasePrice.ToString("C", new CultureInfo("en-ZA"))</td>
+                    <td>
+                        <a class="btn btn-sm btn-warning text-dark" asp-action="EditService" asp-route-id="@service.Id">Edit</a>
+                        <form asp-action="DeleteService" asp-route-id="@service.Id" method="post" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this service?');">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+ 

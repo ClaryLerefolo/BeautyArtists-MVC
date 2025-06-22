@@ -1,0 +1,29 @@
+﻿@model List<BeautyArtists.Models.UserService>
+@{
+    ViewData["Title"] = "Book a Service";
+}
+
+<h2 class="text-gold mb-4">Available Beauty Services</h2>
+
+<div class="row">
+    @foreach (var item in Model)
+    {
+        var artistName = item.Artist.ArtistProfile?.FullName
+        ?? $"{item.Artist.FirstName} {item.Artist.LastName}"
+        ?? item.Artist.UserName;
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm border-gold bg-dark text-light">
+                <div class="card-body">
+                    <h5 class="card-title">@item.Service.Name</h5>
+                    <p class="card-text">@item.Service.Description</p>
+                    <p><strong>Artist:</strong> @artistName</p>
+                    <p><strong>Price:</strong> R@item.Price</p>
+                    <a asp-controller="Booking" asp-action="BookService" asp-route-userServiceId="@item.Id" class="btn btn-danger">
+                        Book Now
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,91 @@
+﻿@model IEnumerable<BeautyArtists.Models.PortfolioItem>
+@{
+    ViewData["Title"] = "Your Portfolio Items";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<!-- Filter Form -->
+<form class="row g-2 mb-4" asp-action="ManagePortfolioItem" method="get">
+    <div class="col-md-4">
+        <select name="portfolioId" class="form-select">
+            <option value="">-- Filter by Portfolio --</option>
+            @foreach (var portfolio in ViewBag.Portfolios as List<SelectListItem>)
+            {
+                <option value="@portfolio.Value" selected="@(portfolio.Selected ? "selected" : null)">
+                    @portfolio.Text
+                </option>
+            }
+        </select>
+    </div>
+    <div class="col-md-4">
+        <select name="categoryId" class="form-select">
+            <option value="">-- Filter by Category --</option>
+            @foreach (var category in ViewBag.Categories as List<SelectListItem>)
+            {
+                <option value="@category.Value" selected="@(category.Selected ? "selected" : null)">
+                    @category.Text
+                </option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-primary w-100">Filter</button>
+    </div>
+    <div class="col-md-2">
+        <a asp-action="CreatePortfolioItem" class="btn btn-success w-100">Add New</a>
+    </div>
+</form>
+
+<!-- No Items Message -->
+@if (!Model.Any())
+{
+    <div class="alert alert-warning">No portfolio items found.</div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
+        @foreach (var item in Model)
+        {
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    <!-- Media Preview -->
+                    @if (item.MediaType == "Image")
+                    {
+                        <img src="@Url.Content(item.ThumbnailUrl ?? item.MediaUrl)"
+                             class="card-img-top"
+                             alt="@item.Title"
+                             style="object-fit:cover;height:200px;width:100%" />
+                    }
+                    else
+                    {
+                        <video src="@Url.Content(item.ThumbnailUrl ?? item.MediaUrl)"
+                               class="card-img-top"
+                               style="object-fit:cover;height:200px;width:100%"
+                               muted autoplay loop playsinline>
+                            Your browser does not support the video tag.
+                        </video>
+                    }
+
+                    <!-- Card Content -->
+                    <div class="card-body">
+                        <h6 class="card-title mb-1">@item.Title</h6>
+                        <p class="card-text small text-muted">@item.Category?.Name</p>
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="EditPortfolioItem" asp-route-id="@item.Id"
+                               class="btn btn-sm btn-warning">Edit</a>
+                            <a asp-action="DetailsPortfolioItem" asp-route-id="@item.Id"
+                               class="btn btn-sm btn-info">View</a>
+                            <form asp-action="DeletePortfolioItem" asp-route-id="@item.Id"
+                                  method="post" class="d-inline"
+                                  onsubmit="return confirm('Are you sure you want to delete this item?');">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

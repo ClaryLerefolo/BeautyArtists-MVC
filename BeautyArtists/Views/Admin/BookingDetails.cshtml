@@ -1,0 +1,49 @@
+﻿@model BeautyArtists.Models.Booking
+
+@{
+    ViewData["Title"] = "Booking Details";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+
+}
+
+<h2>@Model.UserService.Service.Name</h2>
+
+<p><strong>Customer:</strong> @Model.Customer.FullName</p>
+<p><strong>Artist:</strong> @Model.UserService.Artist.FullName</p>
+<p><strong>Service:</strong> @Model.UserService.Service.Name</p>
+<p><strong>Price:</strong> @Model.UserService.Price</p>
+<p><strong>Status:</strong> @Model.Status.ToString()</p>
+
+<hr />
+
+<!-- Form to update the booking status -->
+<form asp-action="UpdateBookingStatus" method="post">
+    <input type="hidden" name="bookingId" value="@Model.Id" />
+
+    <div class="form-group">
+        <label for="Status">Booking Status</label>
+        <select class="form-control" id="Status" name="status">
+            @foreach (var status in Enum.GetValues(typeof(BeautyArtists.Models.Booking.BookingStatus)))
+            {
+                var statusString = status.ToString();
+                var isSelected = statusString == Model.Status.ToString();
+
+                <option value="@statusString" selected="@(isSelected ? "selected" : null)">
+                    @statusString
+                </option>
+            }
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary mt-2">Update Status</button>
+</form>
+
+<!-- Show success or error message -->
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success mt-2">@TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger mt-2">@TempData["Error"]</div>
+}

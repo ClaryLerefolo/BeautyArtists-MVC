@@ -1,0 +1,29 @@
+﻿@model BeautyArtists.Models.ViewModels.UserManagementViewModel
+
+@{
+    ViewData["Title"] = "User Details";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="container mt-5">
+    <h1 class="text-warning fw-bold mb-4">User Details</h1>
+
+    <div class="card">
+        <div class="card-header bg-warning text-dark">
+            <h5>User Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Full Name:</strong> @Model.FullName</p>
+                    <p><strong>Email:</strong> @Model.Email</p>
+                    <p><strong>Role:</strong> @Model.Role</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        <a href="@Url.Action("ManageUsers", "Admin")" class="btn btn-secondary">Back to User Management</a>
+    </div>
+</div>

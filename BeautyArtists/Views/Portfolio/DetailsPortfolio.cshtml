@@ -1,0 +1,48 @@
+﻿@model BeautyArtists.Models.ViewModels.PortfolioDetailsViewModel
+
+@{
+    ViewData["Title"] = "Portfolio Details";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+
+}
+
+<h1>Portfolio Details</h1>
+
+
+
+<div>
+    <h4>Portfolio Details</h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.Name)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Name)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.Description)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Description)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.CreatedAt)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.CreatedAt)
+        </dd>
+    </dl>
+</div>
+
+
+<div>
+    <a asp-action="EditPortfolio" asp-route-id="@Model.Id" class="btn btn-secondary">Edit</a> |
+    <a asp-action="ManagePortfolio" class="btn btn-info">Back to List</a>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

@@ -1,0 +1,79 @@
+﻿@model IEnumerable<BeautyArtists.Models.PortfolioItem>
+
+
+
+@{
+    ViewData["Title"] = "Browse Portfolio Items";
+    var selectedArtist = ViewBag.SelectedArtist as string;
+    var selectedCategory = ViewBag.SelectedCategory as int?;
+    var featuredOnly = ViewBag.FeaturedOnly as bool? ?? false;
+    var artists = ViewBag.Artists as List<SelectListItem> ?? new List<SelectListItem>();
+    var categories = ViewBag.Categories as List<SelectListItem> ?? new List<SelectListItem>();
+}
+
+<h2>Portfolio Items</h2>
+
+<form method="get" class="mb-4">
+    <div class="row g-2">
+        <div class="col-md-3">
+            <select name="artistId" class="form-select" onchange="this.form.submit()">
+                <option value="">All Artists</option>
+                @foreach (var artist in artists)
+                {
+                    <option value="@artist.Value" selected="@(artist.Value == selectedArtist ? "selected" : null)">
+                        @artist.Text
+                    </option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="categoryId" class="form-select" onchange="this.form.submit()">
+                <option value="">All Categories</option>
+                @foreach (var category in categories)
+                {
+                    <option value="@category.Value" selected="@(category.Value == selectedCategory?.ToString() ? "selected" : null)">
+                        @category.Text
+                    </option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="featuredOnly" id="featuredOnly" value="true" @(featuredOnly ? "checked" : null) onchange="this.form.submit()">
+                <label class="form-check-label" for="featuredOnly">Featured Only</label>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="row">
+    @foreach (var item in Model)
+    {
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                @if (item.MediaType == "Image")
+                {
+                    <img src="@item.MediaUrl" class="card-img-top" alt="@item.Title" />
+                }
+                else if (item.MediaType == "Video")
+                {
+                    <video class="card-img-top" controls>
+                        <source src="@item.MediaUrl" type="video/mp4" />
+                        Your browser does not support the video tag.
+                    </video>
+                }
+                <div class="card-body">
+                    <h5 class="card-title">@item.Title</h5>
+                    <p class="card-text">@item.Description</p>
+                    <p class="card-subtitle text-muted">@item.Category?.Name</p>
+                    <p><strong>By:</strong> @item.Artist.ArtistProfile?.FullName ?? item.Artist.UserName</p>
+                    @if (item.IsFeatured)
+                    {
+                        <span class="badge bg-warning text-dark">Featured</span>
+                    }
+                    <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-primary mt-2">View Details</a>
+                </div>
+            </div>
+        </div>
+    }
+</div>

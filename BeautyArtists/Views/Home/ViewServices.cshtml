@@ -1,0 +1,35 @@
+﻿@model BeautyArtists.Models.ViewModels.ArtistServiceViewModel
+
+@{
+    ViewData["Title"] = $"{Model.FullName}'s Services";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container my-5">
+    <h1 class="text-center mb-4 text-gold">@Model.FullName</h1>
+    <p class="text-center">@Model.Location</p>
+
+    <div class="text-center mb-4">
+        <img src="@Model.ProfilePictureUrl" class="rounded-circle border-gold" style="width: 200px; height: 200px; object-fit: cover;" />
+    </div>
+
+    <h3 class="text-gold mb-4">Available Services</h3>
+
+    <div class="row">
+        @foreach (var service in Model.Services)
+        {
+            <div class="col-md-4 mb-4">
+                <div class="card card-service mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title text-gold">@service.ServiceName</h5>
+                        <p class="card-text text-gold">@service.Description</p>
+                        <p><strong>Category:</strong> <span class="text-gold">@service.Category</span></p>
+                        <p class="card-text fw-bold text-gold">@service.Price.ToString("C")</p>
+
+                        <a class="btn btn-danger-custom" asp-controller="Booking" asp-action="Book" asp-route-userServiceId="@service.UserServiceId">Book Now</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

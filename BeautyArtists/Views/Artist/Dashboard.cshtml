@@ -1,0 +1,168 @@
+﻿@model BeautyArtists.Models.ViewModels.ArtistDashboardViewModel
+@{
+    ViewData["Title"] = "Artist Dashboard";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+}
+
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="text-gold mb-0">Welcome back, @Model.ArtistName!</h2>
+            <p class="text-muted">Your beauty artistry dashboard</p>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-dark text-white shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-uppercase text-gold mb-0">Upcoming Appointments</p>
+                            <h2 class="mb-0">@Model.UpcomingAppointments</h2>
+                        </div>
+                        <div class="icon-circle bg-gold">
+                            <i class="fas fa-calendar-alt text-dark"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-dark text-white shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-uppercase text-gold mb-0">Portfolio Items</p>
+                            <h2 class="mb-0">@Model.PortfolioItemsCount</h2>
+                        </div>
+                        <div class="icon-circle bg-gold">
+                            <i class="fas fa-images text-dark"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-dark text-white shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-uppercase text-gold mb-0">Services Offered</p>
+                            <h2 class="mb-0">@Model.ServicesCount</h2>
+                        </div>
+                        <div class="icon-circle bg-gold">
+                            <i class="fas fa-spa text-dark"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card bg-dark text-white shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-uppercase text-gold mb-0">This Month's Earnings</p>
+                            <h2 class="mb-0">R @Model.MonthlyEarnings</h2>
+                        </div>
+                        <div class="icon-circle bg-gold">
+                            <i class="fas fa-wallet text-dark"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-dark shadow-sm">
+                <div class="card-header bg-black text-gold">
+                    <h6 class="mb-0">Quick Actions</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <a asp-action="
+Profile" class="btn btn-gold btn-block py-3">
+                                <i class="fas fa-user-edit fa-2x mb-2"></i><br>
+                                Edit Profile
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3 mb-md-0">
+                            <a asp-action="ManagePortfolio" class="btn btn-gold btn-block py-3">
+                                <i class="fas fa-images fa-2x mb-2"></i><br>
+                                Manage Portfolio
+                            </a>
+                        </div>
+                        <div class="col-md-4">
+                            <a asp-action="ManageServices" class="btn btn-gold btn-block py-3">
+                                <i class="fas fa-spa fa-2x mb-2"></i><br>
+                                Manage Services
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Appointments -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-dark shadow-sm">
+                <div class="card-header bg-black text-gold d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Recent Appointments</h6>
+                    <a asp-action="Appointments" class="btn btn-sm btn-gold">View All</a>
+                </div>
+                <div class="card-body">
+                    @if (Model.RecentAppointments.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Client</th>
+                                        <th>Service</th>
+                                        <th>Date & Time</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var appointment in Model.RecentAppointments)
+                                    {
+                                        <tr>
+                                            <td>@appointment.ClientName</td>
+                                            <td>@appointment.ServiceName</td>
+                                            <td>@appointment.AppointmentDate.ToString("g")</td>
+                                            <td>
+                                                <span class="badge @(appointment.Status == "Confirmed" ? "bg-success" : "bg-warning text-dark")">
+                                                    @appointment.Status
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <a href="#" class="btn btn-sm btn-outline-gold">Details</a>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No recent appointments found.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+2. Artist Profile Edit (EditProfile.cshtml)

@@ -1,0 +1,29 @@
+﻿@model BeautyArtists.Models.UserService
+
+@{
+    ViewData["Title"] = "Create a Service";
+}
+
+<h2>@ViewData["Title"]</h2>
+
+<form asp-action="Create">
+    <div class="form-group">
+        <label asp-for="ServiceId" class="control-label"></label>
+        <select asp-for="ServiceId" class="form-control" asp-items="ViewBag.ServiceId">
+            <option value="">-- Select a Service --</option>
+        </select>
+        <span asp-validation-for="ServiceId" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="Price" class="control-label"></label>
+        <input asp-for="Price" class="form-control" />
+        <span asp-validation-for="Price" class="text-danger"></span>
+    </div>
+    <div class="form-group">
+        <label asp-for="CustomDescription" class="control-label"></label>
+        <textarea asp-for="CustomDescription" class="form-control"></textarea>
+        <span asp-validation-for="CustomDescription" class="text-danger"></span>
+    </div>
+    <button type="submit" class="btn btn-primary">Create</button>
+    <a asp-action="Index" class="btn btn-secondary">Back to List</a>
+</form>

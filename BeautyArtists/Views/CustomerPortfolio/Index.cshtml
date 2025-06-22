@@ -1,0 +1,51 @@
+﻿@model List<BeautyArtists.Models.Portfolio>
+@{
+    ViewData["Title"] = "Portfolios";
+}
+
+<h2 class="text-gold mb-4">Browse Artist Portfolios</h2>
+
+<form method="get" class="mb-4 d-flex flex-wrap gap-2 align-items-end">
+    <div>
+        <label class="form-label">Artist</label>
+        <select name="artistId" asp-items="ViewBag.Artists" class="form-select">
+            <option value="">All Artists</option>
+        </select>
+    </div>
+
+    <div>
+        <label class="form-label">Category</label>
+        <select name="category" asp-items="ViewBag.Categories" class="form-select">
+            <option value="">All Categories</option>
+        </select>
+    </div>
+
+    <div class="form-check align-self-center mt-3">
+        <input type="checkbox" name="featured" value="true" class="form-check-input" id="featuredCheck" />
+        <label class="form-check-label" for="featuredCheck">Featured Only</label>
+    </div>
+
+    <div>
+        <button type="submit" class="btn btn-primary mt-3">Filter</button>
+    </div>
+</form>
+
+<div class="row">
+    @foreach (var portfolio in Model)
+    {
+        var artistName = portfolio.Artist.ArtistProfile?.FullName
+        ?? portfolio.Artist.UserName
+        ?? "Unknown Artist";
+
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm border border-gold bg-dark text-light">
+                <div class="card-body">
+                    <h5 class="card-title">@portfolio.Name</h5>
+                    <p class="card-text">@portfolio.Description</p>
+                    <p class="card-subtitle text-muted">By: @artistName</p>
+                    <a asp-action="Details" asp-route-id="@portfolio.Id" class="btn btn-danger mt-2">View Portfolio</a>
+                </div>
+            </div>
+        </div>
+    }
+</div>

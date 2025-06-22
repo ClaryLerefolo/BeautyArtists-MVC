@@ -1,0 +1,75 @@
+﻿@model BeautyArtists.Models.Portfolio
+
+@{
+    ViewData["Title"] = Model.Name;
+
+    var artistName = Model.Artist.ArtistProfile?.FullName
+                     ?? (!string.IsNullOrWhiteSpace(Model.Artist.FirstName + Model.Artist.LastName)
+                         ? $"{Model.Artist.FirstName} {Model.Artist.LastName}"
+                         : null)
+                     ?? Model.Artist.UserName
+                     ?? Model.Artist.Email
+                     ?? "Unknown Artist";
+}
+
+<h2>@Model.Name</h2>
+<p class="text-muted">@Model.Description</p>
+<p><strong>Artist:</strong> @artistName</p>
+
+<hr class="my-4" />
+<h4>Portfolio Items</h4>
+
+@if (Model.Items == null || !Model.Items.Any())
+{
+    <p class="text-muted">This portfolio currently has no items.</p>
+}
+else
+{
+    <div class="row mt-3">
+        @foreach (var item in Model.Items.OrderBy(i => i.DisplayOrder))
+        {
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    @if (item.MediaType == "Image")
+                    {
+                        <img src="@item.MediaUrl" class="card-img-top" alt="@(item.Title ?? "Portfolio Image")" />
+                    }
+                    else if (item.MediaType == "Video")
+                    {
+                        <video class="card-img-top" controls>
+                            <source src="@item.MediaUrl" type="video/mp4" />
+                            Your browser does not support the video tag.
+                        </video>
+                    }
+
+                    <div class="card-body">
+                        <h5 class="card-title">@item.Title</h5>
+                        <p class="card-text">@item.Description</p>
+
+                        @if (!string.IsNullOrWhiteSpace(item.Category?.Name))
+                        {
+                            <span class="badge bg-secondary">@item.Category.Name</span>
+                        }
+
+                        @if (item.IsFeatured)
+                        {
+                            <span class="badge bg-warning text-dark">Featured</span>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(item.Location))
+                        {
+                            <p><strong>Location:</strong> @item.Location</p>
+                        }
+
+                        @if (!string.IsNullOrWhiteSpace(item.ClientName))
+                        {
+                            <p><strong>Client:</strong> @item.ClientName</p>
+                        }
+
+                        <a asp-action="Details" asp-controller="CustomerPortfolio" asp-route-id="@item.Id" class="btn btn-outline-primary mt-2">View Details</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}

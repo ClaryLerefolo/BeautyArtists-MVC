@@ -1,0 +1,35 @@
+﻿@model IEnumerable<BeautyArtists.Models.ViewModels.BrowseArtistViewModel>
+
+@{
+    ViewData["Title"] = "Browse Artists";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container my-5">
+    <h1 class="text-gold text-center mb-5">Browse Beauty Artists</h1>
+
+    <div class="row">
+        @foreach (var artist in Model)
+        {
+            <div class="col-md-4 mb-4">
+                <div class="card card-service text-center">
+                    <div class="card-body">
+                        <img src="@artist.ProfilePictureUrl" class="rounded-circle border-gold mb-3" style="width:150px;height:150px;object-fit:cover;" />
+
+                        <h5 class="text-gold">@artist.FullName</h5>
+                        <p class="text-gold">@artist.Location</p>
+
+                        <ul class="list-unstyled text-gold">
+                            @foreach (var service in artist.Services)
+                            {
+                                <li>@service</li>
+                            }
+                        </ul>
+
+                        <a class="btn btn-danger-custom" asp-action="ViewServices" asp-route-artistId="@artist.ArtistId">View Services</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

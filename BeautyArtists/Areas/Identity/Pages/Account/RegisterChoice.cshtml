@@ -1,0 +1,23 @@
+﻿@page
+@model BeautyArtists.Areas.Identity.Pages.Account.RegisterChoiceModel
+@{
+}
+
+<h2>Select Registration Type</h2>
+
+@if (User.Identity?.IsAuthenticated ?? false)
+{
+    <p>You are already logged in!</p>
+}
+else
+{
+    <div style="display: flex; gap: 20px;">
+        <form method="get" asp-page="/Account/RegisterClient">
+            <button type="submit" class="btn btn-primary">Register as Client</button>
+        </form>
+
+        <form method="get" asp-page="/Account/RegisterArtist">
+            <button type="submit" class="btn btn-success">Register as Artist</button>
+        </form>
+    </div>
+}

@@ -1,0 +1,22 @@
+﻿@model IEnumerable<BeautyArtists.Models.UserService>
+
+<h2>My Services</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Service Name</th>
+            <th>Price</th>
+            <th>Custom Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Service.Name</td>
+                <td>@item.Price.ToString("C")</td>
+                <td>@item.CustomDescription</td>
+            </tr>
+        }
+    </tbody>
+</table>

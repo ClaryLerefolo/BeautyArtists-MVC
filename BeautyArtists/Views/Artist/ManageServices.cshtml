@@ -1,0 +1,50 @@
+﻿@model IEnumerable<BeautyArtists.Models.UserService>
+
+@{
+    ViewData["Title"] = "My Services";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+}
+
+<div class="container mt-5">
+    <h2 class="text-warning mb-4">My Offered Services</h2>
+
+    <a class="btn btn-outline-warning mb-3" asp-action="AddService">+ Add New Service</a>
+
+    @if (!Model.Any())
+    {
+        <p class="text-light">You are not offering any services yet.</p>
+    }
+    else
+    {
+        <table class="table table-dark table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Category</th>
+                    <th>Duration</th>
+                    <th>Your Price (ZAR)</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var us in Model)
+                {
+                    <tr>
+                        <td>@us.Service?.Name</td>
+                        <td>@us.Service?.Description</td>
+                        <td>@us.Service?.Category?.Name</td>
+                        <td>@us.Duration</td>
+                        <td>R @us.Price</td>
+                        <td>
+                            <a asp-action="EditUserService" asp-route-id="@us.Id" class="btn btn-sm btn-warning text-dark">Edit</a>
+                            <form asp-action="DeleteUserService" asp-route-id="@us.Id" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this service?');">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

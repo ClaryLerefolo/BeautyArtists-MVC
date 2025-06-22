@@ -1,0 +1,15 @@
+﻿@model PortfolioItem
+
+@{
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+    ViewData["Title"] = "Delete Portfolio Item";
+}
+
+<h2 class="text-danger">Delete Confirmation</h2>
+<p>Are you sure you want to delete <strong>@Model.Title</strong>?</p>
+
+<form asp-action="DeleteConfirmed" method="post">
+    <input type="hidden" asp-for="Id" />
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>
