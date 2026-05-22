@@ -1,191 +1,395 @@
-﻿@model List<BeautyArtists.Models.ViewModels.UserManagementViewModel>
+﻿@model BeautyArtists.Models.ViewModels.UserManagementViewModel
+
+
+
 
 @{
     ViewData["Title"] = "Manage Users";
-    var searchTerm = Context.Request.Query["search"];
-    var roleFilter = Context.Request.Query["role"];
+    var searchTerm = Context.Request.Query["search"].ToString();
+    var roleFilter = Context.Request.Query["role"].ToString();
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    var filtered = Model.Users
+            .Where(u => string.IsNullOrEmpty(searchTerm) ||
+                   u.FullName.ToLower().Contains(searchTerm.ToLower()) ||
+                   u.Email.ToLower().Contains(searchTerm.ToLower()))
+            .Where(u => string.IsNullOrEmpty(roleFilter) || u.Role == roleFilter)
+            .OrderBy(u => u.Role)
+            .ToList();
+
+    int totalAdmins = Model.Users.Count(u => u.Role == "Admin");
+    int totalArtists = Model.Users.Count(u => u.Role == "Artist");
+    int totalClients = Model.Users.Count(u => u.Role == "Client");
 }
 
 @section Styles {
-    <style>
-        .badge-admin {
-            background-color: #8B0000;
-            color: white;
+<style>
+
+        .mu-btn-activate {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(40, 167, 69, 0.12);
+            color: #28a745;
+            border: 1px solid rgba(40, 167, 69, 0.25);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
         }
+    .mu-eyebrow {
+        font-size: 0.6rem; font-weight: 700; letter-spacing: 4px;
+        text-transform: uppercase; color: rgba(255,215,0,0.35);
+        display: block; margin-bottom: 4px;
+    }
+    .mu-heading {
+        font-size: 1.5rem; font-weight: 900; color: #FFD700;
+        margin: 0 0 24px;
+    }
 
-        .badge-artist {
-            background-color: #000;
-            color: gold;
-        }
+    /* ── MINI STATS ── */
+    .mu-stats {
+        display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .mu-stat {
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.1);
+        border-radius: 12px; padding: 14px 20px;
+        display: flex; align-items: center; gap: 12px;
+        min-width: 130px;
+    }
+    .mu-stat-icon {
+        width: 32px; height: 32px; border-radius: 8px;
+        background: rgba(255,215,0,0.08);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.9rem; color: #FFD700; flex-shrink: 0;
+    }
+    .mu-stat-num {
+        display: block; font-size: 1.3rem; font-weight: 900; color: #FFD700; line-height: 1;
+    }
+    .mu-stat-label {
+        display: block; font-size: 0.62rem; font-weight: 700;
+        letter-spacing: 2px; text-transform: uppercase;
+        color: rgba(255,255,255,0.3); margin-top: 2px;
+    }
 
-        .badge-client {
-            background-color: #333;
-            color: white;
-        }
+    /* ── FILTER BAR ── */
+    .mu-filter-bar {
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.1);
+        border-radius: 14px; padding: 16px 20px;
+        margin-bottom: 20px;
+        display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+    }
+    .mu-search-wrap {
+        flex: 1; min-width: 200px; position: relative;
+    }
+    .mu-search-wrap i {
+        position: absolute; left: 12px; top: 50%;
+        transform: translateY(-50%);
+        color: rgba(255,215,0,0.4); font-size: 0.85rem;
+        pointer-events: none;
+    }
+    .mu-search-input {
+        width: 100%; background: rgba(255,255,255,0.04) !important;
+        border: 1px solid rgba(255,215,0,0.15) !important;
+        border-radius: 8px !important; color: #fff !important;
+        padding: 8px 12px 8px 36px !important; font-size: 0.83rem;
+        transition: border-color 0.2s;
+    }
+    .mu-search-input:focus {
+        outline: none; border-color: rgba(255,215,0,0.4) !important;
+        background: rgba(255,215,0,0.03) !important;
+        box-shadow: none !important;
+    }
+    .mu-search-input::placeholder { color: rgba(255,255,255,0.25) !important; }
+    .mu-select {
+        background: rgba(255,255,255,0.04) !important;
+        border: 1px solid rgba(255,215,0,0.15) !important;
+        border-radius: 8px !important; color: #fff !important;
+        padding: 8px 14px !important; font-size: 0.83rem;
+        min-width: 140px;
+    }
+    .mu-select option { background: #111; color: #fff; }
+    .mu-filter-btn {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 8px 20px; border-radius: 8px;
+        background: linear-gradient(135deg, #b30000, #FFD700);
+        color: #000; font-weight: 800; font-size: 0.78rem;
+        letter-spacing: 1px; text-transform: uppercase;
+        border: none; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .mu-filter-btn:hover {
+        background: linear-gradient(135deg, #FFD700, #b30000);
+        box-shadow: 0 0 16px rgba(255,215,0,0.25);
+    }
+    .mu-danger-btn {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 8px 18px; border-radius: 8px;
+        background: rgba(179,0,0,0.15);
+        border: 1px solid rgba(179,0,0,0.3);
+        color: #ff6666; font-weight: 700; font-size: 0.78rem;
+        cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .mu-danger-btn:hover { background: rgba(179,0,0,0.3); color: #ff8888; }
 
-        .search-box {
-            position: relative;
-        }
+    /* ── TABLE ── */
+    .mu-table-wrap {
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.1);
+        border-radius: 16px; overflow: hidden;
+    }
+    .mu-table-header {
+        padding: 14px 20px;
+        border-bottom: 1px solid rgba(255,215,0,0.08);
+        display: flex; align-items: center; justify-content: space-between;
+    }
+    .mu-table-title {
+        font-size: 0.75rem; font-weight: 800; letter-spacing: 2px;
+        text-transform: uppercase; color: rgba(255,255,255,0.5);
+    }
+    .mu-table-title i { color: #FFD700; margin-right: 8px; }
+    .mu-count {
+        font-size: 0.7rem; color: rgba(255,255,255,0.25);
+        background: rgba(255,255,255,0.05);
+        border-radius: 20px; padding: 2px 10px;
+    }
+    .mu-table {
+        width: 100%; border-collapse: collapse;
+    }
+    .mu-table thead tr {
+        background: rgba(255,215,0,0.04);
+        border-bottom: 1px solid rgba(255,215,0,0.08);
+    }
+    .mu-table th {
+        padding: 11px 20px; font-size: 0.68rem; font-weight: 700;
+        letter-spacing: 2px; text-transform: uppercase;
+        color: rgba(255,215,0,0.4);
+    }
+    .mu-table td {
+        padding: 12px 20px; font-size: 0.83rem;
+        color: rgba(255,255,255,0.65);
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        vertical-align: middle;
+    }
+    .mu-table tr:last-child td { border-bottom: none; }
+    .mu-table tbody tr:hover td { background: rgba(255,215,0,0.02); }
+    .mu-name { color: #fff; font-weight: 600; }
+    .mu-email { color: rgba(255,255,255,0.4); font-size: 0.8rem; }
 
-            .search-box i {
-                position: absolute;
-                top: 50%;
-                left: 15px;
-                transform: translateY(-50%);
-                color: #6c757d;
-            }
+    /* Role badges */
+    .mu-role {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 0.68rem; font-weight: 700; padding: 3px 10px;
+        border-radius: 20px; letter-spacing: 1px; text-transform: uppercase;
+    }
+    .mu-role-admin {
+        background: rgba(179,0,0,0.2); color: #ff6666;
+        border: 1px solid rgba(179,0,0,0.35);
+    }
+    .mu-role-artist {
+        background: rgba(255,215,0,0.12); color: #FFD700;
+        border: 1px solid rgba(255,215,0,0.25);
+    }
+    .mu-role-client {
+        background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.55);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
 
-            .search-box input {
-                padding-left: 40px;
-            }
+    /* Action buttons */
+    .mu-btn-details {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 5px 12px; border-radius: 7px; font-size: 0.75rem; font-weight: 700;
+        background: rgba(255,215,0,0.1); color: #FFD700;
+        border: 1px solid rgba(255,215,0,0.2);
+        text-decoration: none; transition: all 0.2s;
+    }
+    .mu-btn-details:hover {
+        background: rgba(255,215,0,0.18); color: #FFD700;
+        border-color: rgba(255,215,0,0.4);
+    }
+    .mu-btn-delete {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 5px 12px; border-radius: 7px; font-size: 0.75rem; font-weight: 700;
+        background: rgba(179,0,0,0.12); color: #ff6666;
+        border: 1px solid rgba(179,0,0,0.25);
+        cursor: pointer; transition: all 0.2s;
+    }
+    .mu-btn-delete:hover {
+        background: rgba(179,0,0,0.25); color: #ff8888;
+        border-color: rgba(179,0,0,0.4);
+    }
+    .mu-btn-disabled {
+        display: inline-flex; align-items: center; gap: 5px;
+        padding: 5px 12px; border-radius: 7px; font-size: 0.75rem; font-weight: 700;
+        background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.06); cursor: not-allowed;
+    }
 
-        .filter-select {
-            border-radius: 50px;
-            border: 1px solid #ced4da;
-        }
-
-        .page-title {
-            color: #ffc107;
-            font-weight: bold;
-            border-bottom: 3px solid #8B0000;
-            padding-bottom: 10px;
-            margin-bottom: 30px;
-        }
-
-        .btn-warning.text-dark {
-            font-weight: 600;
-        }
-
-        .btn-red {
-            background-color: #8B0000;
-            color: white;
-        }
-
-            .btn-red:hover {
-                background-color: #a00;
-                color: white;
-            }
-
-        .btn-gold {
-            background-color: gold;
-            color: black;
-            font-weight: bold;
-        }
-
-            .btn-gold:hover {
-                background-color: #e6c200;
-                color: black;
-            }
-
-        .table-responsive {
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .table thead {
-            background: linear-gradient(to right, #000, #8B0000);
-            color: gold;
-        }
-
-        .table-dark tbody tr:hover {
-            background-color: #2a2a2a;
-        }
-    </style>
+    /* Empty state */
+    .mu-empty {
+        padding: 48px 20px; text-align: center;
+        color: rgba(255,255,255,0.25); font-size: 0.85rem;
+    }
+    .mu-empty i { font-size: 2rem; color: rgba(255,215,0,0.15); display: block; margin-bottom: 12px; }
+</style>
 }
 
-<div class="container-fluid py-4">
-    <h1 class="page-title">User Management</h1>
+<span class="mu-eyebrow">Administration</span>
+<h1 class="mu-heading">User Management</h1>
 
-    <!-- Action Buttons -->
-    <div class="d-flex justify-content-between mb-4">
-        <form asp-action="DeletePromotedAdmins" method="post" class="d-inline">
-            <button type="submit" class="btn btn-red">
-                <i class="fas fa-trash-alt me-2"></i>Delete All Promoted Admins
-            </button>
-        </form>
-    </div>
-
-    <!-- Filter Form -->
-    <form method="get" class="row g-3 mb-4 bg-dark text-light p-4 rounded">
-        <div class="col-md-5">
-            <div class="search-box">
-                <i class="fas fa-search"></i>
-                <input type="text" name="search" value="@searchTerm" class="form-control" placeholder="Search by name or email..." />
+@* ── MINI STATS ── *@
+<div class="mu-stats">
+    <div class="mu-stat">
+        <div class="mu-stat-icon"><i class="bi bi-people-fill"></i></div>
+        <div class="mu-stat">
+            <div class="mu-stat-icon"><i class="bi bi-people-fill"></i></div>
+            <div>
+                <span class="mu-stat-num">@Model.Users.Count</span>
+                <span class="mu-stat-label">Total Users</span>
             </div>
         </div>
-        <div class="col-md-4">
-            <select name="role" class="form-select filter-select">
-                <option value="">All Roles</option>
-                <option value="Admin" selected="@(roleFilter == "Admin")">Admin</option>
-                <option value="Artist" selected="@(roleFilter == "Artist")">Artist</option>
-                <option value="Client" selected="@(roleFilter == "Client")">Client</option>
-            </select>
+    </div>
+    <div class="mu-stat">
+        <div class="mu-stat-icon"><i class="bi bi-scissors"></i></div>
+        <div>
+            <span class="mu-stat-num">@totalArtists</span>
+            <span class="mu-stat-label">Artists</span>
         </div>
-        <div class="col-md-3">
-            <button type="submit" class="btn btn-red w-100">
-                <i class="fas fa-filter me-2"></i>Filter
-            </button>
+    </div>
+    <div class="mu-stat">
+        <div class="mu-stat-icon"><i class="bi bi-person-heart"></i></div>
+        <div>
+            <span class="mu-stat-num">@totalClients</span>
+            <span class="mu-stat-label">Clients</span>
         </div>
-    </form>
+    </div>
+    <div class="mu-stat">
+        <div class="mu-stat-icon" style="background:rgba(179,0,0,0.12)">
+            <i class="bi bi-shield-fill" style="color:#ff6666"></i>
+        </div>
+        <div>
+            <span class="mu-stat-num" style="color:#ff6666">@totalAdmins</span>
+            <span class="mu-stat-label">Admins</span>
+        </div>
+    </div>
+</div>
 
-    <!-- User Table -->
-    <div class="table-responsive">
-        <table class="table table-dark table-hover">
+@* ── FILTER BAR ── *@
+<form method="get" class="mu-filter-bar">
+    <div class="mu-search-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" name="search" value="@searchTerm"
+               class="mu-search-input" placeholder="Search by name or email..." />
+    </div>
+    <select name="role" class="mu-select">
+        <option value="Admin" selected="@(roleFilter == "Admin" ? "selected" : null)">Admin</option>
+        <option value="Artist" selected="@(roleFilter == "Artist" ? "selected" : null)">Artist</option>
+        <option value="Client" selected="@(roleFilter == "Client" ? "selected" : null)">Client</option>
+    </select>
+    <button type="submit" class="mu-filter-btn">
+        <i class="bi bi-funnel-fill"></i> Filter
+    </button>
+    <form asp-action="DeletePromotedAdmins" method="post" style="margin:0">
+        <button type="submit" class="mu-danger-btn"
+                onclick="return confirm('Delete all promoted admins?')">
+            <i class="bi bi-trash3-fill"></i> Delete Promoted Admins
+        </button>
+    </form>
+</form>
+
+@* ── TABLE ── *@
+<div class="mu-table-wrap">
+    <div class="mu-table-header">
+        <span class="mu-table-title">
+            <i class="bi bi-people-fill"></i> Users
+        </span>
+        <span class="mu-count">@filtered.Count result@(filtered.Count != 1 ? "s" : "")</span>
+    </div>
+
+    @if (!filtered.Any())
+    {
+        <div class="mu-empty">
+            <i class="bi bi-person-x"></i>
+            No users match your search.
+        </div>
+    }
+    else
+    {
+        <table class="mu-table">
             <thead>
                 <tr>
-                    <th><i class="fas fa-user me-2"></i>Full Name</th>
-                    <th><i class="fas fa-envelope me-2"></i>Email</th>
-                    <th><i class="fas fa-user-tag me-2"></i>Role</th>
-                    <th><i class="fas fa-cogs me-2"></i>Actions</th>
+                    <th>Full Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var user in Model
-                .Where(u => string.IsNullOrEmpty(searchTerm) ||
-                u.FullName.ToLower().Contains(searchTerm.ToString().ToLower()) ||
-                u.Email.ToLower().Contains(searchTerm.ToString().ToLower()))
-                .Where(u => string.IsNullOrEmpty(roleFilter) || u.Role == roleFilter)
-                .OrderBy(u => u.Role))
+                @foreach (var user in filtered)
                 {
                     <tr>
-                        <td class="text-warning fw-semibold">@user.FullName</td>
-                        <td>@user.Email</td>
+                        <td class="mu-name">@user.FullName</td>
+                        <td class="mu-email">@user.Email</td>
                         <td>
                             @if (user.Role == "Admin")
                             {
-                                <span class="badge badge-admin p-2"><i class="fas fa-crown me-1"></i>@user.Role</span>
+                                <span class="mu-role mu-role-admin">
+                                    <i class="bi bi-shield-fill"></i> Admin
+                                </span>
                             }
                             else if (user.Role == "Artist")
                             {
-                                <span class="badge badge-artist p-2"><i class="fas fa-paint-brush me-1"></i>@user.Role</span>
+                                <span class="mu-role mu-role-artist">
+                                    <i class="bi bi-scissors"></i> Artist
+                                </span>
                             }
                             else
                             {
-                                <span class="badge badge-client p-2"><i class="fas fa-user me-1"></i>@user.Role</span>
+                                <span class="mu-role mu-role-client">
+                                    <i class="bi bi-person-fill"></i> Client
+                                </span>
                             }
                         </td>
                         <td>
-                            <div class="d-flex gap-2">
-                                <a class="btn btn-sm btn-warning text-dark" asp-action="UserDetails" asp-route-id="@user.Id">
-                                    <i class="fas fa-eye"></i> Details
+                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                                <a class="mu-btn-details" asp-action="UserDetails" asp-route-id="@user.Id">
+                                    <i class="bi bi-eye-fill"></i> Details
                                 </a>
 
                                 @if (user.Role != "Admin")
                                 {
-                                    <form asp-action="DeleteUser" asp-route-id="@user.Id" method="post" class="d-inline">
-                                        <button type="submit" class="btn btn-sm btn-red"
-                                                onclick="return confirm('Are you sure you want to delete this user?');">
-                                            <i class="fas fa-trash-alt"></i> Delete
+                                    @* --- DEACTIVATE / ACTIVATE TOGGLE --- *@
+                                    <form asp-action="ToggleUserStatus" asp-route-id="@user.Id" method="post" style="margin:0">
+                                        @if (user.IsDeactivated)
+                                        {
+                                            <button type="submit" class="mu-btn-activate">
+                                                <i class="bi bi-person-check-fill"></i> Activate
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="submit" class="mu-btn-delete" style="background: rgba(255,165,0,0.12); color: #ffa500; border-color: rgba(255,165,0,0.25);">
+                                                <i class="bi bi-person-x-fill"></i> Deactivate
+                                            </button>
+                                        }
+                                    </form>
+
+                                    @* --- PERMANENT DELETE --- *@
+                                    <form asp-action="DeleteUser" asp-route-id="@user.Id" method="post" style="margin:0">
+                                        <button type="submit" class="mu-btn-delete"
+                                                onclick="return confirm('Delete @user.FullName? This cannot be undone.')">
+                                            <i class="bi bi-trash3-fill"></i> Delete
                                         </button>
                                     </form>
                                 }
                                 else
                                 {
-                                    <button class="btn btn-sm btn-secondary" disabled>
-                                        <i class="fas fa-trash-alt"></i> Delete
-                                    </button>
+                                    <span class="mu-btn-disabled">
+                                        <i class="bi bi-lock-fill"></i> Protected
+                                    </span>
                                 }
                             </div>
                         </td>
@@ -193,5 +397,37 @@
                 }
             </tbody>
         </table>
-    </div>
+    }
 </div>
+@section Scripts {
+    <script>
+        // THE BRIDGE: Now it works because Model.Services actually exists!
+        const provinceData = {};
+        @if (Model.Services != null)
+        {
+                foreach (var group in Model.Services.GroupBy(s => s.Province).Where(g => !string.IsNullOrEmpty(g.Key)))
+                {
+                        <text>
+                        provinceData["@Html.Raw(group.Key)"] = [
+                            @Html.Raw(string.Join(",", group.Select(s => $"\"{s.City}\"").Distinct()))
+                        ];
+                        </text>
+                }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Populate Province Dropdown
+            const provSel = document.getElementById('filterProvince');
+            if (provSel) {
+                Object.keys(provinceData).forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p;
+                    opt.textContent = p;
+                    provSel.appendChild(opt);
+                });
+            }
+
+            // Your Toggle logic here...
+        });
+    </script>
+}

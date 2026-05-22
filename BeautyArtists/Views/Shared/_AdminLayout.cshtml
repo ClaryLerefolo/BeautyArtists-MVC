@@ -1,193 +1,887 @@
 ﻿@*
     _AdminLayout.cshtml
-    Theme: Black/Gold/Red, collapsible sidebar, icons included
+    Theme: Black/Gold/Red — Corporate, authoritative, in-charge
 *@
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - BeautyArtist Admin</title>
+    <title>@ViewData["Title"] — Admin Console</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    @RenderSection("Styles", required: false)
     <style>
         :root {
-            --bs-primary: #000;
-            --bs-secondary: #FFD700;
-            --bs-accent: #8B0000;
-            --bs-light: #f8f9fa;
-            --bs-dark: #212529;
+            --gold: #FFD700;
+            --gold-dim: rgba(255,215,0,0.15);
+            --red: #b30000;
+            --sidebar-w: 270px;
+            --sidebar-col: 72px;
         }
 
-        body {
-            background-color: #000;
-            color: #fff;
-            font-family: 'Segoe UI', sans-serif;
+        *, *::before, *::after {
+            box-sizing: border-box;
         }
 
-        .sidebar {
-            width: 250px;
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #050505;
+            color: #e8e8e8;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            overflow-x: hidden;
             min-height: 100vh;
-            background: linear-gradient(to bottom, #000, #111);
+        }
+
+        /* ══════════════════
+                   SIDEBAR
+                ══════════════════ */
+        .adm-sidebar {
+            width: var(--sidebar-w);
+            height: 100vh;
+            background: #000;
             position: fixed;
-            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.4);
-            transition: all 0.3s ease-in-out;
+            top: 0;
+            left: 0;
             z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid rgba(255,215,0,0.12);
+            transition: width 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1);
+            overflow: hidden;
         }
 
-        .sidebar-collapsed {
-            width: 80px;
-        }
-
-            .sidebar-collapsed .nav-link span {
-                display: none;
+            .adm-sidebar.collapsed {
+                width: var(--sidebar-col);
             }
 
-            .sidebar-collapsed .sidebar-brand {
-                font-size: 0;
-            }
-
-                .sidebar-collapsed .sidebar-brand::after {
-                    content: "BSG";
-                    font-size: 1.25rem;
-                    color: var(--bs-secondary);
-                }
-
-        .main-content {
-            margin-left: 250px;
-            transition: all 0.3s ease-in-out;
-            padding: 2rem;
+        /* ── Brand header ── */
+        .adm-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 22px 18px;
+            border-bottom: 1px solid rgba(255,215,0,0.1);
+            min-height: 80px;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, #0a0000 0%, #000 100%);
         }
 
-        .main-content-collapsed {
-            margin-left: 80px;
-        }
-
-        .sidebar-brand {
-            color: var(--bs-secondary);
-            font-weight: 700;
-            font-size: 1.5rem;
-            padding: 1.5rem 1rem;
-            text-align: center;
-            border-bottom: 1px solid rgba(255, 215, 0, 0.3);
-        }
-
-        .nav-link {
-            color: rgba(255, 255, 255, 0.85);
-            padding: 0.75rem 1.5rem;
-            margin: 0.25rem 0;
-            border-left: 3px solid transparent;
-            transition: all 0.3s;
-            font-weight: 600;
-        }
-
-            .nav-link:hover, .nav-link.active {
-                color: var(--bs-secondary);
-                background-color: rgba(255, 215, 0, 0.1);
-                border-left: 3px solid var(--bs-secondary);
-            }
-
-            .nav-link i {
-                margin-right: 0.5rem;
-                width: 20px;
-                text-align: center;
-            }
-
-        .toggle-btn {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            z-index: 1100;
-            background-color: var(--bs-secondary);
-            color: #000;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
+        .adm-brand-icon {
+            width: 38px;
+            height: 38px;
+            flex-shrink: 0;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            font-size: 0.8rem;
+            font-weight: 900;
+            color: #000;
+            letter-spacing: 0.5px;
         }
 
-        button.nav-link {
+        .adm-brand-text {
+            overflow: hidden;
+            white-space: nowrap;
+            opacity: 1;
+            transition: opacity 0.2s;
+        }
+
+        .adm-brand-title {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 900;
+            color: var(--gold);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+
+        .adm-brand-sub {
+            display: block;
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: rgba(255,215,0,0.35);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+
+        .adm-sidebar.collapsed .adm-brand-text {
+            opacity: 0;
+            width: 0;
+        }
+
+        /* ── Section labels ── */
+        .adm-nav-section {
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.25);
+            padding: 16px 20px 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            transition: opacity 0.15s;
+        }
+
+        .adm-sidebar.collapsed .adm-nav-section {
+            opacity: 0;
+        }
+
+        /* ── Nav ── */
+        .adm-nav {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 8px 0;
+            min-height: 0; /* ← ADD THIS — critical for flex scroll to work */
+        }
+
+            .adm-nav::-webkit-scrollbar {
+                width: 3px;
+            }
+
+            .adm-nav::-webkit-scrollbar-thumb {
+                background: rgba(255,215,0,0.1);
+                border-radius: 2px;
+            }
+
+        .adm-nav-link {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            padding: 10px 18px;
+            margin: 2px 10px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: rgba(255,255,255,0.55);
+            font-size: 0.83rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            min-height: 42px;
+            border: 1px solid transparent;
+        }
+
+            .adm-nav-link:hover {
+                background: rgba(255,215,0,0.07);
+                color: var(--gold);
+                border-color: rgba(255,215,0,0.1);
+            }
+
+            .adm-nav-link.active {
+                background: linear-gradient(135deg, rgba(179,0,0,0.35), rgba(255,215,0,0.08));
+                color: var(--gold);
+                border-color: rgba(255,215,0,0.2);
+            }
+
+            .adm-nav-link i {
+                font-size: 1rem;
+                flex-shrink: 0;
+                width: 20px;
+                text-align: center;
+                color: rgba(255,215,0,0.6);
+            }
+
+            .adm-nav-link:hover i, .adm-nav-link.active i {
+                color: var(--gold);
+            }
+
+        .adm-nav-text {
+            opacity: 1;
+            transition: opacity 0.15s;
+            flex: 1;
+        }
+
+        .adm-sidebar.collapsed .adm-nav-text {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+
+        /* Badge */
+        .adm-badge {
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 20px;
+            background: var(--red);
+            color: #fff;
+            letter-spacing: 0.5px;
+            transition: opacity 0.15s;
+        }
+
+        .adm-sidebar.collapsed .adm-badge {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+
+        /* Collapsed tooltips */
+        .adm-sidebar.collapsed .adm-nav-link {
+            justify-content: center;
+            margin: 2px 8px;
+            padding: 10px;
+            position: relative;
+        }
+
+            .adm-sidebar.collapsed .adm-nav-link::after {
+                content: attr(data-label);
+                position: absolute;
+                left: calc(var(--sidebar-col) + 6px);
+                background: #111;
+                color: var(--gold);
+                border: 1px solid rgba(255,215,0,0.2);
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-size: 0.73rem;
+                font-weight: 600;
+                white-space: nowrap;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.15s;
+                z-index: 9999;
+            }
+
+            .adm-sidebar.collapsed .adm-nav-link:hover::after {
+                opacity: 1;
+            }
+
+        /* ── Sidebar footer ── */
+        .adm-sidebar-footer {
+            padding: 10px 10px 18px;
+            flex-shrink: 0;
+            border-top: 1px solid rgba(255,215,0,0.07);
+        }
+
+        .adm-logout-btn {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+            padding: 10px 18px;
+            margin: 0;
+            width: 100%;
+            border: none;
+            border-radius: 10px;
+            background: none;
+            cursor: pointer;
+            color: rgba(255,80,80,0.65);
+            font-size: 0.83rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-align: left;
+            min-height: 42px;
+        }
+
+            .adm-logout-btn:hover {
+                background: rgba(255,50,50,0.1);
+                color: #ff6666;
+            }
+
+            .adm-logout-btn i {
+                font-size: 1rem;
+                flex-shrink: 0;
+                width: 20px;
+                text-align: center;
+                color: rgba(255,80,80,0.65);
+            }
+
+            .adm-logout-btn:hover i {
+                color: #ff6666;
+            }
+
+        .adm-logout-text {
+            opacity: 1;
+            transition: opacity 0.15s;
+        }
+
+        .adm-sidebar.collapsed .adm-logout-btn {
+            justify-content: center;
+            padding: 10px;
+        }
+
+        .adm-sidebar.collapsed .adm-logout-text {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+
+        /* ── Desktop toggle ── */
+        .adm-toggle {
+            position: fixed;
+            top: 24px;
+            left: calc(var(--sidebar-w) - 16px);
+            width: 32px;
+            height: 32px;
+            background: #000;
+            border: 1px solid rgba(255,215,0,0.2);
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255,215,0,0.6);
+            font-size: 0.7rem;
+            transition: left 0.3s cubic-bezier(0.4,0,0.2,1), background 0.2s;
+        }
+
+            .adm-toggle:hover {
+                background: rgba(255,215,0,0.1);
+                color: var(--gold);
+                border-color: rgba(255,215,0,0.4);
+            }
+
+        /* ══════════════════
+                   MAIN CONTENT
+                ══════════════════ */
+        .adm-main {
+            margin-left: var(--sidebar-w);
+            min-height: 100vh;
+            transition: margin-left 0.3s cubic-bezier(0.4,0,0.2,1);
+            display: flex;
+            flex-direction: column;
+        }
+
+            .adm-main.collapsed {
+                margin-left: var(--sidebar-col);
+            }
+
+        /* ── Top bar ── */
+        .adm-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            height: 70px;
+            flex-shrink: 0;
+            background: #000;
+            border-bottom: 1px solid rgba(255,215,0,0.08);
+            position: sticky;
+            top: 0;
+            z-index: 900;
+        }
+
+        .adm-topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .adm-hamburger {
+            display: none;
             background: none;
             border: none;
+            color: var(--gold);
+            font-size: 1.4rem;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+            .adm-hamburger:hover {
+                background: rgba(255,215,0,0.1);
+            }
+
+        .adm-page-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.5px;
+        }
+
+        .adm-topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .adm-topbar-icon {
+            color: rgba(255,215,0,0.55);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+            .adm-topbar-icon:hover {
+                color: var(--gold);
+            }
+
+        .adm-notif-dot {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--red);
+            border: 1.5px solid #000;
+        }
+
+        .adm-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 0.8rem;
+            color: #000;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+        }
+
+        .adm-topbar-tag {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,215,0,0.1);
+            background: rgba(255,215,0,0.03);
+        }
+
+        /* ── Page body ── */
+        .adm-body {
+            flex: 1;
+            padding: 28px 32px 48px;
+            background: #050505;
+        }
+
+        /* ── Alerts ── */
+        .adm-alert-success {
+            background: rgba(0,200,83,0.08);
+            border: 1px solid rgba(0,200,83,0.25);
+            border-radius: 10px;
+            padding: 11px 16px;
+            color: #00c853;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .adm-alert-error {
+            background: rgba(255,50,50,0.07);
+            border: 1px solid rgba(255,50,50,0.2);
+            border-radius: 10px;
+            padding: 11px 16px;
+            color: #ff5555;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        /* ── Mobile backdrop ── */
+        .adm-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 999;
+            backdrop-filter: blur(3px);
+        }
+
+            .adm-backdrop.show {
+                display: block;
+            }
+
+        /* ══════════════════
+                   TABLET (769–1024px)
+                ══════════════════ */
+        @@media (min-width: 769px) and (max-width: 1024px) {
+            .adm-sidebar
+
+        {
+            width: var(--sidebar-col) !important;
+        }
+
+        .adm-sidebar .adm-brand-text {
+            opacity: 0 !important;
+            width: 0 !important;
+        }
+
+        .adm-sidebar .adm-nav-text {
+            opacity: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .adm-sidebar .adm-nav-section {
+            opacity: 0 !important;
+        }
+
+        .adm-sidebar .adm-badge {
+            opacity: 0 !important;
+            width: 0 !important;
+        }
+
+        .adm-sidebar .adm-nav-link {
+            justify-content: center !important;
+            margin: 2px 8px !important;
+            padding: 10px !important;
+            position: relative;
+        }
+
+            .adm-sidebar .adm-nav-link::after {
+                content: attr(data-label);
+                position: absolute;
+                left: calc(var(--sidebar-col) + 6px);
+                background: #111;
+                color: var(--gold);
+                border: 1px solid rgba(255,215,0,0.2);
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-size: 0.73rem;
+                font-weight: 600;
+                white-space: nowrap;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.15s;
+                z-index: 9999;
+            }
+
+            .adm-sidebar .adm-nav-link:hover::after {
+                opacity: 1;
+            }
+
+        .adm-sidebar .adm-logout-btn {
+            justify-content: center !important;
+            padding: 10px !important;
+        }
+
+        .adm-sidebar .adm-logout-text {
+            opacity: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .adm-main {
+            margin-left: var(--sidebar-col) !important;
+        }
+
+        .adm-toggle {
+            left: calc(var(--sidebar-col) - 16px) !important;
+        }
+
+        }
+
+        /* ══════════════════
+                   MOBILE (≤768px)
+                ══════════════════ */
+        @@media (max-width: 768px) {
+            .adm-toggle
+
+        {
+            display: none !important;
+        }
+
+        .adm-hamburger {
+            display: flex !important;
+            align-items: center;
+        }
+
+        .adm-sidebar {
+            transform: translateX(-100%);
+            width: var(--sidebar-w) !important;
+        }
+
+            .adm-sidebar.mobile-open {
+                transform: translateX(0);
+                box-shadow: 6px 0 40px rgba(0,0,0,0.9);
+            }
+
+            .adm-sidebar.collapsed {
+                width: var(--sidebar-w) !important;
+                transform: translateX(-100%);
+            }
+
+                .adm-sidebar.collapsed.mobile-open {
+                    transform: translateX(0) !important;
+                }
+
+                .adm-sidebar.collapsed .adm-brand-text {
+                    opacity: 1 !important;
+                    width: auto !important;
+                }
+
+                .adm-sidebar.collapsed .adm-nav-text {
+                    opacity: 1 !important;
+                    width: auto !important;
+                }
+
+                .adm-sidebar.collapsed .adm-nav-section {
+                    opacity: 1 !important;
+                }
+
+                .adm-sidebar.collapsed .adm-badge {
+                    opacity: 1 !important;
+                    width: auto !important;
+                }
+
+                .adm-sidebar.collapsed .adm-nav-link {
+                    justify-content: flex-start !important;
+                    margin: 2px 10px !important;
+                    padding: 10px 18px !important;
+                }
+
+                    .adm-sidebar.collapsed .adm-nav-link::after {
+                        display: none !important;
+                    }
+
+                .adm-sidebar.collapsed .adm-logout-btn {
+                    justify-content: flex-start !important;
+                    padding: 10px 18px !important;
+                }
+
+                .adm-sidebar.collapsed .adm-logout-text {
+                    opacity: 1 !important;
+                    width: auto !important;
+                }
+
+        .adm-main {
+            margin-left: 0 !important;
+        }
+
+        .adm-topbar {
+            padding: 0 16px;
+        }
+
+        .adm-body {
+            padding: 16px 14px 40px;
+        }
+
+        }
+
+        /* Ensure the active state is distinct and doesn't "blend" with hover if logic fails */
+        .adm-nav-link.active:hover {
+            background: linear-gradient(135deg, rgba(179,0,0,0.45), rgba(255,215,0,0.12));
+            border-color: var(--gold);
         }
     </style>
-    @RenderSection("Styles", required: false)
 </head>
 <body>
 
-    <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-brand">
-            Beauty Artists Admin
+    <div class="adm-backdrop" id="admBackdrop"></div>
+
+    <!-- ── SIDEBAR ── -->
+    <div class="adm-sidebar" id="admSidebar">
+
+        <div class="adm-brand">
+            <div class="adm-brand-icon">ADM</div>
+            <div class="adm-brand-text">
+                <span class="adm-brand-title">Beauty In Red<br>&amp; Gold</span>
+                <span class="adm-brand-sub">Admin Console</span>
+            </div>
         </div>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="Admin" asp-action="Index">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="Admin" asp-action="ManageUsers">
-                    <i class="fas fa-users"></i>
-                    <span>Manage Users</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="PortfolioCategory" asp-action="ManageCategory">
-                    <i class="fas fa-users"></i>
-                    <span>Manage Categories</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="Admin" asp-action="Services">
-                    <i class="fas fa-spa"></i>
-                    <span>Manage Services</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="Admin" asp-action="ManageBookings">
-                    <i class="fas fa-calendar-check"></i>
-                    <span>Manage Bookings</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="Admin" asp-action="Revenue">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Revenue Reports</span>
-                </a>
-            </li>
-            <li class="nav-item mt-4">
-                <form asp-area="Identity" asp-page="/Account/Logout" method="post">
-                    <button type="submit" class="nav-link text-start w-100">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </button>
-                </form>
-            </li>
-        </ul>
+
+        <nav class="adm-nav">
+
+            <div class="adm-nav-section">Overview</div>
+
+            <a class="adm-nav-link" data-label="Dashboard"
+               asp-controller="Admin" asp-action="Index">
+                <i class="bi bi-speedometer2"></i>
+                <span class="adm-nav-text">Dashboard</span>
+            </a>
+
+            <a class="adm-nav-link" data-label="Audit Logs"
+               asp-controller="Admin" asp-action="AuditLogs">
+                <i class="bi bi-journal-text"></i>
+                <span class="adm-nav-text">Audit Logs</span>
+            </a>
+
+            <div class="adm-nav-section">Users &amp; Content</div>
+
+            <a class="adm-nav-link" data-label="Manage Users"
+               asp-controller="Admin" asp-action="ManageUsers">
+                <i class="bi bi-people-fill"></i>
+                <span class="adm-nav-text">Manage Users</span>
+            </a>
+
+            <a class="adm-nav-link" data-label="Categories"
+               asp-controller="ServiceCategory" asp-action="ManageCategory">
+                <i class="bi bi-grid-fill"></i>
+                <span class="adm-nav-text">Categories</span>
+            </a>
+
+            <a class="adm-nav-link" data-label="Services"
+               asp-controller="Services" asp-action="Index">
+                <i class="bi bi-scissors"></i>
+                <span class="adm-nav-text">Services</span>
+            </a>
+
+           
+
+            <div class="adm-nav-section">Operations</div>
+
+            <a class="adm-nav-link" data-label="Bookings"
+               asp-controller="Admin" asp-action="ManageBookings">
+                <i class="bi bi-calendar-check-fill"></i>
+                <span class="adm-nav-text">Bookings</span>
+                <span class="adm-badge">Live</span>
+            </a>
+
+            <a class="adm-nav-link" data-label="Revenue"
+               asp-controller="Revenue" asp-action="Index">
+                <i class="bi bi-graph-up-arrow"></i>
+                <span class="adm-nav-text">Revenue</span>
+            </a>
+
+        </nav>
+
+        <div class="adm-sidebar-footer">
+            <form asp-area="Identity" asp-page="/Account/Logout"
+                  asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })"
+                  method="post">
+                <button type="submit" class="adm-logout-btn">
+                    <i class="bi bi-box-arrow-left"></i>
+                    <span class="adm-logout-text">Logout</span>
+                </button>
+            </form>
+        </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="main-content" id="main-content">
-        @RenderBody()
-    </div>
-
-    <!-- Toggle Button -->
-    <button class="toggle-btn" id="sidebarToggle">
-        <i class="fas fa-bars"></i>
+    <!-- ── DESKTOP TOGGLE ── -->
+    <button class="adm-toggle" id="admToggle" title="Toggle sidebar">
+        <i class="bi bi-chevron-left" id="admToggleIcon"></i>
     </button>
+
+    <!-- ── MAIN ── -->
+    <div class="adm-main" id="admMain">
+
+        <!-- Top Bar -->
+        <div class="adm-topbar">
+            <div class="adm-topbar-left">
+                <button class="adm-hamburger" id="admHamburger">
+                    <i class="bi bi-list"></i>
+                </button>
+                <span class="adm-page-title">@(ViewData["Title"] ?? "Admin Console")</span>
+            </div>
+            <div class="adm-topbar-right">
+                <span class="adm-topbar-tag">Admin</span>
+                <div class="adm-topbar-icon" style="position:relative">
+                    <i class="bi bi-bell-fill"></i>
+                    <div class="adm-notif-dot"></div>
+                </div>
+                <a asp-controller="Home" asp-action="Index"
+                   style="color:rgba(255,215,0,0.4); font-size:1rem; text-decoration:none;"
+                   title="View live site">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                </a>
+                <div class="adm-avatar">AD</div>
+            </div>
+        </div>
+
+        <!-- Alerts -->
+        @if (TempData["Success"] != null)
+        {
+            <div style="padding:0 32px; margin-top:16px;">
+                <div class="adm-alert-success">✓ @TempData["Success"]</div>
+            </div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div style="padding:0 32px; margin-top:16px;">
+                <div class="adm-alert-error">⚠ @TempData["Error"]</div>
+            </div>
+        }
+
+        <!-- Page Content -->
+        <div class="adm-body">
+            @RenderBody()
+        </div>
+
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        document.getElementById('sidebarToggle').addEventListener('click', function () {
-            document.getElementById('sidebar').classList.toggle('sidebar-collapsed');
-            document.getElementById('main-content').classList.toggle('main-content-collapsed');
+        const sidebar    = document.getElementById('admSidebar');
+        const main       = document.getElementById('admMain');
+        const toggle     = document.getElementById('admToggle');
+        const toggleIcon = document.getElementById('admToggleIcon');
+        const hamburger  = document.getElementById('admHamburger');
+        const backdrop   = document.getElementById('admBackdrop');
+
+        const isMobile = () => window.innerWidth <= 768;
+        const isTablet = () => window.innerWidth > 768 && window.innerWidth <= 1024;
+
+        // Restore desktop collapse state
+        if (!isMobile() && !isTablet()) {
+            if (localStorage.getItem('admCollapsed') === 'true') {
+                sidebar.classList.add('collapsed');
+                main.classList.add('collapsed');
+                toggleIcon.classList.replace('bi-chevron-left', 'bi-chevron-right');
+                toggle.style.left = 'calc(72px - 16px)';
+            }
+        }
+
+        // Desktop toggle
+        toggle.addEventListener('click', () => {
+            if (isMobile() || isTablet()) return;
+            const col = sidebar.classList.toggle('collapsed');
+            main.classList.toggle('collapsed', col);
+            if (col) {
+                toggleIcon.classList.replace('bi-chevron-left', 'bi-chevron-right');
+                toggle.style.left = 'calc(72px - 16px)';
+            } else {
+                toggleIcon.classList.replace('bi-chevron-right', 'bi-chevron-left');
+                toggle.style.left = 'calc(270px - 16px)';
+            }
+            localStorage.setItem('admCollapsed', col);
+        });
+
+        // Mobile open
+        hamburger.addEventListener('click', () => {
+            sidebar.classList.add('mobile-open');
+            backdrop.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        });
+
+        // Mobile close
+        function closeMobile() {
+            sidebar.classList.remove('mobile-open');
+            backdrop.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+        backdrop.addEventListener('click', closeMobile);
+        document.querySelectorAll('.adm-nav-link').forEach(l => {
+            l.addEventListener('click', () => { if (isMobile()) closeMobile(); });
+        });
+        window.addEventListener('resize', () => { if (!isMobile()) closeMobile(); });
+
+        // Active link highlight
+        const path = window.location.pathname.toLowerCase();
+        document.querySelectorAll('.adm-nav-link').forEach(link => {
+            const href = link.getAttribute('href')?.toLowerCase();
+            if (href && path.includes(href.split('/').pop())) {
+                link.classList.add('active');
+            }
+        });
+                // Active link highlight - Fixed for exact matching
+        const path = window.location.pathname.toLowerCase();
+        document.querySelectorAll('.adm-nav-link').forEach(link => {
+            const href = link.getAttribute('href')?.toLowerCase();
+
+            // Check for exact match or if it's the home/dashboard route
+            if (href === path || (path === '/admin' && href.endsWith('/admin/index'))) {
+                link.classList.add('active');
+            } else {
+                link.classList.remove('active');
+            }
         });
     </script>
 

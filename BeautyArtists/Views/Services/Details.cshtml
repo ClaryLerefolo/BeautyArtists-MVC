@@ -7,7 +7,6 @@
 
 <div class="row mt-4">
     <div class="col-md-6">
-        <p><strong>Category:</strong> @Model.Service.Category?.Name</p>
         <p><strong>Description:</strong> @(Model.CustomDescription ?? Model.Service.Description)</p>
         <p><strong>Price:</strong> R @Model.Price.ToString("F2")</p>
         <p><strong>Duration:</strong> @Model.Duration minutes</p>
@@ -21,7 +20,6 @@
             ?? Model.Artist.UserName
             ?? Model.Artist.Email)
         </p>
-        <p><strong>Location:</strong> @(Model.Artist.ArtistProfile?.Location ?? "Unknown")</p>
         <p><strong>Contact:</strong> @(Model.Artist.ArtistProfile?.ContactInfo ?? "Unavailable")</p>
 
         <a href="@Url.Action("Book", "Booking", new { userServiceId = Model.Id })" class="btn btn-primary mt-3">Book Now</a>

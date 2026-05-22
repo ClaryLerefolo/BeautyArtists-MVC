@@ -16,7 +16,8 @@ namespace BeautyArtists.Models
         [Display(Name ="Full Name")]
         public string FullName { get; set; }
 
-     
+        [NotMapped]
+        public string ArtistName => FullName; 
 
         [Required]
         public string Bio { get; set; }
@@ -25,7 +26,9 @@ namespace BeautyArtists.Models
         [Display(Name = "Years' Experience")]
         public int YearsExperience { get; set; } = 0;
         [Required]
-        public string Location { get; set; }
+        public string Province { get; set; }
+        [Required]
+        public string City { get; set; }
 
         [Required]
         [Display(Name = "Contact Info")]

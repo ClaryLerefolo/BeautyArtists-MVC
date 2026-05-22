@@ -1,0 +1,302 @@
+﻿@model IEnumerable<BeautyArtists.Models.ServiceCategory>
+@{
+    ViewData["Title"] = "Categories";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    var categoryList = Model.ToList();
+}
+
+@section Styles {
+    <style>
+        .mc-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .mc-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
+
+        /* ── TOP BAR ── */
+        .mc-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .mc-count {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 3px 12px;
+            border: 1px solid rgba(255,255,255,0.07);
+            align-self: center;
+        }
+
+        .mc-add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .mc-add-btn:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                color: #000;
+                box-shadow: 0 0 20px rgba(255,215,0,0.3);
+                transform: translateY(-2px);
+            }
+
+        /* ── GRID ── */
+        .mc-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+        @@media (max-width: 992px) {
+            .mc-grid
+
+        {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        }
+        @@media (max-width: 576px) {
+            .mc-grid
+
+        {
+            grid-template-columns: 1fr;
+        }
+
+        }
+
+        /* ── CARD ── */
+        .mc-card {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.12);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: border-color 0.25s, transform 0.25s;
+            display: flex;
+            flex-direction: column;
+        }
+
+            .mc-card:hover {
+                border-color: rgba(255,215,0,0.3);
+                transform: translateY(-4px);
+                box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+            }
+
+        .mc-card-img-wrap {
+            position: relative;
+            height: 190px;
+            overflow: hidden;
+        }
+
+        .mc-card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .mc-card:hover .mc-card-img {
+            transform: scale(1.05);
+        }
+
+        .mc-card-img-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.85) 100%);
+        }
+
+        .mc-card-num {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,215,0,0.2);
+            color: rgba(255,215,0,0.7);
+            padding: 3px 9px;
+            border-radius: 20px;
+        }
+
+        /* ── CARD BODY ── */
+        .mc-card-body {
+            padding: 16px 18px 18px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .mc-cat-name {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #FFD700;
+            margin: 0 0 14px;
+            text-shadow: 0 0 10px rgba(255,215,0,0.15);
+        }
+
+        .mc-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: auto;
+        }
+
+        .mc-btn-edit {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255,215,0,0.1);
+            border: 1px solid rgba(255,215,0,0.2);
+            color: #FFD700;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-decoration: none;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+
+            .mc-btn-edit:hover {
+                background: rgba(255,215,0,0.2);
+                border-color: rgba(255,215,0,0.4);
+                color: #FFD700;
+            }
+
+        .mc-btn-delete {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(179,0,0,0.12);
+            border: 1px solid rgba(179,0,0,0.25);
+            color: #ff6666;
+            font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+            .mc-btn-delete:hover {
+                background: rgba(179,0,0,0.25);
+                border-color: rgba(179,0,0,0.5);
+                color: #ff8888;
+            }
+
+        /* ── EMPTY STATE ── */
+        .mc-empty {
+            grid-column: 1 / -1;
+            padding: 64px 20px;
+            text-align: center;
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.08);
+            border-radius: 16px;
+        }
+
+        .mc-empty-icon {
+            font-size: 2.5rem;
+            color: rgba(255,215,0,0.15);
+            display: block;
+            margin-bottom: 14px;
+        }
+
+        .mc-empty p {
+            color: rgba(255,255,255,0.25);
+            font-size: 0.85rem;
+            margin: 0;
+        }
+    </style>
+}
+
+<span class="mc-eyebrow">Administration</span>
+<h1 class="mc-heading">Service Categories</h1>
+
+<div class="mc-topbar">
+    <span class="mc-count">
+        @categoryList.Count categor@(categoryList.Count != 1 ? "ies" : "y")
+    </span>
+    <a asp-action="CreateCategory" class="mc-add-btn">
+        <i class="bi bi-plus-lg"></i> Add Category
+    </a>
+</div>
+
+<div class="mc-grid">
+    @if (!categoryList.Any())
+    {
+        <div class="mc-empty">
+            <i class="bi bi-grid mc-empty-icon"></i>
+            <p>No categories yet. Add your first one above.</p>
+        </div>
+    }
+    else
+    {
+        int idx = 1;
+        foreach (var category in categoryList)
+        {
+            var img = string.IsNullOrWhiteSpace(category.CoverImagePath)
+            ? "/uploads/categories/default.jpg"
+            : category.CoverImagePath;
+
+            <div class="mc-card">
+                <div class="mc-card-img-wrap">
+                    <img src="@img" alt="@category.Name" class="mc-card-img"
+                         onerror="this.src='/uploads/categories/default.jpg'" />
+                    <div class="mc-card-img-overlay"></div>
+                    <span class="mc-card-num">#@(idx.ToString("D2"))</span>
+                </div>
+                <div class="mc-card-body">
+                    <h5 class="mc-cat-name">@category.Name</h5>
+                    <div class="mc-actions">
+                        <a asp-action="EditCategory" asp-route-id="@category.Id"
+                           class="mc-btn-edit">
+                            <i class="bi bi-pencil-fill"></i> Edit
+                        </a>
+                        <form asp-action="DeleteCategory" asp-route-id="@category.Id"
+                              method="post" style="flex:1;margin:0;"
+                              onsubmit="return confirm('Delete @category.Name? This cannot be undone.')">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="mc-btn-delete">
+                                <i class="bi bi-trash3-fill"></i> Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            idx++;
+        }
+    }
+</div>

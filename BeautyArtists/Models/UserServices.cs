@@ -20,19 +20,17 @@ namespace BeautyArtists.Models
         public Service Service { get; set; }
 
         [Required]
-        [Range(0.01, double.MaxValue, ErrorMessage = "Enter a valid price")]
         public decimal Price { get; set; }
+
         [Required]
         public int Duration { get; set; }
 
-        public string CustomDescription { get; set; }
-        public int? PortfolioCategoryId { get; set; }
-        public PortfolioCategory? PortfolioCategory { get; set; }
+        public string? CustomDescription { get; set; }
 
+        // ADD THIS LINE RIGHT HERE
+        public string? ImagePath { get; set; }
 
-        // Add this property:
         public bool IsActive { get; set; } = true;
-
     }
 }
 

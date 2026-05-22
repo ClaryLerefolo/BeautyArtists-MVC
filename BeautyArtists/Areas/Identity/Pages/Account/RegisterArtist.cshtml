@@ -2,45 +2,431 @@
 @model BeautyArtists.Areas.Identity.Pages.Account.RegisterArtistModel
 @{
     ViewData["Title"] = "Register as Artist";
+    Layout = "/Views/Shared/_Layout.cshtml";
 }
 
+<div class="ra-page">
+    <div class="ra-bg"></div>
 
+    <div class="container ra-container">
 
+        @* ── LEFT SIDE ── *@
+        <div class="ra-left">
+            <div class="ra-left-inner">
+                <span class="ra-eyebrow">Join Our Platform</span>
+                <h1 class="ra-headline">Become an<br><span class="ra-headline-gold">Artist</span></h1>
+                <p class="ra-tagline">
+                    Showcase your talent, build your portfolio, and connect with clients who appreciate your craft.
+                </p>
+                <div class="ra-perks">
+                    <div class="ra-perk">
+                        <div class="ra-perk-icon">✦</div>
+                        <span>Create your own service catalogue</span>
+                    </div>
+                    <div class="ra-perk">
+                        <div class="ra-perk-icon">✦</div>
+                        <span>Manage bookings and availability</span>
+                    </div>
+                    <div class="ra-perk">
+                        <div class="ra-perk-icon">✦</div>
+                        <span>Upload your portfolio and get discovered</span>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-<h2>@ViewData["Title"]</h2>
+        @* ── RIGHT SIDE: FORM ── *@
+        <div class="ra-right">
+            <div class="ra-card">
 
-<form method="post">
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <div class="ra-card-header">
+                    <span class="ra-card-eyebrow">Artist Registration</span>
+                    <h2 class="ra-card-title">Create Your Account</h2>
+                </div>
 
-    <div class="form-group">
-        <label asp-for="Input.FirstName"></label>
-        <input asp-for="Input.FirstName" class="form-control" />
-        <span asp-validation-for="Input.FirstName" class="text-danger"></span>
+                <div asp-validation-summary="ModelOnly" class="ra-error-summary"></div>
+
+                <form method="post" class="ra-form">
+
+                    <div class="ra-row">
+                        <div class="ra-field">
+                            <label asp-for="Input.FirstName" class="ra-label">First Name</label>
+                            <input asp-for="Input.FirstName"
+                                   class="ra-input"
+                                   placeholder="e.g. Mpho" />
+                            <span asp-validation-for="Input.FirstName" class="ra-field-error"></span>
+                        </div>
+                        <div class="ra-field">
+                            <label asp-for="Input.LastName" class="ra-label">Last Name</label>
+                            <input asp-for="Input.LastName"
+                                   class="ra-input"
+                                   placeholder="e.g. Joe" />
+                            <span asp-validation-for="Input.LastName" class="ra-field-error"></span>
+                        </div>
+                    </div>
+
+                    <div class="ra-field">
+                        <label asp-for="Input.Email" class="ra-label">Email Address</label>
+                        <input asp-for="Input.Email"
+                               class="ra-input"
+                               placeholder="yourname@email.com" />
+                        <span asp-validation-for="Input.Email" class="ra-field-error"></span>
+                    </div>
+
+                    <div class="ra-field">
+                        <label asp-for="Input.Password" class="ra-label">Password</label>
+                        <div class="ra-input-wrap">
+                            <input asp-for="Input.Password"
+                                   class="ra-input"
+                                   type="password"
+                                   id="passwordField"
+                                   placeholder="Create a strong password" />
+                            <button type="button" class="ra-eye-btn" onclick="togglePass('passwordField', this)">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                     stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
+                        </div>
+                        <span asp-validation-for="Input.Password" class="ra-field-error"></span>
+                    </div>
+
+                    <div class="ra-field">
+                        <label asp-for="Input.ConfirmPassword" class="ra-label">Confirm Password</label>
+                        <div class="ra-input-wrap">
+                            <input asp-for="Input.ConfirmPassword"
+                                   class="ra-input"
+                                   type="password"
+                                   id="confirmField"
+                                   placeholder="Repeat your password" />
+                            <button type="button" class="ra-eye-btn" onclick="togglePass('confirmField', this)">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                     stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                    <circle cx="12" cy="12" r="3" />
+                                </svg>
+                            </button>
+                        </div>
+                        <span asp-validation-for="Input.ConfirmPassword" class="ra-field-error"></span>
+                    </div>
+
+                    <button type="submit" class="ra-submit-btn">
+                        <span>Create Artist Account</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2.5">
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                            <polyline points="12,5 19,12 12,19" />
+                        </svg>
+                    </button>
+
+                    <p class="ra-login-link">
+                        Already have an account?
+                        <a asp-page="/Account/Login">Sign in here</a>
+                    </p>
+
+                </form>
+            </div>
+        </div>
+
     </div>
+</div>
 
-    <div class="form-group">
-        <label asp-for="Input.LastName"></label>
-        <input asp-for="Input.LastName" class="form-control" />
-        <span asp-validation-for="Input.LastName" class="text-danger"></span>
-    </div>
+<style>
+    .ra-page {
+        background: #000;
+        min-height: 100vh;
+        position: relative;
+        overflow: hidden;
+    }
 
-    <div class="form-group">
-        <label asp-for="Input.Email"></label>
-        <input asp-for="Input.Email" class="form-control" />
-        <span asp-validation-for="Input.Email" class="text-danger"></span>
-    </div>
+    .ra-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background: radial-gradient(ellipse at 20% 50%, rgba(179,0,0,0.12) 0%, transparent 50%), radial-gradient(ellipse at 80% 50%, rgba(255,215,0,0.05) 0%, transparent 50%);
+        pointer-events: none;
+    }
 
-    <div class="form-group">
-        <label asp-for="Input.Password"></label>
-        <input asp-for="Input.Password" class="form-control" type="password" />
-        <span asp-validation-for="Input.Password" class="text-danger"></span>
-    </div>
+    /* ── LAYOUT ── */
+    .ra-container {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 60px;
+        min-height: 100vh;
+        padding: 60px 20px;
+    }
 
-    <div class="form-group">
-        <label asp-for="Input.ConfirmPassword"></label>
-        <input asp-for="Input.ConfirmPassword" class="form-control" type="password" />
-        <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
-    </div>
+    @@media (max-width: 992px) {
+        .ra-container {
+            flex-direction: column;
+            gap: 40px;
+            padding: 40px 20px;
+        }
 
-    <button type="submit" class="btn btn-primary">Sign Up</button>
-</form>
+        .ra-left {
+            display: none;
+        }
+    }
+
+    /* ── LEFT ── */
+    .ra-left {
+        flex: 1;
+    }
+
+    .ra-left-inner {
+        max-width: 420px;
+    }
+
+    .ra-eyebrow {
+        display: inline-block;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 5px;
+        text-transform: uppercase;
+        color: rgba(255,215,0,0.4);
+        margin-bottom: 16px;
+    }
+
+    .ra-headline {
+        color: #fff;
+        font-size: 3.5rem;
+        font-weight: 900;
+        line-height: 1.05;
+        margin: 0 0 16px;
+    }
+
+    .ra-headline-gold {
+        color: #FFD700;
+        text-shadow: 0 0 40px rgba(255,215,0,0.3);
+    }
+
+    .ra-tagline {
+        color: rgba(255,255,255,0.35);
+        font-size: 0.95rem;
+        line-height: 1.7;
+        margin-bottom: 32px;
+    }
+
+    .ra-perks {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    .ra-perk {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: rgba(255,255,255,0.5);
+        font-size: 0.85rem;
+    }
+
+    .ra-perk-icon {
+        color: #FFD700;
+        font-size: 0.7rem;
+        flex-shrink: 0;
+    }
+
+    /* ── RIGHT / CARD ── */
+    .ra-right {
+        flex: 0 0 480px;
+    }
+
+    @@media (max-width: 992px) {
+        .ra-right {
+            flex: 1;
+            width: 100%;
+            max-width: 480px;
+        }
+    }
+
+    .ra-card {
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.12);
+        border-radius: 24px;
+        padding: 40px;
+    }
+
+    .ra-card-header {
+        margin-bottom: 28px;
+    }
+
+    .ra-card-eyebrow {
+        display: block;
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: rgba(255,215,0,0.35);
+        margin-bottom: 8px;
+    }
+
+    .ra-card-title {
+        color: #FFD700;
+        font-size: 1.5rem;
+        font-weight: 800;
+        margin: 0;
+        text-shadow: 0 0 20px rgba(255,215,0,0.2);
+    }
+
+    /* ── ERROR SUMMARY ── */
+    .ra-error-summary {
+        background: rgba(255,50,50,0.08);
+        border: 1px solid rgba(255,50,50,0.2);
+        border-radius: 10px;
+        padding: 12px 16px;
+        color: #ff5555;
+        font-size: 0.82rem;
+        margin-bottom: 20px;
+    }
+
+        .ra-error-summary:empty {
+            display: none;
+        }
+
+    /* ── FORM ── */
+    .ra-form {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .ra-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+
+    @@media (max-width: 480px) {
+        .ra-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .ra-field {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .ra-label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.4);
+    }
+
+    .ra-input-wrap {
+        position: relative;
+    }
+
+        .ra-input-wrap .ra-input {
+            padding-right: 44px;
+            width: 100%;
+        }
+
+    .ra-input {
+        width: 100%;
+        background: #111;
+        border: 1.5px solid rgba(255,215,0,0.1);
+        border-radius: 10px;
+        color: #fff;
+        padding: 13px 16px;
+        font-size: 0.9rem;
+        outline: none;
+        transition: border-color 0.2s, background 0.2s;
+    }
+
+        .ra-input:focus {
+            border-color: rgba(255,215,0,0.4);
+            background: #131300;
+        }
+
+        .ra-input::placeholder {
+            color: rgba(255,255,255,0.18);
+        }
+
+    .ra-eye-btn {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: rgba(255,255,255,0.25);
+        padding: 4px;
+        transition: color 0.2s;
+    }
+
+        .ra-eye-btn:hover {
+            color: #FFD700;
+        }
+
+    .ra-field-error {
+        color: #ff5555;
+        font-size: 0.75rem;
+        min-height: 16px;
+    }
+
+    /* ── SUBMIT ── */
+    .ra-submit-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 8px;
+        padding: 16px;
+        background: linear-gradient(135deg, #b30000, #FFD700);
+        color: #000;
+        font-weight: 800;
+        font-size: 0.95rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        border: none;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        width: 100%;
+    }
+
+        .ra-submit-btn:hover {
+            background: linear-gradient(135deg, #FFD700, #b30000);
+            box-shadow: 0 0 30px rgba(255,215,0,0.3);
+            transform: translateY(-2px);
+        }
+
+    /* ── LOGIN LINK ── */
+    .ra-login-link {
+        text-align: center;
+        font-size: 0.8rem;
+        color: rgba(255,255,255,0.25);
+        margin: 0;
+    }
+
+        .ra-login-link a {
+            color: #FFD700;
+            text-decoration: none;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+
+            .ra-login-link a:hover {
+                opacity: 0.7;
+            }
+</style>
+
+@section Scripts {
+    <script>
+        function togglePass(fieldId, btn) {
+            const field = document.getElementById(fieldId);
+            const isPass = field.type === 'password';
+            field.type = isPass ? 'text' : 'password';
+            btn.style.color = isPass ? '#FFD700' : 'rgba(255,255,255,0.25)';
+        }
+    </script>
+}

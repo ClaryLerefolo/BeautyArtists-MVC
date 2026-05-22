@@ -1,0 +1,28 @@
+﻿<div class="sidebar bg-black text-gold p-3 shadow" style="height: 100vh;">
+    <h4 class="mb-4">Artist Panel</h4>
+    <ul class="nav flex-column">
+        <li class="nav-item mb-2">
+            <a class="nav-link text-gold" asp-action="Dashboard" asp-controller="Artist">
+                <i class="fas fa-home me-2"></i> Dashboard
+            </a>
+        </li>
+        <li class="nav-item mb-2">
+            <a class="nav-link text-gold" asp-action="ManageServices" asp-controller="Artist">
+                <i class="fas fa-cut me-2"></i> My Services
+            </a>
+        </li>
+        <li class="nav-item mb-2">
+            <a class="nav-link text-gold" asp-action="Appointments" asp-controller="Artist">
+                <i class="fas fa-calendar-check me-2"></i> Appointments
+            </a>
+        </li>
+        <li class="nav-item mb-2">
+            <a class="nav-link text-gold position-relative" asp-action="Notifications" asp-controller="Artist">
+                <i class="fas fa-bell me-2"></i> Notifications
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    @ViewBag.UnreadCount
+                </span>
+            </a>
+        </li>
+    </ul>
+</div>

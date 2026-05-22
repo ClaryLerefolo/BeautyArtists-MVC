@@ -22,8 +22,12 @@ namespace BeautyArtists.Models.ViewModels
         [Display(Name = "Custom Description (optional)")]
         public string? CustomDescription { get; set; }
 
+
+        [Required]
+        public int Duration { get; set; }
         public bool IsActive { get; set; } = true;
 
         public int? Id { get; set; }  // Optional: for editing existing UserService
+
     }
 }

@@ -1,0 +1,19 @@
+﻿@{
+    ViewData["Title"] = "Upload Hero Background";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="container py-5">
+    <h2 class="text-gold fw-bold mb-4">Upload Hero Background</h2>
+
+    <form asp-action="UploadHeroBackground" method="post" enctype="multipart/form-data"
+          class="bg-black p-4 rounded shadow border-gold">
+        <div class="mb-3">
+            <label class="form-label text-light">Choose Image</label>
+            <input type="file" name="imageFile" class="form-control bg-dark text-light border-gold" />
+        </div>
+
+        <button type="submit" class="btn btn-cta px-4 shadow">Upload</button>
+        <a asp-action="Index" class="btn btn-outline-gold ms-2">Cancel</a>
+    </form>
+</div>

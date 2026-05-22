@@ -113,47 +113,47 @@ namespace BeautyArtists.Areas.Identity.Pages.Account
 
             if (ModelState.IsValid)
             {
-                // This doesn't count login failures towards account lockout
-                // To enable password failures to trigger account lockout, set lockoutOnFailure: true
-                var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+                var result = await _signInManager.PasswordSignInAsync(
+                    Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+
                 if (result.Succeeded)
                 {
-                    // _logger.LogInformation("User logged in.");
                     var user = await _userManager.FindByEmailAsync(Input.Email);
-                    var roles = await _userManager.GetRolesAsync(user);
 
                     if (await _userManager.IsInRoleAsync(user, "Admin"))
                     {
                         return RedirectToAction("Index", "Admin");
-
                     }
-
                     else if (await _userManager.IsInRoleAsync(user, "Artist"))
                     {
                         return RedirectToAction("Dashboard", "Artist");
-
                     }
-
                     else if (await _userManager.IsInRoleAsync(user, "Client"))
                     {
+                        // ← CHECK returnUrl FIRST — if they were trying to book, send them back there
+                        if (!string.IsNullOrEmpty(returnUrl)
+                            && Url.IsLocalUrl(returnUrl)
+                            && returnUrl != "/"
+                            && returnUrl != Url.Content("~/"))
+                        {
+                            return LocalRedirect(returnUrl);
+                        }
                         return RedirectToAction("Index", "Home");
                     }
                     else
                     {
-                        //fallback
                         return LocalRedirect(returnUrl);
-
-
                     }
-
                 }
+
                 if (result.RequiresTwoFactor)
                 {
-                    return RedirectToPage("./LoginWith2fa", new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
+                    return RedirectToPage("./LoginWith2fa",
+                        new { ReturnUrl = returnUrl, RememberMe = Input.RememberMe });
                 }
+
                 if (result.IsLockedOut)
                 {
-                  //  _logger.LogWarning("User account locked out.");
                     return RedirectToPage("./Lockout");
                 }
                 else
@@ -163,7 +163,6 @@ namespace BeautyArtists.Areas.Identity.Pages.Account
                 }
             }
 
-            // If we got this far, something failed, redisplay form
             return Page();
         }
     }

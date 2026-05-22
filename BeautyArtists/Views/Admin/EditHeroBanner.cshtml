@@ -1,0 +1,309 @@
+﻿@model BeautyArtists.Models.HeroBanner
+@{
+    ViewData["Title"] = "Edit Hero Banner";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+@section Styles {
+    <style>
+        .cb-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .cb-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
+
+        /* ── FORM CARD ── */
+        .cb-card {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.12);
+            border-radius: 18px;
+            overflow: hidden;
+            max-width: 620px;
+        }
+
+        .cb-card-header {
+            background: linear-gradient(135deg, #0a0000, #150500);
+            border-bottom: 1px solid rgba(255,215,0,0.08);
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cb-card-header-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: #000;
+            flex-shrink: 0;
+        }
+
+        .cb-card-header-title {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #FFD700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .cb-card-header-sub {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.3);
+            margin: 2px 0 0;
+        }
+
+        .cb-card-body {
+            padding: 24px;
+        }
+
+        /* ── FIELDS ── */
+        .cb-field {
+            margin-bottom: 22px;
+        }
+
+        .cb-label {
+            display: block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.5);
+            margin-bottom: 7px;
+        }
+
+        .cb-input {
+            width: 100%;
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 10px !important;
+            color: #fff !important;
+            padding: 11px 14px !important;
+            font-size: 0.88rem;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+            .cb-input:focus {
+                outline: none !important;
+                border-color: rgba(255,215,0,0.4) !important;
+                background: rgba(255,215,0,0.03) !important;
+                box-shadow: none !important;
+            }
+
+        .cb-validation {
+            font-size: 0.78rem;
+            color: #ff5555;
+            margin-top: 5px;
+            display: block;
+        }
+
+        /* ── IMAGE SECTION ── */
+        .cb-img-section {
+            margin-bottom: 22px;
+            padding: 18px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,215,0,0.08);
+            border-radius: 12px;
+        }
+
+        .cb-current-asset {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,215,0,0.1);
+        }
+
+        .cb-file-wrap {
+            position: relative;
+        }
+
+        .cb-file-input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .cb-file-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 10px;
+            background: rgba(255,215,0,0.08);
+            border: 1px dashed rgba(255,215,0,0.25);
+            color: rgba(255,215,0,0.6);
+            font-size: 0.8rem;
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+
+            .cb-file-btn:hover {
+                background: rgba(255,215,0,0.14);
+                border-color: rgba(255,215,0,0.45);
+                color: #FFD700;
+            }
+
+        .cb-preview-img {
+            width: 100%;
+            max-height: 180px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid rgba(255,215,0,0.2);
+        }
+
+        .cb-preview-wrap {
+            margin-top: 14px;
+            display: none;
+        }
+
+        /* ── ACTIONS ── */
+        .cb-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .cb-btn-save {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 28px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+            .cb-btn-save:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                box-shadow: 0 0 20px rgba(255,215,0,0.3);
+                transform: translateY(-1px);
+            }
+
+        .cb-btn-cancel {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 24px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.45);
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+    </style>
+}
+
+<span class="cb-eyebrow">Administration</span>
+<h1 class="cb-heading">Edit Hero Banner</h1>
+
+<div class="cb-card">
+    <div class="cb-card-header">
+        <div class="cb-card-header-icon"><i class="bi bi-pencil-square"></i></div>
+        <div>
+            <p class="cb-card-header-title">Modify Banner</p>
+            <p class="cb-card-header-sub">Update the title, subtitle, or primary image</p>
+        </div>
+    </div>
+
+    <div class="cb-card-body">
+        <form asp-action="EditHeroBanner" asp-controller="Admin" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <input type="hidden" asp-for="ImagePath" />
+
+            @* ── TITLE ── *@
+            <div class="cb-field">
+                <label asp-for="Title" class="cb-label">Banner Title</label>
+                <input asp-for="Title" class="cb-input" />
+                <span asp-validation-for="Title" class="cb-validation"></span>
+            </div>
+
+            @* ── SUBTITLE ── *@
+            <div class="cb-field">
+                <label asp-for="Subtitle" class="cb-label">Subtitle</label>
+                <input asp-for="Subtitle" class="cb-input" />
+                <span asp-validation-for="Subtitle" class="cb-validation"></span>
+            </div>
+
+            @* ── IMAGE MANAGEMENT ── *@
+            <div class="cb-img-section">
+                <div class="cb-current-asset">
+                    <span class="cb-label">Current Image</span>
+                    <img src="@Model.ImagePath" alt="Current Banner" class="cb-preview-img" />
+                </div>
+
+                <span class="cb-label">Replace Image (Optional)</span>
+                <div class="cb-file-wrap">
+                    <input type="file" name="imageFile" accept="image/*"
+                           class="cb-file-input" id="bannerUpload"
+                           onchange="previewBanner(event)" />
+                    <div class="cb-file-btn">
+                        <i class="bi bi-cloud-arrow-up-fill"></i> Upload New Asset
+                    </div>
+                </div>
+                <p id="fileName" style="font-size: 0.7rem; color: rgba(255,255,255,0.2); text-align: center; margin-top: 5px;">No new file selected</p>
+
+                <div class="cb-preview-wrap" id="previewWrap">
+                    <label class="cb-label" style="margin-top: 15px;">New Preview</label>
+                    <img id="bannerPreview" class="cb-preview-img" src="#" alt="New Preview" />
+                </div>
+            </div>
+
+            @* ── ACTIONS ── *@
+            <div class="cb-actions">
+                <button type="submit" class="cb-btn-save">
+                    <i class="bi bi-check-lg"></i> Update Banner
+                </button>
+                <a asp-action="HeroBanners" asp-controller="Admin" class="cb-btn-cancel">
+                    <i class="bi bi-x-lg"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function previewBanner(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('fileName').textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const preview = document.getElementById('bannerPreview');
+                const wrap = document.getElementById('previewWrap');
+                preview.src = e.target.result;
+                wrap.style.display = 'block';
+            }
+            reader.readAsDataURL(file);
+        }
+    </script>
+}

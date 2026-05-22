@@ -1,0 +1,235 @@
+﻿@model IEnumerable<BeautyArtists.Models.HeroBanner>
+@{
+    ViewData["Title"] = "Manage Hero Banners";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    var bannerList = Model.ToList();
+}
+
+@section Styles {
+    <style>
+        .mb-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .mb-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
+
+        /* ── TOP BAR ── */
+        .mb-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .mb-count {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 3px 12px;
+            border: 1px solid rgba(255,255,255,0.07);
+        }
+
+        .mb-add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .mb-add-btn:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                color: #000;
+                box-shadow: 0 0 20px rgba(255,215,0,0.3);
+                transform: translateY(-2px);
+            }
+
+        /* ── GRID ── */
+        .mb-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 18px;
+        }
+
+        /* ── CARD ── */
+        .mb-card {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.12);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: border-color 0.25s, transform 0.25s;
+            display: flex;
+            flex-direction: column;
+        }
+
+            .mb-card:hover {
+                border-color: rgba(255,215,0,0.3);
+                transform: translateY(-4px);
+                box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+            }
+
+        .mb-card-img-wrap {
+            position: relative;
+            height: 180px;
+            overflow: hidden;
+        }
+
+        .mb-card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s ease;
+        }
+
+        .mb-card:hover .mb-card-img {
+            transform: scale(1.05);
+        }
+
+        .mb-card-img-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.85) 100%);
+        }
+
+        /* ── CARD BODY ── */
+        .mb-card-body {
+            padding: 16px 18px 18px;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .mb-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: auto;
+        }
+
+        .mb-btn-edit {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255,215,0,0.1);
+            border: 1px solid rgba(255,215,0,0.2);
+            color: #FFD700;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .mb-btn-edit:hover {
+                background: rgba(255,215,0,0.2);
+                border-color: rgba(255,215,0,0.4);
+            }
+
+        .mb-btn-delete {
+            flex: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(179,0,0,0.12);
+            border: 1px solid rgba(179,0,0,0.25);
+            color: #ff6666;
+            font-weight: 700;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+            .mb-btn-delete:hover {
+                background: rgba(179,0,0,0.25);
+                border-color: rgba(179,0,0,0.5);
+                color: #ff8888;
+            }
+
+        .mb-empty {
+            grid-column: 1 / -1;
+            padding: 64px 20px;
+            text-align: center;
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.08);
+            border-radius: 16px;
+        }
+    </style>
+}
+
+<span class="mb-eyebrow">Marketing</span>
+<h1 class="mb-heading">Hero Banners</h1>
+
+<div class="mb-topbar">
+    <span class="mb-count">
+        @bannerList.Count active banner@(bannerList.Count != 1 ? "s" : "")
+    </span>
+    <a asp-action="CreateHeroBanner" asp-controller="Admin" class="mb-add-btn">
+        <i class="bi bi-plus-lg"></i> Add Banner
+    </a>
+</div>
+
+<div class="mb-grid">
+    @if (!bannerList.Any())
+    {
+        <div class="mb-empty">
+            <i class="bi bi-image mb-empty-icon" style="font-size: 2.5rem; color: rgba(255,215,0,0.15); display: block; margin-bottom:10px;"></i>
+            <p style="color: rgba(255,255,255,0.25);">No banners active. Add one to spice up the homepage.</p>
+        </div>
+    }
+    else
+    {
+        foreach (var banner in bannerList)
+        {
+            <div class="mb-card">
+                <div class="mb-card-img-wrap">
+                    <img src="@banner.ImagePath" alt="Hero Banner" class="mb-card-img" />
+                    <div class="mb-card-img-overlay"></div>
+                </div>
+                <div class="mb-card-body">
+                    @* Added a placeholder for Title/Sub if you have them in the model *@
+                    <div class="mb-actions">
+                        <a asp-action="EditHeroBanner" asp-controller="Admin" asp-route-id="@banner.Id"
+                           class="mb-btn-edit">
+                            <i class="bi bi-pencil-fill"></i> Edit
+                        </a>
+                        <form asp-action="DeleteHeroBanner" asp-controller="Admin" method="post"
+                              style="flex:1;margin:0;"
+                              onsubmit="return confirm('Delete this banner?');">
+                            <input type="hidden" name="id" value="@banner.Id" />
+                            <button type="submit" class="mb-btn-delete">
+                                <i class="bi bi-trash3-fill"></i> Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>

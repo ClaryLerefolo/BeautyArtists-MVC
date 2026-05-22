@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace BeautyArtists.Migrations
+namespace BeautyInRedAndGold.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
     partial class ApplicationDbContextModelSnapshot : ModelSnapshot
@@ -35,6 +35,35 @@ namespace BeautyArtists.Migrations
                     b.HasIndex("ServicesId");
 
                     b.ToTable("ArtistServices", (string)null);
+                });
+
+            modelBuilder.Entity("BeautyArtists.Models.ActivityLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ArtistId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArtistId");
+
+                    b.ToTable("ActivityLogs");
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ApplicationUser", b =>
@@ -162,6 +191,37 @@ namespace BeautyArtists.Migrations
                     b.ToTable("Appointments");
                 });
 
+            modelBuilder.Entity("BeautyArtists.Models.ArtistAvailability", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ArtistId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime>("AvailableDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<TimeSpan>("EndTime")
+                        .HasColumnType("time");
+
+                    b.Property<bool>("IsBooked")
+                        .HasColumnType("bit");
+
+                    b.Property<TimeSpan>("StartTime")
+                        .HasColumnType("time");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ArtistId");
+
+                    b.ToTable("ArtistAvailabilities");
+                });
+
             modelBuilder.Entity("BeautyArtists.Models.ArtistProfile", b =>
                 {
                     b.Property<int>("Id")
@@ -171,6 +231,10 @@ namespace BeautyArtists.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Bio")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("City")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -186,11 +250,11 @@ namespace BeautyArtists.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Location")
+                    b.Property<string>("ProfilePictureUrl")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("ProfilePictureUrl")
+                    b.Property<string>("Province")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -206,7 +270,7 @@ namespace BeautyArtists.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("ArtistProfile");
+                    b.ToTable("ArtistProfiles");
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Booking", b =>
@@ -220,8 +284,17 @@ namespace BeautyArtists.Migrations
                     b.Property<DateTime>("AppointmentDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("ArtistNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("AvailabilitySlotId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("BookingDate")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("ClientNotes")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CustomerId")
                         .IsRequired()
@@ -245,11 +318,38 @@ namespace BeautyArtists.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AvailabilitySlotId");
+
                     b.HasIndex("CustomerId");
 
                     b.HasIndex("UserServiceId");
 
                     b.ToTable("Bookings");
+                });
+
+            modelBuilder.Entity("BeautyArtists.Models.HeroBanner", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ImagePath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Subtitle")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("HeroBanners");
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Portfolio", b =>
@@ -282,24 +382,6 @@ namespace BeautyArtists.Migrations
                     b.HasIndex("ArtistId");
 
                     b.ToTable("Portfolios");
-                });
-
-            modelBuilder.Entity("BeautyArtists.Models.PortfolioCategory", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("PortfolioCategories");
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.PortfolioImage", b =>
@@ -339,6 +421,10 @@ namespace BeautyArtists.Migrations
                     b.Property<int?>("CategoryId")
                         .HasColumnType("int");
 
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ClientName")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -353,10 +439,6 @@ namespace BeautyArtists.Migrations
                     b.Property<bool>("IsFeatured")
                         .HasColumnType("bit");
 
-                    b.Property<string>("Location")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
                     b.Property<string>("MediaType")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -370,6 +452,10 @@ namespace BeautyArtists.Migrations
 
                     b.Property<int?>("PortfolioId")
                         .HasColumnType("int");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ThumbnailUrl")
                         .HasColumnType("nvarchar(max)");
@@ -393,6 +479,40 @@ namespace BeautyArtists.Migrations
                     b.ToTable("PortfolioItems");
                 });
 
+            modelBuilder.Entity("BeautyArtists.Models.Review", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CustomerId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ServiceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("ServiceId");
+
+                    b.ToTable("Reviews");
+                });
+
             modelBuilder.Entity("BeautyArtists.Models.Service", b =>
                 {
                     b.Property<int>("Id")
@@ -406,6 +526,10 @@ namespace BeautyArtists.Migrations
 
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -429,11 +553,41 @@ namespace BeautyArtists.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CategoryId");
 
                     b.ToTable("Services");
+                });
+
+            modelBuilder.Entity("BeautyArtists.Models.ServiceCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CoverImagePath")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("IconName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ServiceCategories");
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ServiceImage", b =>
@@ -502,17 +656,16 @@ namespace BeautyArtists.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("CustomDescription")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Duration")
                         .HasColumnType("int");
 
+                    b.Property<string>("ImagePath")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
-
-                    b.Property<int?>("PortfolioCategoryId")
-                        .HasColumnType("int");
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(10,2)");
@@ -525,8 +678,6 @@ namespace BeautyArtists.Migrations
                     b.HasIndex("ApplicationUserId");
 
                     b.HasIndex("ArtistId");
-
-                    b.HasIndex("PortfolioCategoryId");
 
                     b.HasIndex("ServiceId");
 
@@ -685,6 +836,17 @@ namespace BeautyArtists.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("BeautyArtists.Models.ActivityLog", b =>
+                {
+                    b.HasOne("BeautyArtists.Models.ApplicationUser", "Artist")
+                        .WithMany()
+                        .HasForeignKey("ArtistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Artist");
+                });
+
             modelBuilder.Entity("BeautyArtists.Models.Appointment", b =>
                 {
                     b.HasOne("BeautyArtists.Models.ApplicationUser", "Artist")
@@ -704,6 +866,17 @@ namespace BeautyArtists.Migrations
                     b.Navigation("Service");
                 });
 
+            modelBuilder.Entity("BeautyArtists.Models.ArtistAvailability", b =>
+                {
+                    b.HasOne("BeautyArtists.Models.ApplicationUser", "Artist")
+                        .WithMany()
+                        .HasForeignKey("ArtistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Artist");
+                });
+
             modelBuilder.Entity("BeautyArtists.Models.ArtistProfile", b =>
                 {
                     b.HasOne("BeautyArtists.Models.ApplicationUser", "User")
@@ -717,6 +890,10 @@ namespace BeautyArtists.Migrations
 
             modelBuilder.Entity("BeautyArtists.Models.Booking", b =>
                 {
+                    b.HasOne("BeautyArtists.Models.ArtistAvailability", "AvailabilitySlot")
+                        .WithMany()
+                        .HasForeignKey("AvailabilitySlotId");
+
                     b.HasOne("BeautyArtists.Models.ApplicationUser", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId")
@@ -728,6 +905,8 @@ namespace BeautyArtists.Migrations
                         .HasForeignKey("UserServiceId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("AvailabilitySlot");
 
                     b.Navigation("Customer");
 
@@ -764,8 +943,8 @@ namespace BeautyArtists.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BeautyArtists.Models.PortfolioCategory", "Category")
-                        .WithMany()
+                    b.HasOne("BeautyArtists.Models.ServiceCategory", "Category")
+                        .WithMany("PortfolioItems")
                         .HasForeignKey("CategoryId");
 
                     b.HasOne("BeautyArtists.Models.Portfolio", "Portfolio")
@@ -780,15 +959,34 @@ namespace BeautyArtists.Migrations
                     b.Navigation("Portfolio");
                 });
 
+            modelBuilder.Entity("BeautyArtists.Models.Review", b =>
+                {
+                    b.HasOne("BeautyArtists.Models.ApplicationUser", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BeautyArtists.Models.Service", "Service")
+                        .WithMany("Reviews")
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Service");
+                });
+
             modelBuilder.Entity("BeautyArtists.Models.Service", b =>
                 {
-                    b.HasOne("BeautyArtists.Models.PortfolioCategory", "Category")
-                        .WithMany()
+                    b.HasOne("BeautyArtists.Models.ServiceCategory", "ServiceCategory")
+                        .WithMany("Services")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Category");
+                    b.Navigation("ServiceCategory");
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ServiceImage", b =>
@@ -814,10 +1012,6 @@ namespace BeautyArtists.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("BeautyArtists.Models.PortfolioCategory", "PortfolioCategory")
-                        .WithMany()
-                        .HasForeignKey("PortfolioCategoryId");
-
                     b.HasOne("BeautyArtists.Models.Service", "Service")
                         .WithMany()
                         .HasForeignKey("ServiceId")
@@ -825,8 +1019,6 @@ namespace BeautyArtists.Migrations
                         .IsRequired();
 
                     b.Navigation("Artist");
-
-                    b.Navigation("PortfolioCategory");
 
                     b.Navigation("Service");
                 });
@@ -893,6 +1085,18 @@ namespace BeautyArtists.Migrations
             modelBuilder.Entity("BeautyArtists.Models.Portfolio", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("BeautyArtists.Models.Service", b =>
+                {
+                    b.Navigation("Reviews");
+                });
+
+            modelBuilder.Entity("BeautyArtists.Models.ServiceCategory", b =>
+                {
+                    b.Navigation("PortfolioItems");
+
+                    b.Navigation("Services");
                 });
 #pragma warning restore 612, 618
         }

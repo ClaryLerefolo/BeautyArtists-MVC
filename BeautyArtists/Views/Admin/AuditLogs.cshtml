@@ -1,0 +1,50 @@
+﻿@model IEnumerable<BeautyArtists.Models.ActivityLog>
+@{
+    ViewData["Title"] = "Audit Logs";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div style="background:#0b0b0b; border:1px solid rgba(255,215,0,0.1); border-radius:16px; padding:24px;">
+    <h4 style="color:#FFD700; font-weight:800; margin-bottom:20px;">
+        <i class="bi bi-journal-text me-2"></i> Audit Logs
+    </h4>
+
+    @if (!Model.Any())
+    {
+        <p style="color:rgba(255,255,255,0.3)">No activity logged yet.</p>
+    }
+    else
+    {
+        <table class="table table-dark table-hover">
+            <thead>
+                <tr style="color:#FFD700">
+                    <th>Timestamp</th>
+                    <th>Artist</th>
+                    <th>Action</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var log in Model)
+                {
+                    <tr>
+                        <td style="color:rgba(255,255,255,0.5); font-size:0.82rem">
+                            @log.Timestamp.ToString("dd MMM yyyy HH:mm")
+                        </td>
+                        <td>@log.Artist?.FirstName @log.Artist?.LastName</td>
+                        <td>
+                            <span style="background:rgba(179,0,0,0.2); color:#FFD700;
+                                                 font-size:0.72rem; padding:3px 10px; border-radius:20px;
+                                                 border:1px solid rgba(179,0,0,0.3)">
+                                @log.Action
+                            </span>
+                        </td>
+                        <td style="color:rgba(255,255,255,0.4); font-size:0.82rem">
+                            @log.Description
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>

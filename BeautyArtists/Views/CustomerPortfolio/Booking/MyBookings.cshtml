@@ -1,0 +1,192 @@
+﻿@model IEnumerable<BeautyArtists.Models.Booking>
+@{
+    ViewData["Title"] = "My Bookings";
+}
+
+<h2 class="text-gold mb-4">My Bookings</h2>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+
+@if (!Model.Any())
+{
+    <p class="text-muted">You have not made any bookings yet.</p>
+}
+else
+{
+    <!-- Search and filter -->
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <input id="searchInput" class="form-control" placeholder="Search by service or artist..." />
+        </div>
+        <div class="col-md-3">
+            <select id="statusFilter" class="form-select">
+                <option value="">All Statuses</option>
+                <option value="Pending">Pending</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="Completed">Completed</option>
+                <option value="Cancelled">Cancelled</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button class="btn btn-outline-light" onclick="exportBookings()">Export CSV</button>
+        </div>
+    </div>
+
+    <table class="table table-dark table-striped border-gold" id="bookingsTable">
+        <thead>
+            <tr>
+                <th>Service</th>
+                <th>Artist</th>
+                <th>Date Booked</th>
+                <th>Appointment</th>
+                <th>Status</th>
+                <th>Notes</th>
+                <th>Total</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var b in Model)
+            {
+                var artistName = b.UserService?.Artist?.ArtistProfile?.FullName
+                ?? $"{b.UserService?.Artist?.FirstName} {b.UserService?.Artist?.LastName}"
+                ?? "Unknown Artist";
+
+                <tr>
+                    <td>@b.UserService?.Service?.Name</td>
+                    <td>@artistName</td>
+                    <td>@b.BookingDate.ToString("yyyy-MM-dd")</td>
+                    <td>@b.AppointmentDate.ToString("yyyy-MM-dd HH:mm")</td>
+                    <td class="status">
+                        @switch (b.Status)
+                        {
+                            case BeautyArtists.Models.Booking.BookingStatus.Pending:
+                                <span class="badge bg-secondary">Pending</span>
+                                break;
+                            case BeautyArtists.Models.Booking.BookingStatus.Confirmed:
+                                <span class="badge bg-success">Confirmed</span>
+                                break;
+                            case BeautyArtists.Models.Booking.BookingStatus.Completed:
+                                <span class="badge bg-primary">Completed</span>
+                                break;
+                            case BeautyArtists.Models.Booking.BookingStatus.Cancelled:
+                                <span class="badge bg-danger">Cancelled</span>
+                                break;
+                        }
+                    </td>
+                    <td>@(string.IsNullOrWhiteSpace(b.Notes) ? "-" : b.Notes)</td>
+                    <td>R@b.TotalAmount</td>
+                    <td>
+                        @if (b.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed || b.Status == BeautyArtists.Models.Booking.BookingStatus.Pending)
+                        {
+                            if (!b.HasRescheduled)
+                            {
+                                <a asp-action="Reschedule" asp-route-id="@b.Id" class="btn btn-sm btn-outline-warning me-2">Reschedule</a>
+                            }
+                            <form asp-action="Cancel" asp-route-id="@b.Id" method="post" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Are you sure you want to cancel this booking?')">
+                                    Cancel
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <!-- Pagination Controls -->
+    <div class="text-center">
+        <button class="btn btn-outline-light me-2" id="prevPage">Prev</button>
+        <button class="btn btn-outline-light" id="nextPage">Next</button>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        let currentPage = 1;
+        const rowsPerPage = 10;
+
+        function filterBookings() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const status = document.getElementById('statusFilter').value.toLowerCase();
+            const rows = document.querySelectorAll('#bookingsTable tbody tr');
+
+            rows.forEach(row => {
+                const service = row.cells[0].textContent.toLowerCase();
+                const artist = row.cells[1].textContent.toLowerCase();
+                const bookingStatus = row.cells[4].textContent.toLowerCase();
+
+                const matchesSearch = service.includes(search) || artist.includes(search);
+                const matchesStatus = !status || bookingStatus === status;
+
+                row.style.display = (matchesSearch && matchesStatus) ? "" : "none";
+            });
+
+            paginate();
+        }
+
+        function paginate() {
+            const rows = Array.from(document.querySelectorAll('#bookingsTable tbody tr'))
+                .filter(row => row.style.display !== "none");
+
+            rows.forEach((row, index) => {
+                row.style.display = (index >= (currentPage - 1) * rowsPerPage && index < currentPage * rowsPerPage)
+                    ? ""
+                    : "none";
+            });
+        }
+
+        document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; filterBookings(); });
+        document.getElementById('statusFilter').addEventListener('change', () => { currentPage = 1; filterBookings(); });
+
+        document.getElementById('prevPage').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                paginate();
+            }
+        });
+
+        document.getElementById('nextPage').addEventListener('click', () => {
+            const rows = document.querySelectorAll('#bookingsTable tbody tr');
+            const visibleRows = Array.from(rows).filter(r => r.style.display !== "none");
+            if (currentPage * rowsPerPage < visibleRows.length) {
+                currentPage++;
+                paginate();
+            }
+        });
+
+        function exportBookings() {
+            const rows = document.querySelectorAll('#bookingsTable tbody tr');
+            let csv = "Service,Artist,Booked,Appointment,Status,Notes,Total\n";
+
+            rows.forEach(row => {
+                if (row.style.display !== "none") {
+                    const cols = Array.from(row.children).slice(0, 7).map(td => `"${td.textContent.trim()}"`);
+                    csv += cols.join(",") + "\n";
+                }
+            });
+
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "MyBookings.csv";
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Run filter on page load
+        filterBookings();
+    </script>
+}

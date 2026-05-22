@@ -1,0 +1,468 @@
+﻿@model BeautyArtists.Models.ViewModels.ServiceListViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    string categoryLabel = Model.Title.Contains("—")
+        ? Model.Title.Split("—")[1].Trim()
+        : "All Services";
+    decimal minPrice = Model.Services != null && Model.Services.Any()
+        ? Model.Services.Min(s => s.Price)
+        : 0;
+    int serviceCount = Model.Services?.Count ?? 0;
+}
+
+<div class="cat-page">
+
+    @* ── ARTIST HERO HEADER ── *@
+    <div class="cat-hero">
+        <div class="cat-hero-bg"></div>
+        <div class="container cat-hero-inner">
+
+            <div class="cat-artist-block">
+                <div class="cat-avatar-wrap">
+                    <div class="cat-avatar-ring"></div>
+                    <img src="@Model.ArtistProfilePicture"
+                         class="cat-avatar"
+                         alt="@Model.ArtistName"
+                         onerror="this.src='/images/default-profile.png'">
+                </div>
+                <div class="cat-artist-info">
+                    <span class="cat-eyebrow">Artist Catalogue</span>
+                    <h1 class="cat-artist-name">@Model.ArtistName</h1>
+                    @if (!string.IsNullOrEmpty(Model.ArtistLocation))
+                    {
+                        <span class="cat-location">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                                 stroke="#FFD700" stroke-width="2">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                                <circle cx="12" cy="10" r="3" />
+                            </svg>
+                            @Model.ArtistLocation
+                        </span>
+                    }
+                </div>
+            </div>
+
+            <div class="cat-stats">
+                <div class="cat-stat">
+                    <span class="cat-stat-num">@serviceCount</span>
+                    <span class="cat-stat-label">SERVICE@(serviceCount != 1 ? "S" : "")</span>
+                </div>
+                <div class="cat-stat-divider"></div>
+                <div class="cat-stat">
+                    <span class="cat-stat-num">R @minPrice.ToString("N0")</span>
+                    <span class="cat-stat-label">FROM</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    @* ── TITLE BAR ── *@
+    <div class="cat-title-bar">
+        <div class="container d-flex align-items-center justify-content-between">
+            <h2 class="cat-section-title">@categoryLabel</h2>
+            <a href="javascript:history.back()" class="cat-back-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2">
+                    <polyline points="15,18 9,12 15,6" />
+                </svg>
+                Back
+            </a>
+        </div>
+    </div>
+
+    @* ── SERVICE CARDS ── *@
+    <div class="container cat-services-section">
+        @if (Model.Services != null && Model.Services.Any())
+        {
+            <div class="cat-grid">
+                @foreach (var service in Model.Services)
+                {
+                    string imgUrl = !string.IsNullOrEmpty(service.ImagePath)
+                    ? service.ImagePath
+                    : "/images/service-default.jpg";
+                    string cleanPath = imgUrl.TrimStart('/');
+
+                    <div class="cat-card">
+                        <div class="cat-card-img-wrap">
+                            <img src="@Url.Content("~/" + cleanPath)"
+                                 class="cat-card-img"
+                                 alt="@service.ServiceName"
+                                 onerror="this.src='/images/service-default.jpg'">
+                            <div class="cat-card-img-overlay"></div>
+                            <div class="cat-price-tag">R @service.Price.ToString("N0")</div>
+                            <div class="cat-category-tag">@service.Category</div>
+                        </div>
+
+                        <div class="cat-card-body">
+                            <h3 class="cat-card-title">@service.ServiceName</h3>
+                            <p class="cat-card-desc">@service.Description</p>
+                            @if (User.Identity!.IsAuthenticated)
+                            {
+                                <a asp-controller="Booking"
+                                   asp-action="BookService"
+                                   asp-route-userServiceId="@service.UserServiceId"
+                                   class="cat-book-btn">
+                                    <span>Book Now</span>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                         stroke="currentColor" stroke-width="2.5">
+                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                        <polyline points="12,5 19,12 12,19" />
+                                    </svg>
+                                </a>
+                            }
+                            else
+                            {
+                                <a asp-area="Identity"
+                                   asp-page="/Account/Login"
+                                   asp-route-returnUrl="@Url.Action("BookService", "Booking", new { userServiceId = service.UserServiceId })"
+                                   class="cat-book-btn">
+                                    <span>Book Now</span>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                                         stroke="currentColor" stroke-width="2.5">
+                                        <line x1="5" y1="12" x2="19" y2="12" />
+                                        <polyline points="12,5 19,12 12,19" />
+                                    </svg>
+                                </a>
+                            }
+                
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="cat-empty">
+                <div class="cat-empty-icon">✦</div>
+                <p>No services available in this catalogue yet.</p>
+                <a href="javascript:history.back()" class="cat-back-btn mt-4">Go Back</a>
+            </div>
+        }
+    </div>
+
+</div>
+
+<style>
+    .cat-page {
+        background: #000;
+        min-height: 100vh;
+        padding-bottom: 80px;
+    }
+
+    /* ── HERO ── */
+    .cat-hero {
+        position: relative;
+        padding: 60px 0 40px;
+        overflow: hidden;
+    }
+
+    .cat-hero-bg {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #0d0000 0%, #1a0800 40%, #0a0a00 100%);
+        z-index: 0;
+    }
+
+        .cat-hero-bg::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 30% 50%, rgba(179,0,0,0.15) 0%, transparent 60%), radial-gradient(ellipse at 70% 50%, rgba(255,215,0,0.08) 0%, transparent 60%);
+        }
+
+    .cat-hero-inner {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        flex-wrap: wrap;
+    }
+
+    .cat-artist-block {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .cat-avatar-wrap {
+        position: relative;
+        flex-shrink: 0;
+        width: 90px;
+        height: 90px;
+    }
+
+    .cat-avatar {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        object-fit: cover;
+        position: absolute;
+        inset: 4px;
+        width: calc(100% - 8px);
+        height: calc(100% - 8px);
+        z-index: 1;
+    }
+
+    .cat-avatar-ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #FFD700, #b30000);
+        z-index: 0;
+    }
+
+    .cat-eyebrow {
+        display: block;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: rgba(255,215,0,0.45);
+        margin-bottom: 6px;
+    }
+
+    .cat-artist-name {
+        color: #FFD700;
+        font-size: 2rem;
+        font-weight: 800;
+        margin: 0 0 6px;
+        text-shadow: 0 0 30px rgba(255,215,0,0.3);
+        line-height: 1.1;
+    }
+
+    .cat-location {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        color: rgba(255,255,255,0.4);
+        font-size: 0.8rem;
+    }
+
+    .cat-stats {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,215,0,0.1);
+        border-radius: 16px;
+        padding: 16px 28px;
+    }
+
+    .cat-stat {
+        text-align: center;
+    }
+
+    .cat-stat-num {
+        display: block;
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: #FFD700;
+        line-height: 1;
+    }
+
+    .cat-stat-label {
+        display: block;
+        font-size: 0.55rem;
+        font-weight: 700;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.25);
+        margin-top: 4px;
+    }
+
+    .cat-stat-divider {
+        width: 1px;
+        height: 40px;
+        background: rgba(255,215,0,0.15);
+    }
+
+    /* ── TITLE BAR ── */
+    .cat-title-bar {
+        border-top: 1px solid rgba(255,215,0,0.08);
+        border-bottom: 1px solid rgba(255,215,0,0.08);
+        background: rgba(255,215,0,0.02);
+        padding: 16px 0;
+        margin-bottom: 40px;
+    }
+
+    .cat-section-title {
+        color: #fff;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: 1px;
+    }
+
+    .cat-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: rgba(255,215,0,0.6);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        letter-spacing: 1px;
+        transition: color 0.2s;
+    }
+
+        .cat-back-btn:hover {
+            color: #FFD700;
+        }
+
+    /* ── GRID ── */
+    .cat-services-section {
+        padding-bottom: 40px;
+    }
+
+    .cat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+    }
+
+    @@media (max-width: 992px) {
+        .cat-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .cat-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ── CARD ── */
+    .cat-card {
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.12);
+        border-radius: 18px;
+        overflow: hidden;
+        transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+        .cat-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(255,215,0,0.35);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 0 30px rgba(255,215,0,0.06);
+        }
+
+    .cat-card-img-wrap {
+        position: relative;
+        height: 240px;
+        overflow: hidden;
+    }
+
+    .cat-card-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+
+    .cat-card:hover .cat-card-img {
+        transform: scale(1.06);
+    }
+
+    .cat-card-img-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.7) 100%);
+    }
+
+    .cat-price-tag {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        background: rgba(0,0,0,0.75);
+        border: 1px solid #FFD700;
+        color: #FFD700;
+        font-size: 0.9rem;
+        font-weight: 800;
+        padding: 5px 14px;
+        border-radius: 20px;
+        backdrop-filter: blur(4px);
+    }
+
+    .cat-category-tag {
+        position: absolute;
+        bottom: 14px;
+        left: 14px;
+        background: rgba(179,0,0,0.85);
+        color: #FFD700;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        padding: 4px 12px;
+        border-radius: 20px;
+    }
+
+    .cat-card-body {
+        padding: 22px 22px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .cat-card-title {
+        color: #FFD700;
+        font-size: 1.1rem;
+        font-weight: 800;
+        margin: 0;
+        text-shadow: 0 0 10px rgba(255,215,0,0.2);
+    }
+
+    .cat-card-desc {
+        color: rgba(255,255,255,0.45);
+        font-size: 0.82rem;
+        line-height: 1.6;
+        margin: 0;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .cat-book-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin-top: 8px;
+        padding: 14px 24px;
+        background: linear-gradient(135deg, #b30000 0%, #FFD700 100%);
+        color: #000;
+        font-weight: 800;
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        text-decoration: none;
+        border-radius: 999px;
+        transition: all 0.3s ease;
+    }
+
+        .cat-book-btn:hover {
+            background: linear-gradient(135deg, #FFD700 0%, #b30000 100%);
+            color: #000;
+            box-shadow: 0 0 25px rgba(255,215,0,0.4);
+            transform: translateY(-2px);
+        }
+
+    /* ── EMPTY ── */
+    .cat-empty {
+        text-align: center;
+        padding: 80px 20px;
+        color: rgba(255,255,255,0.25);
+    }
+
+    .cat-empty-icon {
+        font-size: 3rem;
+        color: rgba(255,215,0,0.15);
+        margin-bottom: 16px;
+    }
+</style>

@@ -12,7 +12,12 @@
 
         public decimal MonthlyEarnings { get; set; }
 
+        // NEW: Data for the Earnings Trend Graph
+        public List<decimal> MonthlyEarningsGraph { get; set; } = new List<decimal>();
+        public List<string> MonthlyLabels { get; set; } = new List<string>();
+
         public List<AppointmentSummary> RecentAppointments { get; set; } = new List<AppointmentSummary>();
+        public string FullName { get; set; } // Add this!
     }
 
     public class AppointmentSummary

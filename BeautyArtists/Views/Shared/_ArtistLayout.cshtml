@@ -1,330 +1,702 @@
-﻿@*
-    _ArtistLayout.cshtml
-    Theme: Black/Gold/Red, collapsible sidebar, icons included - aligned with Admin
-    Updates: ALL buttons red, main color black, GOLD BORDER AROUND buttons and textboxes (always visible)
-*@
+﻿@using Microsoft.AspNetCore.Identity
+@inject UserManager<ApplicationUser> UserManager
+@{
+    var user = await UserManager.GetUserAsync(User);
+    var displayName = user != null && !string.IsNullOrEmpty(user.FirstName)
+        ? $"{user.FirstName} {user.LastName}".Trim()
+        : "Artist";
+}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - BeautyArtist Artist</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <title>@ViewData["Title"] - Artist</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    @await RenderSectionAsync("Styles", required: false)
     <style>
         :root {
-            --bs-primary: #000; /* Black */
-            --bs-secondary: #FFD700; /* Gold */
-            --bs-accent: #8B0000; /* Dark Red (for buttons) */
-            --bs-light: #f8f9fa;
-            --bs-dark: #212529;
+            --gold: #FFD700;
+            --sidebar-width: 260px;
+            --sidebar-collapsed: 70px;
         }
 
-        body {
-            background-color: var(--bs-primary); /* Consistent black background */
-            color: #fff; /* White text for contrast */
-            font-family: 'Segoe UI', sans-serif; /* Consistent font */
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            overflow-x: hidden;
         }
 
+        /* ── SIDEBAR ── */
         .sidebar {
-            width: 250px;
-            min-height: 100vh;
-            background: linear-gradient(to bottom, #000, #111); /* Darker gradient for depth */
+            width: var(--sidebar-width);
+            background: #000;
+            height: 100vh;
+            border-right: 1px solid rgba(255,215,0,0.1);
             position: fixed;
-            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.4); /* Stronger shadow for sidebar */
-            transition: all 0.3s ease-in-out; /* Smoother transition */
+            top: 0;
+            left: 0;
             z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.3s cubic-bezier(0.4,0,0.2,1), transform 0.3s cubic-bezier(0.4,0,0.2,1);
+            overflow: hidden;
         }
 
-        .sidebar-collapsed {
-            width: 80px;
-        }
-
-            .sidebar-collapsed .nav-link span {
-                display: none;
+            .sidebar.collapsed {
+                width: var(--sidebar-collapsed);
             }
 
-            .sidebar-collapsed .sidebar-brand {
-                font-size: 0; /* Hide full text */
-            }
-
-                .sidebar-collapsed .sidebar-brand::after {
-                    content: "BSG"; /* Abbreviated brand */
-                    font-size: 1.25rem;
-                    color: var(--bs-secondary);
-                }
-
-        .main-content {
-            margin-left: 250px;
-            transition: all 0.3s ease-in-out; /* Smoother transition */
-            padding: 2rem; /* Consistent padding */
+        /* ── SIDEBAR HEADER ── */
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 20px 18px;
+            border-bottom: 1px solid rgba(255,215,0,0.08);
+            min-height: 80px;
+            flex-shrink: 0;
         }
 
-        .main-content-collapsed {
-            margin-left: 80px;
+        .sidebar-logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            object-fit: contain;
+            border: 1px solid rgba(255,215,0,0.25);
+            padding: 2px;
+            flex-shrink: 0;
+            filter: drop-shadow(0 0 6px rgba(255,215,0,0.5));
         }
 
-        .sidebar-brand {
-            color: var(--bs-secondary);
-            font-weight: 700;
-            font-size: 1.5rem; /* Consistent brand font size */
-            padding: 1.5rem 1rem;
-            text-align: center;
-            border-bottom: 1px solid rgba(255, 215, 0, 0.3); /* Consistent border */
+        .sidebar-brand-text {
+            color: var(--gold);
+            font-weight: 900;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            line-height: 1.3;
+            white-space: nowrap;
+            overflow: hidden;
+            opacity: 1;
+            transition: opacity 0.2s;
         }
 
-        .nav-link {
-            color: rgba(255, 255, 255, 0.85); /* Slightly brighter default link color */
-            padding: 0.75rem 1.5rem;
-            margin: 0.25rem 0;
-            border-left: 3px solid transparent;
-            transition: all 0.3s;
-            font-weight: 600; /* Consistent font weight */
+        .sidebar.collapsed .sidebar-brand-text {
+            opacity: 0;
+            width: 0;
         }
 
-            .nav-link:hover, .nav-link.active {
-                color: var(--bs-secondary);
-                background-color: rgba(255, 215, 0, 0.1);
-                border-left: 3px solid var(--bs-secondary);
-            }
-
-            .nav-link i {
-                margin-right: 0.5rem;
-                width: 20px;
-                text-align: center;
-            }
-
-        .toggle-btn {
+        /* ── DESKTOP TOGGLE ── */
+        .sidebar-toggle {
             position: fixed;
-            bottom: 20px;
-            left: 20px;
-            z-index: 1100; /* Higher z-index for the button */
-            background-color: var(--bs-secondary);
-            color: #000; /* Black text on gold button */
-            border: none;
-            width: 40px;
-            height: 40px;
+            top: 22px;
+            left: calc(var(--sidebar-width) - 16px);
+            width: 32px;
+            height: 32px;
+            background: #000;
+            border: 1px solid rgba(255,215,0,0.2);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); /* Glowing shadow */
+            z-index: 1001;
+            transition: left 0.3s cubic-bezier(0.4,0,0.2,1), background 0.2s;
+            color: rgba(255,215,0,0.6);
         }
 
-        /* --- THEME CUSTOMIZATIONS START HERE --- */
-
-        /* Headings - make H1 gold as per image */
-        h1, h2, h3, h4, h5, h6 {
-            color: var(--bs-secondary); /* All headings are gold */
-        }
-
-        /* General Button Styling (ALL buttons) */
-        .btn {
-            background-color: var(--bs-accent) !important; /* Red background (Fix: removed darken() ) */
-            border: 1px solid var(--bs-secondary) !important; /* Always visible Gold border */
-            color: #fff !important; /* White text */
-            transition: all 0.3s ease-in-out;
-            box-shadow: none; /* No initial shadow, border handles "gold around" */
-        }
-
-            .btn:hover {
-                background-color: #7A0000 !important; /* Slightly darker red on hover (direct hex value) */
-                border-color: var(--bs-secondary) !important; /* Keep gold border on hover */
-                box-shadow: 0 0 10px rgba(255, 215, 0, 0.6) !important; /* Gold glow on hover */
+            .sidebar-toggle:hover {
+                background: rgba(255,215,0,0.1);
+                color: var(--gold);
+                border-color: rgba(255,215,0,0.4);
             }
 
-            .btn:focus, .btn.focus {
-                box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.5) !important; /* Gold focus outline */
-                outline: none;
-                background-color: #7A0000 !important; /* Keep red on focus */
-                border-color: var(--bs-secondary) !important; /* Keep gold border on focus */
+        .toggle-icon {
+            transition: transform 0.3s;
+            font-size: 0.75rem;
+        }
+
+        /* ── NAV LINKS ── */
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 12px 0;
+        }
+
+            .sidebar-nav::-webkit-scrollbar {
+                width: 3px;
             }
 
-        /* Textboxes and Form Controls with Gold Border/Highlight */
-        .form-control,
-        .form-select {
-            background-color: #333; /* Dark background for inputs */
-            color: #fff; /* White text for inputs */
-            border: 1px solid var(--bs-secondary) !important; /* Gold border (always visible) */
-            box-shadow: none; /* No initial shadow */
-            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-        }
-
-            .form-control:focus,
-            .form-select:focus {
-                background-color: #2a2a2a; /* Slightly lighter on focus */
-                border-color: var(--bs-secondary) !important; /* Gold border on focus */
-                box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.4) !important; /* Gold glow on focus */
-                outline: none;
+            .sidebar-nav::-webkit-scrollbar-thumb {
+                background: rgba(255,215,0,0.1);
+                border-radius: 2px;
             }
 
-            /* Ensure placeholders are visible */
-            .form-control::placeholder {
-                color: rgba(255, 255, 255, 0.6); /* Lighter white for placeholders */
+        .nav-link {
+            color: rgba(255,255,255,0.6) !important;
+            padding: 11px 18px !important;
+            margin: 2px 10px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 14px !important;
+            text-decoration: none !important;
+            border-radius: 10px !important;
+            border-left: none !important;
+            transition: all 0.2s !important;
+            white-space: nowrap;
+            overflow: hidden;
+            min-height: 44px;
+        }
+
+            .nav-link:hover {
+                background: rgba(255,215,0,0.08) !important;
+                color: var(--gold) !important;
+                font-weight: 600 !important;
             }
 
-        /* Table styling (re-applying for clarity and consistency) */
-        .card {
-            background-color: #1a1a1a; /* Darker card background for contrast */
-            color: #fff;
-            border: 1px solid rgba(255, 215, 0, 0.2); /* Subtle gold border */
-        }
-
-        .table {
-            color: #fff; /* White text for table body */
-        }
-
-            .table thead {
-                background-color: #333; /* Darker header for tables */
-                color: var(--bs-secondary); /* Gold text for table headers */
+            .nav-link.active {
+                background: linear-gradient(135deg, rgba(179,0,0,0.3), rgba(255,215,0,0.1)) !important;
+                color: var(--gold) !important;
+                border: 1px solid rgba(255,215,0,0.15) !important;
             }
 
-            .table tbody tr:hover {
-                background-color: #2a2a2a; /* Slightly lighter on hover */
+            .nav-link i {
+                color: var(--gold) !important;
+                font-size: 1.1rem !important;
+                flex-shrink: 0 !important;
+                width: 20px;
+                text-align: center;
             }
-        /* Specific column gold color, apply text-secondary-column to the <td> or <a> in your views */
-        .table-primary-text { /* Use this class on your <td> for gold text */
-            color: var(--bs-secondary);
+
+        .nav-link-text {
+            opacity: 1;
+            transition: opacity 0.15s;
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 0.3px;
         }
 
-        /* Alert styling */
-        .alert-info {
-            background-color: rgba(255, 215, 0, 0.1); /* Light gold background for info alerts */
-            border-color: var(--bs-secondary);
-            color: var(--bs-secondary);
+        .sidebar.collapsed .nav-link-text {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
         }
 
-        /* Modal styling */
-        .modal-content {
-            background-color: #1a1a1a; /* Dark background for modal content */
-            color: #fff;
-            border: 1px solid var(--bs-secondary); /* Gold border for modals */
+        /* Collapsed tooltips — desktop only */
+        .sidebar.collapsed .nav-link {
+            position: relative;
+            justify-content: center !important;
+            margin: 2px 8px !important;
+            padding: 11px !important;
         }
 
-        .modal-header {
-            border-bottom-color: rgba(255, 215, 0, 0.3);
+            .sidebar.collapsed .nav-link::after {
+                content: attr(data-label);
+                position: absolute;
+                left: calc(var(--sidebar-collapsed) + 4px);
+                background: #111;
+                color: var(--gold);
+                border: 1px solid rgba(255,215,0,0.2);
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                white-space: nowrap;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.15s;
+                z-index: 9999;
+            }
+
+            .sidebar.collapsed .nav-link:hover::after {
+                opacity: 1;
+            }
+
+        /* ── LOGOUT ── */
+        .sidebar-footer {
+            padding: 12px 10px 20px;
+            flex-shrink: 0;
+            border-top: 1px solid rgba(255,215,0,0.06);
         }
 
-        .modal-footer {
-            border-top-color: rgba(255, 215, 0, 0.3);
-        }
-
-        .btn-close {
-            filter: invert(1); /* Makes the close button white */
-        }
-
-        /* Sidebar logout button consistency */
-        button.nav-link {
+        .logout-btn {
             background: none;
             border: none;
-            /* Inherits nav-link styles for color and hover */
+            width: 100%;
+            color: rgba(255,100,100,0.7) !important;
+            padding: 11px 18px !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 14px !important;
+            border-radius: 10px !important;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
+            font-size: 0.85rem;
         }
-        /* If you wanted the logout button to also be red with gold glow, uncomment the block below */
-        /*
-                .nav-item form button.nav-link {
-                    background-color: var(--bs-accent) !important;
-                    border: 1px solid var(--bs-secondary) !important;
-                    color: #fff !important;
-                    box-shadow: none;
-                }
-                .nav-item form button.nav-link:hover {
-                    background-color: #7A0000 !important;
-                    border-color: var(--bs-secondary) !important;
-                    box-shadow: 0 0 10px rgba(255, 215, 0, 0.6) !important;
-                }
-                .nav-item form button.nav-link:focus {
-                    box-shadow: 0 0 0 0.25rem rgba(255, 215, 0, 0.5) !important;
-                }
-                */
 
-        /* --- THEME CUSTOMIZATIONS END HERE --- */
+            .logout-btn:hover {
+                background: rgba(255,50,50,0.1) !important;
+                color: #ff6666 !important;
+            }
+
+            .logout-btn i {
+                color: rgba(255,100,100,0.7) !important;
+                font-size: 1.1rem !important;
+                flex-shrink: 0 !important;
+                width: 20px;
+                text-align: center;
+            }
+
+            .logout-btn:hover i {
+                color: #ff6666 !important;
+            }
+
+        .sidebar.collapsed .logout-btn {
+            justify-content: center !important;
+            padding: 11px !important;
+        }
+
+        .sidebar.collapsed .logout-btn-text {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+
+        /* ── MAIN CONTENT ── */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 0 36px 40px 36px;
+            min-height: 100vh;
+            transition: margin-left 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+
+            .main-content.collapsed {
+                margin-left: var(--sidebar-collapsed);
+            }
+
+        /* ── TOP BAR ── */
+        .top-branding-bar {
+            padding: 18px 0 14px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid rgba(255,215,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .branding-text {
+            font-weight: 800;
+            font-size: 1.5rem;
+            letter-spacing: 0.5px;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .gold-name {
+            color: var(--gold);
+            text-shadow: 0 0 12px rgba(255,215,0,0.25);
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .top-bar-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.85rem;
+            color: #000;
+            cursor: pointer;
+        }
+
+        /* ── HAMBURGER — hidden on desktop ── */
+        .hamburger-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--gold);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 8px;
+            transition: background 0.2s;
+            line-height: 1;
+        }
+
+            .hamburger-btn:hover {
+                background: rgba(255,215,0,0.1);
+            }
+
+        /* ── BACKDROP — mobile only ── */
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 999;
+            backdrop-filter: blur(3px);
+        }
+
+            .sidebar-backdrop.show {
+                display: block;
+            }
+
+        /* ══════════════════════
+                   TABLET (769–1024px)
+                ══════════════════════ */
+        @@media (min-width: 769px) and (max-width: 1024px) {
+            .sidebar
+
+        {
+            width: var(--sidebar-collapsed) !important;
+        }
+
+        .sidebar .sidebar-brand-text {
+            opacity: 0 !important;
+            width: 0 !important;
+        }
+
+        .sidebar .nav-link-text {
+            opacity: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .sidebar .nav-link {
+            justify-content: center !important;
+            margin: 2px 8px !important;
+            padding: 11px !important;
+            position: relative;
+        }
+
+            .sidebar .nav-link::after {
+                content: attr(data-label);
+                position: absolute;
+                left: calc(var(--sidebar-collapsed) + 4px);
+                background: #111;
+                color: var(--gold);
+                border: 1px solid rgba(255,215,0,0.2);
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                white-space: nowrap;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.15s;
+                z-index: 9999;
+            }
+
+            .sidebar .nav-link:hover::after {
+                opacity: 1;
+            }
+
+        .sidebar .logout-btn {
+            justify-content: center !important;
+            padding: 11px !important;
+        }
+
+        .sidebar .logout-btn-text {
+            opacity: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-collapsed) !important;
+        }
+
+        .sidebar-toggle {
+            left: calc(var(--sidebar-collapsed) - 16px) !important;
+        }
+
+        }
+
+        /* ══════════════════════
+                   MOBILE (max 768px)
+                ══════════════════════ */
+        @@media (max-width: 768px) {
+            /* Hide desktop toggle button */
+            .sidebar-toggle
+
+        {
+            display: none !important;
+        }
+
+        /* Show hamburger */
+        .hamburger-btn {
+            display: inline-flex !important;
+            align-items: center;
+        }
+
+        /* Sidebar slides off screen */
+        .sidebar {
+            transform: translateX(-100%);
+            width: var(--sidebar-width) !important;
+            box-shadow: none;
+        }
+
+            /* Sidebar open state */
+            .sidebar.mobile-open {
+                transform: translateX(0);
+                box-shadow: 6px 0 40px rgba(0,0,0,0.9);
+            }
+
+            /* Override collapsed styles on mobile */
+            .sidebar.collapsed {
+                width: var(--sidebar-width) !important;
+                transform: translateX(-100%);
+            }
+
+                .sidebar.collapsed.mobile-open {
+                    transform: translateX(0) !important;
+                }
+
+                .sidebar.collapsed .sidebar-brand-text {
+                    opacity: 1 !important;
+                    width: auto !important;
+                }
+
+                .sidebar.collapsed .nav-link-text {
+                    opacity: 1 !important;
+                    width: auto !important;
+                }
+
+                .sidebar.collapsed .logout-btn-text {
+                    opacity: 1 !important;
+                    width: auto !important;
+                }
+
+                .sidebar.collapsed .nav-link {
+                    justify-content: flex-start !important;
+                    margin: 2px 10px !important;
+                    padding: 11px 18px !important;
+                }
+
+                    .sidebar.collapsed .nav-link::after {
+                        display: none !important;
+                    }
+
+                .sidebar.collapsed .logout-btn {
+                    justify-content: flex-start !important;
+                    padding: 11px 18px !important;
+                }
+
+        /* Main content full width */
+        .main-content {
+            margin-left: 0 !important;
+            padding: 0 14px 40px 14px !important;
+        }
+
+        /* Top bar tweaks */
+        .top-branding-bar {
+            padding: 14px 0 10px;
+        }
+
+        .branding-text {
+            font-size: 1.05rem;
+        }
+
+        }
     </style>
-    @RenderSection("Styles", required: false)
 </head>
 <body>
 
+    @* ── MOBILE BACKDROP ── *@
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    @* ── SIDEBAR ── *@
     <div class="sidebar" id="sidebar">
-        <div class="sidebar-brand">
-            BeautySpotGlam Artist
+        <div class="sidebar-header">
+            <img src="~/images/Beauty in Red and Gold 2.jpg"
+                 class="sidebar-logo" alt="Logo"
+                 onerror="this.style.display='none'">
+            <span class="sidebar-brand-text">BEAUTY IN<br>RED AND GOLD</span>
         </div>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="Artist" asp-action="Dashboard">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span>Dashboard</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="Artist" asp-action="Profile">
-                    <i class="fas fa-user"></i>
-                    <span>Profile</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="Portfolio" asp-action="ManagePortfolio">
-                    <i class="fas fa-images"></i>
-                    <span>Portfolio</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="PortfolioItem" asp-action="ManagePortfolioItem">
-                    <i class="fas fa-images"></i>
-                    <span>Portfolio Items</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="Artist" asp-action="ManageServices">
-                    <i class="fas fa-spa"></i>
-                    <span>Services</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="Artist" asp-action="Appointments">
-                    <i class="fas fa-calendar-check"></i>
-                    <span>Appointments</span>
-                </a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" asp-controller="Artist" asp-action="Earnings">
-                    <i class="fas fa-wallet"></i>
-                    <span>Earnings</span>
-                </a>
-            </li>
-            <li class="nav-item mt-4">
-                <form asp-area="Identity" asp-page="/Account/Logout" method="post">
-                    <button type="submit" class="nav-link text-start w-100">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
-                    </button>
-                </form>
-            </li>
-        </ul>
+
+        <nav class="sidebar-nav">
+            <a class="nav-link" data-label="Dashboard"
+               asp-controller="Artist" asp-action="Dashboard">
+                <i class="bi bi-grid-1x2-fill"></i>
+                <span class="nav-link-text">Dashboard</span>
+            </a>
+            <a class="nav-link" data-label="Profile"
+               asp-controller="Artist" asp-action="Profile">
+                <i class="bi bi-person-circle"></i>
+                <span class="nav-link-text">Profile</span>
+            </a>
+            <a class="nav-link" data-label="My Portfolio"
+               asp-controller="Portfolio" asp-action="ManagePortfolio">
+                <i class="bi bi-images"></i>
+                <span class="nav-link-text">My Portfolio</span>
+            </a>
+            <a class="nav-link" data-label="My Services"
+               asp-controller="Artist" asp-action="ManageServices">
+                <i class="bi bi-scissors"></i>
+                <span class="nav-link-text">My Services</span>
+            </a>
+            <a class="nav-link" data-label="Availability"
+               asp-controller="ArtistAvailability" asp-action="Index">
+                <i class="bi bi-calendar3"></i>
+                <span class="nav-link-text">Availability</span>
+            </a>
+            <a class="nav-link" data-label="Appointments"
+               asp-controller="Artist" asp-action="MyAppointments">
+                <i class="bi bi-calendar-check"></i>
+                <span class="nav-link-text">Appointments</span>
+            </a>
+            <a class="nav-link" data-label="Earnings"
+               asp-controller="Earnings" asp-action="Earnings">
+                <i class="bi bi-graph-up-arrow"></i>
+                <span class="nav-link-text">Earnings</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <form asp-area="Identity" asp-page="/Account/Logout"
+                  asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })"
+                  method="post">
+                <button type="submit" class="logout-btn">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span class="logout-btn-text">Logout</span>
+                </button>
+            </form>
+        </div>
     </div>
 
-    <div class="main-content" id="main-content">
+    @* ── DESKTOP COLLAPSE TOGGLE ── *@
+    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+        <i class="bi bi-chevron-left toggle-icon" id="toggleIcon"></i>
+    </button>
+
+    @* ── MAIN CONTENT ── *@
+    <div class="main-content" id="mainContent">
+        <div class="top-branding-bar">
+
+            @* Hamburger — shows on mobile only via CSS *@
+            <button class="hamburger-btn" id="hamburgerBtn" title="Open menu">
+                <i class="bi bi-list"></i>
+            </button>
+
+            <h1 class="branding-text">
+                @if (ViewData["Title"]?.ToString() == "Dashboard")
+                {
+                    <span style="color:rgba(255,255,255,0.7)">Welcome, </span>
+                    <span class="gold-name">@displayName!</span>
+                }
+                else
+                {
+                    <span class="gold-name">@displayName</span>
+                }
+            </h1>
+
+            <div class="top-bar-right">
+                <i class="bi bi-bell-fill"
+                   style="color:var(--gold);cursor:pointer;font-size:1.2rem"></i>
+                <div class="top-bar-avatar">
+                    @(displayName.Length > 0 ? displayName[0].ToString().ToUpper() : "A")
+                </div>
+            </div>
+        </div>
+
         @RenderBody()
     </div>
 
-    <button class="toggle-btn" id="sidebarToggle">
-        <i class="fas fa-bars"></i>
-    </button>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Sidebar toggle functionality
-        document.getElementById('sidebarToggle').addEventListener('click', function () {
-            document.getElementById('sidebar').classList.toggle('sidebar-collapsed');
-            document.getElementById('main-content').classList.toggle('main-content-collapsed');
+        const sidebar      = document.getElementById('sidebar');
+        const mainContent  = document.getElementById('mainContent');
+        const toggleBtn    = document.getElementById('sidebarToggle');
+        const toggleIcon   = document.getElementById('toggleIcon');
+        const hamburgerBtn = document.getElementById('hamburgerBtn');
+        const backdrop     = document.getElementById('sidebarBackdrop');
+
+        const isMobile = () => window.innerWidth <= 768;
+        const isTablet = () => window.innerWidth > 768 && window.innerWidth <= 1024;
+
+        // ── DESKTOP: restore saved state ──
+        if (!isMobile() && !isTablet()) {
+            const wasCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            if (wasCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('collapsed');
+                toggleIcon.classList.replace('bi-chevron-left', 'bi-chevron-right');
+                toggleBtn.style.left = 'calc(70px - 16px)';
+            }
+        }
+
+        // ── DESKTOP: collapse toggle ──
+        toggleBtn.addEventListener('click', () => {
+            if (isMobile() || isTablet()) return;
+            const collapsed = sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('collapsed', collapsed);
+            if (collapsed) {
+                toggleIcon.classList.replace('bi-chevron-left', 'bi-chevron-right');
+                toggleBtn.style.left = 'calc(70px - 16px)';
+            } else {
+                toggleIcon.classList.replace('bi-chevron-right', 'bi-chevron-left');
+                toggleBtn.style.left = 'calc(260px - 16px)';
+            }
+            localStorage.setItem('sidebarCollapsed', collapsed);
         });
 
-        // Bootstrap 5 Tooltip Initialization (if you use tooltips)
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl)
-        })
+        // ── MOBILE: open ──
+        hamburgerBtn.addEventListener('click', () => {
+            sidebar.classList.add('mobile-open');
+            backdrop.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        });
+
+        // ── MOBILE: close ──
+        function closeMobile() {
+            sidebar.classList.remove('mobile-open');
+            backdrop.classList.remove('show');
+            document.body.style.overflow = '';
+        }
+
+        backdrop.addEventListener('click', closeMobile);
+
+        // Close sidebar when a nav link is tapped on mobile
+        document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (isMobile()) closeMobile();
+            });
+        });
+
+        // ── ACTIVE LINK ──
+        const currentPath = window.location.pathname.toLowerCase();
+        document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
+            const href = link.getAttribute('href')?.toLowerCase();
+            if (href && currentPath.includes(href.split('/').pop())) {
+                link.classList.add('active');
+            }
+        });
+
+        // ── RESIZE: close mobile sidebar if screen grows ──
+        window.addEventListener('resize', () => {
+            if (!isMobile()) closeMobile();
+        });
     </script>
-    @RenderSection("Scripts", required: false)
+
+    @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -22,8 +22,10 @@ namespace BeautyArtists.Models.ViewModels
         public IEnumerable<SelectListItem>? Categories { get; set; }
 
 
-        [StringLength(100)]
-        public string? Location { get; set; }
+        [Required]
+        public string Province { get; set; }
+        [Required]
+        public string City { get; set; }
 
         [StringLength(100)]
         public string? ClientName { get; set; }

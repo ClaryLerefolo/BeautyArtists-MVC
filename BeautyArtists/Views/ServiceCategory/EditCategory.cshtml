@@ -1,0 +1,387 @@
+﻿@model BeautyArtists.Models.ViewModels.ServiceCategoryViewModel
+@{
+    ViewData["Title"] = "Edit Category";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    var currentImg = !string.IsNullOrWhiteSpace(Model.ExistingImagePath)
+        ? Url.Content(Model.ExistingImagePath)
+           : "/images/category-default.jpg";
+}
+
+@section Styles {
+    <style>
+        .ec-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .ec-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
+
+        /* ── FORM CARD ── */
+        .ec-card {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.12);
+            border-radius: 18px;
+            overflow: hidden;
+            max-width: 620px;
+        }
+
+        .ec-card-header {
+            background: linear-gradient(135deg, #0a0000, #150500);
+            border-bottom: 1px solid rgba(255,215,0,0.08);
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .ec-card-header-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: #000;
+            flex-shrink: 0;
+        }
+
+        .ec-card-header-title {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #FFD700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .ec-card-header-sub {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.3);
+            margin: 2px 0 0;
+        }
+
+        .ec-card-body {
+            padding: 24px;
+        }
+
+        /* ── FORM FIELDS ── */
+        .ec-label {
+            display: block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.5);
+            margin-bottom: 7px;
+        }
+
+        .ec-input {
+            width: 100%;
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 10px !important;
+            color: #fff !important;
+            padding: 11px 14px !important;
+            font-size: 0.88rem;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+            .ec-input:focus {
+                outline: none !important;
+                border-color: rgba(255,215,0,0.4) !important;
+                background: rgba(255,215,0,0.03) !important;
+                box-shadow: none !important;
+            }
+
+            .ec-input::placeholder {
+                color: rgba(255,255,255,0.2) !important;
+            }
+
+        .ec-validation {
+            font-size: 0.78rem;
+            color: #ff5555;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .ec-field {
+            margin-bottom: 22px;
+        }
+
+        /* ── IMAGE SECTION ── */
+        .ec-img-section {
+            margin-bottom: 22px;
+            padding: 18px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,215,0,0.08);
+            border-radius: 12px;
+        }
+
+        .ec-img-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.5);
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .ec-current-img {
+            width: 100%;
+            max-height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid rgba(255,215,0,0.1);
+            margin-bottom: 16px;
+        }
+
+        .ec-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .ec-divider-line {
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+        }
+
+        .ec-divider-text {
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.2);
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* File upload button */
+        .ec-file-wrap {
+            position: relative;
+        }
+
+        .ec-file-input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .ec-file-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 10px;
+            background: rgba(255,215,0,0.08);
+            border: 1px dashed rgba(255,215,0,0.25);
+            color: rgba(255,215,0,0.6);
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+            .ec-file-btn:hover {
+                background: rgba(255,215,0,0.14);
+                border-color: rgba(255,215,0,0.45);
+                color: #FFD700;
+            }
+
+        .ec-file-name {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.3);
+            margin-top: 6px;
+            text-align: center;
+        }
+
+        /* Preview */
+        .ec-preview-wrap {
+            margin-top: 14px;
+            display: none;
+        }
+
+        .ec-preview-label {
+            font-size: 0.65rem;
+            color: rgba(255,215,0,0.4);
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 7px;
+            display: block;
+        }
+
+        .ec-preview-img {
+            width: 100%;
+            max-height: 180px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid rgba(255,215,0,0.2);
+        }
+
+        /* ── ACTION BUTTONS ── */
+        .ec-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+
+        .ec-btn-save {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 28px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+            .ec-btn-save:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                box-shadow: 0 0 20px rgba(255,215,0,0.3);
+                transform: translateY(-1px);
+            }
+
+        .ec-btn-cancel {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 24px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.45);
+            font-weight: 700;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .ec-btn-cancel:hover {
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.7);
+                border-color: rgba(255,255,255,0.2);
+            }
+    </style>
+}
+
+<span class="ec-eyebrow">Administration</span>
+<h1 class="ec-heading">Edit Category</h1>
+
+<div class="ec-card">
+    <div class="ec-card-header">
+        <div class="ec-card-header-icon"><i class="bi bi-pencil-fill"></i></div>
+        <div>
+            <p class="ec-card-header-title">Edit Category</p>
+            <p class="ec-card-header-sub">Update name and cover image</p>
+        </div>
+    </div>
+
+    <div class="ec-card-body">
+        <form asp-action="EditCategory" method="post" enctype="multipart/form-data">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+
+            @* ── NAME ── *@
+            <div class="ec-field">
+                <label asp-for="Name" class="ec-label">Category Name</label>
+                <input asp-for="Name" class="ec-input" placeholder="e.g. Nail Care" />
+                <span asp-validation-for="Name" class="ec-validation"></span>
+            </div>
+
+            @* ── IMAGE ── *@
+            <div class="ec-img-section">
+                <span class="ec-img-label">Cover Image</span>
+
+                <img src="@currentImg"
+                     alt="Current cover"
+                     class="ec-current-img"
+                     id="currentImg"
+                     onerror="this.src='/images/category-default.jpg'" />
+
+                <div class="ec-divider">
+                    <div class="ec-divider-line"></div>
+                    <span class="ec-divider-text">Upload New Image</span>
+                    <div class="ec-divider-line"></div>
+                </div>
+
+                <div class="ec-file-wrap">
+                    <input asp-for="ImageFile" type="file" accept="image/*"
+                           class="ec-file-input" id="imageFileInput"
+                           onchange="handleFileChange(event)" />
+                    <div class="ec-file-btn" id="fileBtn">
+                        <i class="bi bi-cloud-arrow-up-fill"></i>
+                        Choose New Image
+                    </div>
+                </div>
+                <p class="ec-file-name" id="fileName">No file chosen</p>
+
+                <div class="ec-preview-wrap" id="previewWrap">
+                    <span class="ec-preview-label">New Image Preview</span>
+                    <img id="preview" class="ec-preview-img" src="" alt="Preview" />
+                </div>
+            </div>
+
+            @* ── ACTIONS ── *@
+            <div class="ec-actions">
+                <button type="submit" class="ec-btn-save">
+                    <i class="bi bi-check-lg"></i> Save Changes
+                </button>
+                <a asp-action="ManageCategory" class="ec-btn-cancel">
+                    <i class="bi bi-x-lg"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function handleFileChange(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // Show file name
+            document.getElementById('fileName').textContent = file.name;
+
+            // Show preview
+            const preview    = document.getElementById('preview');
+            const previewWrap = document.getElementById('previewWrap');
+            const reader     = new FileReader();
+            reader.onload = (e) => {
+                preview.src = e.target.result;
+                previewWrap.style.display = 'block';
+                // Also update the current image so they see the change
+                document.getElementById('currentImg').src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    </script>
+}

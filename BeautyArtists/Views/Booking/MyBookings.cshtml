@@ -1,192 +1,638 @@
 ﻿@model IEnumerable<BeautyArtists.Models.Booking>
 @{
-    ViewData["Title"] = "My Bookings";
+    ViewData["Title"] = "My Appointments";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var bookingsList = Model.ToList();
+    var pending = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Pending);
+    var confirmed = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed);
+    var completed = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Completed);
+    var cancelled = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Cancelled);
 }
 
-<h2 class="text-gold mb-4">My Bookings</h2>
+<div class="mb-page">
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success">@TempData["Success"]</div>
-}
-
-@if (!Model.Any())
-{
-    <p class="text-muted">You have not made any bookings yet.</p>
-}
-else
-{
-    <!-- Search and filter -->
-    <div class="row mb-3">
-        <div class="col-md-4">
-            <input id="searchInput" class="form-control" placeholder="Search by service or artist..." />
-        </div>
-        <div class="col-md-3">
-            <select id="statusFilter" class="form-select">
-                <option value="">All Statuses</option>
-                <option value="Pending">Pending</option>
-                <option value="Confirmed">Confirmed</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <button class="btn btn-outline-light" onclick="exportBookings()">Export CSV</button>
+    @* ── HEADER ── *@
+    <div class="mb-hero">
+        <div class="mb-hero-bg"></div>
+        <div class="container mb-hero-inner">
+            <div>
+                <span class="mb-eyebrow">Your Schedule</span>
+                <h1 class="mb-title">My Appointments</h1>
+                <p class="mb-subtitle">Track and manage all your beauty bookings</p>
+            </div>
+            <div class="mb-stats-row">
+                <div class="mb-stat">
+                    <span class="mb-stat-num">@bookingsList.Count</span>
+                    <span class="mb-stat-label">TOTAL</span>
+                </div>
+                <div class="mb-stat-div"></div>
+                <div class="mb-stat">
+                    <span class="mb-stat-num" style="color:#f0c808">@pending</span>
+                    <span class="mb-stat-label">PENDING</span>
+                </div>
+                <div class="mb-stat-div"></div>
+                <div class="mb-stat">
+                    <span class="mb-stat-num" style="color:#00c853">@confirmed</span>
+                    <span class="mb-stat-label">CONFIRMED</span>
+                </div>
+            </div>
         </div>
     </div>
 
-    <table class="table table-dark table-striped border-gold" id="bookingsTable">
-        <thead>
-            <tr>
-                <th>Service</th>
-                <th>Artist</th>
-                <th>Date Booked</th>
-                <th>Appointment</th>
-                <th>Status</th>
-                <th>Notes</th>
-                <th>Total</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var b in Model)
+    @* ── SUCCESS MESSAGE ── *@
+    @if (TempData["Success"] != null)
+    {
+        <div class="container mt-4">
+            <div class="mb-alert-success">
+                <span>✓</span> @TempData["Success"]
+            </div>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="container mt-4">
+            <div class="mb-alert-error">
+                @TempData["Error"]
+            </div>
+        </div>
+    }
+    @* ── BOOKINGS LIST ── *@
+    <div class="container mb-body">
+
+        @if (!bookingsList.Any())
+        {
+            <div class="mb-empty">
+                <div class="mb-empty-icon">📅</div>
+                <h3>No Appointments Yet</h3>
+                <p>You haven't booked any services yet. Explore our artists and book your first appointment!</p>
+                <a asp-controller="Home" asp-action="Index" class="mb-btn-primary">
+                    Explore Services
+                </a>
+            </div>
+        }
+        else
+        {
+            @foreach (var booking in bookingsList)
             {
-                var artistName = b.UserService?.Artist?.ArtistProfile?.FullName
-                ?? $"{b.UserService?.Artist?.FirstName} {b.UserService?.Artist?.LastName}"
-                ?? "Unknown Artist";
+                string statusClass = booking.Status switch
+                {
+                    BeautyArtists.Models.Booking.BookingStatus.Pending => "status-pending",
+                    BeautyArtists.Models.Booking.BookingStatus.Confirmed => "status-confirmed",
+                    BeautyArtists.Models.Booking.BookingStatus.Completed => "status-completed",
+                    BeautyArtists.Models.Booking.BookingStatus.Cancelled => "status-cancelled",
+                    _ => "status-pending"
+                };
+                string statusIcon = booking.Status switch
+                {
+                    BeautyArtists.Models.Booking.BookingStatus.Pending => "⏳",
+                    BeautyArtists.Models.Booking.BookingStatus.Confirmed => "✅",
+                    BeautyArtists.Models.Booking.BookingStatus.Completed => "⭐",
+                    BeautyArtists.Models.Booking.BookingStatus.Cancelled => "❌",
+                    _ => "⏳"
+                };
+                string artistName = booking.UserService?.Artist?.ArtistProfile?.FullName
+                ?? (!string.IsNullOrEmpty(booking.UserService?.Artist?.FirstName)
+                ? $"{booking.UserService.Artist.FirstName} {booking.UserService.Artist.LastName}".Trim()
+                : booking.UserService?.Artist?.UserName ?? "Pro Artist");
 
-                <tr>
-                    <td>@b.UserService?.Service?.Name</td>
-                    <td>@artistName</td>
-                    <td>@b.BookingDate.ToString("yyyy-MM-dd")</td>
-                    <td>@b.AppointmentDate.ToString("yyyy-MM-dd HH:mm")</td>
-                    <td class="status">
-                        @switch (b.Status)
-                        {
-                            case BeautyArtists.Models.Booking.BookingStatus.Pending:
-                                <span class="badge bg-secondary">Pending</span>
-                                break;
-                            case BeautyArtists.Models.Booking.BookingStatus.Confirmed:
-                                <span class="badge bg-success">Confirmed</span>
-                                break;
-                            case BeautyArtists.Models.Booking.BookingStatus.Completed:
-                                <span class="badge bg-primary">Completed</span>
-                                break;
-                            case BeautyArtists.Models.Booking.BookingStatus.Cancelled:
-                                <span class="badge bg-danger">Cancelled</span>
-                                break;
-                        }
-                    </td>
-                    <td>@(string.IsNullOrWhiteSpace(b.Notes) ? "-" : b.Notes)</td>
-                    <td>R@b.TotalAmount</td>
-                    <td>
-                        @if (b.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed || b.Status == BeautyArtists.Models.Booking.BookingStatus.Pending)
-                        {
-                            if (!b.HasRescheduled)
-                            {
-                                <a asp-action="Reschedule" asp-route-id="@b.Id" class="btn btn-sm btn-outline-warning me-2">Reschedule</a>
-                            }
-                            <form asp-action="Cancel" asp-route-id="@b.Id" method="post" class="d-inline">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-danger"
-                                        onclick="return confirm('Are you sure you want to cancel this booking?')">
-                                    Cancel
-                                </button>
-                            </form>
-                        }
-                        else
-                        {
-                            <span class="text-muted">—</span>
-                        }
+                <div class="mb-card @(booking.Status == BeautyArtists.Models.Booking.BookingStatus.Cancelled ? "mb-card-cancelled" : "")">
 
-                    </td>
-                </tr>
+                    @* Status strip *@
+                    <div class="mb-card-strip @statusClass"></div>
+
+                    <div class="mb-card-body">
+
+                        @* Left: Service info *@
+                        <div class="mb-card-main">
+                            <div class="mb-card-header">
+                                <span class="mb-status-badge @statusClass">
+                                    @statusIcon @booking.Status.ToString()
+                                </span>
+                                <span class="mb-booking-id">#@booking.Id</span>
+                            </div>
+
+                            <h3 class="mb-service-name">
+                                @(booking.UserService?.Service?.Name ?? "Service")
+                            </h3>
+
+                            <div class="mb-card-meta">
+                                <div class="mb-meta-item">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                         stroke="currentColor" stroke-width="2">
+                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                        <circle cx="12" cy="7" r="4" />
+                                    </svg>
+                                    @artistName
+                                </div>
+                                <div class="mb-meta-item">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                         stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                        <line x1="16" y1="2" x2="16" y2="6" />
+                                        <line x1="8" y1="2" x2="8" y2="6" />
+                                        <line x1="3" y1="10" x2="21" y2="10" />
+                                    </svg>
+                                    @booking.AppointmentDate.ToString("dddd, dd MMM yyyy")
+                                </div>
+                                <div class="mb-meta-item">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                         stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12,6 12,12 16,14" />
+                                    </svg>
+                                    @booking.AppointmentDate.ToString("HH:mm")
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(booking.Notes))
+                                {
+                                    <div class="mb-meta-item mb-notes">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                             stroke="currentColor" stroke-width="2">
+                                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                            <polyline points="14,2 14,8 20,8" />
+                                        </svg>
+                                        <strong>Note:</strong> @booking.Notes
+                                    </div>
+                                }
+
+                                @* --- PATCH: Reason for Cancel/Reschedule --- *@
+                                @if (!string.IsNullOrEmpty(booking.ClientNotes))
+                                {
+                                    <div class="mb-meta-item" style="color: #ff5555 !important; border-top: 1px solid rgba(255,85,85,0.1); margin-top: 4px; padding-top: 4px;">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                                        </svg>
+                                        <strong>Update Reason:</strong> @booking.ClientNotes
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrEmpty(booking.ArtistNotes))
+                                {
+                                    <div class="mb-meta-item" style="color: #FFD700 !important; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,215,0,0.1);">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                        </svg>
+                                        <span style="font-weight: 700; margin-right: 4px;">Artist Note:</span> @booking.ArtistNotes
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        @* Right: Price + Actions *@
+                        <div class="mb-card-right">
+                            <div class="mb-amount">
+                                <span class="mb-amount-label">Total</span>
+                                <span class="mb-amount-value">R @booking.TotalAmount.ToString("N0")</span>
+                            </div>
+
+                            <div class="mb-actions">
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed
+                                                        && !booking.HasRescheduled)
+                                {
+                                    <a asp-controller="Booking"
+                                       asp-action="Reschedule"
+                                       asp-route-id="@booking.Id"
+                                       class="mb-btn-secondary">
+                                        Reschedule
+                                    </a>
+                                }
+
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Pending
+                                                        || booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
+                                {
+                                    @* PATCH: Added onsubmit handler to capture reason *@
+                                    <form asp-controller="Booking" asp-action="Cancel"
+                                          asp-route-id="@booking.Id" method="post"
+                                          onsubmit="return handleCancelPrompt(this);">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="clientNotes" />
+                                        <button type="submit" class="mb-btn-cancel">Cancel</button>
+                                    </form>
+                                }
+
+                                <span class="mb-booked-on">
+                                    Booked @booking.BookingDate.ToString("dd MMM yyyy")
+                                </span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
             }
-        </tbody>
-    </table>
+        }
 
-    <!-- Pagination Controls -->
-    <div class="text-center">
-        <button class="btn btn-outline-light me-2" id="prevPage">Prev</button>
-        <button class="btn btn-outline-light" id="nextPage">Next</button>
+        <div class="mb-footer-link">
+            <a asp-controller="Home" asp-action="Index" class="cat-back-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2">
+                    <polyline points="15,18 9,12 15,6" />
+                </svg>
+                Back to Home
+            </a>
+        </div>
     </div>
-}
+</div>
 
-@section Scripts {
-    <script>
-        let currentPage = 1;
-        const rowsPerPage = 10;
+<script>
+    function handleCancelPrompt(form) {
+        var reason = prompt("Please provide a reason for cancelling:");
+        if (reason === null) return false;
+        if (reason.trim() === "") {
+            alert("Cancellation reason is required.");
+            return false;
+        }
+        form.querySelector('input[name="clientNotes"]').value = reason;
+        return confirm('Are you sure you want to cancel this appointment?');
+    }
+</script>
 
-        function filterBookings() {
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            const status = document.getElementById('statusFilter').value.toLowerCase();
-            const rows = document.querySelectorAll('#bookingsTable tbody tr');
+<style>
+    /* ... (Your original styles remain exactly the same) ... */
+    .mb-page {
+        background: #000;
+        min-height: 100vh;
+        padding-bottom: 80px;
+    }
 
-            rows.forEach(row => {
-                const service = row.cells[0].textContent.toLowerCase();
-                const artist = row.cells[1].textContent.toLowerCase();
-                const bookingStatus = row.cells[4].textContent.toLowerCase();
+    .mb-hero {
+        position: relative;
+        padding: 50px 0 40px;
+        overflow: hidden;
+    }
 
-                const matchesSearch = service.includes(search) || artist.includes(search);
-                const matchesStatus = !status || bookingStatus === status;
+    .mb-hero-bg {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #0d0000 0%, #1a0800 50%, #050505 100%);
+    }
 
-                row.style.display = (matchesSearch && matchesStatus) ? "" : "none";
-            });
-
-            paginate();
+        .mb-hero-bg::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 20% 50%, rgba(179,0,0,0.18) 0%, transparent 55%), radial-gradient(ellipse at 80% 50%, rgba(255,215,0,0.06) 0%, transparent 55%);
         }
 
-        function paginate() {
-            const rows = Array.from(document.querySelectorAll('#bookingsTable tbody tr'))
-                .filter(row => row.style.display !== "none");
+    .mb-hero-inner {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
 
-            rows.forEach((row, index) => {
-                row.style.display = (index >= (currentPage - 1) * rowsPerPage && index < currentPage * rowsPerPage)
-                    ? ""
-                    : "none";
-            });
+    .mb-eyebrow {
+        display: block;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: rgba(255,215,0,0.4);
+        margin-bottom: 8px;
+    }
+
+    .mb-title {
+        color: #FFD700;
+        font-size: 2.2rem;
+        font-weight: 800;
+        margin: 0 0 6px;
+        text-shadow: 0 0 30px rgba(255,215,0,0.25);
+    }
+
+    .mb-subtitle {
+        color: rgba(255,255,255,0.3);
+        font-size: 0.85rem;
+        margin: 0;
+    }
+
+    .mb-stats-row {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,215,0,0.1);
+        border-radius: 16px;
+        padding: 16px 24px;
+    }
+
+    .mb-stat {
+        text-align: center;
+    }
+
+    .mb-stat-num {
+        display: block;
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: #fff;
+        line-height: 1;
+    }
+
+    .mb-stat-label {
+        display: block;
+        font-size: 0.52rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: rgba(255,255,255,0.25);
+        margin-top: 3px;
+    }
+
+    .mb-stat-div {
+        width: 1px;
+        height: 36px;
+        background: rgba(255,215,0,0.12);
+    }
+
+    .mb-alert-success {
+        background: rgba(0,200,83,0.1);
+        border: 1px solid rgba(0,200,83,0.3);
+        border-radius: 10px;
+        padding: 12px 18px;
+        color: #00c853;
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
+    .mb-body {
+        padding-top: 32px;
+    }
+
+    .mb-empty {
+        text-align: center;
+        padding: 80px 20px;
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.08);
+        border-radius: 18px;
+    }
+
+    .mb-empty-icon {
+        font-size: 3rem;
+        margin-bottom: 16px;
+    }
+
+    .mb-empty h3 {
+        color: #FFD700;
+        font-weight: 800;
+        margin-bottom: 10px;
+    }
+
+    .mb-empty p {
+        color: rgba(255,255,255,0.35);
+        font-size: 0.88rem;
+        margin-bottom: 24px;
+    }
+
+    .mb-card {
+        display: flex;
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.1);
+        border-radius: 16px;
+        overflow: hidden;
+        margin-bottom: 16px;
+        transition: border-color 0.25s, transform 0.25s;
+    }
+
+        .mb-card:hover {
+            border-color: rgba(255,215,0,0.25);
+            transform: translateY(-2px);
         }
 
-        document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; filterBookings(); });
-        document.getElementById('statusFilter').addEventListener('change', () => { currentPage = 1; filterBookings(); });
+    .mb-card-cancelled {
+        opacity: 0.5;
+    }
 
-        document.getElementById('prevPage').addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                paginate();
-            }
-        });
+    .mb-card-strip {
+        width: 5px;
+        flex-shrink: 0;
+    }
 
-        document.getElementById('nextPage').addEventListener('click', () => {
-            const rows = document.querySelectorAll('#bookingsTable tbody tr');
-            const visibleRows = Array.from(rows).filter(r => r.style.display !== "none");
-            if (currentPage * rowsPerPage < visibleRows.length) {
-                currentPage++;
-                paginate();
-            }
-        });
+    .status-pending {
+        background: #f0c808;
+    }
 
-        function exportBookings() {
-            const rows = document.querySelectorAll('#bookingsTable tbody tr');
-            let csv = "Service,Artist,Booked,Appointment,Status,Notes,Total\n";
+    .status-confirmed {
+        background: #00c853;
+    }
 
-            rows.forEach(row => {
-                if (row.style.display !== "none") {
-                    const cols = Array.from(row.children).slice(0, 7).map(td => `"${td.textContent.trim()}"`);
-                    csv += cols.join(",") + "\n";
-                }
-            });
+    .status-completed {
+        background: #2979ff;
+    }
 
-            const blob = new Blob([csv], { type: "text/csv" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "MyBookings.csv";
-            a.click();
-            URL.revokeObjectURL(url);
+    .status-cancelled {
+        background: #555;
+    }
+
+    .mb-card-body {
+        display: flex;
+        flex: 1;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 22px 24px;
+        flex-wrap: wrap;
+    }
+
+    .mb-card-main {
+        flex: 1;
+        min-width: 220px;
+    }
+
+    .mb-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .mb-status-badge {
+        font-size: 0.7rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .status-pending.mb-status-badge {
+        background: rgba(240,200,8,0.15);
+        color: #f0c808;
+    }
+
+    .status-confirmed.mb-status-badge {
+        background: rgba(0,200,83,0.15);
+        color: #00c853;
+    }
+
+    .status-completed.mb-status-badge {
+        background: rgba(41,121,255,0.15);
+        color: #2979ff;
+    }
+
+    .status-cancelled.mb-status-badge {
+        background: rgba(100,100,100,0.2);
+        color: #888;
+    }
+
+    .mb-booking-id {
+        color: rgba(255,255,255,0.2);
+        font-size: 0.72rem;
+        margin-left: auto;
+    }
+
+    .mb-service-name {
+        color: #FFD700;
+        font-size: 1.15rem;
+        font-weight: 800;
+        margin: 0 0 12px;
+    }
+
+    .mb-card-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .mb-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: rgba(255,255,255,0.4);
+        font-size: 0.8rem;
+    }
+
+        .mb-meta-item svg {
+            flex-shrink: 0;
         }
 
-        // Run filter on page load
-        filterBookings();
-    </script>
-}
+    .mb-notes {
+        color: rgba(255,255,255,0.3) !important;
+        font-style: italic;
+        padding-top: 4px;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        margin-top: 4px;
+    }
+
+    .mb-card-right {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 16px;
+        min-width: 140px;
+    }
+
+    .mb-amount {
+        text-align: right;
+    }
+
+    .mb-amount-label {
+        display: block;
+        font-size: 0.55rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: rgba(255,255,255,0.25);
+        text-transform: uppercase;
+        margin-bottom: 3px;
+    }
+
+    .mb-amount-value {
+        display: block;
+        font-size: 1.4rem;
+        font-weight: 800;
+        color: #FFD700;
+    }
+
+    .mb-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 8px;
+    }
+
+    .mb-btn-primary, .mb-btn-secondary, .mb-btn-cancel {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 9px 20px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+    }
+
+    .mb-btn-primary {
+        background: linear-gradient(135deg, #b30000, #FFD700);
+        color: #000;
+    }
+
+        .mb-btn-primary:hover {
+            background: linear-gradient(135deg, #FFD700, #b30000);
+            color: #000;
+            box-shadow: 0 0 20px rgba(255,215,0,0.3);
+        }
+
+    .mb-btn-secondary {
+        background: rgba(255,215,0,0.1);
+        border: 1px solid rgba(255,215,0,0.3);
+        color: #FFD700;
+    }
+
+        .mb-btn-secondary:hover {
+            background: rgba(255,215,0,0.18);
+            color: #FFD700;
+        }
+
+    .mb-btn-cancel {
+        background: rgba(255,50,50,0.08);
+        border: 1px solid rgba(255,50,50,0.25);
+        color: #ff5555;
+    }
+
+        .mb-btn-cancel:hover {
+            background: rgba(255,50,50,0.15);
+            color: #ff5555;
+        }
+
+    .mb-booked-on {
+        color: rgba(255,255,255,0.18);
+        font-size: 0.65rem;
+    }
+
+    .mb-footer-link {
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .cat-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: rgba(255,215,0,0.5);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+
+        .cat-back-btn:hover {
+            color: #FFD700;
+        }
+
+    .mb-alert-error {
+        background: rgba(255,50,50,0.08);
+        border: 1px solid rgba(255,50,50,0.25);
+        border-radius: 10px;
+        padding: 12px 18px;
+        color: #ff5555;
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+</style>

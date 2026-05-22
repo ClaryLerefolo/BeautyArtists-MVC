@@ -5,40 +5,320 @@
 }
 
 <!-- Hero Section -->
-<section class="hero d-flex align-items-center justify-content-center text-center text-light" style="background: url('@Url.Content("~/uploads/hero/hero.jpg")') center/cover no-repeat; height: 80vh;">
-    <div>
-        <h1 class="display-3">BeautyArtists Salon</h1>
-        <p class="lead">Book your perfect look today.</p>
-        <a href="@Url.Action("Book", "Booking")" class="btn btn-danger btn-lg">Book Now</a>
-    </div>
-</section>
-
-<!-- Featured Services -->
-<section class="py-5">
-    <div class="container">
-        <h2 class="text-gold mb-4">Featured Services</h2>
-        <div class="row">
-            @foreach (var s in Model.FeaturedServices)
+<header id="heroCarousel" class="carousel slide carousel-fade shadow-lg" data-bs-ride="carousel" data-bs-interval="3000">
+    <div class="carousel-inner">
+        @if (Model.Banners != null && Model.Banners.Any())
+        {
+            bool isFirst = true;
+            foreach (var banner in Model.Banners)
             {
-                <div class="col-md-4 mb-4">
-                    <div class="card bg-dark text-light h-100 border border-gold">
-                        <img src="@Url.Content("~/" + (string.IsNullOrEmpty(s.ImagePath) ? "images/default-service.jpg" : s.ImagePath))"
-                             class="card-img-top" alt="@s.Name" style="object-fit: cover; height: 200px;" />
-                        <div class="card-body d-flex flex-column">
-                            <h5 class="card-title">@s.Name</h5>
-                            <p class="card-text">@s.Description</p>
-                            <a asp-controller="Services" asp-action="Details" asp-route-id="@s.Id" class="btn btn-danger mt-auto">Learn More</a>
-                        </div>
-                        <div class="card-footer bg-dark text-gold">
-                            Duration: @s.Duration mins | From R@s.BasePrice
+                <div class="carousel-item @(isFirst ? "active" : "")">
+                    @{
+                        isFirst = false;
+                    }
+
+                    <div class="d-flex align-items-center justify-content-center text-center text-light"
+                         style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('@Url.Content("~" + banner.ImagePath)') center/cover no-repeat; height: 85vh;">
+                        <div class="container">
+                            <h1 class="display-3 fw-bold text-gold animate__animated animate__fadeInDown">@banner.Title</h1>
+                            <p class="lead fs-3 animate__animated animate__fadeInUp">@banner.Subtitle</p>
                         </div>
                     </div>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="carousel-item active">
+                <div class="d-flex align-items-center justify-content-center text-center text-light"
+                     style="background: #111; height: 85vh;">
+                    <div>
+                        <h1 class="display-3 text-gold">BeautyArtists Salon</h1>
+                        <p class="lead">Luxury in every detail.</p>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+    </button>
+</header>
+<section class="py-5 bg-black">
+    <div class="container text-center">
+        <h2 class="text-gold fw-normal mb-5 mt-3" style="letter-spacing: 2px; font-size: 1.8rem;">EXPLORE BY CATEGORY</h2>
+
+        <div class="row g-3 justify-content-center">
+            @* 'g-3' for tighter gaps, 'justify-content-center' for layout balance *@
+            @foreach (var cat in Model.Categories)
+            {
+                <div class="col-lg-3 col-md-4 col-sm-6 mb-2">
+                    <a asp-controller="Home" asp-action="CategoryServices" asp-route-categoryid="@cat.Id" class="category-link">
+                        <div class="category-card position-relative overflow-hidden rounded border border-gold shadow">
+
+                            <img src="@cat.CoverImagePath" class="category-img" alt="@cat.Name">
+
+                            <div class="category-overlay">
+                                <h4 class="category-title text-gold m-0 px-2">@cat.Name</h4>
+                            </div>
+
+                        </div>
+                    </a>
                 </div>
             }
         </div>
     </div>
 </section>
 
+
+
+<section class="py-5" style="background-color: #1a1c20;">
+    <div class="container text-center">
+        <h2 class="text-gold fw-bold mb-5" style="font-size: 2rem;">Featured Services</h2>
+
+        <div class="row g-4 justify-content-center">
+            @if (Model.FeaturedServices != null && Model.FeaturedServices.Any())
+            {
+                foreach (var userService in Model.FeaturedServices)
+                {
+                    <div class="col-lg-4 col-md-6 mb-4">
+                        <div class="card h-100 border-0 shadow-lg" style="border-radius: 15px; overflow: hidden; background-color: #121212;">
+
+                            <div style="height: 220px; overflow: hidden; position: relative;">
+                                @{
+                                    // 1. Identify which path to use (Artist upload vs Admin template)
+                                    var imgUrl = !string.IsNullOrEmpty(userService.ImagePath)
+                                    ? userService.ImagePath
+                                    : userService.Service?.ImagePath;
+
+                                    // 2. Clean the path to ensure ASP.NET handles the ~/ correctly
+                                    var cleanPath = imgUrl?.TrimStart('/');
+                                }
+
+                                <img src="@Url.Content("~/" + cleanPath)"
+                                     class="w-100 h-100"
+                                     style="object-fit: cover;"
+                                     alt="@userService.Service?.Name"
+                                     onerror="this.src='/images/placeholder.jpg';">
+
+                                <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: #f0c808; padding: 5px 15px; border-radius: 20px; font-weight: bold; border: 1px solid #f0c808;">
+                                    R @userService.Price
+                                </div>
+                            </div>
+
+                            <div class="card-body text-start p-4">
+                                <h5 class="text-gold fw-bold mb-1">@userService.Service?.Name</h5>
+                                <p class="text-white-50 small mb-2">By: @(userService.Artist?.UserName ?? "Pro Artist")</p>
+
+                                <p class="text-muted small mb-4" style="height: 40px; overflow: hidden;">
+                                    @(userService.CustomDescription ?? userService.Service?.Description)
+                                </p>
+
+                                <a href="@Url.Action("ViewService", "Home", new { artistId = userService.ArtistId })"
+                                   class="text-gold fw-bold text-decoration-none small" style="letter-spacing: 1px;">
+                                    VIEW ARTIST <i class="fas fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="col-12 py-5">
+                    <p class="text-white-50">No artist services are currently active.</p>
+                </div>
+            }
+        </div>
+
+        <div class="mt-5">
+            <a href="@Url.Action("AllServices", "Home")" class="btn btn-outline-gold rounded-pill px-5 py-2 fw-bold">
+                View All Services
+            </a>
+        </div>
+    </div>
+</section>
+<style>
+
+    .hero-slide {
+        height: 88vh;
+        background-size: cover;
+        background-position: center top; /* ← top anchors faces/subjects */
+        background-repeat: no-repeat;
+        background-attachment: fixed; /* ← parallax effect, stops overlap */
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .hero-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient( to right, rgba(0,0,0,0.85) 0%, /* ← dark on left where text is */
+        rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.2) 100% /* ← lighter on right to show image */
+        );
+    }
+    /* Full Black Background & Luxury Gold */
+    .bg-black {
+        background-color: #000 !important;
+    }
+
+    .text-gold {
+        color: #f0c808 !important;
+    }
+
+    .border-gold {
+        border: 1.2px solid #f0c808 !important;
+    }
+
+    @* Slightly thinner border for small cards *@
+    /* THE FIX: Constrained Height & Controlled Grid */
+    .category-card {
+        height: 190px; /* <--- CRITICAL: Set a fixed, SMALL height to constrain the cards (vs 280px before) */
+        transition: all 0.3s ease;
+    }
+
+    .category-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* Keeps image quality high while fitting the small space */
+        transition: transform 0.5s ease;
+    }
+
+    /* THE OVERLAY: Centered Text with dark tint */
+    .category-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.45); /* Darkens image for legibility */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s ease;
+    }
+
+    .category-title {
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        font-size: 1.1rem; /* <--- CRITICAL: Constrained font size to match small card (vs display/h3 before) */
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+        z-index: 2;
+    }
+
+    /* HOVER EFFECTS: Pop the gold border and zoom image slightly */
+    .category-link:hover .category-card {
+        transform: translateY(-3px); /* Subtle lift instead of large scale zoom */
+        box-shadow: 0 0 15px rgba(240, 200, 8, 0.3);
+    }
+
+    .category-link:hover .category-overlay {
+        background: rgba(0, 0, 0, 0.25); /* Brightens slightly on hover */
+    }
+
+    .category-link:hover .category-img {
+        transform: scale(1.08); /* Minimal zoom */
+    }
+
+    /* Removes the default link blue color/underline */
+    .category-link {
+        text-decoration: none !important;
+    }
+</style>
+
+<style>
+    /* Full Black Background */
+    .bg-black {
+        background-color: #000 !important;
+    }
+
+    /* The Luxury Gold */
+    .text-gold {
+        color: #f0c808 !important;
+    }
+
+    .border-gold {
+        border: 1.5px solid #f0c808 !important;
+    }
+
+    /* Category Card Container */
+    .category-card {
+        height: 280px; /* Fixed height for consistent grid */
+        transition: all 0.4s ease;
+    }
+
+    .category-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.6s ease;
+    }
+
+    /* THE OVERLAY: Centered Text & Darkening effect */
+    .category-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4); /* Darkens image like your 1st ref */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s ease;
+    }
+
+    .category-title {
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
+        z-index: 2;
+    }
+
+    /* HOVER EFFECTS: Pop the gold border and zoom image slightly */
+    .category-link:hover .category-card {
+        transform: scale(1.02);
+        box-shadow: 0 0 20px rgba(240, 200, 8, 0.4);
+    }
+
+    .category-link:hover .category-overlay {
+        background: rgba(0, 0, 0, 0.2); /* Brightens slightly on hover */
+    }
+
+    .category-link:hover .category-img {
+        transform: scale(1.1);
+    }
+
+    /* Removes the default link blue color/underline */
+    .category-link {
+        text-decoration: none !important;
+    }
+</style>
+
+<style>
+    .text-gold { color: #f0c808 !important; }
+    .btn-outline-gold {
+        color: #f0c808;
+        border: 2px solid #f0c808;
+        transition: 0.3s;
+    }
+    .btn-outline-gold:hover {
+        background-color: #f0c808;
+        color: #000;
+        box-shadow: 0 0 15px rgba(240, 200, 8, 0.4);
+    }
+    .card { transition: transform 0.3s ease; }
+    .card:hover { transform: translateY(-10px); }
+</style>
 <!-- Testimonials Carousel -->
 @if (Model.Testimonials?.Any() == true)
 {

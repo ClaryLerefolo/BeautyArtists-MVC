@@ -1,31 +1,314 @@
 ﻿@model BeautyArtists.Models.UserService
 @{
     ViewData["Title"] = "Edit Service";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
 }
 
-<h2>Edit Service</h2>
+@section Styles {
+    <style>
+        .es-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
 
-<form asp-action="Edit">
-    <input type="hidden" asp-for="Id" />
+        .es-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
 
-    <div class="form-group">
-        <label asp-for="ServiceId" class="control-label"></label>
-        <select asp-for="ServiceId" class="form-control" asp-items="ViewBag.ServiceId"></select>
-        <span asp-validation-for="ServiceId" class="text-danger"></span>
+        .es-card {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.12);
+            border-radius: 18px;
+            overflow: hidden;
+            max-width: 620px;
+        }
+
+        .es-card-header {
+            background: linear-gradient(135deg, #0a0000, #150500);
+            border-bottom: 1px solid rgba(255,215,0,0.08);
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .es-header-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: #000;
+            flex-shrink: 0;
+        }
+
+        .es-header-title {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #FFD700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .es-header-sub {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.3);
+            margin: 2px 0 0;
+        }
+
+        .es-card-body {
+            padding: 28px 24px;
+        }
+
+        .es-field {
+            margin-bottom: 20px;
+        }
+
+        .es-label {
+            display: block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.5);
+            margin-bottom: 7px;
+        }
+
+        .es-input, .es-select, .es-textarea {
+            width: 100%;
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 10px !important;
+            color: #fff !important;
+            padding: 11px 14px !important;
+            font-size: 0.86rem;
+            transition: border-color 0.2s;
+        }
+
+            .es-input:focus, .es-select:focus, .es-textarea:focus {
+                outline: none !important;
+                border-color: rgba(255,215,0,0.4) !important;
+                background: rgba(255,215,0,0.03) !important;
+                box-shadow: none !important;
+            }
+
+            .es-input::placeholder, .es-textarea::placeholder {
+                color: rgba(255,255,255,0.2) !important;
+            }
+
+            .es-select option {
+                background: #111;
+                color: #fff;
+            }
+
+        .es-textarea {
+            resize: vertical;
+            min-height: 90px;
+        }
+
+        .es-validation {
+            font-size: 0.75rem;
+            color: #ff5555;
+            margin-top: 5px;
+            display: block;
+        }
+
+        /* Price input */
+        .es-price-wrap {
+            display: flex;
+            align-items: stretch;
+            border: 1px solid rgba(255,215,0,0.15);
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.04);
+            transition: border-color 0.2s;
+        }
+
+            .es-price-wrap:focus-within {
+                border-color: rgba(255,215,0,0.4);
+            }
+
+        .es-price-prefix {
+            padding: 11px 14px;
+            background: rgba(255,215,0,0.1);
+            color: #FFD700;
+            font-weight: 900;
+            font-size: 0.9rem;
+            border-right: 1px solid rgba(255,215,0,0.15);
+            display: flex;
+            align-items: center;
+        }
+
+        .es-price-input {
+            flex: 1;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            color: #fff !important;
+            padding: 11px 14px !important;
+            font-size: 0.86rem;
+        }
+
+            .es-price-input:focus {
+                outline: none !important;
+                box-shadow: none !important;
+            }
+
+        /* Divider */
+        .es-divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 4px 0 20px;
+        }
+
+        .es-divider-line {
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.06);
+        }
+
+        .es-divider-text {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.2);
+        }
+
+        /* Actions */
+        .es-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .es-btn-save {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 30px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+            .es-btn-save:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                box-shadow: 0 0 20px rgba(255,215,0,0.3);
+                transform: translateY(-1px);
+            }
+
+        .es-btn-cancel {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.45);
+            font-weight: 700;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .es-btn-cancel:hover {
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.7);
+                border-color: rgba(255,255,255,0.2);
+            }
+    </style>
+}
+
+<span class="es-eyebrow">Administration</span>
+<h1 class="es-heading">Edit Service</h1>
+
+<div class="es-card">
+    <div class="es-card-header">
+        <div class="es-header-icon"><i class="bi bi-pencil-fill"></i></div>
+        <div>
+            <p class="es-header-title">Edit Service</p>
+            <p class="es-header-sub">Update the details for this service listing</p>
+        </div>
     </div>
 
-    <div class="form-group">
-        <label asp-for="Price" class="control-label"></label>
-        <input asp-for="Price" class="form-control" />
-        <span asp-validation-for="Price" class="text-danger"></span>
-    </div>
+    <div class="es-card-body">
+        <form asp-action="Edit" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
 
-    <div class="form-group">
-        <label asp-for="CustomDescription" class="control-label"></label>
-        <input asp-for="CustomDescription" class="form-control" />
-        <span asp-validation-for="CustomDescription" class="text-danger"></span>
-    </div>
+            @* Service selector *@
+            <div class="es-field">
+                <label asp-for="ServiceId" class="es-label">Service</label>
+                <select asp-for="ServiceId" asp-items="ViewBag.ServiceId" class="es-select">
+                    <option value="">— Select Service —</option>
+                </select>
+                <span asp-validation-for="ServiceId" class="es-validation"></span>
+            </div>
 
-    <button type="submit" class="btn btn-primary">Update</button>
-    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
-</form>
+            @* Price *@
+            <div class="es-field">
+                <label asp-for="Price" class="es-label">Price</label>
+                <div class="es-price-wrap">
+                    <span class="es-price-prefix">R</span>
+                    <input asp-for="Price" type="number" step="0.01"
+                           class="es-price-input" placeholder="0.00" />
+                </div>
+                <span asp-validation-for="Price" class="es-validation"></span>
+            </div>
+
+            @* Custom description *@
+            <div class="es-divider">
+                <div class="es-divider-line"></div>
+                <span class="es-divider-text">Custom Description</span>
+                <div class="es-divider-line"></div>
+            </div>
+
+            <div class="es-field">
+                <label asp-for="CustomDescription" class="es-label">Custom Description</label>
+                <textarea asp-for="CustomDescription" class="es-textarea"
+                          placeholder="Override the default description for this service..."></textarea>
+                <span asp-validation-for="CustomDescription" class="es-validation"></span>
+            </div>
+
+            <div class="es-actions">
+                <button type="submit" class="es-btn-save">
+                    <i class="bi bi-check-lg"></i> Update Service
+                </button>
+                <a asp-action="Index" class="es-btn-cancel">
+                    <i class="bi bi-x-lg"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

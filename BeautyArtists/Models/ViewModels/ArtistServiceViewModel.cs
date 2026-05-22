@@ -4,7 +4,8 @@
     {
         public string ArtistId { get; set; }
         public string FullName { get; set; }
-        public string Location { get; set; }
+        public string Province { get; set; }
+        public string City { get; set; }
         public string ProfilePictureUrl { get; set; }
         public List<ServiceItem> Services { get; set; } = new List<ServiceItem>();
 

@@ -1,54 +1,429 @@
-﻿@model IEnumerable<BeautyArtists.Models.UserService>
-
+﻿@model IEnumerable<BeautyArtists.Models.Service>
 @{
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
     ViewData["Title"] = "Services";
-    var selectedCategory = ViewBag.SelectedCategory as string;
-    var categories = ViewBag.Categories as List<string>;
+    var serviceList = Model.ToList();
+    var categories = serviceList.Select(s => s.ServiceCategory?.Name ?? "Uncategorised")
+                                .Distinct().OrderBy(c => c).ToList();
 }
 
-<h2 class="text-gold mb-4">Available Services</h2>
+@section Styles {
+    <style>
+        .sv-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
 
-<form method="get" class="mb-4">
-    <div class="row g-2">
-        <div class="col-md-4">
-            <select name="category" class="form-select" onchange="this.form.submit()">
-                <option value="">All Categories</option>
-                @foreach (var category in categories)
-                {
-                    <option value="@category" selected="@(category == selectedCategory ? "selected" : null)">
-                        @category
-                    </option>
-                }
-            </select>
-        </div>
-    </div>
-</form>
+        .sv-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
 
-<div class="row">
-    @foreach (var item in Model)
-    {
-        var artistName = item.Artist?.ArtistProfile?.FullName
-        ?? $"{item.Artist?.FirstName} {item.Artist?.LastName}"
-        ?? item.Artist?.UserName
-        ?? item.Artist?.Email
-        ?? "Unknown Artist";
+        /* ── TOP BAR ── */
+        .sv-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
 
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm border-gold bg-dark text-light">
-                <div class="card-body">
-                    <h5 class="card-title">@item.Service?.Name</h5>
-                    <p class="card-text">
-                        @(item.CustomDescription ?? item.Service?.Description)
-                    </p>
+        .sv-stats {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
 
-                    <p><strong>Category:</strong> @item.Service?.Category?.Name</p>
-                    <p><strong>Price:</strong> R @item.Price.ToString("F2")</p>
-                    <p><strong>Artist:</strong> @artistName</p>
-                    <a href="@Url.Action("Details", "Services", new { id = item.Id })" class="btn btn-danger btn-sm">
-                        View Details
-                    </a>
-                </div>
+        .sv-stat {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 10px;
+            padding: 10px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sv-stat-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 7px;
+            background: rgba(255,215,0,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            color: #FFD700;
+        }
+
+        .sv-stat-num {
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: #FFD700;
+            line-height: 1;
+        }
+
+        .sv-stat-label {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.25);
+        }
+
+        .sv-add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 22px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+            .sv-add-btn:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                color: #000;
+                box-shadow: 0 0 20px rgba(255,215,0,0.3);
+                transform: translateY(-2px);
+            }
+
+        /* ── TABLE PANEL ── */
+        .sv-panel {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .sv-panel-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(255,215,0,0.07);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .sv-panel-title {
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.5);
+        }
+
+            .sv-panel-title i {
+                color: #FFD700;
+                margin-right: 7px;
+            }
+
+        .sv-count {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 2px 10px;
+        }
+
+        /* ── TABLE ── */
+        .sv-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            .sv-table thead tr {
+                background: rgba(255,215,0,0.04);
+            }
+
+            .sv-table th {
+                padding: 11px 20px;
+                font-size: 0.68rem;
+                font-weight: 700;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                color: rgba(255,215,0,0.4);
+                border-bottom: 1px solid rgba(255,215,0,0.07);
+            }
+
+            .sv-table td {
+                padding: 13px 20px;
+                font-size: 0.83rem;
+                color: rgba(255,255,255,0.65);
+                border-bottom: 1px solid rgba(255,255,255,0.04);
+                vertical-align: middle;
+            }
+
+            .sv-table tr:last-child td {
+                border-bottom: none;
+            }
+
+            .sv-table tbody tr:hover td {
+                background: rgba(255,215,0,0.02);
+            }
+
+        .sv-service-name {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .sv-cat-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            background: rgba(255,215,0,0.08);
+            border: 1px solid rgba(255,215,0,0.15);
+            color: rgba(255,215,0,0.7);
+        }
+
+        .sv-price {
+            color: #FFD700;
+            font-weight: 800;
+        }
+
+        .sv-duration {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.78rem;
+            color: rgba(255,255,255,0.4);
+        }
+
+        /* Action buttons */
+        .sv-btn-edit {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(255,215,0,0.1);
+            color: #FFD700;
+            border: 1px solid rgba(255,215,0,0.2);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .sv-btn-edit:hover {
+                background: rgba(255,215,0,0.18);
+                color: #FFD700;
+                border-color: rgba(255,215,0,0.4);
+            }
+
+        .sv-btn-delete {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(179,0,0,0.12);
+            color: #ff6666;
+            border: 1px solid rgba(179,0,0,0.25);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+            .sv-btn-delete:hover {
+                background: rgba(179,0,0,0.25);
+                color: #ff8888;
+                border-color: rgba(179,0,0,0.45);
+            }
+
+        /* Empty state */
+        .sv-empty {
+            padding: 56px 20px;
+            text-align: center;
+            color: rgba(255,255,255,0.25);
+            font-size: 0.85rem;
+        }
+
+            .sv-empty i {
+                font-size: 2rem;
+                color: rgba(255,215,0,0.12);
+                display: block;
+                margin-bottom: 12px;
+            }
+    </style>
+}
+
+@* Hidden antiforgery token for AJAX delete *@
+@Html.AntiForgeryToken()
+
+<span class="sv-eyebrow">Administration</span>
+<h1 class="sv-heading">Service Management</h1>
+
+@* ── TOP BAR ── *@
+<div class="sv-topbar">
+    <div class="sv-stats">
+        <div class="sv-stat">
+            <div class="sv-stat-icon"><i class="bi bi-scissors"></i></div>
+            <div>
+                <div class="sv-stat-num">@serviceList.Count</div>
+                <div class="sv-stat-label">Services</div>
             </div>
         </div>
+        <div class="sv-stat">
+            <div class="sv-stat-icon"><i class="bi bi-grid-fill"></i></div>
+            <div>
+                <div class="sv-stat-num">@categories.Count</div>
+                <div class="sv-stat-label">Categories</div>
+            </div>
+        </div>
+    </div>
+    <a asp-action="Create" class="sv-add-btn">
+        <i class="bi bi-plus-lg"></i> New Service
+    </a>
+</div>
+
+@* ── TABLE ── *@
+<div class="sv-panel">
+    <div class="sv-panel-header">
+        <span class="sv-panel-title">
+            <i class="bi bi-scissors"></i> All Services
+        </span>
+        <span class="sv-count">@serviceList.Count service@(serviceList.Count != 1 ? "s" : "")</span>
+    </div>
+
+    @if (!serviceList.Any())
+    {
+        <div class="sv-empty">
+            <i class="bi bi-scissors"></i>
+            No services yet. Create your first one above.
+        </div>
+    }
+    else
+    {
+        <table class="sv-table">
+            <thead>
+                <tr>
+                    <th>Service Name</th>
+                    <th>Category</th>
+                    <th>Base Price</th>
+                    <th>Duration</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in serviceList)
+                {
+                    <tr id="row-@item.Id">
+                        <td class="sv-service-name">@item.Name</td>
+                        <td>
+                            <span class="sv-cat-badge">
+                                @(item.ServiceCategory?.Name ?? "Uncategorised")
+                            </span>
+                        </td>
+                        <td class="sv-price">R @item.BasePrice.ToString("N0")</td>
+                        <td>
+                            <span class="sv-duration">
+                                <i class="bi bi-clock" style="font-size:0.7rem;"></i>
+                                @item.Duration min
+                            </span>
+                        </td>
+                        <td>
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <a asp-action="Edit" asp-route-id="@item.Id"
+                                   class="sv-btn-edit">
+                                    <i class="bi bi-pencil-fill"></i> Edit
+                                </a>
+                                <button class="sv-btn-delete delete-btn"
+                                        data-id="@item.Id">
+                                    <i class="bi bi-trash3-fill"></i> Delete
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     }
 </div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const id = this.dataset.id;
+                Swal.fire({
+                    title: 'Delete this service?',
+                    text: 'This will also remove it from all artist listings.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#b30000',
+                    cancelButtonColor: '#333',
+                    confirmButtonText: 'Yes, delete it',
+                    cancelButtonText: 'Cancel',
+                    background: '#0a0a0a',
+                    color: '#fff'
+                }).then(result => {
+                    if (result.isConfirmed) {
+                        fetch('/Services/Delete/' + id, {
+                            method: 'POST',
+                            headers: {
+                                'RequestVerificationToken': token,
+                                'Content-Type': 'application/x-www-form-urlencoded'
+                            },
+                            body: '__RequestVerificationToken=' + encodeURIComponent(token)
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                document.getElementById('row-' + id).remove();
+                                Swal.fire({
+                                    title: 'Deleted!',
+                                    text: 'Service removed successfully.',
+                                    icon: 'success',
+                                    background: '#0a0a0a',
+                                    color: '#fff',
+                                    confirmButtonColor: '#b30000'
+                                });
+                            } else {
+                                Swal.fire({
+                                    title: 'Error',
+                                    text: data.message,
+                                    icon: 'error',
+                                    background: '#0a0a0a',
+                                    color: '#fff'
+                                });
+                            }
+                        })
+                        .catch(() => {
+                            Swal.fire({
+                                title: 'Error',
+                                text: 'Something went wrong. Please try again.',
+                                icon: 'error',
+                                background: '#0a0a0a',
+                                color: '#fff'
+                            });
+                        });
+                    }
+                });
+            });
+        });
+    </script>
+}

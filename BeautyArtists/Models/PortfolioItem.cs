@@ -11,16 +11,19 @@ namespace BeautyArtists.Models
         [StringLength(100)]
         public string Title { get; set; }
 
-        public int? CategoryId { get; set; }
         [ForeignKey("CategoryId")]
-        public PortfolioCategory? Category { get; set; }
+        public int? CategoryId { get; set; }
+        public virtual ServiceCategory? Category { get; set; }
 
         public bool IsFeatured { get; set; } = false;
         public int DisplayOrder { get; set; }
         [Url]
         public string? ThumbnailUrl { get; set; } // For video previews or image galleries
-        [StringLength(255)]
-        public string? Location { get; set; }
+                                                  // Replaced Location with these two
+        [Required]
+        public string Province { get; set; }
+        [Required]
+        public string City { get; set; }
 
         [StringLength(100)]
         public string? ClientName { get; set; }

@@ -1,168 +1,431 @@
 ﻿@model BeautyArtists.Models.ViewModels.ArtistDashboardViewModel
 @{
-    ViewData["Title"] = "Artist Dashboard";
-    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+    Layout = "_ArtistLayout";
 }
+<style>
+    /* THE GREETING BAR */
+    .greeting-bar {
+        background: #0d0d0d;
+        padding: 20px 30px;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 4px;
+        border-bottom: 1px solid #1a1a1a;
+    }
 
-<div class="container-fluid py-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h2 class="text-gold mb-0">Welcome back, @Model.ArtistName!</h2>
-            <p class="text-muted">Your beauty artistry dashboard</p>
+    .welcome-name {
+        color: #d4af37;
+        font-size: 2.2rem;
+        font-weight: 500;
+        margin: 0;
+    }
+
+    .notif-bell {
+        color: #d4af37;
+        font-size: 1.5rem;
+    }
+
+    /* VERTICAL INTEGRITY */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+
+    .vertical-rect {
+        background: #111;
+        border-radius: 25px;
+        padding: 60px 10px; /* Forces vertical shape */
+        text-align: center;
+        border: 1px solid #1a1a1a;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+    }
+
+    /* RED-ORANGE GLOWING ORBS */
+    <style >
+    /* LAYOUT BASE */
+    .dashboard-wrapper {
+        padding: 20px;
+        background: #000;
+        min-height: 100vh;
+    }
+
+    /* HEADER DIVIDER */
+    .greeting-banner {
+        background: #0a0a0a;
+        padding: 25px 35px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 40px;
+        border: 1px solid #1a1a1a;
+    }
+
+    .welcome-text {
+        color: #d4af37;
+        font-size: 2rem;
+        font-weight: 500;
+        margin: 0;
+    }
+
+    .bell-notif {
+        color: #d4af37;
+        font-size: 1.4rem;
+    }
+
+    /* GRID FOR CONSISTENCY */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 25px;
+    }
+    /* COMPACT LAYOUT */
+    .dashboard-compact {
+        padding: 10px 20px;
+        background: #000;
+    }
+
+    /* SUSPENDED HEADER */
+    .suspended-greeting {
+        background: #0d0d0d;
+        padding: 15px 30px; /* Reduced height for conciseness */
+        margin: 0 0 25px 0; /* Creates that "suspended" air above the cards */
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 6px;
+        border: 1px solid #1a1a1a;
+    }
+
+    .gold-name {
+        color: #d4af37;
+        font-size: 1.7rem;
+        font-weight: 500;
+        margin: 0;
+    }
+
+    .bell-glow-icon {
+        color: #d4af37;
+        font-size: 1.2rem;
+    }
+
+    /* COMPACT GRID */
+    .compact-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px; /* Tighter gap */
+    }
+
+    .mini-glow-card {
+        background: #0d0d0d;
+        border-radius: 18px;
+        padding: 30px 10px; /* Much smaller vertical padding to prevent scrolling */
+        text-align: center;
+        border: 1px solid #221105;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.8);
+    }
+
+        .mini-glow-card:hover {
+            border-color: #ff4500;
+            box-shadow: 0 0 15px rgba(255, 69, 0, 0.4); /* Side glow integrity */
+        }
+
+    /* THE CARD BASE - STAYS CONCISE */
+    .mini-glow-card {
+        background: #0d0d0d;
+        border-radius: 18px;
+        padding: 30px 10px;
+        text-align: center;
+        /* Start with a dark reddish border for integrity */
+        border: 1px solid #2a1105;
+        transition: all 0.3s ease-in-out;
+        position: relative;
+        overflow: visible; /* Allows the glow to bleed out */
+    }
+
+        /* THE HOVER GLOW EFFECT */
+        .mini-glow-card:hover {
+            /* Change border to a brighter red-gold on hover */
+            border-color: #ff4500;
+            /* The specific reddish-gold glow */
+            box-shadow: 0 0 25px rgba(255, 69, 0, 0.5), 0 0 10px rgba(212, 175, 55, 0.2);
+            /* Slight scale for that 'premium' feel */
+            transform: translateY(-5px);
+        }
+
+    /* MINI ORBS */
+    .orb-small {
+        width: 55px;
+        height: 55px;
+        margin: 0 auto 15px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        background: linear-gradient(180deg, #ff7b00 0%, #ff0000 100%);
+        box-shadow: 0 0 15px rgba(255, 69, 0, 0.5);
+        color: #fff;
+    }
+
+    .val-large {
+        font-size: 2.8rem;
+        font-weight: 800;
+        color: #fff;
+        line-height: 1;
+    }
+
+    .lab-small {
+        color: #666;
+        font-size: 0.85rem;
+        margin-top: 5px;
+        text-transform: capitalize;
+    }
+
+    .table-label-gold {
+        color: #d4af37;
+        margin-top: 30px;
+        font-weight: 600;
+        font-size: 1.3rem;
+    }
+
+    <style >
+    /* REMOVE TOP GAPS */
+    .dashboard-root {
+        padding-top: 5px; /* Pulls greeting close to the address bar */
+        background: #000;
+    }
+
+    /* HEADER BAR */
+    .suspended-header {
+        background: #0d0d0d;
+        padding: 15px 30px;
+        margin-bottom: 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 4px;
+        border: 1px solid #1a1a1a;
+    }
+
+    .welcome-name {
+        color: #d4af37;
+        font-size: 1.8rem;
+        font-weight: 500;
+        margin: 0;
+    }
+
+    .notif-bell-glow {
+        color: #d4af37;
+        font-size: 1.3rem;
+    }
+
+    /* UNIFORM GRID */
+    .stats-card-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+    }
+
+    /* CARDS & HOVER GLOW */
+    .stat-glow-card {
+        background: #0d0d0d;
+        border-radius: 18px;
+        padding: 30px 10px;
+        text-align: center;
+        border: 1px solid #2a1105;
+        transition: all 0.3s ease;
+    }
+
+        /* THE GLOW EFFECT */
+        .stat-glow-card:hover {
+            border-color: #ff4500;
+            box-shadow: 0 0 25px rgba(255, 69, 0, 0.4); /* Hot side glow */
+            transform: translateY(-3px);
+        }
+
+    .orb-red-gold {
+        width: 55px;
+        height: 55px;
+        margin: 0 auto 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        background: linear-gradient(180deg, #ff7b00 0%, #ff0000 100%);
+        box-shadow: 0 0 15px rgba(255, 69, 0, 0.5); /* Orb glow integrity */
+        color: #fff;
+    }
+
+    .stat-num {
+        font-size: 3rem;
+        font-weight: 800;
+        color: #fff;
+        line-height: 1;
+    }
+
+    .stat-tag {
+        color: #666;
+        font-size: 0.85rem;
+        margin-top: 8px;
+    }
+
+    .recent-label-gold {
+        color: #d4af37;
+        margin-top: 30px;
+        font-weight: 600;
+        font-size: 1.4rem;
+    }
+</style>
+</style>
+
+<div class="dashboard-root">
+  
+
+    <div class="stats-card-grid">
+        <div class="stat-glow-card">
+            <div class="orb-red-gold"><i class="bi bi-scissors"></i></div>
+            <div class="stat-num">@Model.ServicesCount</div>
+            <div class="stat-tag">Services</div>
+        </div>
+
+        <div class="stat-glow-card">
+            <div class="orb-red-gold"><i class="bi bi-image"></i></div>
+            <div class="stat-num">@Model.PortfolioItemsCount</div>
+            <div class="stat-tag">Portfolio Items</div>
+        </div>
+
+        <div class="stat-glow-card">
+            <div class="orb-red-gold"><i class="bi bi-calendar-check"></i></div>
+            <div class="stat-num">@Model.UpcomingAppointments</div>
+            <div class="stat-tag">Upcoming Appointments</div>
+        </div>
+
+        <div class="stat-glow-card">
+            <div class="orb-red-gold"><i class="bi bi-wallet2"></i></div>
+            <div class="stat-num">R @Model.MonthlyEarnings.ToString("N0")</div>
+            <div class="stat-tag">This Month's Earnings</div>
         </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card bg-dark text-white shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <p class="text-uppercase text-gold mb-0">Upcoming Appointments</p>
-                            <h2 class="mb-0">@Model.UpcomingAppointments</h2>
-                        </div>
-                        <div class="icon-circle bg-gold">
-                            <i class="fas fa-calendar-alt text-dark"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card bg-dark text-white shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <p class="text-uppercase text-gold mb-0">Portfolio Items</p>
-                            <h2 class="mb-0">@Model.PortfolioItemsCount</h2>
-                        </div>
-                        <div class="icon-circle bg-gold">
-                            <i class="fas fa-images text-dark"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card bg-dark text-white shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <p class="text-uppercase text-gold mb-0">Services Offered</p>
-                            <h2 class="mb-0">@Model.ServicesCount</h2>
-                        </div>
-                        <div class="icon-circle bg-gold">
-                            <i class="fas fa-spa text-dark"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card bg-dark text-white shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <p class="text-uppercase text-gold mb-0">This Month's Earnings</p>
-                            <h2 class="mb-0">R @Model.MonthlyEarnings</h2>
-                        </div>
-                        <div class="icon-circle bg-gold">
-                            <i class="fas fa-wallet text-dark"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card bg-dark shadow-sm">
-                <div class="card-header bg-black text-gold">
-                    <h6 class="mb-0">Quick Actions</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-md-4 mb-3 mb-md-0">
-                            <a asp-action="
-Profile" class="btn btn-gold btn-block py-3">
-                                <i class="fas fa-user-edit fa-2x mb-2"></i><br>
-                                Edit Profile
-                            </a>
-                        </div>
-                        <div class="col-md-4 mb-3 mb-md-0">
-                            <a asp-action="ManagePortfolio" class="btn btn-gold btn-block py-3">
-                                <i class="fas fa-images fa-2x mb-2"></i><br>
-                                Manage Portfolio
-                            </a>
-                        </div>
-                        <div class="col-md-4">
-                            <a asp-action="ManageServices" class="btn btn-gold btn-block py-3">
-                                <i class="fas fa-spa fa-2x mb-2"></i><br>
-                                Manage Services
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Recent Appointments -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card bg-dark shadow-sm">
-                <div class="card-header bg-black text-gold d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0">Recent Appointments</h6>
-                    <a asp-action="Appointments" class="btn btn-sm btn-gold">View All</a>
-                </div>
-                <div class="card-body">
-                    @if (Model.RecentAppointments.Any())
+    <h3 class="recent-label-gold">Recent Appointments</h3>
+</div
+<div class="dashboard-lower-grid">
+    <div class="content-box-beauty">
+        <h3 class="box-title-gold">Recent Appointments</h3>
+        
+        @if (Model.RecentAppointments != null && Model.RecentAppointments.Any())
+        {
+            <table class="beauty-table-compact">
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Service</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var appt in Model.RecentAppointments)
                     {
-                        <div class="table-responsive">
-                            <table class="table table-dark table-hover mb-0">
-                                <thead>
-                                    <tr>
-                                        <th>Client</th>
-                                        <th>Service</th>
-                                        <th>Date & Time</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var appointment in Model.RecentAppointments)
-                                    {
-                                        <tr>
-                                            <td>@appointment.ClientName</td>
-                                            <td>@appointment.ServiceName</td>
-                                            <td>@appointment.AppointmentDate.ToString("g")</td>
-                                            <td>
-                                                <span class="badge @(appointment.Status == "Confirmed" ? "bg-success" : "bg-warning text-dark")">
-                                                    @appointment.Status
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <a href="#" class="btn btn-sm btn-outline-gold">Details</a>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
+                        <tr>
+                            <td><strong>@appt.ClientName</strong></td>
+                            <td>@appt.ServiceName</td>
+                            <td>@appt.AppointmentDate.ToString("dd MMM")</td>
+                            <td>
+                                <span class="status-pill @appt.Status.ToLower()">
+                                    @appt.Status
+                                </span>
+                            </td>
+                        </tr>
                     }
-                    else
-                    {
-                        <p class="text-muted">No recent appointments found.</p>
-                    }
-                </div>
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="empty-dashboard-state">
+                <p>No appointments booked yet.</p>
             </div>
+        }
+    </div>
+
+    <div class="content-box-beauty">
+        <h3 class="box-title-gold">Earnings Trend</h3>
+        <div class="chart-wrapper">
+            <canvas id="earningsChart"></canvas>
         </div>
     </div>
 </div>
-2. Artist Profile Edit (EditProfile.cshtml)
+
+<style>
+    .dashboard-lower-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .content-box-beauty {
+        background: #0d0d0d;
+        border: 1px solid #1a1a1a;
+        border-radius: 12px;
+        padding: 15px;
+        transition: 0.3s;
+    }
+
+    .content-box-beauty:hover {
+        border-color: #ff4500;
+        box-shadow: 0 0 15px rgba(255, 69, 0, 0.2);
+    }
+
+    .box-title-gold { color: #d4af37; font-size: 1.1rem; margin-bottom: 15px; font-weight: 600; }
+
+    /* COMPACT TABLE STYLE */
+    .beauty-table-compact { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
+    .beauty-table-compact th { color: #555; font-size: 0.75rem; text-transform: uppercase; padding-bottom: 5px; text-align: left; }
+    .beauty-table-compact td { background: #111; padding: 10px; color: #fff; font-size: 0.85rem; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; }
+    .beauty-table-compact td:first-child { border-left: 1px solid #1a1a1a; border-radius: 8px 0 0 8px; }
+    .beauty-table-compact td:last-child { border-right: 1px solid #1a1a1a; border-radius: 0 8px 8px 0; }
+
+    /* PENDING STATUS GLOW */
+    .status-pill { padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+    .status-pill.pending { background: rgba(255, 123, 0, 0.1); color: #ff7b00; border: 1px solid #ff7b00; }
+
+    .chart-wrapper { position: relative; height: 200px; width: 100%; }
+    .empty-dashboard-state { text-align: center; padding: 30px; color: #333; font-style: italic; }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('earningsChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: @Html.Raw(Json.Serialize(Model.MonthlyLabels)),
+            datasets: [{
+                data: @Html.Raw(Json.Serialize(Model.MonthlyEarningsGraph)),
+                borderColor: '#d4af37',
+                backgroundColor: 'rgba(192, 57, 43, 0.1)',
+                fill: true,
+                tension: 0.4,
+                borderWidth: 2,
+                pointRadius: 3,
+                pointBackgroundColor: '#ff4500'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: '#1a1a1a' }, ticks: { color: '#444', font: { size: 10 } } },
+                x: { grid: { display: false }, ticks: { color: '#444', font: { size: 10 } } }
+            }
+        }
+    });
+</script>

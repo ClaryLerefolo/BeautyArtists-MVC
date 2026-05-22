@@ -9,33 +9,163 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"] - BeautyArtists</title>
 
-    <!-- Bootstrap CSS -->
     <link href="~/lib/bootstrap/dist/css/bootstrap.min.css" rel="stylesheet" />
-
-    <!-- Custom Styles -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="~/css/site.css" rel="stylesheet" asp-append-version="true" />
 
+    @await RenderSectionAsync("Styles", required: false)
+
     <style>
-        /* Custom color scheme */
         :root {
-            --gold: #d4af37;
-            --red-btn: #c0392b;
-            --bg-dark: #111;
+            --gold: #FFD700;
+            --red-btn: #b30000;
+            --bg-dark: #000;
+        }
+
+        * {
+            box-sizing: border-box;
         }
 
         body {
             background: #000;
             color: #eee;
+            margin: 0;
         }
 
-        .navbar, .footer {
-            background: var(--bg-dark);
+        /* ── NAVBAR ── */
+        .navbar {
+            background: #000 !important;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.15);
+            padding: 14px 0;
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+            .navbar-brand img {
+                height: 40px;
+                width: 40px;
+                object-fit: contain;
+                border: 1px solid rgba(255,215,0,0.3);
+                border-radius: 6px;
+                padding: 2px;
+            }
+
+        .navbar-brand-text {
+            color: #FFD700 !important;
+            font-weight: 900;
+            font-size: 1rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 12px rgba(255,215,0,0.4);
+            text-decoration: none;
+            line-height: 1.2;
         }
 
         .text-gold {
-            color: var(--gold);
+            color: var(--gold) !important;
         }
 
+        .nav-link {
+            color: #FFD700 !important; /* ← was #fff */
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            padding: 6px 14px !important;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+            .nav-link::after {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 14px;
+                right: 14px;
+                height: 1px;
+                background: #FFD700;
+                transform: scaleX(0);
+                transition: transform 0.2s ease;
+            }
+
+            .nav-link:hover {
+                color: #FFD700 !important;
+            }
+
+                .nav-link:hover::after {
+                    transform: scaleX(1);
+                }
+
+        .dropdown-menu {
+            background: #0a0a0a !important;
+            border: 1px solid rgba(255,215,0,0.2) !important;
+            border-radius: 10px;
+            padding: 8px;
+            margin-top: 8px !important;
+        }
+
+        .dropdown-item {
+            color: #fff !important;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 9px 16px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+            .dropdown-item:hover {
+                background: rgba(255,215,0,0.1) !important;
+                color: #FFD700 !important;
+            }
+
+        /* Login/Register links */
+        .nav-auth-link {
+            color: #fff !important;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            padding: 6px 14px !important;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+            .nav-auth-link:hover {
+                color: #FFD700 !important;
+            }
+
+        .nav-auth-highlight {
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000 !important;
+            font-weight: 800;
+            font-size: 0.75rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            padding: 7px 18px !important;
+            border-radius: 999px;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+            .nav-auth-highlight:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                color: #000 !important;
+                box-shadow: 0 0 15px rgba(255,215,0,0.3);
+            }
+
+        /* ── FOOTER ── */
+        footer {
+            background: #000;
+            border-top: 1px solid rgba(255,215,0,0.1) !important;
+        }
+
+        /* ── BOOTSTRAP OVERRIDES ── */
         .btn-danger-custom {
             background: var(--red-btn);
             color: #fff;
@@ -43,34 +173,107 @@
         }
 
             .btn-danger-custom:hover {
-                background: darken(var(--red-btn), 10%);
+                background: #8b0000;
             }
 
-        .border-gold {
-            border: 2px solid var(--gold) !important;
+
+        .navbar-brand img {
+            height: 40px;
+            width: 40px;
+            object-fit: contain;
+            border: 1px solid rgba(255,215,0,0.3);
+            border-radius: 6px;
+            padding: 2px;
+            filter: drop-shadow(0 0 8px rgba(255,215,0,0.7)) drop-shadow(0 0 16px rgba(255,215,0,0.4)); /* ← ADD THIS */
         }
     </style>
 </head>
 <body>
 
     <header>
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <nav class="navbar navbar-expand-lg navbar-dark">
             <div class="container">
-                <a class="navbar-brand text-gold" asp-controller="Home" asp-action="Index">BeautyArtists</a>
-                <button class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navMenu">
+
+                @* BRAND *@
+                <a class="navbar-brand" asp-controller="Home" asp-action="Index">
+                    <img src="~/images/Beauty in Red and Gold 2.jpg"
+                         alt="Beauty In Red and Gold"
+                         onerror="this.style.display='none'">
+                    <span class="navbar-brand-text">BEAUTY IN RED AND GOLD</span>
+                </a>
+
+                <button class="navbar-toggler" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#navMenu">
                     <span class="navbar-toggler-icon"></span>
                 </button>
+
                 <div class="collapse navbar-collapse" id="navMenu">
-                    <ul class="navbar-nav ms-auto">
-                        <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Home</a></li>
-                        <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="About">About</a></li>
-                        <li class="nav-item"><a class="nav-link" asp-controller="Services" asp-action="Index">Services</a></li>
-                        <li class="nav-item"><a class="nav-link" asp-controller="CustomerPortfolio" asp-action="Index">Portfolios</a></li>
-                        <li class="nav-item"><a class="nav-link" asp-controller="Booking" asp-action="Book">Book</a></li>
-                        <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="BrowseArtists">Browse Artists</a></li>
+                    <ul class="navbar-nav ms-auto align-items-center gap-1">
+
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Home" asp-action="Index">Home</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Home" asp-action="About">About</a>
+                        </li>
+
+                        @* SERVICES → HomeController.AllServices (customer side) *@
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Home" asp-action="AllServices">Services</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Home" asp-action="BrowseArtists">Artists</a>
+                        </li>
+
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#"
+                               id="exploreDropdown" role="button"
+                               data-bs-toggle="dropdown" aria-expanded="false">
+                                Explore
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="exploreDropdown">
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="CustomerPortfolio"
+                                       asp-action="Index">Portfolios</a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item"
+                                       asp-controller="Home"
+                                       asp-action="BrowseArtists">Browse All</a>
+                                </li>
+                            </ul>
+                        </li>
 
                     </ul>
-                    <partial name="_LoginPartial" />
+
+                    @* AUTH *@
+                    <div class="ms-3 d-flex align-items-center gap-2">
+                        @if (SignInManager.IsSignedIn(User))
+                        {
+                            <span class="nav-auth-link" style="color:rgba(255,215,0,0.6)!important">
+                                Hello @User.Identity!.Name!.Split('@')[0]!
+                            </span>
+                            <form asp-area="Identity" asp-page="/Account/Logout"
+                                  asp-route-returnUrl="@Url.Action("Index", "Home")"
+                                  method="post" class="m-0">
+                                <button type="submit" class="nav-auth-link border-0 bg-transparent"
+                                        style="cursor:pointer">
+                                    Logout
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <a asp-area="Identity" asp-page="/Account/Register"
+                               class="nav-auth-link">Register</a>
+                            <a asp-area="Identity" asp-page="/Account/Login"
+                               class="nav-auth-highlight">Login</a>
+                        }
+                    </div>
+
                 </div>
             </div>
         </nav>
@@ -82,14 +285,15 @@
 
     <footer class="footer py-4 mt-5">
         <div class="container text-center">
-            <p class="mb-1 text-gold">&copy; 2025 BeautyArtists</p>
-            <p><a class="text-light" asp-controller="Home" asp-action="Contact">Contact Us</a></p>
+            <p class="mb-1" style="color:rgba(255,215,0,0.5);font-size:0.8rem;letter-spacing:2px">
+                &copy; 2026 BEAUTY IN RED AND GOLD
+            </p>
         </div>
     </footer>
 
-    <!-- Scripts -->
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    @RenderSection("Scripts", required: false)
+    @await RenderSectionAsync("Scripts", required: false)
+
 </body>
 </html>

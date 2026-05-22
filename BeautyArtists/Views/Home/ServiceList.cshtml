@@ -1,0 +1,685 @@
+﻿@model BeautyArtists.Models.ViewModels.ServiceListViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    bool isAllServices = Model.Title == "All Services";
+    var categories = Model.Services?.Select(s => s.Category).Distinct().OrderBy(c => c).ToList() ?? new List<string>();
+    decimal maxPrice = Model.Services != null && Model.Services.Any() ? Model.Services.Max(s => s.Price) : 1000;
+
+    var provinceMap = Model.Services?
+        .Where(s => !string.IsNullOrEmpty(s.Province))
+        .GroupBy(s => s.Province!)
+        .ToDictionary(
+            g => g.Key,
+            g => g.Select(s => s.City).Where(c => !string.IsNullOrEmpty(c)).Distinct().OrderBy(c => c).ToList()
+        ) ?? new Dictionary<string, List<string>>();
+
+    var provinces = provinceMap.Keys.OrderBy(p => p).ToList();
+}
+
+@* ── TOP BAR ── *@
+<div class="sl-topbar">
+    <div class="container d-flex align-items-center justify-content-between flex-wrap gap-3">
+        @if (User.Identity!.IsAuthenticated)
+        {
+            <a asp-controller="Booking" asp-action="MyBookings" class="sl-appt-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                View My Appointments
+            </a>
+        }
+        else
+        {
+
+            <div></div>
+        }
+
+        @if (isAllServices)
+        {
+            <button class="sl-filter-btn" id="filterToggle">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="4" y1="6" x2="20" y2="6" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                    <line x1="11" y1="18" x2="13" y2="18" />
+                </svg>
+                Filter
+                <span class="sl-filter-count" id="activeFilterCount" style="display:none">0</span>
+            </button>
+        }
+    </div>
+</div>
+
+@* Pass province data to JS before filter panel renders *@
+@if (isAllServices)
+{
+    <script>
+        const provinceData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(provinceMap));
+    </script>
+
+    <div class="sl-filter-panel" id="filterPanel">
+        <div class="sl-filter-inner">
+            <div class="sl-filter-header">
+                <span class="sl-filter-title">Filter Services</span>
+                <button class="sl-filter-close" id="filterClose">&#x2715;</button>
+            </div>
+
+            @* Category *@
+            <div class="sl-filter-group">
+                <label class="sl-filter-label">Category</label>
+                <select class="sl-filter-select" id="filterCategory">
+                    <option value="">All Categories</option>
+                    @foreach (var cat in categories)
+                    {
+                        <option value="@cat">@cat</option>
+                    }
+                </select>
+            </div>
+
+            @* Province *@
+            <div class="sl-filter-group">
+                <label class="sl-filter-label">Province</label>
+                <select class="sl-filter-select" id="filterProvince">
+                    <option value="">All Provinces</option>
+                    @foreach (var prov in provinces)
+                    {
+                        <option value="@prov">@prov</option>
+                    }
+                </select>
+            </div>
+
+            @* City — populated by JS when province selected *@
+            <div class="sl-filter-group">
+                <label class="sl-filter-label">City</label>
+                <select class="sl-filter-select" id="filterCity" disabled>
+                    <option value="">Select a province first</option>
+                </select>
+            </div>
+
+            @* Price *@
+            <div class="sl-filter-group">
+                <label class="sl-filter-label">
+                    Max Price: <span id="priceLabel" style="color:#FFD700">R @maxPrice.ToString("N0")</span>
+                </label>
+                <input type="range" class="sl-price-slider" id="filterPrice"
+                       min="0" max="@maxPrice.ToString("F0")"
+                       value="@maxPrice.ToString("F0")" step="50" />
+                <div class="sl-price-range-labels">
+                    <span>R 0</span>
+                    <span>R @maxPrice.ToString("N0")</span>
+                </div>
+            </div>
+
+            <div class="sl-filter-results">
+                <span id="resultsCount">@(Model.Services?.Count ?? 0)</span> services found
+            </div>
+            <button class="sl-filter-reset" id="filterReset">Reset Filters</button>
+        </div>
+    </div>
+    <div class="sl-filter-backdrop" id="filterBackdrop"></div>
+}
+
+<section class="py-5 bg-black">
+    <div class="container">
+
+        <h2 class="text-center mb-5"
+            style="color:#FFD700;font-weight:800;text-shadow:0 0 10px rgba(255,215,0,.6)">
+            @Model.Title
+        </h2>
+
+        @if (!string.IsNullOrEmpty(Model.ArtistName))
+        {
+            <div class="text-center mb-5">
+                <img src="@Model.ArtistProfilePicture" class="rounded-circle mb-3"
+                     style="width:120px;height:120px;object-fit:cover;border:3px solid #FFD700;" />
+                <h5 style="color:#FFD700">@Model.ArtistName</h5>
+                <p style="color:#aaa">@Model.ArtistLocation</p>
+            </div>
+        }
+
+        @if (isAllServices)
+        {
+            <div id="noResultsMsg" style="display:none" class="col-12 text-center py-5">
+                <h4 style="color:rgba(255,255,255,0.3)">No services match your filters.</h4>
+                <button class="btn mt-3" onclick="resetFilters()"
+                        style="border:1px solid rgba(255,215,0,0.3);color:#FFD700;border-radius:999px;padding:8px 24px">
+                    Clear Filters
+                </button>
+            </div>
+        }
+
+        <div class="row g-4" id="servicesGrid">
+            @if (Model.Services != null && Model.Services.Any())
+            {
+                foreach (var service in Model.Services)
+                {
+                    var imgUrl = !string.IsNullOrEmpty(service.ImagePath) ? service.ImagePath : "/images/service-default.jpg";
+                    var cleanPath = imgUrl.TrimStart('/');
+
+                    <div class="col-md-4 service-item"
+                         data-category="@service.Category"
+                         data-price="@service.Price"
+                         data-province="@service.Province"
+                         data-city="@service.City">
+
+                        <div class="card service-card h-100 shadow-lg">
+                            <img src="@Url.Content("~/" + cleanPath)"
+                                 class="card-img-top"
+                                 style="height:220px;object-fit:cover;"
+                                 alt="@service.ServiceName"
+                                 onerror="this.src='/images/service-default.jpg';" />
+
+                            <div class="card-body text-center d-flex flex-column">
+                                <h5 class="text-gold fw-bold">@service.ServiceName</h5>
+                                <p class="small text-white-50 flex-grow-1">@service.Description</p>
+
+                                <div class="mb-2">
+                                    <span class="badge rounded-pill border border-gold text-gold px-3">
+                                        @service.Category
+                                    </span>
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(service.City))
+                                {
+                                    <div class="mb-2">
+                                        <small style="color:rgba(255,215,0,0.45);font-size:0.72rem;">
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                                                 stroke="currentColor" stroke-width="2" style="margin-right:3px;vertical-align:middle;">
+                                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                                                <circle cx="12" cy="10" r="3" />
+                                            </svg>
+                                            @service.City@(!string.IsNullOrEmpty(service.Province) ? $", {service.Province}" : "")
+                                        </small>
+                                    </div>
+                                }
+
+                                <p class="price mb-4" style="color:#FFD700;font-size:1.4rem;font-weight:800;">
+                                    R @service.Price
+                                </p>
+
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-gradient"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#artistPortfolioModal"
+                                            data-artist-id="@service.ArtistId"
+                                            data-service-id="@service.UserServiceId">
+                                        View Portfolio
+                                    </button>
+                                    <a asp-controller="Home" asp-action="Catalogue"
+                                       asp-route-artistId="@service.ArtistId"
+                                       asp-route-categoryId="@service.CategoryId"
+                                       class="btn btn-service-tertiary">
+                                        View Catalogue
+                                    </a>
+                                </div>
+                                <small class="mt-3 text-muted">Artist: @service.ArtistName</small>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="col-12 text-center py-5">
+                    <h4 class="text-white-50">No services found.</h4>
+                    <a href="@Url.Action("Index", "Home")" class="btn btn-outline-gold mt-3">Go Back Home</a>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+@* ── PORTFOLIO MODAL ── *@
+<div class="modal fade" id="artistPortfolioModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content bg-black text-white" style="border:1px solid #FFD700;border-radius:20px;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-gold">Artist Portfolio</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="artistPortfolioContent">
+                <div class="text-center py-5"><div class="spinner-border text-warning"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .sl-topbar {
+        background: #000;
+        border-bottom: 1px solid rgba(255,215,0,0.08);
+        padding: 12px 0;
+    }
+
+    .sl-appt-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 22px;
+        border-radius: 999px;
+        background: linear-gradient(135deg,#b30000,#FFD700);
+        color: #000 !important;
+        font-weight: 800;
+        font-size: 0.82rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border: none;
+    }
+
+        .sl-appt-btn:hover {
+            background: linear-gradient(135deg,#FFD700,#b30000);
+            color: #000 !important;
+            box-shadow: 0 0 20px rgba(255,215,0,0.35);
+            transform: translateY(-2px);
+        }
+
+    .sl-filter-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 22px;
+        border-radius: 999px;
+        background: rgba(255,215,0,0.08);
+        border: 1px solid rgba(255,215,0,0.3);
+        color: #FFD700;
+        font-weight: 700;
+        font-size: 0.82rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.25s;
+    }
+
+        .sl-filter-btn:hover {
+            background: rgba(255,215,0,0.15);
+            border-color: #FFD700;
+        }
+
+    .sl-filter-count {
+        background: #FFD700;
+        color: #000;
+        font-size: 0.65rem;
+        font-weight: 900;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .sl-filter-backdrop {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 1040;
+        backdrop-filter: blur(2px);
+    }
+
+        .sl-filter-backdrop.open {
+            display: block;
+        }
+
+    .sl-filter-panel {
+        position: fixed;
+        top: 0;
+        right: -380px;
+        width: 340px;
+        height: 100vh;
+        background: #0a0a0a;
+        border-left: 1px solid rgba(255,215,0,0.15);
+        z-index: 1050;
+        transition: right 0.35s cubic-bezier(0.4,0,0.2,1);
+        overflow-y: auto;
+    }
+
+        .sl-filter-panel.open {
+            right: 0;
+        }
+
+    .sl-filter-inner {
+        padding: 28px 24px;
+    }
+
+    .sl-filter-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 28px;
+    }
+
+    .sl-filter-title {
+        color: #FFD700;
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    .sl-filter-close {
+        background: none;
+        border: none;
+        color: rgba(255,255,255,0.4);
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: color 0.2s;
+        padding: 4px;
+    }
+
+        .sl-filter-close:hover {
+            color: #FFD700;
+        }
+
+    .sl-filter-group {
+        margin-bottom: 22px;
+    }
+
+    .sl-filter-label {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.4);
+        margin-bottom: 9px;
+    }
+
+    .sl-filter-select {
+        width: 100%;
+        background: #111;
+        border: 1px solid rgba(255,215,0,0.15);
+        border-radius: 10px;
+        color: #fff;
+        padding: 11px 36px 11px 14px;
+        font-size: 0.86rem;
+        outline: none;
+        cursor: pointer;
+        transition: border-color 0.2s;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23FFD700' stroke-width='2'%3E%3Cpolyline points='6,9 12,15 18,9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 14px center;
+    }
+
+        .sl-filter-select:focus {
+            border-color: rgba(255,215,0,0.4);
+        }
+
+        .sl-filter-select option {
+            background: #111;
+        }
+
+        .sl-filter-select:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+    .sl-price-slider {
+        width: 100%;
+        -webkit-appearance: none;
+        height: 4px;
+        border-radius: 2px;
+        background: linear-gradient(to right,#FFD700 0%,#FFD700 100%);
+        outline: none;
+        cursor: pointer;
+        margin-bottom: 10px;
+    }
+
+        .sl-price-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #FFD700;
+            border: 3px solid #000;
+            box-shadow: 0 0 8px rgba(255,215,0,0.5);
+            cursor: pointer;
+        }
+
+        .sl-price-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #FFD700;
+            border: 3px solid #000;
+            cursor: pointer;
+        }
+
+    .sl-price-range-labels {
+        display: flex;
+        justify-content: space-between;
+        color: rgba(255,255,255,0.25);
+        font-size: 0.72rem;
+    }
+
+    .sl-filter-results {
+        text-align: center;
+        color: rgba(255,255,255,0.3);
+        font-size: 0.8rem;
+        margin-bottom: 20px;
+        padding: 10px;
+        background: rgba(255,215,0,0.04);
+        border-radius: 8px;
+    }
+
+        .sl-filter-results span {
+            color: #FFD700;
+            font-weight: 800;
+            font-size: 1rem;
+        }
+
+    .sl-filter-reset {
+        width: 100%;
+        padding: 12px;
+        background: rgba(255,50,50,0.08);
+        border: 1px solid rgba(255,50,50,0.2);
+        color: #ff6666;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .sl-filter-reset:hover {
+            background: rgba(255,50,50,0.15);
+            border-color: rgba(255,50,50,0.4);
+        }
+
+    .service-card {
+        background: #0b0b0b !important;
+        border: 1px solid rgba(255,215,0,0.25);
+        border-radius: 16px;
+        box-shadow: 0 0 20px rgba(255,0,0,0.15);
+        overflow: hidden;
+    }
+
+        .service-card .card-body {
+            background: #0b0b0b;
+            color: #fff;
+        }
+
+        .service-card h5 {
+            color: #FFD700 !important;
+            text-shadow: 0 0 8px rgba(255,215,0,0.4);
+        }
+
+    .btn-gradient {
+        background: linear-gradient(135deg,#b30000,#FFD700);
+        border: none;
+        color: #000;
+        font-weight: 700;
+        border-radius: 30px;
+        padding: 10px 22px;
+        transition: all 0.3s;
+    }
+
+        .btn-gradient:hover {
+            background: linear-gradient(135deg,#FFD700,#b30000);
+            box-shadow: 0 0 15px rgba(255,215,0,0.6);
+            transform: translateY(-2px);
+        }
+
+    .btn-service-tertiary {
+        border-radius: 999px;
+        padding: 10px 22px;
+        font-weight: 800;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        background: linear-gradient(135deg,#400000,#b30000);
+        color: #FFD700;
+        border: none;
+        transition: all .25s;
+    }
+
+        .btn-service-tertiary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 18px rgba(255,215,0,0.6);
+        }
+
+    .service-item.hidden {
+        display: none !important;
+    }
+</style>
+
+@section Scripts {
+    <script>
+
+
+        // ── PORTFOLIO MODAL ──
+        document.getElementById('artistPortfolioModal')
+            .addEventListener('show.bs.modal', function(event) {
+                const btn       = event.relatedTarget;
+                const artistId  = btn.getAttribute('data-artist-id');
+                const serviceId = btn.getAttribute('data-service-id');
+                const container = document.getElementById('artistPortfolioContent');
+                container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-warning"></div></div>';
+                fetch('/Portfolio/ArtistPortfolioModal?artistId=' + artistId + '&serviceId=' + serviceId)
+                    .then(function(r) { return r.text(); })
+                    .then(function(html) { container.innerHTML = html; });
+            });
+
+
+
+
+
+        // ── FILTER LOGIC ──
+        var isAllServices = @(isAllServices ? "true" : "false");
+
+        if (isAllServices) {
+            var panel       = document.getElementById('filterPanel');
+            var backdrop    = document.getElementById('filterBackdrop');
+            var toggle      = document.getElementById('filterToggle');
+            var closeBtn    = document.getElementById('filterClose');
+            var catSel      = document.getElementById('filterCategory');
+            var provSel     = document.getElementById('filterProvince');
+            var citySel     = document.getElementById('filterCity');
+            var priceEl     = document.getElementById('filterPrice');
+            var priceLabel  = document.getElementById('priceLabel');
+            var countEl     = document.getElementById('resultsCount');
+            var badgeEl     = document.getElementById('activeFilterCount');
+            var noResultsEl = document.getElementById('noResultsMsg');
+            var items       = document.querySelectorAll('.service-item');
+
+            function openPanel()  { panel.classList.add('open'); backdrop.classList.add('open'); document.body.style.overflow = 'hidden'; }
+            function closePanel() { panel.classList.remove('open'); backdrop.classList.remove('open'); document.body.style.overflow = ''; }
+            toggle.addEventListener('click', openPanel);
+            closeBtn.addEventListener('click', closePanel);
+            backdrop.addEventListener('click', closePanel);
+
+            // ── Province → City cascading (FIXED VERSION) ──
+            function populateCities(province, selectCity) {
+                citySel.innerHTML = '<option value="">All Cities</option>';
+
+                // Fix: Case-insensitive key matching
+                const matchedKey = Object.keys(provinceData).find(k => k.toLowerCase() === province.toLowerCase());
+
+                if (!province || !matchedKey || provinceData[matchedKey].length === 0) {
+                    citySel.disabled = true;
+                    citySel.innerHTML = '<option value="">Select a province first</option>';
+                    return;
+                }
+
+                citySel.disabled = false;
+                provinceData[matchedKey].forEach(function(city) {
+                    var opt = document.createElement('option');
+                    opt.value       = city;
+                    opt.textContent = city;
+                    if (city === selectCity) opt.selected = true;
+                    citySel.appendChild(opt);
+                });
+            }
+
+            // Fix: Trigger applyFilters immediately on province change
+            provSel.addEventListener('change', function() {
+                populateCities(this.value, '');
+                applyFilters();
+            });
+
+            citySel.addEventListener('change', applyFilters);
+            catSel.addEventListener('change', applyFilters);
+
+            priceEl.addEventListener('input', function() {
+                priceLabel.textContent = 'R ' + parseInt(this.value).toLocaleString('en-ZA');
+                applyFilters();
+            });
+
+            // ── Main filter logic ──
+            function applyFilters() {
+                var maxP    = parseFloat(priceEl.value);
+                var catVal  = catSel.value.toLowerCase();
+                var provVal = provSel.value.toLowerCase();
+                var cityVal = citySel.value.toLowerCase();
+                var visible = 0;
+
+                items.forEach(function(item) {
+                    var itemPrice = parseFloat(item.dataset.price)    || 0;
+                    var itemCat   = (item.dataset.category  || '').toLowerCase();
+                    var itemProv  = (item.dataset.province  || '').toLowerCase();
+                    var itemCity  = (item.dataset.city      || '').toLowerCase();
+
+                    var ok = (itemPrice <= maxP)
+                          && (catVal  === '' || itemCat  === catVal)
+                          && (provVal === '' || itemProv === provVal)
+                          && (cityVal === '' || itemCity === cityVal);
+
+                    if (ok) { item.classList.remove('hidden'); visible++; }
+                    else    { item.classList.add('hidden'); }
+                });
+
+                countEl.textContent = visible;
+                noResultsEl.style.display = visible === 0 ? 'block' : 'none';
+
+                var active = 0;
+                if (catVal  !== '') active++;
+                if (provVal !== '') active++;
+                if (cityVal !== '') active++;
+                if (parseFloat(priceEl.value) < parseFloat(priceEl.max)) active++;
+                badgeEl.textContent   = active;
+                badgeEl.style.display = active > 0 ? 'inline-flex' : 'none';
+            }
+
+            function resetFilters() {
+                catSel.value  = '';
+                provSel.value = '';
+                populateCities('', '');
+                priceEl.value = priceEl.max;
+                priceLabel.textContent = 'R ' + parseInt(priceEl.max).toLocaleString('en-ZA');
+                applyFilters();
+            }
+
+            document.getElementById('filterReset').addEventListener('click', resetFilters);
+            window.resetFilters = resetFilters;
+        }
+    </script>
+}
+}

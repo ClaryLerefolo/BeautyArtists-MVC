@@ -2,104 +2,180 @@
 @{
     ViewData["Title"] = "Edit Portfolio Item";
     Layout = "~/Views/Shared/_ArtistLayout.cshtml";
-
 }
 
-<h2>@ViewData["Title"]</h2>
-
-<form asp-action="EditPortfolioItem"
-      asp-route-id="@Model.Id"
-      enctype="multipart/form-data"
-      novalidate>
-    <input type="hidden" asp-for="Id" />
-
-    @* ——— Portfolio & Category dropdowns ——— *@
-    <div class="mb-3">
-        <label asp-for="PortfolioId" class="form-label"></label>
-        <select asp-for="PortfolioId"
-                asp-items="Model.PortfoliosSelectList"
-                class="form-select">
-        </select>
-        <span asp-validation-for="PortfolioId" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="CategoryId" class="form-label"></label>
-        <select asp-for="CategoryId"
-                asp-items="Model.Categories"
-                class="form-select">
-        </select>
-        <span asp-validation-for="CategoryId" class="text-danger"></span>
-    </div>
-
-    @* ——— Main fields ——— *@
-    <div class="mb-3">
-        <label asp-for="Title" class="form-label"></label>
-        <input asp-for="Title" class="form-control" />
-        <span asp-validation-for="Title" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="Description" class="form-label"></label>
-        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
-        <span asp-validation-for="Description" class="text-danger"></span>
-    </div>
-
-    @* ——— Existing media preview ——— *@
-    @if (!string.IsNullOrWhiteSpace(Model.ExistingMediaUrl))
-    {
-        <div class="mb-3">
-            <label class="form-label">Current Media</label><br />
-            @if (Model.MediaType == "Image")
-            {
-                <img src="@Model.ExistingMediaUrl" style="max-width:200px;" class="img-thumbnail" />
-            }
-            else
-            {
-                <video src="@Model.ExistingMediaUrl" style="max-width:200px;" controls></video>
-            }
+<div class="container mt-5">
+    <div class="card bg-dark text-white border-warning" style="border-radius: 15px; background-color: #121212 !important;">
+        <div class="card-header border-0 mt-2">
+            <h3 class="text-warning">Edit Work: "@Model.Title"</h3>
         </div>
-    }
+        <div class="card-body">
+            <form asp-action="EditPortfolioItem" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id" />
 
-    <div class="row g-3 mb-3">
-        <div class="col">
-            <label asp-for="MediaFile" class="form-label">Replace Media</label>
-            <input asp-for="MediaFile" type="file" class="form-control" accept="image/*,video/*" />
-            <span asp-validation-for="MediaFile" class="text-danger"></span>
-        </div>
-        <div class="col">
-            <label asp-for="ThumbnailFile" class="form-label">Replace Thumbnail</label>
-            <input asp-for="ThumbnailFile" type="file" class="form-control" accept="image/*" />
-            <span asp-validation-for="ThumbnailFile" class="text-danger"></span>
+                <div class="row">
+                    <div class="col-md-6 border-end border-secondary">
+                        <div class="mb-4">
+                            <label class="text-warning fw-bold">Current Media</label>
+                            <div class="upload-box border border-warning border-dashed p-3 text-center"
+                                 style="border-style: dashed !important; cursor: pointer; min-height: 280px; display: flex; flex-direction: column; justify-content: center; align-items: center;"
+                                 onclick="document.getElementById('mediaInput').click();">
+
+                                <div id="previewContainer">
+                                    @if (!string.IsNullOrEmpty(Model.ExistingMediaUrl))
+                                    {
+                                        @if (Model.MediaType == "Video")
+                                        {
+                                            <video id="mediaPreview" src="@Model.ExistingMediaUrl" controls style="max-height: 200px; max-width: 100%;"></video>
+                                        }
+                                        else
+                                        {
+                                            <img id="mediaPreview" src="@Model.ExistingMediaUrl" style="max-height: 200px; max-width: 100%; border-radius: 10px;" />
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-upload text-warning fa-3x mb-2"></i>
+                                        <p>Click to upload media</p>
+                                    }
+                                </div>
+                            </div>
+                            <input type="file" id="mediaInput" asp-for="MediaFile" class="d-none" onchange="updatePreview(this)" />
+                            <small class="text-muted d-block mt-2">File Path: @Model.ExistingMediaUrl</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="text-warning fw-bold">Service Category</label>
+                            <select asp-for="CategoryId" asp-items="Model.Categories" class="form-select bg-dark text-white border-secondary">
+                                <option value="0">-- Select Category --</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="text-warning fw-bold">Portfolio Assignment</label>
+                            <select asp-for="PortfolioId" asp-items="Model.PortfoliosSelectList" class="form-select bg-dark text-white border-secondary">
+                                <option value="0">-- No Portfolio (General) --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label class="text-warning fw-bold">Title</label>
+                                <input asp-for="Title" class="form-control bg-dark text-white border-secondary" />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="text-warning fw-bold">Display Order</label>
+                                <input asp-for="DisplayOrder" class="form-control bg-dark text-white border-secondary" />
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="text-warning fw-bold">Province</label>
+                                <select asp-for="Province" id="provinceSelect" class="form-select bg-dark text-white border-secondary">
+                                    <option value="">Select Province</option>
+                                    <option value="Eastern Cape">Eastern Cape</option>
+                                    <option value="Free State">Free State</option>
+                                    <option value="Gauteng">Gauteng</option>
+                                    <option value="KwaZulu-Natal">KwaZulu-Natal</option>
+                                    <option value="Limpopo">Limpopo</option>
+                                    <option value="Mpumalanga">Mpumalanga</option>
+                                    <option value="North West">North West</option>
+                                    <option value="Northern Cape">Northern Cape</option>
+                                    <option value="Western Cape">Western Cape</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="text-warning fw-bold">City</label>
+                                <select asp-for="City" id="citySelect" class="form-select bg-dark text-white border-secondary">
+                                    <option value="">Select City</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="text-warning fw-bold">Media Type</label>
+                            <select asp-for="MediaType" class="form-select bg-dark text-white border-secondary">
+                                <option value="Image">Image</option>
+                                <option value="Video">Video</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="text-warning fw-bold">Description</label>
+                            <textarea asp-for="Description" rows="4" class="form-control bg-dark text-white border-secondary"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-warning w-100 fw-bold py-3 text-uppercase">Update Portfolio Item</button>
+                </div>
+            </form>
         </div>
     </div>
-
-    <div class="row g-3 mb-3">
-        <div class="col-md-4">
-            <label asp-for="DisplayOrder" class="form-label"></label>
-            <input asp-for="DisplayOrder" class="form-control" />
-            <span asp-validation-for="DisplayOrder" class="text-danger"></span>
-        </div>
-        <div class="col-md-4">
-            <label asp-for="MediaType" class="form-label"></label>
-            <select asp-for="MediaType" class="form-select">
-                <option value="Image">Image</option>
-                <option value="Video">Video</option>
-            </select>
-            <span asp-validation-for="MediaType" class="text-danger"></span>
-        </div>
-        <div class="col-md-4 d-flex align-items-center">
-            <div class="form-check mt-4">
-                <input asp-for="IsFeatured" class="form-check-input" />
-                <label asp-for="IsFeatured" class="form-check-label"></label>
-            </div>
-        </div>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Update</button>
-    <a asp-action="ManagePortfolioItem" class="btn btn-secondary ms-2">Cancel</a>
-</form>
+</div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // --- COMPLETE CITY DATA ---
+        const southAfricaData = {
+            "Eastern Cape": ["Gqeberha", "East London", "Makhanda", "Mthatha", "Bhisho", "Kariega"],
+            "Free State": ["Bloemfontein", "Welkom", "Sasolburg", "Bethlehem", "Kroonstad"],
+            "Gauteng": ["Johannesburg", "Pretoria", "Soweto", "Sandton", "Centurion", "Roodepoort", "Benoni", "Midrand"],
+            "KwaZulu-Natal": ["Durban", "Pietermaritzburg", "Richards Bay", "Newcastle", "Umhlanga", "Ballito"],
+            "Limpopo": ["Polokwane", "Thohoyandou", "Tzaneen", "Mokopane", "Phalaborwa"],
+            "Mpumalanga": ["Mbombela", "Emalahleni", "Secunda", "Ermelo", "Middelburg"],
+            "North West": ["Klerksdorp", "Potchefstroom", "Mahikeng", "Rustenburg", "Brits"],
+            "Northern Cape": ["Kimberley", "Upington", "Springbok", "Kuruman", "De Aar"],
+            "Western Cape": ["Cape Town", "Stellenbosch", "George", "Paarl", "Mossel Bay", "Knysna", "Worcester"]
+        };
+
+        $(document).ready(function () {
+            const $province = $('#provinceSelect');
+            const $city = $('#citySelect');
+            const savedCity = '@Model.City';
+
+            function updateCities(province, selectedCity) {
+                $city.empty().append('<option value="">Select City</option>');
+                if (province && southAfricaData[province]) {
+                    southAfricaData[province].forEach(city => {
+                        const isSelected = city === selectedCity ? 'selected' : '';
+                        $city.append(`<option value="${city}" ${isSelected}>${city}</option>`);
+                    });
+                }
+            }
+
+            // AUTO-LOAD CITIES ON EDIT LOAD
+            if ($province.val()) {
+                updateCities($province.val(), savedCity);
+            }
+
+            // CHANGE EVENT
+            $province.on('change', function () {
+                updateCities($(this).val(), '');
+            });
+        });
+
+        // --- MEDIA PREVIEW LOGIC ---
+        function updatePreview(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const container = document.getElementById('previewContainer');
+                    const fileType = input.files[0].type;
+
+                    if (fileType.includes('video')) {
+                        container.innerHTML = `<video src="${e.target.result}" controls style="max-height: 200px; max-width: 100%;"></video>`;
+                    } else {
+                        container.innerHTML = `<img src="${e.target.result}" style="max-height: 200px; max-width: 100%; border-radius: 10px;" />`;
+                    }
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+    </script>
 }

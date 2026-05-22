@@ -65,7 +65,6 @@
                 <div class="card-body">
                     <h5 class="card-title">@item.Title</h5>
                     <p class="card-text">@item.Description</p>
-                    <p class="card-subtitle text-muted">@item.Category?.Name</p>
                     <p><strong>By:</strong> @item.Artist.ArtistProfile?.FullName ?? item.Artist.UserName</p>
                     @if (item.IsFeatured)
                     {

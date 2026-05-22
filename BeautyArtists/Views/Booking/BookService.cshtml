@@ -1,40 +1,792 @@
 ﻿@model BeautyArtists.Models.ViewModels.BookingViewModel
 @{
-    ViewData["Title"] = "Confirm Booking";
+    ViewData["Title"] = "Book Service";
+    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<h2 class="text-gold mb-4">Confirm Your Booking</h2>
+<div class="book-page">
 
-<div class="card bg-dark text-light border-gold">
-    <div class="card-body">
-        <h4>@Model.ServiceName</h4>
-        <p><strong>Artist:</strong> @Model.ArtistName</p>
-        <p><strong>Price:</strong> R@Model.Price</p>
+    @* ── HERO ── *@
+    <div class="book-hero">
+        <div class="book-hero-glow"></div>
+        <div class="container book-hero-inner">
+            <div class="book-service-info">
+                <span class="book-eyebrow">You're booking</span>
+                <h1 class="book-service-name">@Model.ServiceName</h1>
+                <div class="book-artist-line">
+                    <span class="book-artist-label">with</span>
+                    <span class="book-artist-name">@Model.ArtistName</span>
+                </div>
+            </div>
+            <div class="book-price-block">
+                <span class="book-price-label">Total</span>
+                <span class="book-price">R @Model.Price.ToString("N0")</span>
+            </div>
+        </div>
+    </div>
 
-        <form asp-action="ConfirmBooking" method="post">
+    <div class="container book-body">
+
+        <form asp-controller="Booking" asp-action="ConfirmBooking" method="post" id="bookingForm">
             @Html.AntiForgeryToken()
-            <input type="hidden" asp-for="UserServiceId" />
-            <input type="hidden" asp-for="ServiceName" />
-            <input type="hidden" asp-for="Price" />
-            <input type="hidden" asp-for="ArtistName" />
+            <input type="hidden" name="UserServiceId" value="@Model.UserServiceId" />
+            <input type="hidden" name="ArtistId" value="@Model.ArtistId" />
+            <input type="hidden" name="Price" value="@Model.Price" />
+            <input type="hidden" name="ServiceName" value="@Model.ServiceName" />
+            <input type="hidden" name="ArtistName" value="@Model.ArtistName" />
+            <input type="hidden" name="AvailabilitySlotId" id="selectedSlotId" value="0" />
+            <input type="hidden" name="PreferredDate" id="selectedDate" value="" />
 
-            <div class="mb-3">
-                <label asp-for="PreferredDate" class="form-label">Preferred Date & Time</label>
-                <input asp-for="PreferredDate" type="datetime-local" class="form-control" />
-                <span asp-validation-for="PreferredDate" class="text-danger"></span>
+            @* ── STEP 1: CALENDAR ── *@
+            <div class="book-section">
+                <div class="book-step-header">
+                    <div class="book-step-num">1</div>
+                    <div>
+                        <h2 class="book-step-title">Choose a Date & Time</h2>
+                        <p class="book-step-sub">Gold dates have available slots — click to see times</p>
+                    </div>
+                </div>
+
+                @* Loading *@
+                <div id="calLoading" class="slots-loading">
+                    <div class="slots-spinner"></div>
+                    <span>Loading availability...</span>
+                </div>
+
+                @* No slots *@
+                <div id="calEmpty" class="slots-empty" style="display:none">
+                    <div class="slots-empty-icon">📅</div>
+                    <p>This artist has no available slots right now.</p>
+                    <small>Check back soon or contact them directly.</small>
+                </div>
+
+                @* Calendar *@
+                <div id="calendarWrap" style="display:none">
+
+                    @* Month nav *@
+                    <div class="cal-nav">
+                        <button type="button" class="cal-nav-btn" id="prevMonth">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2.5">
+                                <polyline points="15,18 9,12 15,6" />
+                            </svg>
+                        </button>
+                        <span class="cal-month-label" id="monthLabel"></span>
+                        <button type="button" class="cal-nav-btn" id="nextMonth">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2.5">
+                                <polyline points="9,18 15,12 9,6" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    @* Day headers *@
+                    <div class="cal-grid cal-headers">
+                        <div class="cal-day-header">Sun</div>
+                        <div class="cal-day-header">Mon</div>
+                        <div class="cal-day-header">Tue</div>
+                        <div class="cal-day-header">Wed</div>
+                        <div class="cal-day-header">Thu</div>
+                        <div class="cal-day-header">Fri</div>
+                        <div class="cal-day-header">Sat</div>
+                    </div>
+
+                    @* Days *@
+                    <div class="cal-grid" id="calDays"></div>
+
+                    @* Time slots for selected date *@
+                    <div id="timeSlotSection" style="display:none">
+                        <div class="cal-time-header">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                 stroke="#FFD700" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <polyline points="12,6 12,12 16,14" />
+                            </svg>
+                            Available times for <strong id="selectedDateLabel"></strong>
+                        </div>
+                        <div class="time-slots-grid" id="timeSlotsGrid"></div>
+                    </div>
+
+                </div>
+
+                <div id="slotError" class="book-field-error" style="display:none">
+                    ⚠ Please select a date and time to continue.
+                </div>
             </div>
 
-            <div class="mb-3">
-                <label asp-for="Notes" class="form-label">Additional Notes (Optional)</label>
-                <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+            @* ── STEP 2: NOTES ── *@
+            <div class="book-section">
+                <div class="book-step-header">
+                    <div class="book-step-num">2</div>
+                    <div>
+                        <h2 class="book-step-title">Any Special Requests?</h2>
+                        <p class="book-step-sub">Optional — tell the artist anything they should know</p>
+                    </div>
+                </div>
+                <textarea name="Notes"
+                          class="book-textarea"
+                          placeholder="e.g. I prefer natural looks, I have sensitive skin..."
+                          maxlength="1000"
+                          rows="4"></textarea>
             </div>
 
-            <button type="submit" class="btn btn-danger">Submit Booking</button>
-            <a asp-action="Book" class="btn btn-outline-light ms-2">Back to Services</a>
+            @* ── STEP 3: SUMMARY ── *@
+            <div class="book-section book-summary" id="bookSummary" style="display:none">
+                <div class="book-summary-row">
+                    <span>Service</span>
+                    <strong>@Model.ServiceName</strong>
+                </div>
+                <div class="book-summary-row">
+                    <span>Artist</span>
+                    <strong>@Model.ArtistName</strong>
+                </div>
+                <div class="book-summary-row">
+                    <span>Date & Time</span>
+                    <strong id="summarySlot">—</strong>
+                </div>
+                <div class="book-summary-row book-summary-total">
+                    <span>Total</span>
+                    <strong>R @Model.Price.ToString("N0")</strong>
+                </div>
+            </div>
+
+            <button type="submit" class="book-confirm-btn">
+                <span>Confirm Booking</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5">
+                    <polyline points="20,6 9,17 4,12" />
+                </svg>
+            </button>
+
         </form>
     </div>
 </div>
 
+<style>
+    .book-page {
+        background: #000;
+        min-height: 100vh;
+        padding-bottom: 80px;
+    }
+
+    /* ── HERO ── */
+    .book-hero {
+        position: relative;
+        padding: 50px 0 40px;
+        overflow: hidden;
+    }
+
+    .book-hero-glow {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, #100000 0%, #1a0900 50%, #050505 100%);
+    }
+
+        .book-hero-glow::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 20% 50%, rgba(179,0,0,0.2) 0%, transparent 55%), radial-gradient(ellipse at 80% 50%, rgba(255,215,0,0.06) 0%, transparent 55%);
+        }
+
+    .book-hero-inner {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .book-eyebrow {
+        display: block;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: rgba(255,215,0,0.4);
+        margin-bottom: 8px;
+    }
+
+    .book-service-name {
+        color: #FFD700;
+        font-size: 2.2rem;
+        font-weight: 800;
+        margin: 0 0 8px;
+        text-shadow: 0 0 30px rgba(255,215,0,0.25);
+        line-height: 1.1;
+    }
+
+    .book-artist-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .book-artist-label {
+        color: rgba(255,255,255,0.3);
+        font-size: 0.85rem;
+    }
+
+    .book-artist-name {
+        color: #fff;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+
+    .book-price-block {
+        text-align: right;
+    }
+
+    .book-price-label {
+        display: block;
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 3px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.25);
+        margin-bottom: 4px;
+    }
+
+    .book-price {
+        display: block;
+        font-size: 2.4rem;
+        font-weight: 800;
+        color: #FFD700;
+        text-shadow: 0 0 20px rgba(255,215,0,0.3);
+    }
+
+    /* ── BODY ── */
+    .book-body {
+        padding-top: 40px;
+        max-width: 720px;
+    }
+
+    .book-section {
+        margin-bottom: 36px;
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.1);
+        border-radius: 18px;
+        padding: 28px;
+    }
+
+    .book-step-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .book-step-num {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #b30000, #FFD700);
+        color: #000;
+        font-size: 0.95rem;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .book-step-title {
+        color: #FFD700;
+        font-size: 1.1rem;
+        font-weight: 800;
+        margin: 0 0 4px;
+    }
+
+    .book-step-sub {
+        color: rgba(255,255,255,0.3);
+        font-size: 0.78rem;
+        margin: 0;
+    }
+
+    /* ── LOADING / EMPTY ── */
+    .slots-loading {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: rgba(255,255,255,0.4);
+        font-size: 0.85rem;
+        padding: 20px 0;
+    }
+
+    .slots-spinner {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,215,0,0.2);
+        border-top-color: #FFD700;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @@keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .slots-empty {
+        text-align: center;
+        padding: 32px 0;
+        color: rgba(255,255,255,0.3);
+    }
+
+    .slots-empty-icon {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+
+    .slots-empty p {
+        margin: 0 0 4px;
+        font-size: 0.9rem;
+    }
+
+    .slots-empty small {
+        font-size: 0.75rem;
+    }
+
+    /* ── CALENDAR NAV ── */
+    .cal-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .cal-nav-btn {
+        background: rgba(255,215,0,0.08);
+        border: 1px solid rgba(255,215,0,0.15);
+        color: rgba(255,215,0,0.7);
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .cal-nav-btn:hover {
+            background: rgba(255,215,0,0.18);
+            color: #FFD700;
+        }
+
+    .cal-month-label {
+        color: #FFD700;
+        font-size: 0.95rem;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+    }
+
+    /* ── CALENDAR GRID ── */
+    .cal-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 6px;
+        margin-bottom: 6px;
+    }
+
+    .cal-headers {
+        margin-bottom: 2px;
+    }
+
+    .cal-day-header {
+        text-align: center;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.2);
+        padding: 6px 0;
+    }
+
+    /* ── DAY CELLS ── */
+    .cal-day {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        position: relative;
+        transition: all 0.2s;
+    }
+
+        .cal-day.empty {
+            background: transparent;
+            pointer-events: none;
+        }
+
+        .cal-day.past {
+            color: rgba(255,255,255,0.12);
+            pointer-events: none;
+        }
+
+        .cal-day.no-slot {
+            color: rgba(255,255,255,0.2);
+            pointer-events: none;
+        }
+
+        .cal-day.today {
+            color: rgba(255,255,255,0.45);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .cal-day.has-slot {
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255,215,0,0.2);
+        }
+
+            .cal-day.has-slot:hover {
+                transform: scale(1.1);
+                box-shadow: 0 0 20px rgba(255,215,0,0.45);
+            }
+
+        .cal-day.selected {
+            background: #FFD700 !important;
+            color: #000 !important;
+            font-weight: 900 !important;
+            transform: scale(1.15) !important;
+            box-shadow: 0 0 28px rgba(255,215,0,0.6) !important;
+        }
+
+    .cal-slot-dot {
+        position: absolute;
+        bottom: 4px;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.35);
+    }
+
+    /* ── TIME SLOTS ── */
+    .cal-time-header {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        color: rgba(255,255,255,0.4);
+        font-size: 0.8rem;
+        margin: 20px 0 12px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255,215,0,0.08);
+    }
+
+        .cal-time-header strong {
+            color: #FFD700;
+        }
+
+    .time-slots-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .time-slot-btn {
+        background: #111;
+        border: 1.5px solid rgba(255,215,0,0.15);
+        border-radius: 10px;
+        color: #fff;
+        padding: 10px 20px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+        .time-slot-btn:hover {
+            border-color: rgba(255,215,0,0.4);
+            background: #1a1000;
+            transform: translateY(-2px);
+        }
+
+        .time-slot-btn.selected {
+            background: rgba(255,215,0,0.1);
+            border-color: #FFD700;
+            color: #FFD700;
+            box-shadow: 0 0 14px rgba(255,215,0,0.2);
+        }
+
+    /* ── TEXTAREA ── */
+    .book-textarea {
+        width: 100%;
+        background: #111;
+        border: 1.5px solid rgba(255,215,0,0.1);
+        border-radius: 12px;
+        color: #fff;
+        padding: 14px 16px;
+        font-size: 0.9rem;
+        resize: vertical;
+        transition: border-color 0.2s;
+        outline: none;
+    }
+
+        .book-textarea:focus {
+            border-color: rgba(255,215,0,0.4);
+            background: #131300;
+        }
+
+        .book-textarea::placeholder {
+            color: rgba(255,255,255,0.2);
+        }
+
+    /* ── SUMMARY ── */
+    .book-summary {
+        border-color: rgba(255,215,0,0.2);
+    }
+
+    .book-summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        font-size: 0.88rem;
+    }
+
+        .book-summary-row:last-child {
+            border-bottom: none;
+        }
+
+        .book-summary-row span {
+            color: rgba(255,255,255,0.4);
+        }
+
+        .book-summary-row strong {
+            color: #fff;
+        }
+
+    .book-summary-total span {
+        color: rgba(255,215,0,0.6) !important;
+        font-weight: 700;
+    }
+
+    .book-summary-total strong {
+        color: #FFD700 !important;
+        font-size: 1.1rem;
+    }
+
+    /* ── CONFIRM ── */
+    .book-confirm-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 18px;
+        background: linear-gradient(135deg, #b30000, #FFD700);
+        color: #000;
+        font-weight: 800;
+        font-size: 1rem;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        border: none;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+        .book-confirm-btn:hover {
+            background: linear-gradient(135deg, #FFD700, #b30000);
+            box-shadow: 0 0 30px rgba(255,215,0,0.35);
+            transform: translateY(-2px);
+        }
+
+    .book-field-error {
+        color: #ff4444;
+        font-size: 0.8rem;
+        margin-top: 10px;
+        padding: 8px 12px;
+        background: rgba(255,0,0,0.08);
+        border-radius: 8px;
+        border-left: 3px solid #ff4444;
+    }
+</style>
+
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    <script>
+        const artistId = '@Model.ArtistId';
+        let allSlots = [];
+        let selectedSlot = null;
+        let currentYear, currentMonth;
+
+        // ── FETCH ALL SLOTS ──
+        fetch(`/ArtistAvailability/GetSlots?artistId=${artistId}`)
+            .then(res => res.json())
+            .then(slots => {
+                document.getElementById('calLoading').style.display = 'none';
+
+                if (!slots || slots.length === 0) {
+                    document.getElementById('calEmpty').style.display = 'block';
+                    return;
+                }
+
+                allSlots = slots;
+                const now = new Date();
+                currentYear = now.getFullYear();
+                currentMonth = now.getMonth();
+
+                document.getElementById('calendarWrap').style.display = 'block';
+                renderCalendar(currentYear, currentMonth);
+            })
+            .catch(() => {
+                document.getElementById('calLoading').style.display = 'none';
+                document.getElementById('calEmpty').style.display = 'block';
+            });
+
+        // ── RENDER CALENDAR ──
+        function renderCalendar(year, month) {
+            const monthNames = ['January','February','March','April','May','June',
+                                'July','August','September','October','November','December'];
+            document.getElementById('monthLabel').textContent = `${monthNames[month]} ${year}`;
+
+            const grid = document.getElementById('calDays');
+            grid.innerHTML = '';
+
+            // Dates that have slots this month
+            const availDates = new Set(
+                allSlots
+                    .filter(s => {
+                        const d = new Date(s.date + 'T00:00:00');
+                        return d.getFullYear() === year && d.getMonth() === month;
+                    })
+                    .map(s => s.date)
+            );
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Empty cells
+            for (let i = 0; i < firstDay; i++) {
+                const empty = document.createElement('div');
+                empty.className = 'cal-day empty';
+                grid.appendChild(empty);
+            }
+
+            // Day cells
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const cellDate = new Date(year, month, d);
+                const cell = document.createElement('div');
+                cell.textContent = d;
+
+                if (cellDate < today) {
+                    cell.className = 'cal-day past';
+                } else if (availDates.has(dateStr)) {
+                    cell.className = 'cal-day has-slot';
+                    const dot = document.createElement('div');
+                    dot.className = 'cal-slot-dot';
+                    cell.appendChild(dot);
+                    cell.addEventListener('click', () => selectDate(dateStr, cell, d, month, year));
+                } else if (cellDate.getTime() === today.getTime()) {
+                    cell.className = 'cal-day today';
+                } else {
+                    cell.className = 'cal-day no-slot';
+                }
+
+                grid.appendChild(cell);
+            }
+
+            // Hide time slots when month changes
+            document.getElementById('timeSlotSection').style.display = 'none';
+        }
+
+        // ── SELECT DATE ──
+        function selectDate(dateStr, cell, day, month, year) {
+            // Highlight selected day
+            document.querySelectorAll('.cal-day.has-slot').forEach(c => c.classList.remove('selected'));
+            cell.classList.add('selected');
+
+            // Get slots for this date
+            const daySlots = allSlots.filter(s => s.date === dateStr);
+
+            // Update label
+            const monthNames = ['Jan','Feb','Mar','Apr','May','Jun',
+                                'Jul','Aug','Sep','Oct','Nov','Dec'];
+            document.getElementById('selectedDateLabel').textContent =
+                `${monthNames[month]} ${day}, ${year}`;
+
+            // Render time buttons
+            const grid = document.getElementById('timeSlotsGrid');
+            grid.innerHTML = '';
+
+            daySlots.forEach(slot => {
+                const parts = slot.display.split(': ');
+                const timePart = parts[1] || slot.display;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'time-slot-btn';
+                btn.innerHTML = `
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12,6 12,12 16,14"/>
+                    </svg>
+                    ${timePart}
+                `;
+
+                btn.addEventListener('click', () => selectTime(btn, slot));
+                grid.appendChild(btn);
+            });
+
+            document.getElementById('timeSlotSection').style.display = 'block';
+
+            // Clear previously selected time
+            selectedSlot = null;
+            document.getElementById('selectedSlotId').value = '0';
+            document.getElementById('bookSummary').style.display = 'none';
+            document.getElementById('slotError').style.display = 'none';
+        }
+
+        // ── SELECT TIME ──
+        function selectTime(btn, slot) {
+            document.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            selectedSlot = slot;
+
+            document.getElementById('selectedSlotId').value = slot.id;
+            document.getElementById('selectedDate').value = slot.date + 'T00:00:00';
+            document.getElementById('summarySlot').textContent = slot.display;
+            document.getElementById('bookSummary').style.display = 'block';
+            document.getElementById('slotError').style.display = 'none';
+        }
+
+        // ── MONTH NAV ──
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+            renderCalendar(currentYear, currentMonth);
+        });
+
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+            renderCalendar(currentYear, currentMonth);
+        });
+
+        // ── FORM VALIDATION ──
+        document.getElementById('bookingForm').addEventListener('submit', function(e) {
+            if (!selectedSlot) {
+                e.preventDefault();
+                document.getElementById('slotError').style.display = 'block';
+                document.getElementById('slotError').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    </script>
 }

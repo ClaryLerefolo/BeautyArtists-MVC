@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BeautyArtists.Models
 {
@@ -14,11 +15,12 @@ namespace BeautyArtists.Models
         [StringLength(100)]
         public string Description { get; set; }
 
+        public string Province { get; set; }
+        public string City { get; set; }
+
         public string? ImagePath { get; set; }  // Example: "uploads/services/image1.jpg"
 
-        // Replace old Category string
-        public int CategoryId { get; set; }
-        public PortfolioCategory? Category { get; set; }  // e.g., Hair, Makeup, Nails
+  
 
         [Required]
         [Range(1, 480)]
@@ -27,13 +29,20 @@ namespace BeautyArtists.Models
         [Required]
         [Range(0, 10000)]
         [Display(Name = "Base Price (ZAR)")]
-
+  
         public decimal BasePrice { get; set; } // Admin-suggested base price
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public bool IsFeatured { get; set; } = false;
         public ICollection<ArtistProfile> ArtistProfiles { get; set; }
+        public ICollection<Review> Reviews { get; set; }
+        // FOREIGN KEY FOR CATEGORY
+        [Required]
+        public int CategoryId { get; set; }
 
+        [ForeignKey("CategoryId")]
+        public ServiceCategory ServiceCategory { get; set; } // This name must match the .Include()
 
+      
 
     }
 }

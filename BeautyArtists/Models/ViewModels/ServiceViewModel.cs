@@ -17,6 +17,8 @@ namespace BeautyArtists.Models.ViewModels
         [Required]
         public decimal BasePrice { get; set; }
 
+        public int Duration { get; set; }
+
         [Required]
         [Display(Name = "Category")]
         public int CategoryId { get; set; }

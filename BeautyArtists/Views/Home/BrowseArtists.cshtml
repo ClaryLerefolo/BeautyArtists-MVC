@@ -1,35 +1,450 @@
 ﻿@model IEnumerable<BeautyArtists.Models.ViewModels.BrowseArtistViewModel>
-
 @{
     ViewData["Title"] = "Browse Artists";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var artistList = Model.ToList();
 }
 
-<div class="container my-5">
-    <h1 class="text-gold text-center mb-5">Browse Beauty Artists</h1>
+<div class="ba-page">
 
-    <div class="row">
-        @foreach (var artist in Model)
+    @* ── HERO ── *@
+    <div class="ba-hero">
+        <div class="ba-hero-bg"></div>
+        <div class="container ba-hero-inner">
+            <span class="ba-eyebrow">Our Talent</span>
+            <h1 class="ba-hero-title">Browse Artists</h1>
+            <p class="ba-hero-sub">Discover skilled beauty professionals ready to serve you</p>
+            <div class="ba-hero-stat">
+                <span class="ba-hero-num">@artistList.Count</span>
+                <span class="ba-hero-label">ARTIST@(artistList.Count != 1 ? "S" : "") AVAILABLE</span>
+            </div>
+        </div>
+    </div>
+
+    @* ── GRID ── *@
+    <div class="container ba-grid-section">
+        @if (!artistList.Any())
         {
-            <div class="col-md-4 mb-4">
-                <div class="card card-service text-center">
-                    <div class="card-body">
-                        <img src="@artist.ProfilePictureUrl" class="rounded-circle border-gold mb-3" style="width:150px;height:150px;object-fit:cover;" />
+            <div class="ba-empty">
+                <div class="ba-empty-icon">✦</div>
+                <p>No artists available yet. Check back soon!</p>
+            </div>
+        }
+        else
+        {
+            <div class="ba-grid">
+                @foreach (var artist in artistList)
+                {
+                    <div class="ba-card">
 
-                        <h5 class="text-gold">@artist.FullName</h5>
-                        <p class="text-gold">@artist.Location</p>
+                        <div class="ba-card-glow"></div>
 
-                        <ul class="list-unstyled text-gold">
-                            @foreach (var service in artist.Services)
-                            {
-                                <li>@service</li>
+                        @* Avatar *@
+                        <div class="ba-avatar-wrap">
+                            <div class="ba-avatar-ring"></div>
+                            @{
+                                string picUrl = !string.IsNullOrEmpty(artist.ProfilePictureUrl)
+                                ? artist.ProfilePictureUrl
+                                : "/images/default-profile.png";
+                                string cleanPic = picUrl.TrimStart('/');
                             }
-                        </ul>
+                            <img src="@Url.Content("~/" + cleanPic)"
+                                 class="ba-avatar"
+                                 alt="@artist.FullName"
+                                 onerror="this.src='/images/default-profile.png'">
+                            <div class="ba-avatar-shine"></div>
+                        </div>
 
-                        <a class="btn btn-danger-custom" asp-action="ViewServices" asp-route-artistId="@artist.ArtistId">View Services</a>
+                        @* Info *@
+                        <div class="ba-card-info">
+                            <h3 class="ba-artist-name">@artist.FullName</h3>
+
+                            @* Location *@
+                            @if (!string.IsNullOrEmpty(artist.Province))
+                            {
+                                <div class="ba-info-item">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                                         stroke="#FFD700" stroke-width="2">
+                                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                                        <circle cx="12" cy="10" r="3" />
+                                    </svg>
+                                    @(!string.IsNullOrEmpty(artist.City)
+                                                            ? $"{artist.City}, {artist.Province}"
+                                                            : artist.Province)
                     </div>
-                </div>
+                                        }
+
+                            @* Experience *@
+                            @if (artist.YearsExperience > 0)
+                            {
+                                <div class="ba-info-item">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                                         stroke="rgba(255,215,0,0.5)" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12,6 12,12 16,14" />
+                                    </svg>
+                                    @artist.YearsExperience years experience
+                                </div>
+                            }
+
+                            @* Contact *@
+                            @if (!string.IsNullOrEmpty(artist.ContactInfo))
+                            {
+                                <div class="ba-info-item">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                                         stroke="rgba(255,215,0,0.5)" stroke-width="2">
+                                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.18C1.6 2.1 2.38 1.18 3.46 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.4a16 16 0 0 0 6.29 6.29l.8-.8a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z" />
+                                    </svg>
+                                    @artist.ContactInfo
+                                </div>
+                            }
+
+                            @* Instagram *@
+                            @if (!string.IsNullOrEmpty(artist.InstagramUrl))
+                            {
+                                <div class="ba-info-item">
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+                                         stroke="rgba(255,215,0,0.5)" stroke-width="2">
+                                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                                        <circle cx="12" cy="12" r="4" />
+                                        <circle cx="17.5" cy="6.5" r="0.5" fill="rgba(255,215,0,0.5)" />
+                                    </svg>
+                                    <a href="@artist.InstagramUrl" target="_blank"
+                                       style="color:rgba(255,215,0,0.6);text-decoration:none;font-size:0.75rem">
+                                        @artist.InstagramUrl
+                                    </a>
+                                </div>
+                            }
+
+                            @* Service pills *@
+                            @if (artist.Services != null && artist.Services.Any())
+                            {
+                                <div class="ba-services">
+                                    @foreach (var svc in artist.Services.Take(3))
+                                    {
+                                        <span class="ba-service-pill">@svc</span>
+                                    }
+                                    @if (artist.Services.Count > 3)
+                                    {
+                                        <span class="ba-service-pill ba-pill-more">
+                                            +@(artist.Services.Count - 3) more
+                                        </span>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        @* CTA *@
+                        <a asp-controller="Home"
+                           asp-action="ViewService"
+                           asp-route-artistId="@artist.ArtistId"
+                           class="ba-view-btn">
+                            View Services
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2.5">
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                                <polyline points="12,5 19,12 12,19" />
+                            </svg>
+                        </a>
+
+                    </div>
+                }
             </div>
         }
     </div>
 </div>
+
+<style>
+    .ba-page {
+        background: #000;
+        min-height: 100vh;
+        padding-bottom: 80px;
+    }
+
+    /* ── HERO ── */
+    .ba-hero {
+        position: relative;
+        padding: 70px 0 55px;
+        overflow: hidden;
+        text-align: center;
+    }
+
+    .ba-hero-bg {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(160deg, #0d0000 0%, #1a0800 45%, #000 100%);
+    }
+
+        .ba-hero-bg::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at 50% 0%, rgba(179,0,0,0.2) 0%, transparent 60%), radial-gradient(ellipse at 50% 100%, rgba(255,215,0,0.06) 0%, transparent 60%);
+        }
+
+        .ba-hero-bg::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255,215,0,0.04) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+    .ba-hero-inner {
+        position: relative;
+        z-index: 1;
+    }
+
+    .ba-eyebrow {
+        display: inline-block;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 5px;
+        text-transform: uppercase;
+        color: rgba(255,215,0,0.4);
+        margin-bottom: 14px;
+    }
+
+    .ba-hero-title {
+        color: #FFD700;
+        font-size: 3.5rem;
+        font-weight: 900;
+        margin: 0 0 12px;
+        text-shadow: 0 0 40px rgba(255,215,0,0.3), 0 0 80px rgba(255,215,0,0.1);
+        line-height: 1;
+    }
+
+    .ba-hero-sub {
+        color: rgba(255,255,255,0.35);
+        font-size: 0.95rem;
+        margin: 0 0 24px;
+    }
+
+    .ba-hero-stat {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(255,215,0,0.05);
+        border: 1px solid rgba(255,215,0,0.12);
+        border-radius: 14px;
+        padding: 12px 28px;
+    }
+
+    .ba-hero-num {
+        font-size: 2rem;
+        font-weight: 900;
+        color: #FFD700;
+        line-height: 1;
+    }
+
+    .ba-hero-label {
+        font-size: 0.55rem;
+        font-weight: 700;
+        letter-spacing: 3px;
+        color: rgba(255,255,255,0.25);
+        margin-top: 3px;
+    }
+
+    /* ── GRID ── */
+    .ba-grid-section {
+        padding-top: 50px;
+    }
+
+    .ba-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+    }
+
+    @@media (max-width: 992px) {
+        .ba-grid {
+            grid-template-columns: repeat(2,1fr);
+        }
+    }
+
+    @@media (max-width: 576px) {
+        .ba-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* ── CARD ── */
+    .ba-card {
+        position: relative;
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.1);
+        border-radius: 20px;
+        overflow: hidden;
+        padding: 32px 24px 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+        .ba-card:hover {
+            transform: translateY(-8px);
+            border-color: rgba(255,215,0,0.3);
+            box-shadow: 0 24px 48px rgba(0,0,0,0.6), 0 0 40px rgba(255,215,0,0.06);
+        }
+
+            .ba-card:hover .ba-card-glow {
+                opacity: 1;
+            }
+
+            .ba-card:hover .ba-avatar-ring {
+                background: linear-gradient(135deg, #FFD700, #b30000, #FFD700);
+            }
+
+    .ba-card-glow {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(255,215,0,0.4), transparent);
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    /* ── AVATAR ── */
+    .ba-avatar-wrap {
+        position: relative;
+        width: 110px;
+        height: 110px;
+        margin-bottom: 18px;
+    }
+
+    .ba-avatar-ring {
+        position: absolute;
+        inset: -3px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(255,215,0,0.4), rgba(179,0,0,0.4));
+        transition: background 0.3s;
+    }
+
+    .ba-avatar {
+        position: absolute;
+        inset: 3px;
+        width: calc(100% - 6px);
+        height: calc(100% - 6px);
+        border-radius: 50%;
+        object-fit: cover;
+        z-index: 1;
+    }
+
+    .ba-avatar-shine {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 35%;
+        height: 35%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+        z-index: 2;
+        pointer-events: none;
+    }
+
+    /* ── INFO ── */
+    .ba-artist-name {
+        color: #FFD700;
+        font-size: 1.15rem;
+        font-weight: 800;
+        margin: 0 0 8px;
+        text-shadow: 0 0 12px rgba(255,215,0,0.2);
+    }
+
+    .ba-card-info {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 16px;
+        width: 100%;
+    }
+
+    .ba-info-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        color: rgba(255,255,255,0.3);
+        font-size: 0.75rem;
+    }
+
+        .ba-info-item:first-of-type {
+            color: rgba(255,255,255,0.35);
+        }
+
+    /* ── SERVICE PILLS ── */
+    .ba-services {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 10px;
+        margin-bottom: 4px;
+    }
+
+    .ba-service-pill {
+        background: rgba(179,0,0,0.2);
+        border: 1px solid rgba(179,0,0,0.3);
+        color: rgba(255,215,0,0.8);
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        padding: 4px 12px;
+        border-radius: 20px;
+    }
+
+    .ba-pill-more {
+        background: rgba(255,215,0,0.06);
+        border-color: rgba(255,215,0,0.15);
+        color: rgba(255,255,255,0.3);
+    }
+
+    /* ── CTA ── */
+    .ba-view-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+        justify-content: center;
+        padding: 13px 20px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #b30000, #FFD700);
+        color: #000;
+        font-weight: 800;
+        font-size: 0.82rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        margin-top: auto;
+    }
+
+        .ba-view-btn:hover {
+            background: linear-gradient(135deg, #FFD700, #b30000);
+            color: #000;
+            box-shadow: 0 0 25px rgba(255,215,0,0.35);
+            transform: translateY(-2px);
+        }
+
+    /* ── EMPTY ── */
+    .ba-empty {
+        text-align: center;
+        padding: 80px 20px;
+        color: rgba(255,255,255,0.25);
+    }
+
+    .ba-empty-icon {
+        font-size: 3rem;
+        color: rgba(255,215,0,0.15);
+        margin-bottom: 16px;
+    }
+</style>

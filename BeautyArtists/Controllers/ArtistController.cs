@@ -1,19 +1,15 @@
 ﻿using BeautyArtists.Data;
 using BeautyArtists.Models;
+using BeautyArtists.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using BeautyArtists.Models.ViewModels;  // <-- add this
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using System.Security.Claims;
-using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.Blazor;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-
-
-
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using static BeautyArtists.Models.Booking;
 
 namespace BeautyArtists.Controllers
 {
@@ -24,52 +20,63 @@ namespace BeautyArtists.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _env;
 
-
-
         public ArtistController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env)
         {
             _context = context;
             _userManager = userManager;
             _env = env;
         }
+
         public async Task<IActionResult> Dashboard()
         {
             var user = await _userManager.GetUserAsync(User);
             var artistId = user.Id;
 
-            // Get artist name (fallback to email if username empty)
-            var artistName = !string.IsNullOrEmpty(user.UserName) ? user.UserName : user.Email ?? "Artist";
+            var artistName = !string.IsNullOrEmpty(user.FullName) ? user.FullName : $"{user.FirstName} {user.LastName}";
+            if (string.IsNullOrWhiteSpace(artistName)) { artistName = user.Email ?? "Artist"; }
 
-            // Count portfolio items
-            var portfolioCount = await _context.PortfolioItems
-                .CountAsync(p => p.ArtistId == artistId);
+            var portfolioCount = await _context.PortfolioItems.CountAsync(p => p.ArtistId == artistId);
+            var servicesCount = await _context.UserServices.CountAsync(us => us.ArtistId == artistId);
 
-            // Count artist services
-            var servicesCount = await _context.UserServices
-                .CountAsync(us => us.ArtistId == artistId);
-
-            // Upcoming appointments count (Confirmed and in the future)
             var upcomingAppointmentsCount = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId
-                    && b.AppointmentDate> DateTime.Now
+                    && b.AppointmentDate > DateTime.Now
                     && b.Status == Booking.BookingStatus.Confirmed)
                 .CountAsync();
 
-            // Monthly earnings from completed bookings this month
             var monthlyEarnings = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId
                     && b.AppointmentDate.Month == DateTime.Now.Month
+                    && b.AppointmentDate.Year == DateTime.Now.Year
                     && b.Status == Booking.BookingStatus.Confirmed)
-                .SumAsync(b => b.UserService.Price);
+                .SumAsync(b => (decimal?)b.UserService.Price) ?? 0;
 
-            // Recent 5 appointments summary
+            var chartData = new List<decimal>();
+            var chartLabels = new List<string>();
+
+            for (int i = 5; i >= 0; i--)
+            {
+                var monthDate = DateTime.Now.AddMonths(-i);
+                var monthSum = await _context.Bookings
+                    .Where(b => b.UserService.ArtistId == artistId
+                           && b.Status == Booking.BookingStatus.Confirmed
+                           && b.AppointmentDate.Month == monthDate.Month
+                           && b.AppointmentDate.Year == monthDate.Year)
+                    .SumAsync(b => (decimal?)b.UserService.Price) ?? 0;
+
+                chartData.Add(monthSum);
+                chartLabels.Add(monthDate.ToString("MMM"));
+            }
+
             var recentAppointments = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId)
                 .OrderByDescending(b => b.AppointmentDate)
-                .Take(5)
+                .Take(4)
                 .Select(b => new AppointmentSummary
                 {
-                    ClientName = b.Customer.UserName ?? b.Customer.Email,
+                    ClientName = !string.IsNullOrEmpty(b.Customer.FirstName)
+                                 ? $"{b.Customer.FirstName} {b.Customer.LastName}"
+                                 : b.Customer.Email,
                     ServiceName = b.UserService.Service.Name,
                     AppointmentDate = b.AppointmentDate,
                     Status = b.Status.ToString()
@@ -83,21 +90,22 @@ namespace BeautyArtists.Controllers
                 ServicesCount = servicesCount,
                 UpcomingAppointments = upcomingAppointmentsCount,
                 MonthlyEarnings = monthlyEarnings,
-                RecentAppointments = recentAppointments
+                RecentAppointments = recentAppointments,
+                MonthlyEarningsGraph = chartData,
+                MonthlyLabels = chartLabels
             };
 
             return View(model);
-
         }
 
-
-        // GET: View Profile
         public async Task<IActionResult> Profile()
         {
             var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Challenge();
 
-            var profile = await _context.ArtistsProfiles
-                .FirstOrDefaultAsync(p => p.UserId == user.Id);
+            ViewData["Title"] = "Profile";
+
+            var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
 
             if (profile == null)
             {
@@ -105,401 +113,337 @@ namespace BeautyArtists.Controllers
                 {
                     UserId = user.Id,
                     FullName = $"{user.FirstName} {user.LastName}".Trim(),
-                    Bio = "Tell us about yourself...",
+                    Bio = "Professional Artist",
                     YearsExperience = 0,
-                    Location = "Unknown",
+                    Province = "Gauteng",
+                    City = "Johannesburg",
                     ContactInfo = "000-000-0000",
                     InstagramUrl = "",
                     ProfilePictureUrl = "/images/default-profile.png"
                 };
 
-                _context.ArtistsProfiles.Add(profile);
+                _context.ArtistProfiles.Add(profile);
                 await _context.SaveChangesAsync();
             }
-
             return View(profile);
         }
-
-        // GET: Edit Profile
-        public async Task<IActionResult> EditProfile()
-        {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null) return Challenge();
-
-            var profile = await _context.ArtistsProfiles
-                .FirstOrDefaultAsync(p => p.UserId == user.Id);
-
-            if (profile == null)
-            {
-                return NotFound("Profile not found.");
-            }
-
-            return View(profile);
-        }
-
-        // POST: Edit Profile
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IFormFile? ProfilePictureFile)
+        public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IFormFile? ProfilePicture)
         {
+            ModelState.Clear();
+
             var user = await _userManager.GetUserAsync(User);
-            var profile = await _context.ArtistsProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+            var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
 
-            if (profile == null)
-            {
-                return NotFound();
-            }
+            if (profile == null) return NotFound();
 
-            // Update profile fields
-            profile.FullName = string.IsNullOrWhiteSpace(updatedProfile.FullName)
-                ? $"{user.FirstName} {user.LastName}".Trim()
-                : updatedProfile.FullName;
+            // Update text data
+            profile.FullName = updatedProfile.FullName;
             profile.Bio = updatedProfile.Bio;
             profile.YearsExperience = updatedProfile.YearsExperience;
-            profile.Location = updatedProfile.Location;
+            profile.Province = updatedProfile.Province;
+            profile.City = updatedProfile.City;
             profile.ContactInfo = updatedProfile.ContactInfo;
             profile.InstagramUrl = updatedProfile.InstagramUrl;
 
-            // Handle profile picture upload
-            if (ProfilePictureFile != null && ProfilePictureFile.Length > 0)
+            // Update image if provided
+            if (ProfilePicture != null && ProfilePicture.Length > 0)
             {
                 var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");
-                Directory.CreateDirectory(uploadsFolder);
+                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+                var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(ProfilePicture.FileName);
+                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    await ProfilePicture.CopyToAsync(fileStream);
+                profile.ProfilePictureUrl = "/uploads/profile_pictures/" + uniqueFileName;
+            }
 
-                var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(ProfilePictureFile.FileName);
+            // ← REMOVE ModelState.IsValid check — just save directly
+            // Navigation properties like User, Services cause ModelState to fail
+            _context.ArtistProfiles.Update(profile);
+            await _context.SaveChangesAsync();
+            TempData["Success"] = "Profile updated successfully!";
+            return RedirectToAction(nameof(Profile));
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> UpdatePicture(IFormFile ProfilePicture)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+
+            if (profile != null && ProfilePicture != null && ProfilePicture.Length > 0)
+            {
+                var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");
+                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+                var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(ProfilePicture.FileName);
                 var filePath = Path.Combine(uploadsFolder, uniqueFileName);
 
                 using (var fileStream = new FileStream(filePath, FileMode.Create))
                 {
-                    await ProfilePictureFile.CopyToAsync(fileStream);
+                    await ProfilePicture.CopyToAsync(fileStream);
                 }
 
                 profile.ProfilePictureUrl = "/uploads/profile_pictures/" + uniqueFileName;
-            }
-
-            _context.ArtistsProfiles.Update(profile);
-            await _context.SaveChangesAsync();
-
-            return RedirectToAction("Profile");
-        }
-        // ========== Portfolio CRUD ==========
-
-
-        // List all services the artist is offering
-        public async Task<IActionResult> ManageServices()
-        {
-            var artist = await _userManager.GetUserAsync(User);
-
-            var userServices = await _context.UserServices
-                .Where(us => us.ArtistId == artist.Id)
-                .Include(us => us.Service)
-                    .ThenInclude(s => s.Category) // ✅ Include the Category
-                .ToListAsync();
-
-            return View(userServices); // ✅ Pass services to the view
-        }
-
-        private void LoadCategories()
-{
-    var categories = _context.PortfolioCategories
-        .OrderBy(c => c.Name)
-        .Select(c => new SelectListItem
-        {
-            Value = c.Id.ToString(),
-            Text = c.Name
-        })
-        .ToList();
-
-    categories.Insert(0, new SelectListItem { Value = "", Text = "-- Select Category --" });
-    ViewBag.Categories = categories;
-}
-
-
-        // Show admin services artist hasn't picked yet
-        public async Task<IActionResult> AddService()
-        {
-            var artist = await _userManager.GetUserAsync(User);
-
-            // 🔧 Fix: Load category list for dropdown
-            LoadCategories();
-
-            var selectedServiceIds = await _context.UserServices
-                .Where(us => us.ArtistId == artist.Id)
-                .Select(us => us.ServiceId)
-                .ToListAsync();
-
-            var services = await _context.Services
-                .Where(s => !selectedServiceIds.Contains(s.Id))
-                .ToListAsync();
-
-            var selectList = services.Select(s => new SelectListItem
-            {
-                Value = s.Id.ToString(),
-                Text = $"{s.Name} ({s.Category}) - R{s.BasePrice}"
-            }).ToList();
-
-            var viewModel = new UserServiceViewModel
-            {
-                AvailableServices = selectList,
-                ServiceId = services.FirstOrDefault()?.Id ?? 0,
-                Price = 0
-            };
-
-            return View(viewModel);
-        }
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddService(UserServiceViewModel model, List<IFormFile> Images)
-        {
-            var artist = await _userManager.GetUserAsync(User);
-
-            if (!ModelState.IsValid)
-            {
-                LoadCategories();
-                model.AvailableServices = await _context.Services
-                    .Select(s => new SelectListItem
-                    {
-                        Value = s.Id.ToString(),
-                        Text = $"{s.Name} - R{s.BasePrice}"
-                    }).ToListAsync();
-                return View(model);
-            }
-
-            var userService = new UserService
-            {
-                ArtistId = artist.Id,
-                ServiceId = model.ServiceId,
-                Price = model.Price,
-                CustomDescription = model.CustomDescription,
-                PortfolioCategoryId = model.PortfolioCategoryId > 0 ? model.PortfolioCategoryId : null
-            };
-
-            _context.UserServices.Add(userService);
-            await _context.SaveChangesAsync();
-
-            // Upload Images
-            if (Images != null && Images.Count > 0)
-            {
-                var imageList = new List<ServiceImage>();
-                foreach (var file in Images)
-                {
-                    if (file.Length > 0)
-                    {
-                        var path = Path.Combine("wwwroot/uploads/services", Guid.NewGuid().ToString() + Path.GetExtension(file.FileName));
-                        using (var stream = new FileStream(path, FileMode.Create))
-                        {
-                            await file.CopyToAsync(stream);
-                        }
-
-                        imageList.Add(new ServiceImage
-                        {
-                            UserServiceId = userService.Id,
-                            ImageUrl = "/uploads/services/" + Path.GetFileName(path)
-                        });
-                    }
-                }
-
-                _context.ServiceImages.AddRange(imageList);
+                _context.ArtistProfiles.Update(profile);
                 await _context.SaveChangesAsync();
             }
 
-            return RedirectToAction(nameof(ManageServices));
+            return RedirectToAction(nameof(Profile));
         }
 
-
-        [HttpGet]
-        public async Task<IActionResult> GetServicesByCategory(int id)
+        public async Task<IActionResult> ManageServices()
         {
-            var services = await _context.Services
-                .Where(s => s.CategoryId == id)
-                .Select(s => new SelectListItem
-                {
-                    Value = s.Id.ToString(),
-                    Text = s.Name + $" (R{s.BasePrice})"
-                })
+            var userId = _userManager.GetUserId(User);
+
+            var userServices = await _context.UserServices
+                .Include(us => us.Service)
+                    .ThenInclude(s => s.ServiceCategory)
+                .Where(us => us.ArtistId == userId)
                 .ToListAsync();
 
-            return Json(services);
-        }
+            var available = await _context.Services
+                .Include(s => s.ServiceCategory)
+                .ToListAsync();
 
+            ViewBag.AvailableServices = available.Select(s => new SelectListItem
+            {
+                Value = s.Id.ToString(),
+                Text = s.Name
+            }).ToList();
+
+            // MATCHING THE JAVASCRIPT STRUCTURE EXACTLY
+            ViewBag.RawServices = available.Select(s => new {
+                id = s.Id,
+                name = s.Name,
+                // This object structure is what your JS (s.serviceCategory.name) requires
+                serviceCategory = new { name = s.ServiceCategory?.Name ?? "General" },
+                basePrice = s.BasePrice,
+                duration = s.Duration,
+                description = s.Description
+            }).ToList();
+
+            return View(userServices);
+        }
+     
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddService(UserServiceViewModel model)
+        public async Task<IActionResult> AddService(UserService model, IFormFile? ImageFile)
         {
-            var artist = await _userManager.GetUserAsync(User);
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId)) return Challenge();
 
-
-            if (!ModelState.IsValid)
+            // 1. Check if this Service actually exists in the Admin's table
+            var baseService = await _context.Services.FindAsync(model.ServiceId);
+            if (baseService == null)
             {
-                LoadCategories();                // ← add this line
-
-                model.AvailableServices = await _context.Services
-     .Select(s => new SelectListItem
-     {
-         Value = s.Id.ToString(),
-         Text = $"{s.Name} ({s.Category}) - R{s.BasePrice}"
-     }).ToListAsync();
-
-                return View(model);
-            }
-
-            if (await _context.UserServices.AnyAsync(us => us.ArtistId == artist.Id && us.ServiceId == model.ServiceId))
-            {
-                TempData["Error"] = "Service already added.";
+                TempData["Error"] = "Invalid Service Selection. Please try again.";
                 return RedirectToAction(nameof(ManageServices));
             }
 
-            var userService = new UserService
+            // 2. Set the ID manually
+            model.ArtistId = userId;
+            model.IsActive = true;
+
+            // 3. FORCE CLEAR everything except the raw data fields
+            // We don't want EF trying to validate the 'Service' or 'Artist' objects
+            ModelState.Clear();
+            model.IsActive = Request.Form["IsActive"].Contains("true"); // ADD THIS
+
+            // Re-validate only the fields we actually care about
+            if (model.Price <= 0 || model.Duration <= 0)
             {
-                ArtistId = artist.Id,
-                ServiceId = model.ServiceId,
-                Price = model.Price,
-                CustomDescription = model.CustomDescription,
-                PortfolioCategoryId = model.PortfolioCategoryId > 0 ? model.PortfolioCategoryId : null
-
-
-
-            };
-
-            _context.UserServices.Add(userService);
-            await _context.SaveChangesAsync();
-
-            return RedirectToAction(nameof(ManageServices));
-        }
-
-        // Edit pricing
-        public async Task<IActionResult> EditUserService(int id)
-        {
-            var userService = await _context.UserServices
-                .Include(us => us.Service)
-                .FirstOrDefaultAsync(us => us.Id == id);
-
-            if (userService == null) return NotFound();
-
-            var viewModel = new EditUserServiceViewModel
-            {
-                Id = userService.Id,
-                Price = userService.Price,
-                CustomDescription = userService.CustomDescription,
-                IsActive = userService.IsActive,
-                ServiceName = userService.Service.Name,
-                BasePrice = userService.Service.BasePrice
-            };
-
-            return View(viewModel);
-        }
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditUserService(EditUserServiceViewModel model)
-        {
-            if (!ModelState.IsValid)
-            {
-                // Re-fetch service info to re-display admin pricing and name
-                var service = await _context.UserServices
-                    .Include(us => us.Service)
-                    .Where(us => us.Id == model.Id)
-                    .Select(us => us.Service)
-                    .FirstOrDefaultAsync();
-
-                if (service != null)
-                {
-                    model.ServiceName = service.Name;
-                    model.BasePrice = service.BasePrice;
-                }
-
-                return View(model); // Return view with fixed info
-
-
+                TempData["Error"] = "Price and Duration must be greater than zero.";
+                return RedirectToAction(nameof(ManageServices));
             }
 
-            var userService = await _context.UserServices
-                .FirstOrDefaultAsync(us => us.Id == model.Id);
+            try
+            {
+                // 4. Handle Image
+                if (ImageFile != null && ImageFile.Length > 0)
+                {
+                    var uploadDir = Path.Combine(_env.WebRootPath, "uploads/services");
+                    if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
 
-            if (userService == null) return NotFound();
+                    var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(ImageFile.FileName)}";
+                    var filePath = Path.Combine(uploadDir, fileName);
 
-            userService.Price = model.Price;
-            userService.Duration = model.Duration;
-            userService.CustomDescription = model.CustomDescription;
-            userService.IsActive = model.IsActive;
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await ImageFile.CopyToAsync(stream);
+                    }
+                    model.ImagePath = "/uploads/services/" + fileName;
+                }
 
+                // 5. THE SAVE
+                _context.UserServices.Add(model);
+                await _context.SaveChangesAsync();
 
-            await _context.SaveChangesAsync();
+                TempData["Success"] = "Service added successfully!";
+            }
+            catch (Exception ex)
+            {
+                // This is the "Truth Serum" - it will tell us exactly what column is failing
+                var dbError = ex.InnerException?.Message ?? ex.Message;
+                TempData["Error"] = "Database Refused Save: " + dbError;
+            }
 
-            TempData["Success"] = "Service pricing updated successfully.";
             return RedirectToAction(nameof(ManageServices));
         }
-
-
-
-        // Remove a service
         [HttpPost]
         [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditUserService(UserService model, IFormFile? ImageFile)
+        {
+            // FIND the actual record first
+            var existingService = await _context.UserServices.FindAsync(model.Id);
+            if (existingService == null) return NotFound();
+
+            // MANDATORY: Remove these from validation because they aren't in the Edit form
+            // If you don't do this, ModelState.IsValid will ALWAYS be false.
+            ModelState.Remove("ArtistId");
+            ModelState.Remove("ServiceId");
+            ModelState.Remove("Artist");
+            ModelState.Remove("Service");
+            ModelState.Remove("ImagePath");
+
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    // 1. Handle Image Update
+                    if (ImageFile != null && ImageFile.Length > 0)
+                    {
+                        if (!string.IsNullOrEmpty(existingService.ImagePath))
+                        {
+                            var oldPath = Path.Combine(_env.WebRootPath, existingService.ImagePath.TrimStart('/'));
+                            if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
+                        }
+
+                        var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(ImageFile.FileName)}";
+                        var uploadDir = Path.Combine(_env.WebRootPath, "uploads/services");
+                        if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
+
+                        var filePath = Path.Combine(uploadDir, fileName);
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await ImageFile.CopyToAsync(stream);
+                        }
+                        existingService.ImagePath = "/uploads/services/" + fileName;
+                    }
+
+                    // 2. Update Text Fields - Apply changes to the EXISTING tracked entity
+                    existingService.Price = model.Price;
+                    existingService.Duration = model.Duration;
+                    existingService.CustomDescription = model.CustomDescription;
+                    existingService.IsActive = model.IsActive;
+
+                    _context.Update(existingService);
+                    await _context.SaveChangesAsync();
+
+                    TempData["Success"] = "Service updated successfully!";
+                    return RedirectToAction(nameof(ManageServices));
+                }
+                catch (Exception ex)
+                {
+                    TempData["Error"] = "Update Failed: " + (ex.InnerException?.Message ?? ex.Message);
+                }
+            }
+            else
+            {
+                // If we hit here, validation failed. Let's see why in the debug console.
+                var errors = string.Join(" | ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
+                TempData["Error"] = "Validation Error: " + errors;
+            }
+
+            return RedirectToAction(nameof(ManageServices));
+        }
+        private async Task LogActivity(string artistId, string message)
+        {
+            var log = new ActivityLog
+            {
+                ArtistId = artistId,
+                Action = message, // This matches your Model's 'Action' property
+                Description = $"Log generated at {DateTime.Now}", // Optional detail
+                Timestamp = DateTime.Now
+            };
+
+            _context.ActivityLogs.Add(log);
+            await _context.SaveChangesAsync();
+        }
+        [HttpPost]
         public async Task<IActionResult> DeleteUserService(int id)
         {
             var userService = await _context.UserServices.FindAsync(id);
-            if (userService != null)
+            if (userService == null) return NotFound();
+
+            try
             {
+                // 1. Delete the physical image file from the server
+                if (!string.IsNullOrEmpty(userService.ImagePath))
+                {
+                    var filePath = Path.Combine(_env.WebRootPath, userService.ImagePath.TrimStart('/'));
+                    if (System.IO.File.Exists(filePath))
+                    {
+                        System.IO.File.Delete(filePath);
+                    }
+                }
+
+                // 2. Remove from Database
                 _context.UserServices.Remove(userService);
                 await _context.SaveChangesAsync();
+
+                return Ok(); // Returns 200 OK to the JavaScript
+            }
+            catch (Exception)
+            {
+                return BadRequest("Could not delete service.");
             }
 
-            return RedirectToAction(nameof(ManageServices));
+
         }
-
-        // View all appointments related to the current artist
-        public async Task<IActionResult> Appointments()
+        // This shows ONLY the bookings for the logged-in Artist
+        public async Task<IActionResult> MyAppointments()
         {
-            var artist = await _userManager.GetUserAsync(User);
+            var artistId = _userManager.GetUserId(User);
 
-            var bookings = await _context.Bookings
+            var myBookings = await _context.Bookings
                 .Include(b => b.Customer)
-                .Include(b => b.UserService)
-                    .ThenInclude(us => us.Service)
-                .Where(b => b.UserService.ArtistId == artist.Id)
+                .Include(b => b.UserService).ThenInclude(us => us.Service)
+                .Where(b => b.UserService.ArtistId == artistId) // The Filter
+                .OrderByDescending(b => b.AppointmentDate)
                 .ToListAsync();
 
-            return View(bookings);
+            return View(myBookings);
         }
-
-        // GET: Booking Details for Artist
-        public async Task<IActionResult> BookingDetails(int id)
-        {
-            var booking = await _context.Bookings
-                .Include(b => b.Customer)
-                .Include(b => b.UserService)
-                    .ThenInclude(us => us.Service)
-                .Include(b => b.UserService.Artist)
-                .FirstOrDefaultAsync(b => b.Id == id);
-
-            if (booking == null) return NotFound();
-
-            return View(booking);
-        }
-
-        // POST: Update Booking Status (shared by both views)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> UpdateBookingStatus(int bookingId, string newStatus)
+        public async Task<IActionResult> ArtistUpdateStatus(int bookingId,
+     Booking.BookingStatus newStatus, string? artistNotes)
         {
-            if (!Enum.TryParse<Booking.BookingStatus>(newStatus, out var status))
+            var artistId = _userManager.GetUserId(User);
+            var booking = await _context.Bookings
+                .Include(b => b.AvailabilitySlot)
+                .Include(b => b.UserService)
+                .FirstOrDefaultAsync(b => b.Id == bookingId && b.UserService.ArtistId == artistId);
+
+            if (booking == null) return Unauthorized();
+
+            booking.Status = newStatus;
+            booking.ArtistNotes = artistNotes; // ← save the note
+
+            if (booking.AvailabilitySlot != null)
             {
-                TempData["Error"] = "Invalid status.";
-                return RedirectToAction(nameof(Appointments));
+                booking.AvailabilitySlot.IsBooked = (newStatus != Booking.BookingStatus.Cancelled &&
+                                                     newStatus != Booking.BookingStatus.Rejected);
             }
 
-            var booking = await _context.Bookings.FindAsync(bookingId);
-            if (booking == null)
-            {
-                TempData["Error"] = "Booking not found.";
-                return RedirectToAction(nameof(Appointments));
-            }
-
-            booking.Status = status;
             await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Booking status updated.";
-            return RedirectToAction(nameof(Appointments));
+            await LogActivity(artistId, $"Artist updated Booking #{bookingId} to {newStatus}");
+            return RedirectToAction(nameof(MyAppointments));
         }
+
 
     }
 }

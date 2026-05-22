@@ -1,0 +1,48 @@
+﻿@using BeautyArtists.Models.ViewModels
+@model List<FeaturedServiceViewModel>
+
+<section class="py-5 bg-black">
+    <div class="container">
+
+        <h2 class="text-center mb-5"
+            style="color:#FFD700;font-weight:800;text-shadow:0 0 12px rgba(255,215,0,.6)">
+            ⭐ Customer Loved Services
+        </h2>
+
+        <div class="row g-4">
+            @foreach (var service in Model)
+            {
+                <div class="col-md-4">
+                    <div class="card service-card h-100">
+
+                        <img src="@service.ImagePath"
+                             style="height:220px;object-fit:cover;" />
+
+                        <div class="card-body text-center">
+                            <h5>@service.ServiceName</h5>
+
+                            <p class="price">R @service.Price</p>
+
+                            <p class="small text-light">
+                                “@service.HighlightComment”
+                            </p>
+
+                            <div class="mb-2">
+                                ⭐ @service.AverageRating.ToString("0.0")
+                                <small>(@service.ReviewCount reviews)</small>
+                            </div>
+
+                            <a asp-controller="Booking"
+                               asp-action="Book"
+                               asp-route-userServiceId="@service.UserServiceId"
+                               class="btn btn-gradient">
+                                Book Now
+                            </a>
+                        </div>
+
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</section>

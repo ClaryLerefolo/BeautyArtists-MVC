@@ -32,57 +32,85 @@ namespace BeautyArtists.Controllers
             return View(services);
         }
 
+
+        // GET: Booking/BookService
+        [Authorize]
         public async Task<IActionResult> BookService(int userServiceId)
         {
             var userService = await _context.UserServices
                 .Include(us => us.Service)
+                    .ThenInclude(s => s.ServiceCategory)
                 .Include(us => us.Artist)
+                    .ThenInclude(a => a.ArtistProfile)
                 .FirstOrDefaultAsync(us => us.Id == userServiceId);
 
             if (userService == null) return NotFound();
+
+            var artistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
+                ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
+                : userService.Artist?.UserName ?? "Pro Artist";
 
             var model = new BookingViewModel
             {
                 UserServiceId = userServiceId,
                 ServiceName = userService.Service?.Name,
                 Price = userService.Price,
-                ArtistName = userService.Artist.ArtistProfile?.FullName ?? $"{userService.Artist.FirstName} {userService.Artist.LastName}"
+                ArtistName = artistName,
+                ArtistId = userService.ArtistId,  // ← CRITICAL for slot fetching
+                ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl
+                                       ?? "/images/default-profile.png",
+                CategoryName = userService.Service?.ServiceCategory?.Name
             };
 
-            return View("BookService", model); // View = Views/Booking/BookService.cshtml
+            return View("BookService", model);
         }
 
-
+        // POST: Booking/ConfirmBooking
+        [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmBooking(BookingViewModel model)
         {
+            // Force login
+            if (!User.Identity.IsAuthenticated)
+                return Challenge();
+
+            var currentUser = await _userManager.GetUserAsync(User);
+
             if (!ModelState.IsValid)
             {
-                foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
-                {
-                    Console.WriteLine("Validation error: " + error.ErrorMessage); // For development only
-                }
-
+                // Reload service info for the view
                 var userService = await _context.UserServices
                     .Include(us => us.Service)
                     .Include(us => us.Artist)
                     .FirstOrDefaultAsync(us => us.Id == model.UserServiceId);
 
-                if (userService == null) return NotFound();
-
-                model.ServiceName = userService.Service?.Name ?? "No Name";
-                model.Price = userService.Price;
-                model.ArtistName = userService.Artist.ArtistProfile?.FullName ?? $"{userService.Artist.FirstName} {userService.Artist.LastName}";
-
+                if (userService != null)
+                {
+                    model.ServiceName = userService.Service?.Name;
+                    model.Price = userService.Price;
+                    model.ArtistId = userService.ArtistId;
+                    model.ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
+                        ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
+                        : userService.Artist?.UserName ?? "Pro Artist";
+                }
                 return View("BookService", model);
             }
 
-            var currentUser = await _userManager.GetUserAsync(User);
-            if (!User.Identity.IsAuthenticated)
+            // 1. Verify the slot exists, belongs to this artist and is still available
+            var slot = await _context.ArtistAvailabilities
+                .FirstOrDefaultAsync(a => a.Id == model.AvailabilitySlotId && !a.IsBooked);
+
+            if (slot == null)
             {
-                return Challenge(); // Will redirect to the default Identity login page
+                ModelState.AddModelError("", "Sorry, this slot was just booked by someone else. Please select another.");
+                return View("BookService", model);
             }
+
+            // 2. Set PreferredDate from the slot
+            model.PreferredDate = slot.AvailableDate.Add(slot.StartTime);
+
+            // 3. Create the booking
             var booking = new Booking
             {
                 CustomerId = currentUser.Id,
@@ -95,12 +123,16 @@ namespace BeautyArtists.Controllers
                 HasRescheduled = false
             };
 
+            // 4. Mark slot as booked — no double bookings!
+            slot.IsBooked = true;
+
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Your booking request has been submitted and is pending approval.";
+            TempData["Success"] = $"Booking confirmed for {slot.AvailableDate:MMM dd} at {slot.StartTime:hh\\:mm}! Pending artist approval.";
             return RedirectToAction("MyBookings");
         }
+
 
         public async Task<IActionResult> MyBookings()
         {
@@ -122,71 +154,114 @@ namespace BeautyArtists.Controllers
         [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Cancel(int id)
+        public async Task<IActionResult> Cancel(int id, string? clientNotes)
         {
             var currentUser = await _userManager.GetUserAsync(User);
             var booking = await _context.Bookings
                 .FirstOrDefaultAsync(b => b.Id == id && b.CustomerId == currentUser.Id);
 
-            if (booking == null || booking.Status == Booking.BookingStatus.Completed || booking.Status == Booking.BookingStatus.Cancelled)
-            {
+            if (booking == null || booking.Status == Booking.BookingStatus.Completed
+                || booking.Status == Booking.BookingStatus.Cancelled)
                 return NotFound();
-            }
 
             booking.Status = Booking.BookingStatus.Cancelled;
-            await _context.SaveChangesAsync();
+            booking.ClientNotes = clientNotes; // ← save the reason
 
+            await _context.SaveChangesAsync();
             TempData["Success"] = "Your booking has been cancelled.";
             return RedirectToAction("MyBookings");
         }
         [HttpGet]
+        [Authorize]
         public async Task<IActionResult> Reschedule(int id)
         {
-            var currentUserId = _userManager.GetUserId(User); // this one actually returns string directly
+            var currentUserId = _userManager.GetUserId(User);
+
             var booking = await _context.Bookings
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Service)
+                        .ThenInclude(s => s.ServiceCategory)
                 .Include(b => b.UserService.Artist)
                     .ThenInclude(a => a.ArtistProfile)
                 .FirstOrDefaultAsync(b => b.Id == id && b.CustomerId == currentUserId);
 
-
+            // Guard: must exist, confirmed, not already rescheduled
             if (booking == null || booking.HasRescheduled || booking.Status != Booking.BookingStatus.Confirmed)
                 return NotFound();
+
+            // Guard: 24-hour rule — cannot reschedule within 24hrs of appointment
+            if (booking.AppointmentDate <= DateTime.Now.AddHours(24))
+            {
+                TempData["Error"] = "Rescheduling is only allowed at least 24 hours before your appointment.";
+                return RedirectToAction("MyBookings");
+            }
+
+            string artistName = booking.UserService?.Artist?.ArtistProfile?.FullName
+                ?? (!string.IsNullOrEmpty(booking.UserService?.Artist?.FirstName)
+                    ? $"{booking.UserService.Artist.FirstName} {booking.UserService.Artist.LastName}".Trim()
+                    : booking.UserService?.Artist?.UserName ?? "Pro Artist");
 
             var model = new BookingViewModel
             {
                 BookingId = booking.Id,
+                UserServiceId = booking.UserServiceId,
                 PreferredDate = booking.AppointmentDate,
                 Notes = booking.Notes,
                 ServiceName = booking.UserService?.Service?.Name,
-                ArtistName = booking.UserService?.Artist?.ArtistProfile?.FullName,
+                ArtistName = artistName,
+                ArtistId = booking.UserService?.ArtistId,  // needed to fetch slots
                 Price = booking.TotalAmount
             };
 
-            return View("Reschedule", model); // make sure this view exists
+            return View("Reschedule", model);
         }
 
         [HttpPost]
+        [Authorize]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Reschedule(BookingViewModel model)
         {
             var currentUser = await _userManager.GetUserAsync(User);
             var booking = await _context.Bookings
+                .Include(b => b.UserService)
                 .FirstOrDefaultAsync(b => b.Id == model.BookingId && b.CustomerId == currentUser.Id);
 
             if (booking == null || booking.Status != Booking.BookingStatus.Confirmed || booking.HasRescheduled)
                 return NotFound();
 
-            booking.AppointmentDate = model.PreferredDate;
+            if (booking.AppointmentDate <= DateTime.Now.AddHours(24))
+            {
+                TempData["Error"] = "Rescheduling is only allowed at least 24 hours before your appointment.";
+                return RedirectToAction("MyBookings");
+            }
+
+            var newSlot = await _context.ArtistAvailabilities
+                .FirstOrDefaultAsync(a => a.Id == model.AvailabilitySlotId
+                                       && a.ArtistId == booking.UserService.ArtistId
+                                       && !a.IsBooked);
+
+            if (newSlot == null)
+            {
+                TempData["Error"] = "That slot is no longer available. Please choose another.";
+                return RedirectToAction("Reschedule", new { id = model.BookingId });
+            }
+
+            var oldSlot = await _context.ArtistAvailabilities
+                .FirstOrDefaultAsync(a => a.ArtistId == booking.UserService.ArtistId
+                                       && a.AvailableDate.Date == booking.AppointmentDate.Date
+                                       && booking.AppointmentDate.TimeOfDay >= a.StartTime
+                                       && booking.AppointmentDate.TimeOfDay < a.EndTime);
+            if (oldSlot != null) oldSlot.IsBooked = false;
+
+            booking.AppointmentDate = newSlot.AvailableDate.Add(newSlot.StartTime);
             booking.HasRescheduled = true;
+            booking.ClientNotes = model.Notes; // ← reschedule reason goes into ClientNotes
+            newSlot.IsBooked = true;
 
             await _context.SaveChangesAsync();
-
-            TempData["Success"] = "Your booking has been rescheduled.";
+            TempData["Success"] = $"Rescheduled to {newSlot.AvailableDate:MMM dd} at {newSlot.StartTime:hh\\:mm}!";
             return RedirectToAction("MyBookings");
         }
-
 
 
 

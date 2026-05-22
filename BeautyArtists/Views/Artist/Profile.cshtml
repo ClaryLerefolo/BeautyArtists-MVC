@@ -1,52 +1,391 @@
 ﻿@model BeautyArtists.Models.ArtistProfile
 @{
-    ViewData["Title"] = "My Profile";
     Layout = "~/Views/Shared/_ArtistLayout.cshtml";
-
 }
 
-<div class="container mt-5">
-    <div class="row">
-        <div class="col-md-4">
-            <img src="@(!string.IsNullOrEmpty(Model.ProfilePictureUrl) ? Model.ProfilePictureUrl : "/images/default-profile.png")"
-                 class="img-fluid rounded-circle mb-3"
-                 style="width: 200px; height: 200px; object-fit: cover;" />
-        </div>
-        <div class="col-md-8">
-            <h2>@Model.FullName</h2>
-            <p><strong>Bio:</strong> @Model.Bio</p>
-            <p><strong>Experience:</strong> @Model.YearsExperience years</p>
-            <p><strong>Location:</strong> @Model.Location</p>
-            <p><strong>Contact:</strong> @Model.ContactInfo</p>
-            @if (!string.IsNullOrEmpty(Model.InstagramUrl))
-            {
-                <p><a href="@Model.InstagramUrl" target="_blank">Instagram</a></p>
-            }
+<style>
+    .profile-container {
+        padding: 20px 0;
+        background-color: transparent;
+        display: flex;
+        justify-content: center;
+        font-family: 'Segoe UI', Roboto, sans-serif;
+    }
 
-            <a asp-action="EditProfile" class="btn btn-primary mt-3">Edit Profile</a>
+    .artist-profile-card {
+        background: #0d0d0d;
+        border: 1px solid #1a1a1a;
+        border-radius: 20px;
+        padding: 40px;
+        display: flex;
+        gap: 40px;
+        width: 100%;
+        max-width: 900px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+        align-items: flex-start;
+    }
+
+    .asset-column {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 220px;
+        flex-shrink: 0;
+    }
+
+    /* ── CLICKABLE PROFILE PICTURE ── */
+    .pfp-glow {
+        width: 200px;
+        height: 200px;
+        border-radius: 50%;
+        border: 2px solid #ffcc00;
+        padding: 5px;
+        margin-bottom: 10px;
+        box-shadow: 0 0 20px rgba(255, 204, 0, 0.15);
+        position: relative;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+        .pfp-glow img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            display: block;
+        }
+
+    .pfp-hover-overlay {
+        position: absolute;
+        inset: 5px;
+        border-radius: 50%;
+        background: rgba(0,0,0,0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.25s;
+        color: #ffcc00;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .pfp-glow:hover .pfp-hover-overlay {
+        opacity: 1;
+    }
+
+    .pfp-hint {
+        color: rgba(255,204,0,0.4);
+        font-size: 0.72rem;
+        letter-spacing: 1px;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .content-column {
+        flex: 1;
+        padding-top: 5px;
+    }
+
+    .artist-name {
+        color: #ffcc00;
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin: 0 0 20px 0;
+        letter-spacing: -0.5px;
+    }
+
+    .info-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        margin-bottom: 35px;
+    }
+
+    .info-row {
+        display: flex;
+        align-items: flex-start;
+        font-size: 1.05rem;
+        line-height: 1.4;
+    }
+
+    .info-key {
+        font-weight: 700;
+        color: #fff;
+        width: 115px;
+        flex-shrink: 0;
+    }
+
+    .info-val {
+        color: #bbb;
+    }
+
+    .insta-link {
+        color: #ff3366;
+        text-decoration: none;
+        font-weight: 600;
+        transition: 0.3s;
+    }
+
+        .insta-link:hover {
+            color: #ffcc00;
+            text-decoration: underline;
+        }
+
+    .btn-red-gold {
+        background: linear-gradient(to right, #e60000 0%, #ffcc00 100%);
+        border: none;
+        padding: 10px 30px;
+        border-radius: 8px;
+        color: #000;
+        font-weight: 800;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: 0.2s ease-in-out;
+        text-transform: uppercase;
+    }
+
+        .btn-red-gold:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+    .custom-input {
+        background: #111 !important;
+        border: 1px solid #333 !important;
+        color: #fff !important;
+        border-radius: 8px !important;
+    }
+
+    /* ── SUCCESS ALERT ── */
+    .profile-success {
+        background: rgba(0,200,83,0.1);
+        border: 1px solid rgba(0,200,83,0.3);
+        border-radius: 10px;
+        padding: 10px 16px;
+        color: #00c853;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 20px;
+        max-width: 900px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+</style>
+
+@* Success message *@
+@if (TempData["Success"] != null)
+{
+    <div class="profile-success">✓ @TempData["Success"]</div>
+}
+
+<div class="profile-container">
+    <div class="artist-profile-card">
+
+        @* ── LEFT: PROFILE PICTURE ── *@
+        <div class="asset-column">
+            <div class="pfp-glow"
+                 data-bs-toggle="modal"
+                 data-bs-target="#editProfileModal"
+                 title="Click to edit profile">
+                <img src="@Model.ProfilePictureUrl"
+                     id="pfp-main"
+                     alt="Profile"
+                     onerror="this.src='/images/default-profile.png'" />
+                <div class="pfp-hover-overlay">✎ Edit</div>
+            </div>
+            <p class="pfp-hint">Click photo to edit</p>
         </div>
+
+        @* ── RIGHT: INFO ── *@
+        <div class="content-column">
+            <h2 class="artist-name">@Model.FullName</h2>
+
+            <div class="info-grid">
+                <div class="info-row">
+                    <span class="info-key">Bio:</span>
+                    <span class="info-val">@Model.Bio</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Experience:</span>
+                    <span class="info-val">@Model.YearsExperience years</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Province:</span>
+                    <span class="info-val">@Model.Province</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">City:</span>
+                    <span class="info-val">@Model.City</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Contact:</span>
+                    <span class="info-val">@Model.ContactInfo</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Instagram:</span>
+                    <a class="insta-link" href="@Model.InstagramUrl" target="_blank">
+                        @Model.InstagramUrl
+                    </a>
+                </div>
+            </div>
+
+           
+        </div>
+
     </div>
 </div>
 
+@* ── EDIT PROFILE MODAL ── *@
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content"
+             style="background:#0d0d0d; border:1px solid #ffcc00; border-radius:20px; color:#fff;">
 
-@section Styles {
-    <style>
-        .profile-display-card {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-            border: 1px solid rgba(255, 215, 0, 0.2);
-        }
+            <form asp-action="EditProfile" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id" />
+                <input type="hidden" asp-for="UserId" />
 
-        .bio-content, .certifications {
-            white-space: pre-line;
-            line-height: 1.6;
-        }
+                <div class="modal-body p-5">
+                    <h3 style="color:#ffcc00; margin-bottom:30px; font-weight:800;">
+                        UPDATE PROFILE
+                    </h3>
 
-        .border-gold {
-            border-color: var(--bs-secondary) !important;
-        }
+                    @* ── PROFILE PICTURE ── *@
+                    <div class="mb-4">
+                        <label class="fw-bold mb-2">Profile Picture</label><br />
+                        <input type="file" name="ProfilePicture" id="file-hidden"
+                               hidden accept="image/*" />
 
-        .social-links a {
-            min-width: 120px;
-        }
-    </style>
-}
+                        @* Preview — hidden until photo chosen *@
+                        <div id="previewWrap" style="margin-bottom:12px; display:none;">
+                            <img id="imgPreview"
+                                 style="width:80px; height:80px; border-radius:50%;
+                                        object-fit:cover; border:2px solid #ffcc00;" />
+                            <p class="text-muted small mt-1">
+                                Looking good! Save changes below ↓
+                            </p>
+                        </div>
+
+                        <button type="button" class="btn-red-gold" id="btn-trigger"
+                                style="font-size:0.8rem; padding:8px 20px;">
+                            📷 Choose Photo
+                        </button>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold mb-2">Full Name</label>
+                            <input asp-for="FullName" class="form-control custom-input" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold mb-2">Experience (Years)</label>
+                            <input asp-for="YearsExperience" type="number"
+                                   class="form-control custom-input" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="fw-bold mb-2">Bio</label>
+                        <textarea asp-for="Bio" class="form-control custom-input" rows="3"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold mb-2">Province</label>
+                            <select id="pSel" asp-for="Province"
+                                    class="form-select custom-input"></select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold mb-2">City</label>
+                            <select id="cSel" asp-for="City"
+                                    class="form-select custom-input"></select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold mb-2">Contact Number</label>
+                            <input asp-for="ContactInfo" class="form-control custom-input" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold mb-2">Instagram Link</label>
+                            <input asp-for="InstagramUrl" class="form-control custom-input" />
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-3 mt-4">
+                        <button type="button" class="btn btn-outline-secondary"
+                                data-bs-dismiss="modal">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn-red-gold">Save All Changes</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+    const cityData = {
+        "Gauteng": ["Johannesburg", "Pretoria", "Sandton", "Soweto", "Centurion"],
+        "North West": ["Rustenburg", "Potchefstroom", "Klerksdorp", "Mahikeng"],
+        "Western Cape": ["Cape Town", "Stellenbosch", "George", "Paarl"],
+        "KwaZulu-Natal": ["Durban", "Pietermaritzburg", "Umhlanga", "Newcastle"],
+        "Free State": ["Bloemfontein", "Welkom", "Sasolburg"],
+        "Eastern Cape": ["Gqeberha", "East London", "Makhanda"],
+        "Limpopo": ["Polokwane", "Thohoyandou", "Tzaneen"],
+        "Mpumalanga": ["Mbombela", "Secunda", "Witbank"],
+        "Northern Cape": ["Kimberley", "Upington"]
+    };
+
+    document.getElementById('editProfileModal')
+        .addEventListener('shown.bs.modal', function () {
+
+            // ── DROPDOWNS ──
+            const ps = document.getElementById("pSel");
+            const cs = document.getElementById("cSel");
+            const currP = "@Model.Province";
+            const currC = "@Model.City";
+
+            ps.innerHTML = "";
+            Object.keys(cityData).forEach(p => {
+                const opt = new Option(p, p);
+                if (p === currP) opt.selected = true;
+                ps.add(opt);
+            });
+
+            function loadCities(p, c = "") {
+                cs.innerHTML = "";
+                if (cityData[p]) {
+                    cityData[p].forEach(item => {
+                        const opt = new Option(item, item);
+                        if (item === c) opt.selected = true;
+                        cs.add(opt);
+                    });
+                }
+            }
+
+            ps.onchange = () => loadCities(ps.value);
+            if (currP) loadCities(currP, currC);
+
+            // ── PHOTO UPLOAD ── moved here so btn-trigger is in DOM
+            const fh = document.getElementById('file-hidden');
+            const btn = document.getElementById('btn-trigger');
+            if (btn && fh) {
+                btn.onclick = () => fh.click();
+                fh.onchange = () => {
+                    if (fh.files[0]) {
+                        const r = new FileReader();
+                        r.onload = (e) => {
+                            document.getElementById('pfp-main').src = e.target.result;
+                            document.getElementById('imgPreview').src = e.target.result;
+                            document.getElementById('previewWrap').style.display = 'block';
+                        };
+                        r.readAsDataURL(fh.files[0]);
+                    }
+                };
+            }
+        });
+</script>

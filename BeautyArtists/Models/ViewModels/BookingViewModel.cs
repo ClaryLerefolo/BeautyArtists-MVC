@@ -5,21 +5,20 @@ namespace BeautyArtists.Models.ViewModels
 {
     public class BookingViewModel
     {
-        public int BookingId { get; set; } // Needed for reschedule
-
+        public int BookingId { get; set; }         // For reschedule
         public int UserServiceId { get; set; }
-
-        public string ServiceName { get; set; }
-
+        public string? ServiceName { get; set; }
         public decimal Price { get; set; }
+        public string? ArtistName { get; set; }
+        public string? ArtistId { get; set; }      // NEW: needed to fetch slots
+        public string? ArtistProfilePicture { get; set; } // NEW: for the UI header
+        public string? CategoryName { get; set; }  // NEW: for context
 
-        public string ArtistName { get; set; }
+        // NEW: The selected availability slot ID
+        [Required(ErrorMessage = "Please select an available time slot.")]
+        public int AvailabilitySlotId { get; set; }
 
-        [Required(ErrorMessage = "Please select a preferred date and time.")]
-        [DataType(DataType.DateTime)]
-        [DisplayFormat(DataFormatString = "{0:yyyy-MM-ddTHH:mm}", ApplyFormatInEditMode = true)]
-
-        [Display(Name = "Preferred Date and Time")]
+        // Kept for reschedule compatibility — auto-filled from slot
         public DateTime PreferredDate { get; set; }
 
         [StringLength(1000)]

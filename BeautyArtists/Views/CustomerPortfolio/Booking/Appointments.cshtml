@@ -1,0 +1,70 @@
+﻿@model List<BeautyArtists.Models.ViewModels.CustomerAppointmentViewModel>
+@{
+    ViewData["Title"] = "My Appointments";
+}
+
+<section class="py-5" style="background:black; color:white;">
+    <div class="container">
+
+        <h2 class="fw-bold text-center mb-4"
+            style="background:linear-gradient(90deg,#FFD700,#FF4500);
+                   -webkit-background-clip:text;
+                   -webkit-text-fill-color:transparent;
+                   text-shadow:0 0 10px rgba(255,215,0,0.6);">
+            My Appointments
+        </h2>
+
+        <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle"
+                   style="border:1px solid rgba(255,215,0,0.4); border-radius:10px;">
+                <thead style="background:linear-gradient(90deg,#FFD700,#FF4500); color:#111; font-weight:800;">
+                    <tr>
+                        <th>Service</th>
+                        <th>Artist</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td>@item.ServiceName</td>
+                            <td>@item.ArtistName</td>
+                            <td>@item.AppointmentDate.ToString("yyyy-MM-dd")</td>
+                            <td>@item.AppointmentTime.ToString(@"hh\:mm")</td>
+
+                            <td>
+                                @if (item.IsConfirmed)
+                                {
+                                    <span class="badge rounded-pill px-3 py-2"
+                                          style="background:#28a745; font-size:0.9rem;">
+                                        Confirmed
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge rounded-pill px-3 py-2"
+                                          style="background:#c0392b; font-size:0.9rem;">
+                                        Pending
+                                    </span>
+                                }
+                            </td>
+
+                            <td>@(string.IsNullOrWhiteSpace(item.Notes) ? "-" : item.Notes)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</section>
+
+<style>
+    table tbody tr:hover {
+        background: rgba(255, 215, 0, 0.08) !important;
+    }
+</style>

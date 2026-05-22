@@ -9,8 +9,7 @@ namespace BeautyArtists.Models.ViewModels
         [StringLength(100, MinimumLength = 3)]
 
         public string Name { get; set; }  // e.g., "Bridal Collection"
-        public List<IFormFile>? NewImages { get; set; } // for new uploads
-        public List<PortfolioImage>? ExistingImages { get; set; }
+    
 
         [Required]
         [StringLength(1000)]

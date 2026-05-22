@@ -20,7 +20,7 @@ namespace BeautyArtists.Controllers
             var query = _context.PortfolioItems
                 .Include(p => p.Artist)
                 .ThenInclude(a => a.ArtistProfile)
-                .Include(p => p.Category)
+                .Include(p => p.CategoryId)
                 .Include(p => p.Portfolio)
                 .AsQueryable();
 
@@ -50,7 +50,7 @@ namespace BeautyArtists.Controllers
             var item = await _context.PortfolioItems
                 .Include(p => p.Artist)
                 .ThenInclude(a => a.ArtistProfile)
-                .Include(p => p.Category)
+                .Include(p => p.CategoryId)
                 .Include(p => p.Portfolio)
                 .FirstOrDefaultAsync(p => p.Id == id);
 

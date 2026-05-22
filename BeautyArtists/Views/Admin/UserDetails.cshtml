@@ -1,29 +1,291 @@
 ﻿@model BeautyArtists.Models.ViewModels.UserManagementViewModel
-
 @{
     ViewData["Title"] = "User Details";
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
+
+    string roleClass = Model.Role switch
+    {
+        "Admin" => "mu-role-admin",
+        "Artist" => "mu-role-artist",
+        _ => "mu-role-client"
+    };
+    string roleIcon = Model.Role switch
+    {
+        "Admin" => "bi-shield-fill",
+        "Artist" => "bi-scissors",
+        _ => "bi-person-fill"
+    };
+    string initial = !string.IsNullOrEmpty(Model.FullName)
+        ? Model.FullName[0].ToString().ToUpper() : "?";
 }
 
-<div class="container mt-5">
-    <h1 class="text-warning fw-bold mb-4">User Details</h1>
+@section Styles {
+    <style>
+        .ud-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
 
-    <div class="card">
-        <div class="card-header bg-warning text-dark">
-            <h5>User Information</h5>
+        .ud-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
+
+        /* ── PROFILE CARD ── */
+        .ud-card {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.12);
+            border-radius: 18px;
+            overflow: hidden;
+            max-width: 680px;
+        }
+
+        .ud-card-top {
+            background: linear-gradient(135deg, #0a0000 0%, #150500 50%, #0a0000 100%);
+            border-bottom: 1px solid rgba(255,215,0,0.08);
+            padding: 32px 28px;
+            display: flex;
+            align-items: center;
+            gap: 22px;
+        }
+
+        .ud-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #000;
+            flex-shrink: 0;
+            box-shadow: 0 0 20px rgba(255,215,0,0.2);
+        }
+
+        .ud-name {
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 6px;
+            text-shadow: 0 0 12px rgba(255,215,0,0.2);
+        }
+
+        .ud-email {
+            font-size: 0.83rem;
+            color: rgba(255,255,255,0.4);
+            margin: 0;
+        }
+
+        /* Role badge */
+        .mu-role {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-top: 8px;
+        }
+
+        .mu-role-admin {
+            background: rgba(179,0,0,0.2);
+            color: #ff6666;
+            border: 1px solid rgba(179,0,0,0.35);
+        }
+
+        .mu-role-artist {
+            background: rgba(255,215,0,0.12);
+            color: #FFD700;
+            border: 1px solid rgba(255,215,0,0.25);
+        }
+
+        .mu-role-client {
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.55);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* ── INFO ROWS ── */
+        .ud-card-body {
+            padding: 8px 0;
+        }
+
+        .ud-row {
+            display: flex;
+            align-items: center;
+            padding: 14px 28px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            gap: 16px;
+        }
+
+            .ud-row:last-child {
+                border-bottom: none;
+            }
+
+        .ud-row-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 9px;
+            background: rgba(255,215,0,0.07);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: rgba(255,215,0,0.6);
+            flex-shrink: 0;
+        }
+
+        .ud-row-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.25);
+            margin-bottom: 2px;
+        }
+
+        .ud-row-value {
+            font-size: 0.88rem;
+            color: #fff;
+            font-weight: 500;
+        }
+
+        /* ── ACTIONS ── */
+        .ud-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .ud-btn-back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 22px;
+            border-radius: 999px;
+            background: rgba(255,215,0,0.08);
+            border: 1px solid rgba(255,215,0,0.2);
+            color: #FFD700;
+            font-weight: 700;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .ud-btn-back:hover {
+                background: rgba(255,215,0,0.15);
+                border-color: rgba(255,215,0,0.4);
+                color: #FFD700;
+            }
+
+        .ud-btn-delete {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 22px;
+            border-radius: 999px;
+            background: rgba(179,0,0,0.12);
+            border: 1px solid rgba(179,0,0,0.3);
+            color: #ff6666;
+            font-weight: 700;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+            .ud-btn-delete:hover {
+                background: rgba(179,0,0,0.25);
+                border-color: rgba(179,0,0,0.5);
+                color: #ff8888;
+            }
+    </style>
+}
+
+<span class="ud-eyebrow">Administration</span>
+<h1 class="ud-heading">User Details</h1>
+
+<div class="ud-card">
+
+    @* Profile header *@
+    <div class="ud-card-top">
+        <div class="ud-avatar">@initial</div>
+        <div>
+            <p class="ud-name">@Model.FullName</p>
+            <p class="ud-email">@Model.Email</p>
+            <span class="mu-role @roleClass">
+                <i class="bi @roleIcon"></i> @Model.Role
+            </span>
         </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <p><strong>Full Name:</strong> @Model.FullName</p>
-                    <p><strong>Email:</strong> @Model.Email</p>
-                    <p><strong>Role:</strong> @Model.Role</p>
+    </div>
+
+    @* Info rows *@
+    <div class="ud-card-body">
+        <div class="ud-row">
+            <div class="ud-row-icon"><i class="bi bi-person-fill"></i></div>
+            <div>
+                <div class="ud-row-label">Full Name</div>
+                <div class="ud-row-value">@Model.FullName</div>
+            </div>
+        </div>
+        <div class="ud-row">
+            <div class="ud-row-icon"><i class="bi bi-envelope-fill"></i></div>
+            <div>
+                <div class="ud-row-label">Email Address</div>
+                <div class="ud-row-value">@Model.Email</div>
+            </div>
+        </div>
+        <div class="ud-row">
+            <div class="ud-row-icon"><i class="bi bi-shield-lock-fill"></i></div>
+            <div>
+                <div class="ud-row-label">Platform Role</div>
+                <div class="ud-row-value">
+                    <span class="mu-role @roleClass">
+                        <i class="bi @roleIcon"></i> @Model.Role
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="ud-row">
+            <div class="ud-row-icon"><i class="bi bi-person-badge-fill"></i></div>
+            <div>
+                <div class="ud-row-label">User ID</div>
+                <div class="ud-row-value" style="font-size:0.75rem; color:rgba(255,255,255,0.3); font-family:monospace;">
+                    @Model.Id
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <div class="mt-4">
-        <a href="@Url.Action("ManageUsers", "Admin")" class="btn btn-secondary">Back to User Management</a>
-    </div>
+@* Actions *@
+<div class="ud-actions">
+    <a href="@Url.Action("ManageUsers", "Admin")" class="ud-btn-back">
+        <i class="bi bi-arrow-left"></i> Back to Users
+    </a>
+    @if (Model.Role != "Admin")
+    {
+        <form asp-action="DeleteUser" asp-route-id="@Model.Id" method="post" style="margin:0">
+            <button type="submit" class="ud-btn-delete"
+                    onclick="return confirm('Delete @Model.FullName? This cannot be undone.')">
+                <i class="bi bi-trash3-fill"></i> Delete User
+            </button>
+        </form>
+    }
 </div>

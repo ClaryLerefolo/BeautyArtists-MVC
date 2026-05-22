@@ -1,0 +1,186 @@
+﻿@model IEnumerable<BeautyArtists.Models.ArtistAvailability>
+
+@{
+    ViewData["Title"] = "Manage Availability";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+}
+
+@section Styles {
+    <style>
+        body {
+            background: #000;
+            color: #f0f0f0;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        /* EXACT MATCH TO YOUR SERVICES HEADER */
+        .dashboard-header {
+            background: linear-gradient(90deg, #e50914, #f0c808);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            margin-bottom: 25px;
+        }
+
+            .dashboard-header h2 {
+                color: #000;
+                font-weight: 800;
+                text-transform: uppercase;
+                margin: 0;
+            }
+
+        /* CARD STYLING TO MATCH SERVICES */
+        .availability-card {
+            background-color: #121212;
+            border: 1px solid rgba(240, 200, 8, 0.2);
+            border-radius: 15px;
+            transition: 0.3s ease;
+        }
+
+            .availability-card:hover {
+                transform: translateY(-5px);
+                border-color: #f0c808;
+            }
+
+        .modal-content {
+            background: #0a0a0a;
+            border: 2px solid #f0c808;
+            border-radius: 20px;
+        }
+
+        .form-control {
+            background-color: #1a1a1a;
+            border: 1px solid #333;
+            color: white;
+        }
+
+            .form-control:focus {
+                background-color: #222;
+                border-color: #f0c808;
+                color: white;
+                box-shadow: 0 0 0 0.25rem rgba(240, 200, 8, 0.25);
+            }
+
+        .input-label {
+            color: #f0c808;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+    </style>
+}
+
+<div class="dashboard-header">
+    <h2><i class="bi bi-calendar-check-fill"></i> ARTIST AVAILABILITY MENU</h2>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4 px-4">
+    <h4 class="text-white mb-0">Active Slots: <span style="color: #f0c808;">@Model.Count()</span></h4>
+    <button class="btn rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#addAvailabilityModal"
+            style="background: linear-gradient(45deg, #f0c808, #e50914); color: #000; font-weight: 700; border: none;">
+        <i class="bi bi-plus-circle me-2"></i>+ ADD AVAILABILITY
+    </button>
+</div>
+
+<div class="row pt-2 px-4">
+    @if (!Model.Any())
+    {
+        <div class="col-12 text-center py-5">
+            <h3 class="text-muted">No availability slots defined yet.</h3>
+        </div>
+    }
+    else
+    {
+        @foreach (var item in Model)
+        {
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 availability-card text-white overflow-hidden">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h3 style="color: #f0c808; font-weight: 700; margin:0;">@item.AvailableDate.ToString("dd MMM")</h3>
+                            <span class="badge @(item.IsBooked ? "bg-danger" : "bg-success") px-3 py-2 rounded-pill">
+                                @(item.IsBooked ? "BOOKED" : "AVAILABLE")
+                            </span>
+                        </div>
+
+                        <div class="p-3 rounded mb-3" style="background: #1a1a1a;">
+                            <div class="small mb-1"><span style="color:#f0c808">Full Date:</span> @item.AvailableDate.ToString("D")</div>
+                            <div class="h5 mt-2 mb-0 font-weight-bold" style="color:#f0c808">
+                                <i class="bi bi-clock me-2"></i>@item.StartTime.ToString(@"hh\:mm") - @item.EndTime.ToString(@"hh\:mm")
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2 mt-3">
+                            @if (!item.IsBooked)
+                            {
+                                <button type="button" class="btn btn-outline-danger w-100 font-weight-bold" onclick="deleteSlot(@item.Id)">
+                                    <i class="bi bi-trash-alt me-1"></i> REMOVE SLOT
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn btn-secondary w-100 font-weight-bold" disabled>
+                                    <i class="bi bi-lock-fill me-1"></i> RESERVED
+                                </button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<div class="modal fade" id="addAvailabilityModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title font-weight-bold" style="color: #f0c808;">ADD WORK WINDOW</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-action="AddSlot" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-body px-4">
+                    <div class="row g-4">
+                        <div class="col-12">
+                            <label class="input-label">Available Date</label>
+                            <input type="date" name="AvailableDate" class="form-control"
+                                   required min="@DateTime.Now.ToString("yyyy-MM-dd")">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="input-label">Start Time</label>
+                            <input type="time" name="StartTime" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="input-label">End Time</label>
+                            <input type="time" name="EndTime" class="form-control" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pb-4">
+                    <button type="submit" class="btn w-100 py-3 font-weight-bold" style="background: #f0c808; color: #000;">
+                        SAVE AVAILABILITY
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function deleteSlot(id) {
+            if(confirm('Are you sure you want to remove this availability window?')) {
+                fetch('/ArtistAvailability/DeleteSlot/' + id, {
+                    method: 'POST',
+                    headers: { 'RequestVerificationToken': $('input[name="__RequestVerificationToken"]').val() }
+                })
+                .then(res => {
+                    if(res.ok) location.reload();
+                    else alert("Could not delete slot.");
+                });
+            }
+        }
+    </script>
+}

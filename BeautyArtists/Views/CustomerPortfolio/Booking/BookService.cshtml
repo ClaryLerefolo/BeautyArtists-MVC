@@ -1,0 +1,40 @@
+﻿@model BeautyArtists.Models.ViewModels.BookingViewModel
+@{
+    ViewData["Title"] = "Confirm Booking";
+}
+
+<h2 class="text-gold mb-4">Confirm Your Booking</h2>
+
+<div class="card bg-dark text-light border-gold">
+    <div class="card-body">
+        <h4>@Model.ServiceName</h4>
+        <p><strong>Artist:</strong> @Model.ArtistName</p>
+        <p><strong>Price:</strong> R@Model.Price</p>
+
+        <form asp-action="ConfirmBooking" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="UserServiceId" />
+            <input type="hidden" asp-for="ServiceName" />
+            <input type="hidden" asp-for="Price" />
+            <input type="hidden" asp-for="ArtistName" />
+
+            <div class="mb-3">
+                <label asp-for="PreferredDate" class="form-label">Preferred Date & Time</label>
+                <input asp-for="PreferredDate" type="datetime-local" class="form-control" />
+                <span asp-validation-for="PreferredDate" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Notes" class="form-label">Additional Notes (Optional)</label>
+                <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-danger">Submit Booking</button>
+            <a asp-action="Book" class="btn btn-outline-light ms-2">Back to Services</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

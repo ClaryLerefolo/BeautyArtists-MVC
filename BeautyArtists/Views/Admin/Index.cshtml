@@ -1,58 +1,418 @@
 ﻿@model BeautyArtists.Models.ViewModels.AdminDashboardViewModel
 @{
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
-    ViewData["Title"] = "Admin Dashboard";
+    ViewData["Title"] = "Dashboard";
 }
 
-<h2>Admin Dashboard</h2>
-<div class="row g-4">
-    <div class="col-md-4">
-        <div class="card card-red p-4">
-            <h4>Total Users</h4>
-            <p class="display-6">@Model.TotalUsers</p>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card card-red p-4">
-            <h4>Total Artists</h4>
-            <p class="display-6">@Model.TotalArtists</p>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card card-red p-4">
-            <h4>Total Customers</h4>
-            <p class="display-6">@Model.TotalCustomers</p>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card card-red p-4">
-            <h4>Total Bookings</h4>
-            <p class="display-6">@Model.TotalBookings</p>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card card-red p-4">
-            <h4>Total Revenue</h4>
-            <p class="display-6">R @Model.TotalRevenue.ToString("N2")</p>
-        </div>
-    </div>
-</div><p>Total Revenue: @Model.TotalRevenue</p>
+<style>
+    .dash-eyebrow {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 4px;
+        text-transform: uppercase;
+        color: rgba(255,215,0,0.35);
+        margin-bottom: 4px;
+        display: block;
+    }
 
-<h3>Revenue per Artist</h3>
-<table>
-    <thead>
-        <tr>
-            <th>Artist ID</th>
-            <th>Total Revenue</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var artist in Model.RevenuePerArtist)
-        {
-            <tr>
-                <td>@artist.ArtistId</td>
-                <td>@artist.TotalRevenue</td>
-            </tr>
+    .dash-heading {
+        font-size: 1.6rem;
+        font-weight: 900;
+        color: #FFD700;
+        margin: 0 0 28px;
+        text-shadow: 0 0 20px rgba(255,215,0,0.15);
+    }
+
+    /* ── STAT CARDS ── */
+    .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 14px;
+        margin-bottom: 28px;
+    }
+    @@media (max-width: 1200px) {
+        .stat-grid
+
+    {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    }
+    @@media (max-width: 768px) {
+        .stat-grid
+
+    {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    }
+
+    .stat-card {
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.1);
+        border-radius: 14px;
+        padding: 20px 18px;
+        transition: border-color 0.25s, transform 0.25s;
+        position: relative;
+        overflow: hidden;
+    }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #b30000, #FFD700);
+            opacity: 0;
+            transition: opacity 0.25s;
         }
-    </tbody>
-</table>
+
+        .stat-card:hover {
+            border-color: rgba(255,215,0,0.25);
+            transform: translateY(-3px);
+        }
+
+            .stat-card:hover::before {
+                opacity: 1;
+            }
+
+    .stat-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        margin-bottom: 14px;
+        background: rgba(255,215,0,0.08);
+        color: #FFD700;
+    }
+
+    .stat-num {
+        display: block;
+        font-size: 1.8rem;
+        font-weight: 900;
+        color: #FFD700;
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.3);
+    }
+
+    .stat-card.revenue .stat-icon {
+        background: rgba(179,0,0,0.15);
+        color: #ff6666;
+    }
+
+    .stat-card.revenue .stat-num {
+        color: #ff6666;
+    }
+
+    /* ── BOTTOM GRID ── */
+    .dash-bottom {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+    @@media (max-width: 992px) {
+        .dash-bottom
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    }
+
+    .dash-panel {
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.1);
+        border-radius: 16px;
+        overflow: hidden;
+    }
+
+    .dash-panel-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(255,215,0,0.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .dash-panel-title {
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.7);
+    }
+
+        .dash-panel-title i {
+            color: #FFD700;
+            margin-right: 8px;
+        }
+
+    .dash-panel-body {
+        padding: 12px 0;
+    }
+
+    /* ── REVENUE TABLE ── */
+    .rev-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+        .rev-table thead tr {
+            background: rgba(255,215,0,0.04);
+        }
+
+        .rev-table th {
+            padding: 9px 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.4);
+            border-bottom: 1px solid rgba(255,215,0,0.07);
+        }
+
+        .rev-table td {
+            padding: 10px 20px;
+            font-size: 0.83rem;
+            color: rgba(255,255,255,0.7);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .rev-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .rev-table tr:hover td {
+            background: rgba(255,215,0,0.03);
+        }
+
+    .rev-artist-name {
+        color: #fff;
+        font-weight: 600;
+    }
+
+    .rev-amount {
+        color: #FFD700;
+        font-weight: 800;
+    }
+
+    .rev-bar-wrap {
+        width: 80px;
+        height: 4px;
+        border-radius: 2px;
+        background: rgba(255,255,255,0.06);
+        overflow: hidden;
+    }
+
+    .rev-bar {
+        height: 100%;
+        border-radius: 2px;
+        background: linear-gradient(90deg, #b30000, #FFD700);
+    }
+
+    /* ── QUICK ACTIONS ── */
+    .quick-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        padding: 16px;
+    }
+
+    .quick-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 13px 14px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,215,0,0.1);
+        text-decoration: none;
+        color: rgba(255,255,255,0.65);
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+
+        .quick-btn:hover {
+            background: rgba(255,215,0,0.08);
+            border-color: rgba(255,215,0,0.25);
+            color: #FFD700;
+            transform: translateY(-2px);
+        }
+
+        .quick-btn i {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            background: rgba(255,215,0,0.08);
+            color: #FFD700;
+            flex-shrink: 0;
+        }
+
+    /* ── BANNER CARD ── */
+    .banner-cta {
+        background: linear-gradient(135deg, #0a0000 0%, #1a0500 50%, #0a0000 100%);
+        border: 1px solid rgba(179,0,0,0.3);
+        border-radius: 16px;
+        padding: 22px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .banner-cta-text h5 {
+        color: #FFD700;
+        font-weight: 800;
+        margin: 0 0 4px;
+        font-size: 0.95rem;
+    }
+
+    .banner-cta-text p {
+        color: rgba(255,255,255,0.35);
+        font-size: 0.78rem;
+        margin: 0;
+    }
+
+    .banner-cta-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 22px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #b30000, #FFD700);
+        color: #000;
+        font-weight: 800;
+        font-size: 0.78rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: all 0.2s;
+    }
+
+        .banner-cta-btn:hover {
+            background: linear-gradient(135deg, #FFD700, #b30000);
+            color: #000;
+            box-shadow: 0 0 20px rgba(255,215,0,0.3);
+        }
+</style>
+
+<span class="dash-eyebrow">Control Centre</span>
+<h1 class="dash-heading">Admin Dashboard</h1>
+
+@* ── BANNER CTA ── *@
+<div class="banner-cta">
+    <div class="banner-cta-text">
+        <h5><i class="bi bi-images me-2"></i>Hero Carousel Banners</h5>
+        <p>Manage the promotional banners shown to clients on the homepage</p>
+    </div>
+    <a asp-action="HeroBanners" asp-controller="Admin" class="banner-cta-btn">
+        <i class="bi bi-pencil-square"></i> Manage Banners
+    </a>
+</div>
+
+@* ── STAT CARDS ── *@
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-icon"><i class="bi bi-people-fill"></i></div>
+        <span class="stat-num">@Model.TotalUsers</span>
+        <span class="stat-label">Total Users</span>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="bi bi-scissors"></i></div>
+        <span class="stat-num">@Model.TotalArtists</span>
+        <span class="stat-label">Artists</span>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="bi bi-person-heart"></i></div>
+        <span class="stat-num">@Model.TotalCustomers</span>
+        <span class="stat-label">Clients</span>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="bi bi-calendar-check-fill"></i></div>
+        <span class="stat-num">@Model.TotalBookings</span>
+        <span class="stat-label">Bookings</span>
+    </div>
+    <div class="stat-card revenue">
+        <div class="stat-icon"><i class="bi bi-currency-exchange"></i></div>
+        <span class="stat-num">R @Model.TotalRevenue.ToString("N0")</span>
+        <span class="stat-label">Total Revenue</span>
+    </div>
+</div>
+
+@* ── BOTTOM PANELS ── *@
+<div class="dash-bottom">
+
+    @* Revenue per Artist *@
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <span class="dash-panel-title">
+                <i class="bi bi-graph-up-arrow"></i> Revenue Per Artist
+            </span>
+        </div>
+        <div class="dash-panel-body">
+            @if (Model.RevenuePerArtist == null || !Model.RevenuePerArtist.Any())
+            {
+                <p style="padding:16px 20px;color:rgba(255,255,255,0.25);font-size:0.82rem;">
+                    No revenue data yet.
+                </p>
+            }
+            else
+            {
+                var maxRev = Model.RevenuePerArtist.Max(a => a.TotalRevenue);
+                <table class="rev-table">
+                    <thead>
+                        <tr>
+                            <th>Artist</th>
+                            <th>Revenue</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var artist in Model.RevenuePerArtist.OrderByDescending(a => a.TotalRevenue))
+                        {
+                            var pct = maxRev > 0 ? (int)((artist.TotalRevenue / maxRev) * 100) : 0;
+                            <tr>
+                                <td class="rev-artist-name">
+                                    @(string.IsNullOrEmpty(artist.ArtistName)
+                                                                ? "Unknown Artist"
+                                                                : artist.ArtistName.Trim())
+                        </td>
+                        <td class="rev-amount">R @artist.TotalRevenue.ToString("N0")</td>
+                        <td>
+                            <div class="rev-bar-wrap">
+                                <div class="rev-bar" style="width:@pct%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+
+  
+
+</div>

@@ -1,0 +1,92 @@
+﻿@model IEnumerable<BeautyArtists.Models.ViewModels.ServiceListViewModel.ServiceItem>
+
+
+<section class="py-5 bg-dark text-light">
+    <div class="container">
+        <h2 class="text-center text-gold mb-5 fw-bold">All Services</h2>
+        <div class="row">
+            @if (Model != null && Model.Any())
+            {
+                foreach (var s in Model)
+                {
+                    var image = string.IsNullOrWhiteSpace(s.ImagePath) ? "/images/default-service.jpg" : s.ImagePath;
+                    <div class="col-md-4 mb-4">
+                        <div class="featured-card shadow-lg h-100">
+                            <img src="@Url.Content(image)" alt="@s.ServiceName" class="service-img" />
+                            <div class="card-body p-3">
+                                <div class="title text-gold fw-bold fs-5">@s.ServiceName</div>
+                                <div class="desc small text-muted">@s.Description</div>
+                                <div class="fw-bold text-gold mt-2">Provided by: @s.ArtistName</div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="col-12 text-center">
+                    <p class="text-muted">No services available yet.</p>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<style>
+    /* === UNIVERSAL SERVICE LIST THEME FIX === */
+
+    .service-card {
+        background: #0b0b0b !important;
+        border: 1px solid rgba(255, 215, 0, 0.25);
+        border-radius: 16px;
+        box-shadow: 0 0 20px rgba(255, 0, 0, 0.15);
+        overflow: hidden;
+    }
+
+        /* Card body text */
+        .service-card .card-body {
+            background: #0b0b0b;
+            color: #ffffff;
+        }
+
+        /* Headings */
+        .service-card h5 {
+            color: #FFD700 !important;
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+        }
+
+        /* Descriptions */
+        .service-card p {
+            color: #e0e0e0 !important;
+        }
+
+        /* Category text */
+        .service-card small {
+            color: #cfcfcf !important;
+        }
+
+        /* Price */
+        .service-card .price {
+            color: #FFD700;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+    /* CTA Button */
+    .btn-gradient {
+        background: linear-gradient(135deg, #b30000, #FFD700);
+        border: none;
+        color: #000;
+        font-weight: 700;
+        border-radius: 30px;
+        padding: 10px 22px;
+        transition: all 0.3s ease;
+    }
+
+        .btn-gradient:hover {
+            background: linear-gradient(135deg, #FFD700, #b30000);
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+            transform: translateY(-2px);
+        }
+
+</style>

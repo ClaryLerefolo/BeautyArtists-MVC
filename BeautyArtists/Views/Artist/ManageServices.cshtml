@@ -1,50 +1,293 @@
 ﻿@model IEnumerable<BeautyArtists.Models.UserService>
-
+@using System.Text.Encodings.Web
 @{
-    ViewData["Title"] = "My Services";
+    ViewData["Title"] = "Artist Service Menu";
     Layout = "~/Views/Shared/_ArtistLayout.cshtml";
 }
 
-<div class="container mt-5">
-    <h2 class="text-warning mb-4">My Offered Services</h2>
+@section Styles {
+    <style>
+        body {
+            background: #000;
+            color: #f0f0f0;
+            font-family: 'Segoe UI', sans-serif;
+        }
 
-    <a class="btn btn-outline-warning mb-3" asp-action="AddService">+ Add New Service</a>
+        .dashboard-header {
+            background: linear-gradient(90deg, #e50914, #f0c808);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            margin-bottom: 25px;
+        }
 
-    @if (!Model.Any())
+            .dashboard-header h2 {
+                color: #000;
+                font-weight: 800;
+                text-transform: uppercase;
+                margin: 0;
+            }
+
+        .service-card {
+            background-color: #121212;
+            border: 1px solid rgba(240, 200, 8, 0.2);
+            border-radius: 15px;
+            transition: 0.3s ease;
+        }
+
+            .service-card:hover {
+                transform: translateY(-5px);
+                border-color: #f0c808;
+            }
+
+        .modal-content {
+            background: #0a0a0a;
+            border: 2px solid #f0c808;
+            border-radius: 20px;
+        }
+
+        .form-control, .form-select {
+            background-color: #1a1a1a;
+            border: 1px solid #333;
+            color: white;
+        }
+
+            .form-control:focus, .form-select:focus {
+                background-color: #222;
+                border-color: #f0c808;
+                color: white;
+                box-shadow: 0 0 0 0.25rem rgba(240, 200, 8, 0.25);
+            }
+
+        .input-label {
+            color: #f0c808;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+    </style>
+}
+
+<div class="dashboard-header">
+    <h2><i class="fas fa-cut"></i> Artist Service Menu</h2>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-4 px-4">
+    <h4 class="text-white mb-0">Active Services: <span style="color: #f0c808;">@Model.Count()</span></h4>
+    <button class="btn rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#addServiceModal"
+            style="background: linear-gradient(45deg, #f0c808, #e50914); color: #000; font-weight: 700; border: none;">
+        <i class="fas fa-plus-circle me-2"></i>+ ADD SERVICE
+    </button>
+</div>
+
+<div class="row pt-2 px-4" id="serviceOfferingRow">
+    @foreach (var item in Model)
     {
-        <p class="text-light">You are not offering any services yet.</p>
-    }
-    else
-    {
-        <table class="table table-dark table-bordered table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th>Name</th>
-                    <th>Description</th>
-                    <th>Category</th>
-                    <th>Duration</th>
-                    <th>Your Price (ZAR)</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var us in Model)
-                {
-                    <tr>
-                        <td>@us.Service?.Name</td>
-                        <td>@us.Service?.Description</td>
-                        <td>@us.Service?.Category?.Name</td>
-                        <td>@us.Duration</td>
-                        <td>R @us.Price</td>
-                        <td>
-                            <a asp-action="EditUserService" asp-route-id="@us.Id" class="btn btn-sm btn-warning text-dark">Edit</a>
-                            <form asp-action="DeleteUserService" asp-route-id="@us.Id" method="post" class="d-inline">
-                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove this service?');">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+        <div class="col-md-4 mb-4" id="service-row-@item.Id">
+            <div class="card h-100 service-card text-white overflow-hidden">
+                <img src="@(string.IsNullOrEmpty(item.ImagePath) ? (item.Service?.ImagePath ?? "/images/default-service.jpg") : item.ImagePath)"
+                     class="card-img-top" style="height: 200px; object-fit: cover;" alt="@item.Service?.Name">
+
+                <div class="card-body p-4">
+                    <h3 style="color: #f0c808; font-weight: 700;">@item.Service?.Name</h3>
+                    <p class="text-muted small">@item.CustomDescription</p>
+
+                    <div class="p-3 rounded mb-3" style="background: #1a1a1a;">
+                        <div class="small mb-1"><span style="color:#f0c808">Category:</span> @(item.Service?.ServiceCategory?.Name ?? "General")</div>
+                        <div class="small mb-1"><span style="color:#f0c808">Duration:</span> @item.Duration min</div>
+                        <div class="h5 mt-2 mb-0 font-weight-bold" style="color:#f0c808">Price: R @item.Price.ToString("N2")</div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-warning flex-grow-1 font-weight-bold"
+                                onclick="openEditModal('@item.Id', '@item.Price', '@item.Duration', '@Html.Raw(JavaScriptEncoder.Default.Encode(item.CustomDescription ?? ""))', @item.IsActive.ToString().ToLower())">
+                            <i class="fas fa-edit me-1"></i> EDIT
+                        </button>
+                        <button class="btn btn-danger delete-service" data-id="@item.Id">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 </div>
+
+@* --- ADD SERVICE MODAL --- *@
+<div class="modal fade" id="addServiceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title font-weight-bold" style="color: #f0c808;">ADD NEW SERVICE</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Artist" asp-action="AddService" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <div class="modal-body px-4">
+                    <div class="row g-4">
+                        <div class="col-md-12">
+                            <label class="input-label">Select Service Template</label>
+                            <select name="ServiceId" id="baseServiceSelect" class="form-select" required>
+                                <option value="">-- Choose a Service --</option>
+                                @foreach (var svc in (IEnumerable<SelectListItem>)ViewBag.AvailableServices)
+                                {
+                                    <option value="@svc.Value">@svc.Text</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div id="adminDetailsSection" style="display:none; margin-bottom: 20px; width: 100%;">
+                            <div style="background: rgba(229, 9, 20, 0.1); border-left: 4px solid #e50914; padding: 15px; border-radius: 4px;">
+                                <div class="row">
+                                    <div class="col-md-4"><small class="text-muted d-block">Admin Category</small><strong id="adminCategory" style="color: #f0c808;"></strong></div>
+                                    <div class="col-md-4"><small class="text-muted d-block">Base Price</small><strong id="adminBasePrice" style="color: #f0c808;"></strong></div>
+                                    <div class="col-md-4"><small class="text-muted d-block">Standard Duration</small><strong id="adminBaseDuration" style="color: #f0c808;"></strong></div>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted d-block">Admin Description:</small>
+                                    <p id="adminBaseDescription" class="small mb-0" style="font-style: italic;"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="input-label">Your Price (R)</label>
+                            <input type="number" name="Price" id="add_Price" class="form-control" step="0.01" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="input-label">Your Duration (Mins)</label>
+                            <input type="number" name="Duration" id="add_Duration" class="form-control" required />
+                        </div>
+                        <div class="col-12">
+                            <label class="input-label">Service Photo (Optional)</label>
+                            <input type="file" name="ImageFile" class="form-control" />
+                        </div>
+                        <div class="col-12">
+                            <label class="input-label">Custom Description</label>
+                            <textarea name="CustomDescription" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input type="hidden" name="IsActive" value="false" />
+                                <input class="form-check-input" type="checkbox" name="IsActive" value="true" checked>
+                                <label class="form-check-label text-white ms-2">Make Service Active Immediately</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pb-4">
+                    <button type="submit" class="btn w-100 py-3 font-weight-bold" style="background: #f0c808; color: #000;">+ ADD TO MENU</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@* --- EDIT SERVICE MODAL --- *@
+<div class="modal fade" id="editServiceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title font-weight-bold" style="color: #f0c808;">EDIT YOUR SERVICE</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Artist" asp-action="EditUserService" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" id="edit_Id" />
+
+                <div class="modal-body px-4">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="input-label">Your Price (R)</label>
+                            <input type="number" name="Price" id="edit_Price" class="form-control" step="0.01" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="input-label">Your Duration (Mins)</label>
+                            <input type="number" name="Duration" id="edit_Duration" class="form-control" required />
+                        </div>
+                        <div class="col-12">
+                            <label class="input-label">Change Photo (Optional)</label>
+                            <input type="file" name="ImageFile" class="form-control" />
+                        </div>
+                        <div class="col-12">
+                            <label class="input-label">Custom Description</label>
+                            <textarea name="CustomDescription" id="edit_Description" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input type="hidden" name="IsActive" value="false" />
+                                <input class="form-check-input" type="checkbox" name="IsActive" id="edit_IsActive" value="true">
+                                <label class="form-check-label text-white ms-2">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pb-4">
+                    <button type="submit" class="btn w-100 py-3 font-weight-bold" style="background: #f0c808; color: #000;">UPDATE SERVICE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        const rawServices = @Html.Raw(Json.Serialize(ViewBag.RawServices));
+
+        // Add Modal Auto-fill
+        document.getElementById('baseServiceSelect').addEventListener('change', function() {
+            const s = rawServices.find(x => (x.id || x.Id) == this.value);
+            if (s) {
+                // FIXED: Checked both camelCase and PascalCase for compatibility
+                const category = s.serviceCategory || s.ServiceCategory;
+                $('#adminCategory').text(category ? (category.name || category.Name) : "N/A");
+
+                $('#adminBasePrice').text('R ' + parseFloat(s.basePrice || s.BasePrice).toFixed(2));
+                $('#adminBaseDuration').text((s.duration || s.Duration) + ' Mins');
+                $('#adminBaseDescription').text(s.description || s.Description);
+                $('#adminDetailsSection').fadeIn();
+                document.getElementById('add_Price').value = s.basePrice || s.BasePrice;
+                document.getElementById('add_Duration').value = s.duration || s.Duration;
+            } else {
+                $('#adminDetailsSection').fadeOut();
+            }
+        });
+
+        function openEditModal(id, price, duration, desc, isActive) {
+            document.getElementById('edit_Id').value = id;
+            document.getElementById('edit_Price').value = price;
+            document.getElementById('edit_Duration').value = duration;
+            document.getElementById('edit_Description').value = desc;
+            const activeCheckbox = document.getElementById('edit_IsActive');
+            activeCheckbox.checked = (isActive === true || isActive === "true");
+            var myModal = new bootstrap.Modal(document.getElementById('editServiceModal'));
+            myModal.show();
+        }
+
+        $(document).on('click', '.delete-service', function() {
+            const id = $(this).data('id');
+            const card = $(`#service-row-${id}`);
+            Swal.fire({
+                title: 'Remove Service?',
+                text: "This will remove it from your menu.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e50914',
+                confirmButtonText: 'Yes, remove it',
+                background: '#0a0a0a',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.post('/Artist/DeleteUserService/' + id, {
+                        "__RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val()
+                    }, function() {
+                        card.fadeOut(500);
+                        Swal.fire('Removed!', '', 'success');
+                    });
+                }
+            });
+        });
+    </script>
+}

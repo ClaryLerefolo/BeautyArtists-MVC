@@ -1,0 +1,508 @@
+﻿@* ================================================================
+   _ArtistPortfolioModal.cshtml
+   Save to: /Views/Shared/_ArtistPortfolioModal.cshtml
+   ================================================================ *@
+
+@model BeautyArtists.Models.ViewModels.ArtistPortfolioModalViewModel
+
+@if (Model == null || !Model.Portfolios.Any())
+{
+    <div class="text-center py-5">
+        <div style="font-size:2.5rem;color:rgba(255,215,0,0.2);">✦</div>
+        <p style="color:rgba(255,255,255,0.4);margin-top:12px;">
+            This artist hasn't uploaded any portfolio items yet.
+        </p>
+    </div>
+}
+else
+{
+    @* ── ARTIST HEADER ── *@
+    <div class="apm-artist-header">
+        <div class="apm-avatar">@Model.ArtistName.Substring(0, 1).ToUpper()</div>
+        <div class="apm-artist-info">
+            <div class="apm-artist-name">@Model.ArtistName</div>
+            @if (!string.IsNullOrEmpty(Model.ServiceName))
+            {
+                <div class="apm-service-tag">✦ @Model.ServiceName</div>
+            }
+        </div>
+        <div class="apm-stats">
+            <span class="apm-stat-num">@Model.Portfolios.Count</span>
+            <span class="apm-stat-label">COLLECTION@(Model.Portfolios.Count != 1 ? "S" : "")</span>
+        </div>
+    </div>
+
+    @* ── PORTFOLIO FOLDERS ── *@
+    @foreach (var portfolio in Model.Portfolios)
+    {
+        var itemCount = portfolio.Items?.Count ?? 0;
+
+        <div class="apm-collection">
+
+            @* ── FOLDER HEADER ── *@
+            <div class="apm-collection-header" onclick="apmToggle(@portfolio.Id, this)">
+
+                <div class="apm-chevron">
+                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <polyline points="3,5 7,9 11,5" stroke="#FFD700" stroke-width="2"
+                                  stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+
+                <div class="apm-collection-meta">
+                    <span class="apm-collection-name">@portfolio.Name</span>
+                    @if (!string.IsNullOrEmpty(portfolio.Description))
+                    {
+                        <span class="apm-collection-desc">@portfolio.Description</span>
+                    }
+                </div>
+
+                <div class="apm-collection-badge">
+                    <span class="apm-badge-num">@itemCount</span>
+                    <span class="apm-badge-label">@(itemCount == 1 ? "ITEM" : "ITEMS")</span>
+                </div>
+
+            </div>
+
+            @* ── ITEMS GRID ── *@
+            <div class="apm-grid" id="apm-folder-@portfolio.Id">
+                @if (portfolio.Items != null && portfolio.Items.Any())
+                {
+                    @foreach (var item in portfolio.Items.OrderBy(i => i.DisplayOrder))
+                    {
+                        <div class="apm-item"
+                             onclick="apmLightbox('@item.MediaUrl', '@Html.Raw(System.Text.Json.JsonSerializer.Serialize(item.Title ?? ""))', '@Html.Raw(System.Text.Json.JsonSerializer.Serialize(item.Description ?? ""))')">
+
+                            <div class="apm-item-img-wrap">
+                                @if (item.MediaType == "video")
+                                {
+                                    <img src="@(item.ThumbnailUrl ?? "/images/service-default.jpg")"
+                                         class="apm-img" alt="@item.Title"
+                                         onerror="this.src='/images/service-default.jpg'">
+                                    <div class="apm-video-badge">
+                                        <svg width="12" height="12" viewBox="0 0 12 12" fill="#000">
+                                            <polygon points="3,1 11,6 3,11" />
+                                        </svg>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <img src="@item.MediaUrl"
+                                         class="apm-img" alt="@item.Title"
+                                         onerror="this.src='/images/service-default.jpg'">
+                                }
+
+                                @if (item.IsFeatured)
+                                {
+                                    <div class="apm-featured">★</div>
+                                }
+
+                                <div class="apm-hover-overlay">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                                         stroke="#FFD700" stroke-width="1.5">
+                                        <circle cx="11" cy="11" r="8" />
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                        <line x1="11" y1="8" x2="11" y2="14" />
+                                        <line x1="8" y1="11" x2="14" y2="11" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            @if (!string.IsNullOrEmpty(item.Title))
+                            {
+                                <div class="apm-item-label">@item.Title</div>
+                            }
+
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="apm-empty">No items in this collection yet.</div>
+                }
+            </div>
+
+        </div>
+    }
+}
+
+@* ── LIGHTBOX ── *@
+<div id="apmLightbox" class="apm-lightbox" onclick="apmCloseLightbox()">
+    <button class="apm-lb-close" onclick="apmCloseLightbox()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <line x1="1" y1="1" x2="15" y2="15" stroke="#FFD700" stroke-width="2" stroke-linecap="round" />
+            <line x1="15" y1="1" x2="1" y2="15" stroke="#FFD700" stroke-width="2" stroke-linecap="round" />
+        </svg>
+    </button>
+    <div class="apm-lb-inner" onclick="event.stopPropagation()">
+        <img id="apmLbImg" src="" alt="">
+        <div id="apmLbCaption" class="apm-lb-caption"></div>
+    </div>
+</div>
+
+<style>
+    /* ── ARTIST HEADER ─────────────────────────────────────── */
+    .apm-artist-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+        border-bottom: 1px solid rgba(255,215,0,0.1);
+    }
+
+    .apm-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #b30000, #FFD700);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: #000;
+        flex-shrink: 0;
+    }
+
+    .apm-artist-name {
+        color: #FFD700;
+        font-weight: 700;
+        font-size: 1rem;
+        line-height: 1.2;
+    }
+
+    .apm-service-tag {
+        color: rgba(255,255,255,0.35);
+        font-size: 0.72rem;
+        margin-top: 3px;
+        letter-spacing: 0.5px;
+    }
+
+    .apm-stats {
+        margin-left: auto;
+        text-align: center;
+    }
+
+    .apm-stat-num {
+        display: block;
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #FFD700;
+        line-height: 1;
+    }
+
+    .apm-stat-label {
+        display: block;
+        font-size: 0.6rem;
+        font-weight: 700;
+        color: rgba(255,255,255,0.25);
+        letter-spacing: 3px;
+        margin-top: 2px;
+    }
+
+    /* ── COLLECTION BLOCK ──────────────────────────────────── */
+    .apm-collection {
+        margin-bottom: 12px;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(255,215,0,0.1);
+        transition: border-color 0.25s ease;
+    }
+
+        .apm-collection:hover {
+            border-color: rgba(255,215,0,0.25);
+        }
+
+    /* ── FOLDER HEADER ─────────────────────────────────────── */
+    .apm-collection-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        background: linear-gradient(90deg, rgba(255,215,0,0.06) 0%, rgba(179,0,0,0.04) 100%);
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.2s ease;
+    }
+
+        .apm-collection-header:hover {
+            background: linear-gradient(90deg, rgba(255,215,0,0.1) 0%, rgba(179,0,0,0.07) 100%);
+        }
+
+    .apm-chevron {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(255,215,0,0.08);
+        border: 1px solid rgba(255,215,0,0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: transform 0.25s ease, background 0.2s ease;
+    }
+
+        .apm-chevron.open {
+            transform: rotate(180deg);
+            background: rgba(255,215,0,0.15);
+        }
+
+    .apm-collection-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .apm-collection-name {
+        color: #FFD700;
+        font-weight: 700;
+        font-size: 0.95rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .apm-collection-desc {
+        color: rgba(255,255,255,0.35);
+        font-size: 0.72rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .apm-collection-badge {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,215,0,0.12);
+        border-radius: 20px;
+        padding: 5px 16px;
+        flex-shrink: 0;
+        min-width: 60px;
+    }
+
+    .apm-badge-num {
+        color: #FFD700;
+        font-size: 1.1rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
+    .apm-badge-label {
+        color: rgba(255,255,255,0.25);
+        font-size: 0.55rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        margin-top: 2px;
+    }
+
+    /* ── ITEMS GRID ────────────────────────────────────────── */
+    .apm-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        padding: 10px;
+        background: #060606;
+    }
+
+    @@media (max-width: 576px) {
+        .apm-grid {
+            grid-template-columns: repeat(2,1fr);
+        }
+    }
+
+    .apm-item {
+        cursor: pointer;
+    }
+
+    .apm-item-img-wrap {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        aspect-ratio: 1;
+        background: #111;
+        border: 1px solid rgba(255,215,0,0.07);
+        transition: border-color 0.2s, transform 0.2s;
+    }
+
+    .apm-item:hover .apm-item-img-wrap {
+        border-color: rgba(255,215,0,0.4);
+        transform: translateY(-2px);
+    }
+
+    .apm-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        transition: transform 0.35s ease;
+    }
+
+    .apm-item:hover .apm-img {
+        transform: scale(1.06);
+    }
+
+    .apm-hover-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .apm-item:hover .apm-hover-overlay {
+        opacity: 1;
+    }
+
+    .apm-featured {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        background: rgba(255,215,0,0.9);
+        color: #000;
+        font-size: 0.6rem;
+        font-weight: 900;
+        padding: 2px 6px;
+        border-radius: 20px;
+    }
+
+    .apm-video-badge {
+        position: absolute;
+        bottom: 6px;
+        left: 6px;
+        background: rgba(255,215,0,0.9);
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .apm-item-label {
+        color: rgba(255,255,255,0.45);
+        font-size: 0.7rem;
+        margin-top: 5px;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        padding: 0 2px;
+    }
+
+    .apm-empty {
+        grid-column: 1/-1;
+        text-align: center;
+        padding: 28px;
+        color: rgba(255,255,255,0.2);
+        font-size: 0.8rem;
+    }
+
+    /* ── LIGHTBOX ──────────────────────────────────────────── */
+    .apm-lightbox {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: rgba(0,0,0,0.96);
+        backdrop-filter: blur(12px);
+        align-items: center;
+        justify-content: center;
+    }
+
+        .apm-lightbox.active {
+            display: flex;
+        }
+
+    .apm-lb-close {
+        position: absolute;
+        top: 20px;
+        right: 24px;
+        background: rgba(255,215,0,0.08);
+        border: 1px solid rgba(255,215,0,0.25);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+        .apm-lb-close:hover {
+            background: rgba(255,215,0,0.18);
+            transform: rotate(90deg);
+        }
+
+    .apm-lb-inner {
+        max-width: 88vw;
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+    }
+
+        .apm-lb-inner img {
+            max-width: 100%;
+            max-height: 76vh;
+            object-fit: contain;
+            border-radius: 10px;
+            border: 1px solid rgba(255,215,0,0.12);
+            box-shadow: 0 0 60px rgba(255,215,0,0.08);
+        }
+
+    .apm-lb-caption {
+        text-align: center;
+    }
+
+        .apm-lb-caption strong {
+            color: #FFD700;
+            font-size: 0.9rem;
+            display: block;
+        }
+
+        .apm-lb-caption p {
+            color: rgba(255,255,255,0.4);
+            font-size: 0.75rem;
+            margin: 3px 0 0;
+        }
+</style>
+
+<script>
+    function apmToggle(id, headerEl) {
+        const grid = document.getElementById('apm-folder-' + id);
+        const chevron = headerEl.querySelector('.apm-chevron');
+        const isOpen = grid.style.display !== 'none';
+        grid.style.display = isOpen ? 'none' : 'grid';
+        chevron.classList.toggle('open', !isOpen);
+    }
+
+    // All folders open by default
+    document.querySelectorAll('.apm-grid').forEach(g => g.style.display = 'grid');
+    document.querySelectorAll('.apm-chevron').forEach(c => c.classList.add('open'));
+
+    function apmLightbox(src, title, desc) {
+        try { title = JSON.parse(title); } catch(e) {}
+        try { desc  = JSON.parse(desc);  } catch(e) {}
+        document.getElementById('apmLbImg').src = src;
+        document.getElementById('apmLbCaption').innerHTML =
+            (title ? `<strong>${title}</strong>` : '') +
+            (desc  ? `<p>${desc}</p>`  : '');
+        document.getElementById('apmLightbox').classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+    function apmCloseLightbox() {
+        document.getElementById('apmLightbox').classList.remove('active');
+        document.body.style.overflow = '';
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') apmCloseLightbox(); });
+</script>

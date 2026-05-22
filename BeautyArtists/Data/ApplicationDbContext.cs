@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using static BeautyArtists.Models.UserService;
 
 namespace BeautyArtists.Data
 {
@@ -85,7 +84,6 @@ namespace BeautyArtists.Data
         public DbSet<UserService> UserServices { get; set; }
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Portfolio> Portfolios { get; set; }
-        public DbSet<PortfolioCategory> PortfolioCategories { get; set; }
         public DbSet<Testimonial> Testimonials { get; set; }
         public DbSet<ArtistProfile> ArtistProfiles {  get; set; }
 
@@ -95,10 +93,20 @@ namespace BeautyArtists.Data
         public DbSet<Appointment> Appointments { get; set; }
 
         public DbSet<PortfolioItem> PortfolioItems { get; set; }
-        public DbSet<ArtistProfile> ArtistsProfiles { get; set; }
 
         public DbSet<ServiceImage> ServiceImages { get; set; }
         public DbSet<PortfolioImage> PortfolioImages { get; set; }
+        public DbSet<ServiceCategory> ServiceCategories { get; set; }
+
+        public DbSet<HeroBanner> HeroBanners { get; set; }
+
+        public DbSet<Review> Reviews { get; set; }
+        public DbSet<ArtistAvailability> ArtistAvailabilities { get; set; }
+        public DbSet<ActivityLog> ActivityLogs { get; set; }
+
+
+
+
 
 
     }
