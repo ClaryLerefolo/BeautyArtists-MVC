@@ -4,58 +4,36 @@
 }
 
 <style>
-
-    /* Container holding the avatar and the text details */
-    .profile-info-container {
-        display: flex;
-        flex-direction: column; /* Stack avatar above details on mobile */
-        align-items: center; /* Center the elements horizontally */
-        gap: 24px;
-        width: 100%;
-    }
-
-    .profile-details-text {
-        width: 100%;
-        padding: 0 16px; /* Gives the text breathing room from the screen edge */
-        text-align: left; /* Keeps labels cleanly aligned */
-    }
-
-    /* Switch back to side-by-side row only on larger screens (Tablets/Desktops) */
-    @@media (min-width: 768px) {
-        .profile-info-container
-
-    {
-        flex-direction: row;
-        align-items: flex-start;
-    }
-
-    }
     .profile-container {
-        padding: 20px 0;
+        padding: 20px 15px; /* Added horizontal padding for mobile breathing room */
         background-color: transparent;
         display: flex;
         justify-content: center;
         font-family: 'Segoe UI', Roboto, sans-serif;
     }
 
+    /* THE CORE CARD - Defaults to vertical column stack on mobile portrait */
     .artist-profile-card {
         background: #0d0d0d;
         border: 1px solid #1a1a1a;
         border-radius: 20px;
-        padding: 40px;
+        padding: 24px; /* Reduced from 40px for small screens */
         display: flex;
-        gap: 40px;
+        flex-direction: column;
+        align-items: center;
+        gap: 25px;
         width: 100%;
         max-width: 900px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.7);
-        align-items: flex-start;
+        box-sizing: border-box;
     }
 
     .asset-column {
         display: flex;
         flex-direction: column;
         align-items: center;
-        width: 220px;
+        width: 100%; /* Spans full horizontal container area on mobile */
+        max-width: 220px;
         flex-shrink: 0;
     }
 
@@ -105,20 +83,23 @@
         font-size: 0.72rem;
         letter-spacing: 1px;
         text-align: center;
-        margin-bottom: 20px;
+        margin-bottom: 10px;
     }
 
     .content-column {
         flex: 1;
+        width: 100%; /* Ensures details flow across the whole layout card width */
         padding-top: 5px;
+        min-width: 0; /* Prevents long string variables from popping layout borders wide */
     }
 
     .artist-name {
         color: #ffcc00;
-        font-size: 2.2rem;
+        font-size: 2rem;
         font-weight: 700;
         margin: 0 0 20px 0;
         letter-spacing: -0.5px;
+        text-align: center; /* Centered on mobile portrait */
     }
 
     .info-grid {
@@ -130,20 +111,23 @@
 
     .info-row {
         display: flex;
+        flex-direction: column; /* Stack Label above Value on small devices */
         align-items: flex-start;
         font-size: 1.05rem;
         line-height: 1.4;
+        gap: 2px;
     }
 
     .info-key {
         font-weight: 700;
         color: #fff;
-        width: 115px;
+        width: 100%; /* Takes full width so value falls safely below */
         flex-shrink: 0;
     }
 
     .info-val {
         color: #bbb;
+        word-break: break-word; /* Breaks up dense paragraphs safely */
     }
 
     .insta-link {
@@ -151,6 +135,7 @@
         text-decoration: none;
         font-weight: 600;
         transition: 0.3s;
+        word-break: break-all; /* Forces ultra-long query strings/links to wrap lines cleanly */
     }
 
         .insta-link:hover {
@@ -192,10 +177,39 @@
         color: #00c853;
         font-size: 0.85rem;
         font-weight: 600;
-        margin-bottom: 20px;
+        margin: 0 auto 20px auto;
         max-width: 900px;
-        margin-left: auto;
-        margin-right: auto;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* ── RESPONSIVE MEDIA BREAKPOINT (Tablets / Desktops) ── */
+    @media (min-width: 768px) {
+        .artist-profile-card
+
+    {
+        flex-direction: row; /* Turn back into a clean side-by-side split row layout */
+        align-items: flex-start;
+        padding: 40px;
+        gap: 40px;
+    }
+
+    .asset-column {
+        width: 220px;
+    }
+
+    .artist-name {
+        text-align: left; /* Realigns left for broad view layouts */
+    }
+
+    .info-row {
+        flex-direction: row; /* Side-by-side key-value pairs */
+    }
+
+    .info-key {
+        width: 125px; /* Gives standard text labels a fixed uniform spacing width column */
+    }
+
     }
 </style>
 
@@ -255,8 +269,6 @@
                     </a>
                 </div>
             </div>
-
-           
         </div>
 
     </div>
@@ -273,7 +285,7 @@
                 <input type="hidden" asp-for="Id" />
                 <input type="hidden" asp-for="UserId" />
 
-                <div class="modal-body p-5">
+                <div class="modal-body p-4 p-md-5">
                     <h3 style="color:#ffcc00; margin-bottom:30px; font-weight:800;">
                         UPDATE PROFILE
                     </h3>
@@ -353,6 +365,7 @@
         </div>
     </div>
 </div>
+
 <script>
     const cityData = {
         "Gauteng": ["Johannesburg", "Pretoria", "Sandton", "Soweto", "Centurion"],
@@ -396,7 +409,7 @@
             ps.onchange = () => loadCities(ps.value);
             if (currP) loadCities(currP, currC);
 
-            // ── PHOTO UPLOAD ── moved here so btn-trigger is in DOM
+            // ── PHOTO UPLOAD ──
             const fh = document.getElementById('file-hidden');
             const btn = document.getElementById('btn-trigger');
             if (btn && fh) {

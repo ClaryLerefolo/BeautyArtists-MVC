@@ -2,298 +2,77 @@
 @{
     Layout = "_ArtistLayout";
 }
+
 <style>
-
-    /* Container holding the stat cards */
-.dashboard-stats-grid {
-    display: grid;
-    /* Automatically creates columns that are at least 140px wide, 
-       splitting into a clean 2x2 grid on standard mobile screens */
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 16px;
-    width: 100%;
-    padding: 16px;
-    box-sizing: border-box;
-}
-
-/* Individual Card adjustment to ensure content centers neatly */
-.stat-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 20px 12px;
-    width: 100%; /* Spans the full available grid cell slot */
-}
-    /* THE GREETING BAR */
-    .greeting-bar {
-        background: #0d0d0d;
-        padding: 20px 30px;
-        margin-bottom: 30px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-radius: 4px;
-        border-bottom: 1px solid #1a1a1a;
-    }
-
-    .welcome-name {
-        color: #d4af37;
-        font-size: 2.2rem;
-        font-weight: 500;
-        margin: 0;
-    }
-
-    .notif-bell {
-        color: #d4af37;
-        font-size: 1.5rem;
-    }
-
-    /* VERTICAL INTEGRITY */
-    .stats-row {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 20px;
-    }
-
-    .vertical-rect {
-        background: #111;
-        border-radius: 25px;
-        padding: 60px 10px; /* Forces vertical shape */
-        text-align: center;
-        border: 1px solid #1a1a1a;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.9);
-    }
-
-    /* RED-ORANGE GLOWING ORBS */
-    <style >
-    /* LAYOUT BASE */
-    .dashboard-wrapper {
-        padding: 20px;
+    /* REMOVE TOP GAPS & LAYOUT BASE */
+    .dashboard-root {
+        padding: 5px 15px 20px 15px;
         background: #000;
         min-height: 100vh;
+        box-sizing: border-box;
     }
 
-    /* HEADER DIVIDER */
-    .greeting-banner {
-        background: #0a0a0a;
-        padding: 25px 35px;
-        border-radius: 8px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 40px;
-        border: 1px solid #1a1a1a;
-    }
-
-    .welcome-text {
-        color: #d4af37;
-        font-size: 2rem;
-        font-weight: 500;
-        margin: 0;
-    }
-
-    .bell-notif {
-        color: #d4af37;
-        font-size: 1.4rem;
-    }
-
-    /* GRID FOR CONSISTENCY */
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 25px;
-    }
-    /* COMPACT LAYOUT */
-    .dashboard-compact {
-        padding: 10px 20px;
-        background: #000;
-    }
-
-    /* SUSPENDED HEADER */
-    .suspended-greeting {
-        background: #0d0d0d;
-        padding: 15px 30px; /* Reduced height for conciseness */
-        margin: 0 0 25px 0; /* Creates that "suspended" air above the cards */
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-radius: 6px;
-        border: 1px solid #1a1a1a;
-    }
-
-    .gold-name {
-        color: #d4af37;
-        font-size: 1.7rem;
-        font-weight: 500;
-        margin: 0;
-    }
-
-    .bell-glow-icon {
-        color: #d4af37;
-        font-size: 1.2rem;
-    }
-
-    /* COMPACT GRID */
-    .compact-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 15px; /* Tighter gap */
-    }
-
-    .mini-glow-card {
-        background: #0d0d0d;
-        border-radius: 18px;
-        padding: 30px 10px; /* Much smaller vertical padding to prevent scrolling */
-        text-align: center;
-        border: 1px solid #221105;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.8);
-    }
-
-        .mini-glow-card:hover {
-            border-color: #ff4500;
-            box-shadow: 0 0 15px rgba(255, 69, 0, 0.4); /* Side glow integrity */
-        }
-
-    /* THE CARD BASE - STAYS CONCISE */
-    .mini-glow-card {
-        background: #0d0d0d;
-        border-radius: 18px;
-        padding: 30px 10px;
-        text-align: center;
-        /* Start with a dark reddish border for integrity */
-        border: 1px solid #2a1105;
-        transition: all 0.3s ease-in-out;
-        position: relative;
-        overflow: visible; /* Allows the glow to bleed out */
-    }
-
-        /* THE HOVER GLOW EFFECT */
-        .mini-glow-card:hover {
-            /* Change border to a brighter red-gold on hover */
-            border-color: #ff4500;
-            /* The specific reddish-gold glow */
-            box-shadow: 0 0 25px rgba(255, 69, 0, 0.5), 0 0 10px rgba(212, 175, 55, 0.2);
-            /* Slight scale for that 'premium' feel */
-            transform: translateY(-5px);
-        }
-
-    /* MINI ORBS */
-    .orb-small {
-        width: 55px;
-        height: 55px;
-        margin: 0 auto 15px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.4rem;
-        background: linear-gradient(180deg, #ff7b00 0%, #ff0000 100%);
-        box-shadow: 0 0 15px rgba(255, 69, 0, 0.5);
-        color: #fff;
-    }
-
-    .val-large {
-        font-size: 2.8rem;
-        font-weight: 800;
-        color: #fff;
-        line-height: 1;
-    }
-
-    .lab-small {
-        color: #666;
-        font-size: 0.85rem;
-        margin-top: 5px;
-        text-transform: capitalize;
-    }
-
-    .table-label-gold {
-        color: #d4af37;
-        margin-top: 30px;
-        font-weight: 600;
-        font-size: 1.3rem;
-    }
-
-    <style >
-    /* REMOVE TOP GAPS */
-    .dashboard-root {
-        padding-top: 5px; /* Pulls greeting close to the address bar */
-        background: #000;
-    }
-
-    /* HEADER BAR */
-    .suspended-header {
-        background: #0d0d0d;
-        padding: 15px 30px;
-        margin-bottom: 25px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-radius: 4px;
-        border: 1px solid #1a1a1a;
-    }
-
-    .welcome-name {
-        color: #d4af37;
-        font-size: 1.8rem;
-        font-weight: 500;
-        margin: 0;
-    }
-
-    .notif-bell-glow {
-        color: #d4af37;
-        font-size: 1.3rem;
-    }
-
-    /* UNIFORM GRID */
+    /* UNIFORM RESPONSIVE STATS GRID */
     .stats-card-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 15px;
+        /* Default: 2 equal columns on standard portrait mobile screens */
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     /* CARDS & HOVER GLOW */
     .stat-glow-card {
         background: #0d0d0d;
         border-radius: 18px;
-        padding: 30px 10px;
+        padding: 20px 10px; /* Balanced mobile padding */
         text-align: center;
         border: 1px solid #2a1105;
         transition: all 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-width: 0; /* Prevents text overflow layout distortion */
+        box-sizing: border-box;
     }
 
-        /* THE GLOW EFFECT */
+        /* THE HOVER EFFECT */
         .stat-glow-card:hover {
             border-color: #ff4500;
-            box-shadow: 0 0 25px rgba(255, 69, 0, 0.4); /* Hot side glow */
+            box-shadow: 0 0 25px rgba(255, 69, 0, 0.4);
             transform: translateY(-3px);
         }
 
     .orb-red-gold {
-        width: 55px;
-        height: 55px;
-        margin: 0 auto 20px;
+        width: 50px;
+        height: 50px;
+        margin: 0 auto 12px;
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.4rem;
+        font-size: 1.3rem;
         background: linear-gradient(180deg, #ff7b00 0%, #ff0000 100%);
-        box-shadow: 0 0 15px rgba(255, 69, 0, 0.5); /* Orb glow integrity */
+        box-shadow: 0 0 15px rgba(255, 69, 0, 0.5);
         color: #fff;
     }
 
     .stat-num {
-        font-size: 3rem;
+        font-size: 2.2rem; /* Adjusted slightly to cleanly fit double-digits or currency */
         font-weight: 800;
         color: #fff;
-        line-height: 1;
+        line-height: 1.1;
+        word-break: break-word;
     }
 
     .stat-tag {
         color: #666;
-        font-size: 0.85rem;
-        margin-top: 8px;
+        font-size: 0.8rem;
+        margin-top: 6px;
+        line-height: 1.2;
     }
 
     .recent-label-gold {
@@ -302,12 +81,132 @@
         font-weight: 600;
         font-size: 1.4rem;
     }
-</style>
+
+    /* LOWER SECTION GRID (TABLE & CHART) */
+    .dashboard-lower-grid {
+        display: grid;
+        grid-template-columns: 1fr; /* Stacks vertically on mobile portrait */
+        gap: 20px;
+        margin-top: 20px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .content-box-beauty {
+        background: #0d0d0d;
+        border: 1px solid #1a1a1a;
+        border-radius: 12px;
+        padding: 15px;
+        transition: 0.3s;
+        min-width: 0; /* Prevents overflow issues */
+    }
+
+        .content-box-beauty:hover {
+            border-color: #ff4500;
+            box-shadow: 0 0 15px rgba(255, 69, 0, 0.2);
+        }
+
+    .box-title-gold {
+        color: #d4af37;
+        font-size: 1.1rem;
+        margin-bottom: 15px;
+        font-weight: 600;
+    }
+
+    /* COMPACT TABLE STYLE */
+    .beauty-table-compact {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 6px;
+    }
+
+        .beauty-table-compact th {
+            color: #555;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            padding-bottom: 5px;
+            text-align: left;
+        }
+
+        .beauty-table-compact td {
+            background: #111;
+            padding: 10px;
+            color: #fff;
+            font-size: 0.85rem;
+            border-top: 1px solid #1a1a1a;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+            .beauty-table-compact td:first-child {
+                border-left: 1px solid #1a1a1a;
+                border-radius: 8px 0 0 8px;
+            }
+
+            .beauty-table-compact td:last-child {
+                border-right: 1px solid #1a1a1a;
+                border-radius: 0 8px 8px 0;
+            }
+
+    /* PENDING STATUS GLOW */
+    .status-pill {
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: bold;
+        display: inline-block;
+    }
+
+        .status-pill.pending {
+            background: rgba(255, 123, 0, 0.1);
+            color: #ff7b00;
+            border: 1px solid #ff7b00;
+        }
+
+    .chart-wrapper {
+        position: relative;
+        height: 200px;
+        width: 100%;
+    }
+
+    .empty-dashboard-state {
+        text-align: center;
+        padding: 30px;
+        color: #555;
+        font-style: italic;
+    }
+
+    /* MEDIA QUERIES FOR LARGER VIEWPORTS (Landscape Mobiles, Tablets, Desktops) */
+    @media (min-width: 650px) {
+        .stats-card-grid
+
+    {
+        /* Smooth transitions out to 4 columns side by side when space permits */
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+    }
+
+    .stat-glow-card {
+        padding: 30px 10px;
+    }
+
+    .stat-num {
+        font-size: 2.8rem;
+    }
+
+    }
+
+    @media (min-width: 992px) {
+        .dashboard-lower-grid
+
+    {
+        /* Split layout for broad display fields */
+        grid-template-columns: 1.5fr 1fr;
+    }
+
+    }
 </style>
 
 <div class="dashboard-root">
-  
-
     <div class="stats-card-grid">
         <div class="stat-glow-card">
             <div class="orb-red-gold"><i class="bi bi-scissors"></i></div>
@@ -334,93 +233,56 @@
         </div>
     </div>
 
-    <h3 class="recent-label-gold">Recent Appointments</h3>
-</div
-<div class="dashboard-lower-grid">
-    <div class="content-box-beauty">
-        <h3 class="box-title-gold">Recent Appointments</h3>
-        
-        @if (Model.RecentAppointments != null && Model.RecentAppointments.Any())
-        {
-            <table class="beauty-table-compact">
-                <thead>
-                    <tr>
-                        <th>Client</th>
-                        <th>Service</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var appt in Model.RecentAppointments)
-                    {
-                        <tr>
-                            <td><strong>@appt.ClientName</strong></td>
-                            <td>@appt.ServiceName</td>
-                            <td>@appt.AppointmentDate.ToString("dd MMM")</td>
-                            <td>
-                                <span class="status-pill @appt.Status.ToLower()">
-                                    @appt.Status
-                                </span>
-                            </td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        }
-        else
-        {
-            <div class="empty-dashboard-state">
-                <p>No appointments booked yet.</p>
-            </div>
-        }
-    </div>
+    <div class="dashboard-lower-grid">
+        <div class="content-box-beauty">
+            <h3 class="box-title-gold">Recent Appointments</h3>
 
-    <div class="content-box-beauty">
-        <h3 class="box-title-gold">Earnings Trend</h3>
-        <div class="chart-wrapper">
-            <canvas id="earningsChart"></canvas>
+            @if (Model.RecentAppointments != null && Model.RecentAppointments.Any())
+            {
+                <div style="overflow-x: auto;">
+                    <table class="beauty-table-compact">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th>Service</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var appt in Model.RecentAppointments)
+                            {
+                                <tr>
+                                    <td><strong>@appt.ClientName</strong></td>
+                                    <td>@appt.ServiceName</td>
+                                    <td>@appt.AppointmentDate.ToString("dd MMM")</td>
+                                    <td>
+                                        <span class="status-pill @appt.Status.ToLower()">
+                                            @appt.Status
+                                        </span>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="empty-dashboard-state">
+                    <p>No appointments booked yet.</p>
+                </div>
+            }
+        </div>
+
+        <div class="content-box-beauty">
+            <h3 class="box-title-gold">Earnings Trend</h3>
+            <div class="chart-wrapper">
+                <canvas id="earningsChart"></canvas>
+            </div>
         </div>
     </div>
 </div>
-
-<style>
-    .dashboard-lower-grid {
-        display: grid;
-        grid-template-columns: 1.5fr 1fr;
-        gap: 20px;
-        margin-top: 20px;
-    }
-
-    .content-box-beauty {
-        background: #0d0d0d;
-        border: 1px solid #1a1a1a;
-        border-radius: 12px;
-        padding: 15px;
-        transition: 0.3s;
-    }
-
-    .content-box-beauty:hover {
-        border-color: #ff4500;
-        box-shadow: 0 0 15px rgba(255, 69, 0, 0.2);
-    }
-
-    .box-title-gold { color: #d4af37; font-size: 1.1rem; margin-bottom: 15px; font-weight: 600; }
-
-    /* COMPACT TABLE STYLE */
-    .beauty-table-compact { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
-    .beauty-table-compact th { color: #555; font-size: 0.75rem; text-transform: uppercase; padding-bottom: 5px; text-align: left; }
-    .beauty-table-compact td { background: #111; padding: 10px; color: #fff; font-size: 0.85rem; border-top: 1px solid #1a1a1a; border-bottom: 1px solid #1a1a1a; }
-    .beauty-table-compact td:first-child { border-left: 1px solid #1a1a1a; border-radius: 8px 0 0 8px; }
-    .beauty-table-compact td:last-child { border-right: 1px solid #1a1a1a; border-radius: 0 8px 8px 0; }
-
-    /* PENDING STATUS GLOW */
-    .status-pill { padding: 3px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
-    .status-pill.pending { background: rgba(255, 123, 0, 0.1); color: #ff7b00; border: 1px solid #ff7b00; }
-
-    .chart-wrapper { position: relative; height: 200px; width: 100%; }
-    .empty-dashboard-state { text-align: center; padding: 30px; color: #333; font-style: italic; }
-</style>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
