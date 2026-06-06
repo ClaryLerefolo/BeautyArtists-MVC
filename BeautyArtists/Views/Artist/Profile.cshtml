@@ -4,6 +4,32 @@
 }
 
 <style>
+
+    /* Container holding the avatar and the text details */
+    .profile-info-container {
+        display: flex;
+        flex-direction: column; /* Stack avatar above details on mobile */
+        align-items: center; /* Center the elements horizontally */
+        gap: 24px;
+        width: 100%;
+    }
+
+    .profile-details-text {
+        width: 100%;
+        padding: 0 16px; /* Gives the text breathing room from the screen edge */
+        text-align: left; /* Keeps labels cleanly aligned */
+    }
+
+    /* Switch back to side-by-side row only on larger screens (Tablets/Desktops) */
+    @@media (min-width: 768px) {
+        .profile-info-container
+
+    {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+
+    }
     .profile-container {
         padding: 20px 0;
         background-color: transparent;

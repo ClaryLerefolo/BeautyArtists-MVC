@@ -933,7 +933,30 @@
         flex: 1;
     }
 
+        .appointment-options-container {
+            display: flex;
+            flex-direction: column; /* Stacks them vertically on mobile portrait */
+            gap: 16px; /* Keeps a clean spacing between the cards */
+            width: 100%;
+        }
+        /* When the screen is wider (like landscape or tablets) */
+        @@media (min-width: 480px) {
+            .appointment-options-container
+
+    {
+        flex-direction: row; /* Aligns them side-by-side */
     }
+
+            .option-card {
+                flex: 1; /* Makes sure cards take up equal space when side-by-side */
+                position: relative; /* Useful if your selection dot is absolutely positioned */
+                display: flex;
+                align-items: center; /* Vertically aligns icon and text if layout is horizontal */
+                padding: 16px;
+                border-radius: 12px;
+                min-height: 100px; /* Prevents the card from collapsing vertically */
+                box-sizing: border-box;
+            }
 </style>
 
 @section Scripts {
