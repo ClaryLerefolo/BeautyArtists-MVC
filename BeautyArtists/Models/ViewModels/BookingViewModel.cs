@@ -23,5 +23,12 @@ namespace BeautyArtists.Models.ViewModels
 
         [StringLength(1000)]
         public string? Notes { get; set; }
+
+        [Required(ErrorMessage = "Please select whether you want a Walk-In or House Call.")]
+        public LocationType SelectedLocationType { get; set; }
+
+        public string? HouseCallAddress { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
     }
 }

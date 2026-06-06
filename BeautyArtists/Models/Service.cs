@@ -28,6 +28,7 @@ namespace BeautyArtists.Models
 
         [Required]
         [Range(0, 10000)]
+        [Column(TypeName = "decimal(18,2)")]
         [Display(Name = "Base Price (ZAR)")]
   
         public decimal BasePrice { get; set; } // Admin-suggested base price

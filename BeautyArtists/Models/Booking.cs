@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BeautyArtists.Models
 {
@@ -15,25 +16,34 @@ namespace BeautyArtists.Models
 
         public DateTime BookingDate { get; set; }
 
-
         public DateTime AppointmentDate { get; set; }
 
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal TotalAmount { get; set; } // Base Service Price + TransportCost
 
         [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal TransportCost { get; set; } = 0; //Set by Artist later for house calls.
 
-        public decimal TotalAmount { get; set; }
+        //Location Map Additions
+        [Required(ErrorMessage = "Please select whether you want a Walk-In or House Call.")]
+        public LocationType SelectLocationType { get; set; } //WalkIn or HouseCall
 
+        public string? HouseCallAddress { get; set; } //The descriptive text address
+        public double? Latitude { get; set; }//Lat coordinate for the map pin
+        public double? Longitude { get; set; }// Lng coordinate for the pin.
         public string? Notes { get; set; }
         public string? ArtistNotes { get; set; }   // Artist's comment when confirming/rejecting
         public string? ClientNotes { get; set; }    // Client's reason when cancelling/rescheduling
         public bool HasRescheduled { get; set; } = false;
 
         // Navigation property
-        public virtual ApplicationUser Customer { get; set; }
-        public virtual UserService UserService { get; set; }
+        public virtual ApplicationUser Customer { get; set; } = default!;
+        public virtual UserService UserService { get; set; } = default!;
 
         public int? AvailabilitySlotId { get; set; }
-        public virtual ArtistAvailability AvailabilitySlot { get; set; }
+        public virtual ArtistAvailability AvailabilitySlot { get; set; } = default!;
 
         // Enum to represent different booking statuses
         public BookingStatus Status { get; set; }
@@ -47,5 +57,14 @@ namespace BeautyArtists.Models
             Cancelled,    // Booking has been cancelled
             Rejected
         }
+    } // <-- Booking class ends here
+
+    // ADDED THIS RIGHT HERE: This is what was missing!
+    public enum LocationType
+    {
+        [Display(Name = "Walk-In (At Salon/Studio)")]
+        WalkIn,
+        [Display(Name = "House Call (Artist Travels to You)")]
+        HouseCall
     }
 }

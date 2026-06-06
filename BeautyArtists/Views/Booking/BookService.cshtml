@@ -1,8 +1,12 @@
-﻿@model BeautyArtists.Models.ViewModels.BookingViewModel
+﻿@using BeautyArtists.Models
+@model BeautyArtists.Models.ViewModels.BookingViewModel
 @{
     ViewData["Title"] = "Book Service";
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 
 <div class="book-page">
 
@@ -37,50 +41,45 @@
             <input type="hidden" name="AvailabilitySlotId" id="selectedSlotId" value="0" />
             <input type="hidden" name="PreferredDate" id="selectedDate" value="" />
 
+            <input type="hidden" name="Latitude" id="latOutput" value="" />
+            <input type="hidden" name="Longitude" id="lngOutput" value="" />
+
             @* ── STEP 1: CALENDAR ── *@
             <div class="book-section">
                 <div class="book-step-header">
                     <div class="book-step-num">1</div>
                     <div>
-                        <h2 class="book-step-title">Choose a Date & Time</h2>
+                        <h2 class="book-step-title">Choose a Date &amp; Time</h2>
                         <p class="book-step-sub">Gold dates have available slots — click to see times</p>
                     </div>
                 </div>
 
-                @* Loading *@
                 <div id="calLoading" class="slots-loading">
                     <div class="slots-spinner"></div>
                     <span>Loading availability...</span>
                 </div>
 
-                @* No slots *@
                 <div id="calEmpty" class="slots-empty" style="display:none">
                     <div class="slots-empty-icon">📅</div>
                     <p>This artist has no available slots right now.</p>
                     <small>Check back soon or contact them directly.</small>
                 </div>
 
-                @* Calendar *@
                 <div id="calendarWrap" style="display:none">
-
-                    @* Month nav *@
                     <div class="cal-nav">
                         <button type="button" class="cal-nav-btn" id="prevMonth">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2.5">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <polyline points="15,18 9,12 15,6" />
                             </svg>
                         </button>
                         <span class="cal-month-label" id="monthLabel"></span>
                         <button type="button" class="cal-nav-btn" id="nextMonth">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2.5">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <polyline points="9,18 15,12 9,6" />
                             </svg>
                         </button>
                     </div>
 
-                    @* Day headers *@
                     <div class="cal-grid cal-headers">
                         <div class="cal-day-header">Sun</div>
                         <div class="cal-day-header">Mon</div>
@@ -91,14 +90,11 @@
                         <div class="cal-day-header">Sat</div>
                     </div>
 
-                    @* Days *@
                     <div class="cal-grid" id="calDays"></div>
 
-                    @* Time slots for selected date *@
                     <div id="timeSlotSection" style="display:none">
                         <div class="cal-time-header">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                                 stroke="#FFD700" stroke-width="2">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="2">
                                 <circle cx="12" cy="12" r="10" />
                                 <polyline points="12,6 12,12 16,14" />
                             </svg>
@@ -106,7 +102,6 @@
                         </div>
                         <div class="time-slots-grid" id="timeSlotsGrid"></div>
                     </div>
-
                 </div>
 
                 <div id="slotError" class="book-field-error" style="display:none">
@@ -114,23 +109,73 @@
                 </div>
             </div>
 
-            @* ── STEP 2: NOTES ── *@
+            @* ── SECTION 2: SELECT APPOINTMENT LOCATION ── *@
             <div class="book-section">
                 <div class="book-step-header">
                     <div class="book-step-num">2</div>
+                    <div>
+                        <h2 class="book-step-title">Select Appointment Location</h2>
+                        <p class="book-step-sub">Choose between a salon studio visit or mobile home service</p>
+                    </div>
+                </div>
+
+                <div class="location-toggle-group">
+                    <div class="location-card @(Model.SelectedLocationType == LocationType.WalkIn ? "active" : "")" id="cardWalkIn" onclick="updateLocationFlow('WalkIn')">
+                        <input type="radio" name="SelectedLocationType" value="WalkIn" id="locWalkIn" @(Model.SelectedLocationType == LocationType.WalkIn ? "checked" : "") />
+                        <div class="loc-card-content">
+                            <div class="loc-icon">🏢</div>
+                            <div class="loc-details">
+                                <span class="loc-title">Walk-In</span>
+                                <span class="loc-desc">At the artist's studio/salon.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="location-card @(Model.SelectedLocationType == LocationType.HouseCall ? "active" : "")" id="cardHouseCall" onclick="updateLocationFlow('HouseCall')">
+                        <input type="radio" name="SelectedLocationType" value="HouseCall" id="locHouseCall" @(Model.SelectedLocationType == LocationType.HouseCall ? "checked" : "") />
+                        <div class="loc-card-content">
+                            <div class="loc-icon">📍</div>
+                            <div class="loc-details">
+                                <span class="loc-title">House Call</span>
+                                <span class="loc-desc">Artist travels out to your doorstep.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <span asp-validation-for="SelectedLocationType" class="text-danger small"></span>
+
+                <div id="houseCallWrapper" class="housecall-container" style="display: none; margin-top: 20px;">
+                    <div class="map-instruction">
+                        📍 Search your address below or tap directly on the map to drop your marker pin:
+                    </div>
+
+                    <div id="leafletMap" class="map-frame"></div>
+
+                    <div class="address-input-wrapper">
+                        <label class="book-field-label">Descriptive Street Address / Complex Unit No:</label>
+                        <textarea name="HouseCallAddress" id="textAddress" class="book-textarea" rows="2" placeholder="e.g. Unit 42, Serengeti Estates, 12 Mockingbird Lane..."></textarea>
+                        <span asp-validation-for="HouseCallAddress" class="text-danger small"></span>
+                    </div>
+
+                    <div id="mapValidationError" class="book-field-error" style="display:none">
+                        ⚠ Please pinpoint your location on the map and write down an address to request a House Call.
+                    </div>
+                </div>
+            </div>
+
+            @* ── STEP 3: NOTES ── *@
+            <div class="book-section">
+                <div class="book-step-header">
+                    <div class="book-step-num">3</div>
                     <div>
                         <h2 class="book-step-title">Any Special Requests?</h2>
                         <p class="book-step-sub">Optional — tell the artist anything they should know</p>
                     </div>
                 </div>
-                <textarea name="Notes"
-                          class="book-textarea"
-                          placeholder="e.g. I prefer natural looks, I have sensitive skin..."
-                          maxlength="1000"
-                          rows="4"></textarea>
+                <textarea name="Notes" class="book-textarea" placeholder="e.g. I prefer natural looks, I have sensitive skin..." maxlength="1000" rows="3"></textarea>
             </div>
 
-            @* ── STEP 3: SUMMARY ── *@
+            @* ── STEP 4: SUMMARY ── *@
             <div class="book-section book-summary" id="bookSummary" style="display:none">
                 <div class="book-summary-row">
                     <span>Service</span>
@@ -141,23 +186,28 @@
                     <strong>@Model.ArtistName</strong>
                 </div>
                 <div class="book-summary-row">
-                    <span>Date & Time</span>
+                    <span>Appointment Type</span>
+                    <strong id="summaryLocationType">Walk-In</strong>
+                </div>
+                <div class="book-summary-row">
+                    <span>Date &amp; Time</span>
                     <strong id="summarySlot">—</strong>
                 </div>
                 <div class="book-summary-row book-summary-total">
-                    <span>Total</span>
+                    <span>Base Service Total</span>
                     <strong>R @Model.Price.ToString("N0")</strong>
+                </div>
+                <div class="travel-cost-disclaimer" id="travelDisclaimer" style="display: none;">
+                    ℹ️ <em>Note: Transport costs for house calls are calculated and updated manually by your artist when verifying requests.</em>
                 </div>
             </div>
 
             <button type="submit" class="book-confirm-btn">
-                <span>Confirm Booking</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2.5">
+                <span>Confirm Booking Request</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <polyline points="20,6 9,17 4,12" />
                 </svg>
             </button>
-
         </form>
     </div>
 </div>
@@ -305,6 +355,146 @@
         margin: 0;
     }
 
+    /* ── LOCATION SELECTOR CARDS ── */
+    .location-toggle-group {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .location-card {
+        background: #111;
+        border: 1.5px solid rgba(255,215,0,0.1);
+        border-radius: 14px;
+        padding: 16px;
+        cursor: pointer;
+        display: block;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+
+        .location-card input[type="radio"] {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            accent-color: #FFD700;
+        }
+
+        .location-card.active {
+            border-color: #FFD700;
+            background: #161204;
+            box-shadow: 0 0 15px rgba(255,215,0,0.15);
+        }
+
+    .loc-card-content {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .loc-icon {
+        font-size: 1.8rem;
+    }
+
+    .loc-details {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .loc-title {
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.95rem;
+    }
+
+    .loc-desc {
+        color: rgba(255,255,255,0.4);
+        font-size: 0.75rem;
+        margin-top: 2px;
+    }
+
+    /* ── MAP / DESIGN FRAME ── */
+    .housecall-container {
+        animation: fadeIn 0.3s ease-in-out;
+    }
+
+    .map-instruction {
+        font-size: 0.8rem;
+        color: rgba(255,215,0,0.8);
+        margin-bottom: 10px;
+    }
+
+    .map-frame {
+        height: 380px;
+        width: 100%;
+        background: #151515;
+        border-radius: 12px;
+        border: 1px solid rgba(255,215,0,0.2);
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    .book-field-label {
+        display: block;
+        color: rgba(255,255,255,0.6);
+        font-size: 0.82rem;
+        margin-bottom: 8px;
+    }
+
+    /* ── CRITICAL BRANDED GEOCODER FIXES ── */
+    .leaflet-control-geocoder {
+        background: #111 !important;
+        border: 1.5px solid #FFD700 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
+        color: #fff !important;
+        position: relative !important;
+    }
+
+    .leaflet-control-geocoder-form input {
+        background: #111 !important;
+        color: #fff !important;
+        font-size: 0.85rem !important;
+        padding: 8px 12px !important;
+        border: none !important;
+        outline: none !important;
+        width: 240px !important;
+    }
+
+    /* Clean White Suggestions Panel */
+    .leaflet-control-geocoder-alternatives {
+        background-color: #ffffff !important;
+        border: 1px solid #ccc !important;
+        list-style: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        max-height: 180px !important;
+        overflow-y: auto !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        position: relative !important;
+        z-index: 99999 !important;
+        border-radius: 0 0 8px 8px !important;
+    }
+
+        /* Explicit text styling for list alternatives */
+        .leaflet-control-geocoder-alternatives li {
+            padding: 10px 12px !important;
+            cursor: pointer !important;
+            color: #222222 !important; /* Sharp, dark readable text */
+            font-weight: 500 !important;
+            border-bottom: 1px solid #eeeeee !important;
+            font-size: 0.85rem !important;
+            text-align: left !important;
+        }
+
+            /* Hover style for selection lists */
+            .leaflet-control-geocoder-alternatives li:hover {
+                background-color: #f5f5f5 !important;
+                color: #000000 !important;
+            }
+
     /* ── LOADING / EMPTY ── */
     .slots-loading {
         display: flex;
@@ -325,9 +515,27 @@
     }
 
     @@keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
+        to
+
+    {
+        transform: rotate(360deg);
+    }
+
+    }
+
+    @@keyframes fadeIn {
+        from
+
+    {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
     }
 
     .slots-empty {
@@ -530,8 +738,8 @@
         padding: 14px 16px;
         font-size: 0.9rem;
         resize: vertical;
-        transition: border-color 0.2s;
         outline: none;
+        transition: border-color 0.2s;
     }
 
         .book-textarea:focus {
@@ -579,6 +787,16 @@
         font-size: 1.1rem;
     }
 
+    .travel-cost-disclaimer {
+        font-size: 0.75rem;
+        color: rgba(255,215,0,0.6);
+        background: rgba(255,215,0,0.04);
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 10px;
+        line-height: 1.4;
+    }
+
     /* ── CONFIRM ── */
     .book-confirm-btn {
         width: 100%;
@@ -617,28 +835,45 @@
 </style>
 
 @section Scripts {
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
     <script>
         const artistId = '@Model.ArtistId';
         let allSlots = [];
         let selectedSlot = null;
         let currentYear, currentMonth;
 
-        // ── FETCH ALL SLOTS ──
+        // Map Framework Configuration
+        let map = null;
+        let mapMarker = null;
+
+        // ─── INITIALIZATION & DELEGATION ON LOAD ───
+        document.addEventListener("DOMContentLoaded", function () {
+            // Read URL to see if bookingType was pre-selected from catalogue
+            const urlParams = new URLSearchParams(window.location.search);
+            const bookingType = urlParams.get('bookingType');
+
+            if (bookingType === 'HouseCall') {
+                updateLocationFlow('HouseCall');
+            } else {
+                updateLocationFlow('WalkIn');
+            }
+        });
+
+        // FETCH TIMING LOGIC
         fetch(`/ArtistAvailability/GetSlots?artistId=${artistId}`)
             .then(res => res.json())
             .then(slots => {
                 document.getElementById('calLoading').style.display = 'none';
-
                 if (!slots || slots.length === 0) {
                     document.getElementById('calEmpty').style.display = 'block';
                     return;
                 }
-
                 allSlots = slots;
                 const now = new Date();
                 currentYear = now.getFullYear();
                 currentMonth = now.getMonth();
-
                 document.getElementById('calendarWrap').style.display = 'block';
                 renderCalendar(currentYear, currentMonth);
             })
@@ -647,38 +882,48 @@
                 document.getElementById('calEmpty').style.display = 'block';
             });
 
-        // ── RENDER CALENDAR ──
+        // MONTH NAV BUTTONS
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar(currentYear, currentMonth);
+        });
+
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar(currentYear, currentMonth);
+        });
+
         function renderCalendar(year, month) {
             const monthNames = ['January','February','March','April','May','June',
                                 'July','August','September','October','November','December'];
             document.getElementById('monthLabel').textContent = `${monthNames[month]} ${year}`;
-
             const grid = document.getElementById('calDays');
             grid.innerHTML = '';
 
-            // Dates that have slots this month
-            const availDates = new Set(
-                allSlots
-                    .filter(s => {
-                        const d = new Date(s.date + 'T00:00:00');
-                        return d.getFullYear() === year && d.getMonth() === month;
-                    })
-                    .map(s => s.date)
-            );
+            const availDates = new Set(allSlots.filter(s => {
+                const d = new Date(s.date + 'T00:00:00');
+                return d.getFullYear() === year && d.getMonth() === month;
+            }).map(s => s.date));
 
             const firstDay = new Date(year, month, 1).getDay();
             const daysInMonth = new Date(year, month + 1, 0).getDate();
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
-            // Empty cells
             for (let i = 0; i < firstDay; i++) {
                 const empty = document.createElement('div');
                 empty.className = 'cal-day empty';
                 grid.appendChild(empty);
             }
 
-            // Day cells
             for (let d = 1; d <= daysInMonth; d++) {
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const cellDate = new Date(year, month, d);
@@ -698,94 +943,211 @@
                 } else {
                     cell.className = 'cal-day no-slot';
                 }
-
                 grid.appendChild(cell);
             }
-
-            // Hide time slots when month changes
             document.getElementById('timeSlotSection').style.display = 'none';
         }
 
-        // ── SELECT DATE ──
         function selectDate(dateStr, cell, day, month, year) {
-            // Highlight selected day
             document.querySelectorAll('.cal-day.has-slot').forEach(c => c.classList.remove('selected'));
             cell.classList.add('selected');
 
-            // Get slots for this date
             const daySlots = allSlots.filter(s => s.date === dateStr);
+            const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            const formattedDateLabel = `${monthNames[month]} ${day}, ${year}`;
+            document.getElementById('selectedDateLabel').textContent = formattedDateLabel;
 
-            // Update label
-            const monthNames = ['Jan','Feb','Mar','Apr','May','Jun',
-                                'Jul','Aug','Sep','Oct','Nov','Dec'];
-            document.getElementById('selectedDateLabel').textContent =
-                `${monthNames[month]} ${day}, ${year}`;
-
-            // Render time buttons
             const grid = document.getElementById('timeSlotsGrid');
             grid.innerHTML = '';
 
             daySlots.forEach(slot => {
                 const parts = slot.display.split(': ');
                 const timePart = parts[1] || slot.display;
-
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'time-slot-btn';
-                btn.innerHTML = `
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                         stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12,6 12,12 16,14"/>
-                    </svg>
-                    ${timePart}
-                `;
+                btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12,6 12,12 16,14"></polyline></svg><span>${timePart}</span>`;
 
-                btn.addEventListener('click', () => selectTime(btn, slot));
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+
+                    // Update hidden forms
+                    document.getElementById('selectedSlotId').value = slot.id;
+                    document.getElementById('selectedDate').value = slot.date;
+
+                    // Update Summary interface
+                    document.getElementById('summarySlot').textContent = `${formattedDateLabel} at ${timePart}`;
+                    checkSummaryVisibility();
+                });
+
                 grid.appendChild(btn);
             });
-
             document.getElementById('timeSlotSection').style.display = 'block';
-
-            // Clear previously selected time
-            selectedSlot = null;
-            document.getElementById('selectedSlotId').value = '0';
-            document.getElementById('bookSummary').style.display = 'none';
-            document.getElementById('slotError').style.display = 'none';
         }
 
-        // ── SELECT TIME ──
-        function selectTime(btn, slot) {
-            document.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('selected'));
-            btn.classList.add('selected');
-            selectedSlot = slot;
+        // LOCATION BLOCK CONTROL
+        function updateLocationFlow(type) {
+            document.querySelectorAll('.location-card').forEach(c => c.classList.remove('active'));
 
-            document.getElementById('selectedSlotId').value = slot.id;
-            document.getElementById('selectedDate').value = slot.date + 'T00:00:00';
-            document.getElementById('summarySlot').textContent = slot.display;
-            document.getElementById('bookSummary').style.display = 'block';
-            document.getElementById('slotError').style.display = 'none';
+            if (type === 'WalkIn') {
+                document.getElementById('cardWalkIn').classList.add('active');
+                document.getElementById('locWalkIn').checked = true;
+                document.getElementById('houseCallWrapper').style.display = 'none';
+                document.getElementById('summaryLocationType').textContent = "Walk-In";
+                document.getElementById('travelDisclaimer').style.display = 'none';
+            }
+            else {
+                document.getElementById('cardHouseCall').classList.add('active');
+                document.getElementById('locHouseCall').checked = true;
+                document.getElementById('houseCallWrapper').style.display = 'block';
+                document.getElementById('summaryLocationType').textContent = "House Call";
+                document.getElementById('travelDisclaimer').style.display = 'block';
+
+                if (!map) {
+                    setTimeout(() => {
+                        // Centered on region coordinates
+                        map = L.map('leafletMap').setView([-26.8649, 26.6570], 13);
+
+                        // Light map style base layer
+                        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                            attribution: '&copy; OpenStreetMap &copy; CARTO'
+                        }).addTo(map);
+
+                        // Click directly on map to drop pin
+                        map.on('click', function(e) {
+                            updateMarker(e.latlng.lat, e.latlng.lng);
+                        });
+
+                        // Integrated Branded Geocoder Search Control
+                        const geocoder = L.Control.Geocoder.nominatim();
+                        const searchControl = L.Control.geocoder({
+                            geocoder: geocoder,
+                            defaultMarkGeocode: false,
+                            placeholder: "Search suburbs, streets, estates..."
+                        }).addTo(map);
+
+                        searchControl.on('markgeocode', function(e) {
+                            const bbox = e.geocode.bbox;
+                            const poly = L.polygon([
+                                bbox.getSouthWest(),
+                                bbox.getNorthWest(),
+                                bbox.getNorthEast(),
+                                bbox.getSouthEast()
+                            ]);
+                            map.fitBounds(poly.getBounds());
+                            updateMarker(e.geocode.center.lat, e.geocode.center.lng);
+
+                            // ─── IMPROVED ADDRESS EXTRACTION WITH HOUSE NUMBERS ───
+                            let fullAddress = e.geocode.name;
+                            if (e.geocode.properties && e.geocode.properties.address) {
+                                const addr = e.geocode.properties.address;
+                                const houseNumber = addr.house_number || addr.street_number || addr.building || '';
+                                const road = addr.road || addr.street || '';
+                                const suburb = addr.suburb || addr.neighbourhood || '';
+                                const city = addr.city || addr.town || '';
+
+                                if (houseNumber && road) {
+                                    fullAddress = `${houseNumber} ${road}`;
+                                    if (suburb) fullAddress += `, ${suburb}`;
+                                    if (city && city !== suburb) fullAddress += `, ${city}`;
+                                }
+                            }
+
+                            const addrInput = document.getElementById('textAddress');
+                            addrInput.value = fullAddress;
+                        });
+
+                        // STOPS SYSTEM FROM INTERFERING WITH DROPDOWN LIST SCROLLING
+                        const geocoderContainer = searchControl.getContainer();
+                        if (geocoderContainer) {
+                            L.DomEvent.disableScrollPropagation(geocoderContainer);
+                            L.DomEvent.disableClickPropagation(geocoderContainer);
+
+                            const stopMapInterference = (e) => {
+                                e.stopPropagation();
+                            };
+
+                            geocoderContainer.addEventListener('wheel', stopMapInterference, { passive: false });
+                            geocoderContainer.addEventListener('mousewheel', stopMapInterference, { passive: false });
+                            geocoderContainer.addEventListener('DOMMouseScroll', stopMapInterference, { passive: false });
+                            geocoderContainer.addEventListener('touchmove', stopMapInterference, { passive: false });
+                            geocoderContainer.addEventListener('mousedown', stopMapInterference);
+                            geocoderContainer.addEventListener('mouseup', stopMapInterference);
+                        }
+
+                        // Force tile load calculation since container layout swapped sizes
+                        if (map) {
+                            map.invalidateSize();
+                        }
+                    }, 50);
+                } else {
+                    // Fallback refresh logic for existing instances toggled back open
+                    setTimeout(() => {
+                        if (map) {
+                            map.invalidateSize();
+                        }
+                    }, 50);
+                }
+            }
+            checkSummaryVisibility();
         }
 
-        // ── MONTH NAV ──
-        document.getElementById('prevMonth').addEventListener('click', () => {
-            currentMonth--;
-            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-            renderCalendar(currentYear, currentMonth);
-        });
+        function updateMarker(lat, lng) {
+            document.getElementById('latOutput').value = lat;
+            document.getElementById('lngOutput').value = lng;
+            document.getElementById('mapValidationError').style.display = 'none';
 
-        document.getElementById('nextMonth').addEventListener('click', () => {
-            currentMonth++;
-            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-            renderCalendar(currentYear, currentMonth);
-        });
+            if (mapMarker) {
+                mapMarker.setLatLng([lat, lng]);
+            } else {
+                mapMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                mapMarker.on('dragend', function(e) {
+                    const changedPos = mapMarker.getLatLng();
+                    document.getElementById('latOutput').value = changedPos.lat;
+                    document.getElementById('lngOutput').value = changedPos.lng;
+                });
+            }
+        }
 
-        // ── FORM VALIDATION ──
+        function checkSummaryVisibility() {
+            const hasSlot = parseInt(document.getElementById('selectedSlotId').value) > 0;
+            if (hasSlot) {
+                document.getElementById('bookSummary').style.display = 'block';
+            }
+        }
+
+        // CLIENT-SIDE GUARD SUBMISSION VALIDATION
         document.getElementById('bookingForm').addEventListener('submit', function(e) {
-            if (!selectedSlot) {
-                e.preventDefault();
+            let isValid = true;
+
+            // 1. Slot check
+            const slotId = parseInt(document.getElementById('selectedSlotId').value);
+            if (!slotId || slotId <= 0) {
                 document.getElementById('slotError').style.display = 'block';
-                document.getElementById('slotError').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                document.getElementById('slotError').scrollIntoView({ behavior: 'smooth' });
+                isValid = false;
+            } else {
+                document.getElementById('slotError').style.display = 'none';
+            }
+
+            // 2. House call check
+            const isHouseCall = document.getElementById('locHouseCall').checked;
+            if (isHouseCall) {
+                const lat = document.getElementById('latOutput').value;
+                const lng = document.getElementById('lngOutput').value;
+                const addressStr = document.getElementById('textAddress').value.trim();
+
+                if (!lat || !lng || !addressStr) {
+                    document.getElementById('mapValidationError').style.display = 'block';
+                    isValid = false;
+                } else {
+                    document.getElementById('mapValidationError').style.display = 'none';
+                }
+            }
+
+            if (!isValid) {
+                e.preventDefault();
             }
         });
     </script>

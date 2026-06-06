@@ -1,0 +1,1 @@
+Server=tcp:beautyinredandgoldserver.database.windows.net,1433;Initial Catalog=BeautyInRedAndGoldDB;Persist Security Info=False;User ID=dbadmin;Password=773966Clary;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;

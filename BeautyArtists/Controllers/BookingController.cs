@@ -35,7 +35,7 @@ namespace BeautyArtists.Controllers
 
         // GET: Booking/BookService
         [Authorize]
-        public async Task<IActionResult> BookService(int userServiceId)
+        public async Task<IActionResult> BookService(int userServiceId, string bookingType)
         {
             var userService = await _context.UserServices
                 .Include(us => us.Service)
@@ -50,6 +50,14 @@ namespace BeautyArtists.Controllers
                 ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
                 : userService.Artist?.UserName ?? "Pro Artist";
 
+            // Parse the incoming string bookingType parameter ("WalkIn" or "HouseCall") 
+            // into your existing LocationType enum. If missing or invalid, default to WalkIn.
+            LocationType selectedLocation = LocationType.WalkIn;
+            if (!string.IsNullOrEmpty(bookingType) && Enum.TryParse(bookingType, true, out LocationType parsedType))
+            {
+                selectedLocation = parsedType;
+            }
+
             var model = new BookingViewModel
             {
                 UserServiceId = userServiceId,
@@ -59,7 +67,10 @@ namespace BeautyArtists.Controllers
                 ArtistId = userService.ArtistId,  // ← CRITICAL for slot fetching
                 ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl
                                        ?? "/images/default-profile.png",
-                CategoryName = userService.Service?.ServiceCategory?.Name
+                CategoryName = userService.Service?.ServiceCategory?.Name,
+
+                // Pre-populate the user's selection from the catalogue choice here:
+                SelectedLocationType = selectedLocation
             };
 
             return View("BookService", model);
@@ -67,72 +78,107 @@ namespace BeautyArtists.Controllers
 
         // POST: Booking/ConfirmBooking
         [Authorize]
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ConfirmBooking(BookingViewModel model)
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> ConfirmBooking(BookingViewModel model)
+{
+    if (!User.Identity.IsAuthenticated)
+        return Challenge();
+
+    var currentUser = await _userManager.GetUserAsync(User);
+
+    // Custom Validation: If House Call is chosen, ensure location data exists
+    if (model.SelectedLocationType == LocationType.HouseCall)
+    {
+        if (string.IsNullOrWhiteSpace(model.HouseCallAddress))
         {
-            // Force login
-            if (!User.Identity.IsAuthenticated)
-                return Challenge();
-
-            var currentUser = await _userManager.GetUserAsync(User);
-
-            if (!ModelState.IsValid)
-            {
-                // Reload service info for the view
-                var userService = await _context.UserServices
-                    .Include(us => us.Service)
-                    .Include(us => us.Artist)
-                    .FirstOrDefaultAsync(us => us.Id == model.UserServiceId);
-
-                if (userService != null)
-                {
-                    model.ServiceName = userService.Service?.Name;
-                    model.Price = userService.Price;
-                    model.ArtistId = userService.ArtistId;
-                    model.ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
-                        ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
-                        : userService.Artist?.UserName ?? "Pro Artist";
-                }
-                return View("BookService", model);
-            }
-
-            // 1. Verify the slot exists, belongs to this artist and is still available
-            var slot = await _context.ArtistAvailabilities
-                .FirstOrDefaultAsync(a => a.Id == model.AvailabilitySlotId && !a.IsBooked);
-
-            if (slot == null)
-            {
-                ModelState.AddModelError("", "Sorry, this slot was just booked by someone else. Please select another.");
-                return View("BookService", model);
-            }
-
-            // 2. Set PreferredDate from the slot
-            model.PreferredDate = slot.AvailableDate.Add(slot.StartTime);
-
-            // 3. Create the booking
-            var booking = new Booking
-            {
-                CustomerId = currentUser.Id,
-                UserServiceId = model.UserServiceId,
-                BookingDate = DateTime.UtcNow,
-                AppointmentDate = model.PreferredDate,
-                TotalAmount = model.Price,
-                Status = Booking.BookingStatus.Pending,
-                Notes = model.Notes,
-                HasRescheduled = false
-            };
-
-            // 4. Mark slot as booked — no double bookings!
-            slot.IsBooked = true;
-
-            _context.Bookings.Add(booking);
-            await _context.SaveChangesAsync();
-
-            TempData["Success"] = $"Booking confirmed for {slot.AvailableDate:MMM dd} at {slot.StartTime:hh\\:mm}! Pending artist approval.";
-            return RedirectToAction("MyBookings");
+            ModelState.AddModelError("HouseCallAddress", "An address is required for house calls.");
         }
+        if (!model.Latitude.HasValue || !model.Longitude.HasValue)
+        {
+            ModelState.AddModelError("", "Please pin your exact location on the map map.");
+        }
+    }
 
+    if (!ModelState.IsValid)
+    {
+        // Reload service details if page validation failed
+        var userService = await _context.UserServices
+            .Include(us => us.Service)
+            .Include(us => us.Artist)
+                .ThenInclude(a => a.ArtistProfile)
+            .FirstOrDefaultAsync(us => us.Id == model.UserServiceId);
+
+        if (userService != null)
+        {
+            model.ServiceName = userService.Service?.Name;
+            model.Price = userService.Price;
+            model.ArtistId = userService.ArtistId;
+            model.ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
+                ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
+                : userService.Artist?.UserName ?? "Pro Artist";
+            model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
+        }
+        return View("BookService", model);
+    }
+
+    // 1. Verify availability slot
+    var slot = await _context.ArtistAvailabilities
+        .FirstOrDefaultAsync(a => a.Id == model.AvailabilitySlotId && !a.IsBooked);
+
+    if (slot == null)
+    {
+        ModelState.AddModelError("", "Sorry, this slot was just booked by someone else. Please select another.");
+        return View("BookService", model);
+    }
+
+    model.PreferredDate = slot.AvailableDate.Add(slot.StartTime);
+
+    // 2. Map view data right down to database entity object
+    var booking = new Booking
+    {
+        CustomerId = currentUser.Id,
+        UserServiceId = model.UserServiceId,
+        BookingDate = DateTime.UtcNow,
+        AppointmentDate = model.PreferredDate,
+        Notes = model.Notes,
+        HasRescheduled = false,
+        Status = Booking.BookingStatus.Pending,
+        
+        // Save the flow selections
+        SelectLocationType = model.SelectedLocationType,
+        TransportCost = 0, // Remains zero; changed later by Artist if HouseCall
+
+        // TotalAmount stays at base price for now. 
+        // If it's a house call, total increments once the artist reviews and adds travel costs.
+        TotalAmount = model.Price 
+    };
+
+    // If it's a house call, append map point properties 
+    if (model.SelectedLocationType == LocationType.HouseCall)
+    {
+        booking.HouseCallAddress = model.HouseCallAddress;
+        booking.Latitude = model.Latitude;
+        booking.Longitude = model.Longitude;
+    }
+
+    // 3. Flag slot to avoid double booking conflicts
+    slot.IsBooked = true;
+
+    _context.Bookings.Add(booking);
+    await _context.SaveChangesAsync();
+
+    if (booking.SelectLocationType == LocationType.HouseCall)
+    {
+        TempData["Success"] = "House Call request sent! Awaiting artist to calculate transport cost and accept.";
+    }
+    else
+    {
+        TempData["Success"] = "Walk-In booking submitted! Pending artist confirmation.";
+    }
+
+    return RedirectToAction("MyBookings");
+}
 
         public async Task<IActionResult> MyBookings()
         {
