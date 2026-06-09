@@ -102,40 +102,22 @@
                             <div class="cat-action-group">
                                 @if (User.Identity!.IsAuthenticated)
                                 {
-                                    @* Walk-In Button *@
+                                    @* Consolidated Book Now Button *@
                                     <a asp-controller="Booking"
                                        asp-action="BookService"
                                        asp-route-userServiceId="@service.UserServiceId"
-                                       asp-route-bookingType="WalkIn"
-                                       class="cat-split-btn btn-walkin">
-                                        <span>Walk-In</span>
-                                    </a>
-
-                                    @* House Call Button *@
-                                    <a asp-controller="Booking"
-                                       asp-action="BookService"
-                                       asp-route-userServiceId="@service.UserServiceId"
-                                       asp-route-bookingType="HouseCall"
-                                       class="cat-split-btn btn-housecall">
-                                        <span>House Call</span>
+                                       class="cat-booknow-btn">
+                                        <span>Book Now</span>
                                     </a>
                                 }
                                 else
                                 {
-                                    @* Unauthenticated Walk-In Redirect *@
+                                    @* Unauthenticated Redirect *@
                                     <a asp-area="Identity"
                                        asp-page="/Account/Login"
-                                       asp-route-returnUrl="@Url.Action("BookService", "Booking", new { userServiceId = service.UserServiceId, bookingType = "WalkIn" })"
-                                       class="cat-split-btn btn-walkin">
-                                        <span>Walk-In</span>
-                                    </a>
-
-                                    @* Unauthenticated House Call Redirect *@
-                                    <a asp-area="Identity"
-                                       asp-page="/Account/Login"
-                                       asp-route-returnUrl="@Url.Action("BookService", "Booking", new { userServiceId = service.UserServiceId, bookingType = "HouseCall" })"
-                                       class="cat-split-btn btn-housecall">
-                                        <span>House Call</span>
+                                       asp-route-returnUrl="@Url.Action("BookService", "Booking", new { userServiceId = service.UserServiceId })"
+                                       class="cat-booknow-btn">
+                                        <span>Book Now</span>
                                     </a>
                                 }
                             </div>
@@ -336,15 +318,21 @@
     }
 
     @@media (max-width: 992px) {
-        .cat-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
+        .cat-grid
+
+    {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
     }
 
     @@media (max-width: 576px) {
-        .cat-grid {
-            grid-template-columns: 1fr;
-        }
+        .cat-grid
+
+    {
+        grid-template-columns: 1fr;
+    }
+
     }
 
     /* ── CARD ── */
@@ -439,56 +427,36 @@
         -webkit-overflow: hidden;
     }
 
-    /* ── ACTION BUTTONS GROUP ── */
+    /* ── SINGLE ACTION BUTTON STYLING ── */
     .cat-action-group {
         display: flex;
-        gap: 10px;
         width: 100%;
         margin-top: auto;
     }
 
-    .cat-split-btn {
-        flex: 1;
+    .cat-booknow-btn {
+        width: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
         padding: 12px 10px;
         font-weight: 800;
-        font-size: 0.78rem;
-        letter-spacing: 0.5px;
+        font-size: 0.85rem;
+        letter-spacing: 1px;
         text-transform: uppercase;
         text-decoration: none;
         border-radius: 8px;
         transition: all 0.25s ease;
         text-align: center;
-    }
-
-    /* Walk-in styling (Gold accent) */
-    .btn-walkin {
         background: transparent;
         border: 1px solid #FFD700;
         color: #FFD700;
     }
 
-        .btn-walkin:hover {
+        .cat-booknow-btn:hover {
             background: #FFD700;
             color: #000;
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.25);
-            transform: translateY(-2px);
-        }
-
-    /* House Call styling (Crimson Red block) */
-    .btn-housecall {
-        background: #b30000;
-        border: 1px solid #b30000;
-        color: #fff;
-    }
-
-        .btn-housecall:hover {
-            background: #cf0000;
-            border-color: #cf0000;
-            color: #fff;
-            box-shadow: 0 0 15px rgba(179, 0, 0, 0.35);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
             transform: translateY(-2px);
         }
 
@@ -504,4 +472,37 @@
         color: rgba(255,215,0,0.15);
         margin-bottom: 16px;
     }
+    /* ── SINGLE ACTION BUTTON STYLING (MATCHED GRADIENT) ── */
+    .cat-action-group {
+        display: flex;
+        width: 100%;
+        margin-top: auto;
+    }
+
+    .cat-booknow-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 10px;
+        font-weight: 800;
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        text-decoration: none;
+        border-radius: 20px; /* Rounded pill style matching the screenshot */
+        transition: all 0.25s ease;
+        text-align: center;
+        /* Exact color match: Rich gold to vibrant orange gradient */
+        background: linear-gradient(180deg, #FFD700 0%, #FF8C00 100%);
+        border: none;
+        color: #000; /* Dark text for crisp contrast on the bright background */
+    }
+
+        .cat-booknow-btn:hover {
+            background: linear-gradient(180deg, #FFE44D 0%, #FFA500 100%);
+            box-shadow: 0 0 20px rgba(255, 140, 0, 0.4);
+            transform: translateY(-2px);
+            color: #000;
+        }
 </style>

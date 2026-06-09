@@ -10,11 +10,10 @@ namespace BeautyArtists.Models.ViewModels
         public string? ServiceName { get; set; }
         public decimal Price { get; set; }
         public string? ArtistName { get; set; }
-        public string? ArtistId { get; set; }      // NEW: needed to fetch slots
-        public string? ArtistProfilePicture { get; set; } // NEW: for the UI header
-        public string? CategoryName { get; set; }  // NEW: for context
+        public string? ArtistId { get; set; }      // Needed to fetch slots
+        public string? ArtistProfilePicture { get; set; } // For the UI header
+        public string? CategoryName { get; set; }  // For context
 
-        // NEW: The selected availability slot ID
         [Required(ErrorMessage = "Please select an available time slot.")]
         public int AvailabilitySlotId { get; set; }
 
@@ -25,7 +24,7 @@ namespace BeautyArtists.Models.ViewModels
         public string? Notes { get; set; }
 
         [Required(ErrorMessage = "Please select whether you want a Walk-In or House Call.")]
-        public LocationType SelectedLocationType { get; set; }
+        public LocationType? SelectedLocationType { get; set; }
 
         public string? HouseCallAddress { get; set; }
         public string? Latitude { get; set; }

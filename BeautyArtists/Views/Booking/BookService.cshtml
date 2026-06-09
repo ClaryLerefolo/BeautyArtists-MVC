@@ -7,7 +7,6 @@
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 
 <div class="book-page">
 
@@ -36,11 +35,17 @@
         @if (!ViewData.ModelState.IsValid)
         {
             <div class="book-server-errors">
-                <strong>Please fix the following:</strong>
+                <strong>Please fix the following issues:</strong>
                 <ul>
-                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    @foreach (var modelState in ViewData.ModelState.Values)
                     {
-                        <li>@error.ErrorMessage</li>
+                        foreach (var error in modelState.Errors)
+                        {
+                            if (!string.IsNullOrEmpty(error.ErrorMessage))
+                            {
+                                <li>@error.ErrorMessage</li>
+                            }
+                        }
                     }
                 </ul>
             </div>
@@ -53,12 +58,12 @@
             <input type="hidden" name="Price" value="@Model.Price" />
             <input type="hidden" name="ServiceName" value="@Model.ServiceName" />
             <input type="hidden" name="ArtistName" value="@Model.ArtistName" />
-            <input type="hidden" name="AvailabilitySlotId" id="selectedSlotId" value="0" />
-            <input type="hidden" name="PreferredDate" id="selectedDate" value="" />
 
-            @* Form explicitly targets the exact names expected by your backend model *@
-            <input type="hidden" name="Latitude" id="latOutput" value="@Model.Latitude" />
-            <input type="hidden" name="Longitude" id="lngOutput" value="@Model.Longitude" />
+            @* Hidden fields *@
+            <input type="hidden" name="AvailabilitySlotId" id="AvailabilitySlotId" value="@Model.AvailabilitySlotId" />
+            <input type="hidden" name="PreferredDate" id="PreferredDate" value="@Model.PreferredDate.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="Latitude" id="Latitude" value="@Model.Latitude" />
+            <input type="hidden" name="Longitude" id="Longitude" value="@Model.Longitude" />
 
             @* ── STEP 1: CALENDAR ── *@
             <div class="book-section">
@@ -83,21 +88,10 @@
 
                 <div id="calendarWrap" style="display:none">
                     <div class="cal-nav">
-                        <button type="button" class="cal-nav-btn" id="prevMonth">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2.5">
-                                <polyline points="15,18 9,12 15,6" />
-                            </svg>
-                        </button>
+                        <button type="button" class="cal-nav-btn" id="prevMonth">◀</button>
                         <span class="cal-month-label" id="monthLabel"></span>
-                        <button type="button" class="cal-nav-btn" id="nextMonth">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                                 stroke="currentColor" stroke-width="2.5">
-                                <polyline points="9,18 15,12 9,6" />
-                            </svg>
-                        </button>
+                        <button type="button" class="cal-nav-btn" id="nextMonth">▶</button>
                     </div>
-
                     <div class="cal-grid cal-headers">
                         <div class="cal-day-header">Sun</div>
                         <div class="cal-day-header">Mon</div>
@@ -107,25 +101,13 @@
                         <div class="cal-day-header">Fri</div>
                         <div class="cal-day-header">Sat</div>
                     </div>
-
                     <div class="cal-grid" id="calDays"></div>
-
                     <div id="timeSlotSection" style="display:none">
-                        <div class="cal-time-header">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-                                 stroke="#FFD700" stroke-width="2">
-                                <circle cx="12" cy="12" r="10" />
-                                <polyline points="12,6 12,12 16,14" />
-                            </svg>
-                            Available times for <strong id="selectedDateLabel"></strong>
-                        </div>
+                        <div class="cal-time-header">Available times for <strong id="selectedDateLabel"></strong></div>
                         <div class="time-slots-grid" id="timeSlotsGrid"></div>
                     </div>
                 </div>
-
-                <div id="slotError" class="book-field-error" style="display:none">
-                    ⚠ Please select a date and time to continue.
-                </div>
+                <div id="slotError" class="book-field-error" style="display:none">⚠ Please select a date and time to continue.</div>
             </div>
 
             @* ── STEP 2: LOCATION TYPE ── *@
@@ -140,11 +122,7 @@
 
                 <div class="location-options-container">
                     <div class="location-card" id="cardWalkIn">
-                        @* FIXED: name changed from SelectedLocationType to SelectLocationType *@
-                        <input type="radio" name="SelectedLocationType" id="locWalkIn"
-                               value="WalkIn"
-                               @(Model.SelectedLocationType == LocationType.WalkIn ? "checked" : "")
-                               class="location-radio" />
+                        @Html.RadioButtonFor(m => m.SelectedLocationType, LocationType.WalkIn, new { id = "locWalkIn", @class = "location-radio" })
                         <div class="card-content">
                             <div class="card-icon">🏢</div>
                             <div class="card-text">
@@ -154,13 +132,8 @@
                         </div>
                         <div class="radio-indicator"></div>
                     </div>
-
                     <div class="location-card" id="cardHouseCall">
-                        @* FIXED: name changed from SelectedLocationType to SelectLocationType *@
-                        <input type="radio" name="SelectedLocationType" id="locHouseCall"
-                               value="HouseCall"
-                               @(Model.SelectedLocationType == LocationType.HouseCall ? "checked" : "")
-                               class="location-radio" />
+                        @Html.RadioButtonFor(m => m.SelectedLocationType, LocationType.HouseCall, new { id = "locHouseCall", @class = "location-radio" })
                         <div class="card-content">
                             <div class="card-icon">📍</div>
                             <div class="card-text">
@@ -171,30 +144,63 @@
                         <div class="radio-indicator"></div>
                     </div>
                 </div>
-                @* FIXED: asp-validation updated to track SelectLocationType *@
                 <span asp-validation-for="SelectedLocationType" class="text-danger small"></span>
 
-                <div id="houseCallWrapper" class="housecall-container"
-                     style="display:none; margin-top:20px;">
-
+                <!-- 🔥 CORRECTED ENHANCED HOUSE CALL SECTION 🔥 -->
+                <div id="houseCallWrapper" class="housecall-container" style="display:none; margin-top:20px;">
                     <div class="map-instruction">
-                        📍 Search your address below or tap directly on the map to drop your pin:
+                        📍 Tap directly on the map to drop your pin, or search below:
+                    </div>
+
+                    <div class="map-search-wrapper">
+                        <input type="text" id="mapSearchInput" class="map-search-input" placeholder="🔍 Search for an address, suburb, or landmark..." />
+                        <button type="button" id="searchAddressBtn" class="map-search-btn">Go</button>
                     </div>
 
                     <div id="leafletMap" class="map-frame"></div>
 
-                    <div class="address-input-wrapper">
-                        <label class="book-field-label">
-                            Descriptive Street Address / Complex Unit No:
-                        </label>
-                        <textarea name="HouseCallAddress" id="textAddress"
-                                  class="book-textarea" rows="2"
-                                  placeholder="e.g. Unit 42, Serengeti Estates, 12 Mockingbird Lane...">@Model.HouseCallAddress</textarea>
-                        <span asp-validation-for="HouseCallAddress" class="text-danger small"></span>
+                    <!-- ENHANCED ADDRESS SECTION - NOW VISIBLE! -->
+                    <div class="address-highlight-wrapper">
+                        <div class="address-warning-badge">
+                            ⚠️ REQUIRED FOR HOUSE CALLS ⚠️
+                        </div>
+
+                        <div class="address-input-container">
+                            <div class="address-icon">📍📝</div>
+                            <div class="address-field-content">
+                                <label class="address-label">
+                                    COMPLETE DELIVERY ADDRESS
+                                    <span class="required-star">*</span>
+                                </label>
+
+                                <div class="address-help-text">
+                                    <strong>❗ IMPORTANT:</strong> The artist needs your EXACT location to travel to you!
+                                </div>
+
+                                <div class="address-format-example">
+                                    <div class="example-title">📋 Include ALL of the following:</div>
+                                    <ul class="example-list">
+                                        <li><strong>House/Flat/Apartment Number</strong> <span class="example">(e.g., 42, Flat 3B)</span></li>
+                                        <li><strong>Street Name & Number</strong> <span class="example">(e.g., 2255 Mosime Street)</span></li>
+                                        <li><strong>Suburb or Area</strong> <span class="example">(e.g., Klerksdorp, 2571)</span></li>
+                                        <li><strong>Complex/Building Name</strong> <span class="example">(e.g., Serengeti Estates)</span></li>
+                                        <li><strong>Landmarks or Directions</strong> <span class="example">(e.g., Near the mall)</span></li>
+                                    </ul>
+                                </div>
+
+                                <textarea asp-for="HouseCallAddress" id="textAddress"
+                                          class="address-textarea" rows="4"
+                                          placeholder="EXAMPLE:&#10;Unit 42, Serengeti Estates&#10;2255 Mosime Street&#10;Klerksdorp, 2571"></textarea>
+
+                                <div class="address-warning-message">
+                                    ⚡ Your artist will use this EXACT address to find you on their map!
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="mapValidationError" class="book-field-error" style="display:none">
-                        ⚠ Please pinpoint your location on the map and enter an address.
+                        ⚠ Please pinpoint your location on the map AND enter a complete address above.
                     </div>
                 </div>
             </div>
@@ -208,54 +214,26 @@
                         <p class="book-step-sub">Optional — tell the artist anything they should know</p>
                     </div>
                 </div>
-                <textarea name="Notes" class="book-textarea"
-                          placeholder="e.g. I prefer natural looks, I have sensitive skin..."
-                          maxlength="1000" rows="3">@Model.Notes</textarea>
+                <textarea asp-for="Notes" class="book-textarea" placeholder="e.g. I prefer natural looks, I have sensitive skin..." rows="3"></textarea>
             </div>
 
             @* ── STEP 4: SUMMARY ── *@
             <div class="book-section book-summary" id="bookSummary" style="display:none">
-                <div class="book-summary-row">
-                    <span>Service</span>
-                    <strong>@Model.ServiceName</strong>
-                </div>
-                <div class="book-summary-row">
-                    <span>Artist</span>
-                    <strong>@Model.ArtistName</strong>
-                </div>
-                <div class="book-summary-row">
-                    <span>Appointment Type</span>
-                    <strong id="summaryLocationType">Walk-In</strong>
-                </div>
-                <div class="book-summary-row">
-                    <span>Date &amp; Time</span>
-                    <strong id="summarySlot">—</strong>
-                </div>
-                <div class="book-summary-row book-summary-total">
-                    <span>Base Service Total</span>
-                    <strong>R @Model.Price.ToString("N0")</strong>
-                </div>
-                <div class="travel-cost-disclaimer" id="travelDisclaimer" style="display:none">
-                    ℹ️ <em>
-                        Transport costs for house calls are calculated and added by your artist
-                        when reviewing the request.
-                    </em>
-                </div>
+                <div class="book-summary-row"><span>Service</span><strong>@Model.ServiceName</strong></div>
+                <div class="book-summary-row"><span>Artist</span><strong>@Model.ArtistName</strong></div>
+                <div class="book-summary-row"><span>Appointment Type</span><strong id="summaryLocationType">Walk-In</strong></div>
+                <div class="book-summary-row"><span>Date &amp; Time</span><strong id="summarySlot">—</strong></div>
+                <div class="book-summary-row book-summary-total"><span>Base Service Total</span><strong>R @Model.Price.ToString("N0")</strong></div>
+                <div class="travel-cost-disclaimer" id="travelDisclaimer" style="display:none">ℹ️ <em>Transport costs for house calls are calculated and added by your artist when reviewing the request.</em></div>
             </div>
 
-            <button type="submit" class="book-confirm-btn">
-                <span>Confirm Booking Request</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" stroke-width="2.5">
-                    <polyline points="20,6 9,17 4,12" />
-                </svg>
-            </button>
+            <button type="submit" class="book-confirm-btn">Confirm Booking Request ✓</button>
         </form>
     </div>
 </div>
 
 <style>
-    /* (Styles remain entirely unchanged to keep your design exactly as it is) */
+    /* BASE STYLES */
     .book-page {
         background: #000;
         min-height: 100vh;
@@ -303,7 +281,7 @@
 
     .book-service-name {
         color: #FFD700;
-        font-size: 2.2rem;
+        font-size: clamp(1.5rem, 5vw, 2.2rem);
         font-weight: 800;
         margin: 0 0 8px;
         text-shadow: 0 0 30px rgba(255,215,0,0.25);
@@ -314,6 +292,7 @@
         display: flex;
         align-items: center;
         gap: 8px;
+        flex-wrap: wrap;
     }
 
     .book-artist-label {
@@ -343,7 +322,7 @@
 
     .book-price {
         display: block;
-        font-size: 2.4rem;
+        font-size: clamp(1.5rem, 6vw, 2.4rem);
         font-weight: 800;
         color: #FFD700;
         text-shadow: 0 0 20px rgba(255,215,0,0.3);
@@ -363,13 +342,12 @@
             margin: 8px 0 0 16px;
         }
 
-        .book-server-errors li {
-            margin-bottom: 4px;
-        }
-
     .book-body {
         padding-top: 40px;
         max-width: 720px;
+        margin: 0 auto;
+        padding-left: 16px;
+        padding-right: 16px;
     }
 
     .book-section {
@@ -377,7 +355,20 @@
         background: #0b0b0b;
         border: 1px solid rgba(255,215,0,0.1);
         border-radius: 18px;
+        padding: 20px;
+    }
+    @@media (min-width: 768px) {
+        .book-section
+
+    {
         padding: 28px;
+    }
+
+    .book-body {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
     }
 
     .book-step-header {
@@ -385,6 +376,7 @@
         align-items: flex-start;
         gap: 16px;
         margin-bottom: 24px;
+        flex-wrap: wrap;
     }
 
     .book-step-num {
@@ -414,12 +406,21 @@
         margin: 0;
     }
 
+    /* LOCATION CARDS */
     .location-options-container {
         display: flex;
         flex-direction: column;
         gap: 16px;
         width: 100%;
         margin-top: 16px;
+    }
+    @@media (min-width: 600px) {
+        .location-options-container
+
+    {
+        flex-direction: row;
+    }
+
     }
 
     .location-card {
@@ -433,7 +434,7 @@
         padding: 16px;
         cursor: pointer;
         transition: all 0.25s ease;
-        -webkit-tap-highlight-color: transparent;
+        flex: 1;
     }
 
     .card-content {
@@ -447,20 +448,33 @@
     .card-icon {
         font-size: 1.5rem;
         line-height: 1;
+        flex-shrink: 0;
     }
 
     .card-text h3 {
         color: #ffffff;
-        font-size: 1.1rem;
+        font-size: 1rem;
         margin: 0 0 4px;
         font-weight: 600;
     }
 
     .card-text p {
         color: #8a8a8a;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         margin: 0;
         line-height: 1.3;
+    }
+    @@media (min-width: 768px) {
+        .card-text h3
+
+    {
+        font-size: 1.1rem;
+    }
+
+    .card-text p {
+        font-size: 0.85rem;
+    }
+
     }
 
     .location-radio {
@@ -495,15 +509,61 @@
             box-shadow: inset 0 0 0 3px #121212;
         }
 
+    /* MAP STYLES */
     .housecall-container {
         animation: fadeIn 0.3s ease-in-out;
     }
 
     .map-instruction {
-        font-size: 0.8rem;
-        color: rgba(255,215,0,0.8);
-        margin-bottom: 10px;
+        font-size: 0.9rem;
+        color: #FFD700;
+        background: rgba(255, 215, 0, 0.1);
+        padding: 10px;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        text-align: center;
+        font-weight: 600;
     }
+
+    .map-search-wrapper {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        width: 100%;
+    }
+
+    .map-search-input {
+        flex: 1;
+        background: #1a1a1a;
+        border: 1.5px solid rgba(255,215,0,0.2);
+        border-radius: 10px;
+        color: #fff;
+        padding: 12px 16px;
+        font-size: 0.9rem;
+        outline: none;
+    }
+
+        .map-search-input:focus {
+            border-color: #FFD700;
+            background: #1a1500;
+        }
+
+    .map-search-btn {
+        background: linear-gradient(135deg, #b30000, #FFD700);
+        border: none;
+        border-radius: 10px;
+        color: #000;
+        font-weight: 700;
+        padding: 0 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 0.85rem;
+    }
+
+        .map-search-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 0 12px rgba(255,215,0,0.3);
+        }
 
     .map-frame {
         height: 380px;
@@ -513,61 +573,204 @@
         border: 1px solid rgba(255,215,0,0.2);
         margin-bottom: 20px;
         position: relative;
+        z-index: 1;
+    }
+    @@media (max-width: 768px) {
+        .map-frame
+
+    {
+        height: 320px;
     }
 
-    .book-field-label {
+    }
+    @@media (max-width: 480px) {
+        .map-frame
+
+    {
+        height: 280px;
+    }
+
+    }
+
+    /* ENHANCED ADDRESS SECTION */
+    .address-highlight-wrapper {
+        margin-top: 20px;
+        border: 3px solid #FFD700;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #1a0f00 0%, #0d0800 100%);
+        overflow: hidden;
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+        animation: pulseGlow 2s ease-in-out infinite;
+    }
+    @@keyframes pulseGlow {
+        0%, 100%
+
+    {
+        box-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+        border-color: rgba(255, 215, 0, 0.5);
+    }
+
+    50% {
+        box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+        border-color: #FFD700;
+    }
+
+    }
+
+    .address-warning-badge {
+        background: linear-gradient(135deg, #FF0000, #FF4500);
+        color: white;
+        text-align: center;
+        padding: 10px;
+        font-weight: 900;
+        font-size: 0.85rem;
+        letter-spacing: 2px;
+        animation: blinkWarning 1s ease-in-out infinite;
+    }
+    @@keyframes blinkWarning {
+        0%, 100%
+
+    {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.7;
+    }
+
+    }
+
+    .address-input-container {
+        display: flex;
+        gap: 15px;
+        padding: 20px;
+    }
+    @@media (max-width: 768px) {
+        .address-input-container
+
+    {
+        flex-direction: column;
+        gap: 10px;
+        padding: 15px;
+    }
+
+    }
+
+    .address-icon {
+        font-size: 2.5rem;
+        text-align: center;
+        flex-shrink: 0;
+        background: rgba(255, 215, 0, 0.1);
+        border-radius: 12px;
+        padding: 10px;
+        height: fit-content;
+    }
+    @@media (max-width: 768px) {
+        .address-icon
+
+    {
+        font-size: 2rem;
+        padding: 5px;
+    }
+
+    }
+
+    .address-field-content {
+        flex: 1;
+    }
+
+    .address-label {
         display: block;
-        color: rgba(255,255,255,0.6);
-        font-size: 0.82rem;
+        color: #FFD700;
+        font-size: 1.1rem;
+        font-weight: 800;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .required-star {
+        color: #FF0000;
+        font-size: 1.2rem;
+        margin-left: 4px;
+    }
+
+    .address-help-text {
+        background: rgba(255, 100, 0, 0.2);
+        border-left: 4px solid #FF6600;
+        padding: 10px;
+        margin-bottom: 12px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        color: #FFA500;
+    }
+
+    .address-format-example {
+        background: #0a0a0a;
+        border: 1px solid rgba(255, 215, 0, 0.3);
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 15px;
+    }
+
+    .example-title {
+        color: #FFD700;
+        font-weight: 700;
+        font-size: 0.85rem;
         margin-bottom: 8px;
     }
 
-    .leaflet-control-geocoder {
-        background: #111 !important;
-        border: 1.5px solid #FFD700 !important;
-        border-radius: 8px !important;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
-        color: #fff !important;
+    .example-list {
+        margin: 0;
+        padding-left: 20px;
     }
 
-    .leaflet-control-geocoder-form input {
-        background: #111 !important;
-        color: #fff !important;
-        font-size: 0.85rem !important;
-        padding: 8px 12px !important;
-        border: none !important;
-        outline: none !important;
-        width: 240px !important;
-    }
-
-    .leaflet-control-geocoder-alternatives {
-        background-color: #fff !important;
-        border: 1px solid #ccc !important;
-        list-style: none !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        max-height: 180px !important;
-        overflow-y: auto !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-        position: relative !important;
-        z-index: 99999 !important;
-        border-radius: 0 0 8px 8px !important;
-    }
-
-        .leaflet-control-geocoder-alternatives li {
-            padding: 10px 12px !important;
-            cursor: pointer !important;
-            color: #222 !important;
-            font-weight: 500 !important;
-            border-bottom: 1px solid #eee !important;
-            font-size: 0.85rem !important;
+        .example-list li {
+            color: #cccccc;
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+            line-height: 1.4;
         }
 
-            .leaflet-control-geocoder-alternatives li:hover {
-                background-color: #f5f5f5 !important;
-            }
+        .example-list .example {
+            color: #FFD700;
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
 
+    .address-textarea {
+        width: 100%;
+        background: #1a1a00;
+        border: 2px solid #FFD700;
+        border-radius: 12px;
+        color: #fff;
+        padding: 14px 16px;
+        font-size: 0.95rem;
+        resize: vertical;
+        outline: none;
+        font-family: monospace;
+        font-weight: 500;
+    }
+
+        .address-textarea:focus {
+            background: #2a2a00;
+            border-color: #FFAA00;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
+        }
+
+    .address-warning-message {
+        background: rgba(255, 50, 50, 0.15);
+        border: 1px solid #FF4444;
+        border-radius: 8px;
+        padding: 10px;
+        margin-top: 12px;
+        font-size: 0.8rem;
+        color: #FF8888;
+        text-align: center;
+        font-weight: 500;
+    }
+
+    /* CALENDAR STYLES */
     .slots-loading {
         display: flex;
         align-items: center;
@@ -585,43 +788,27 @@
         border-top-color: #FFD700;
         animation: spin 0.8s linear infinite;
     }
-
     @@keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
+        to
+
+    {
+        transform: rotate(360deg);
     }
 
+    }
     @@keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(4px);
-        }
+        from
 
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    {
+        opacity: 0;
+        transform: translateY(4px);
     }
 
-    .slots-empty {
-        text-align: center;
-        padding: 32px 0;
-        color: rgba(255,255,255,0.3);
+    to {
+        opacity: 1;
+        transform: translateY(0);
     }
 
-    .slots-empty-icon {
-        font-size: 2.5rem;
-        margin-bottom: 10px;
-    }
-
-    .slots-empty p {
-        margin: 0 0 4px;
-        font-size: 0.9rem;
-    }
-
-    .slots-empty small {
-        font-size: 0.75rem;
     }
 
     .cal-nav {
@@ -634,47 +821,31 @@
     .cal-nav-btn {
         background: rgba(255,215,0,0.08);
         border: 1px solid rgba(255,215,0,0.15);
-        color: rgba(255,215,0,0.7);
+        color: #FFD700;
         width: 34px;
         height: 34px;
         border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         cursor: pointer;
-        transition: all 0.2s;
     }
-
-        .cal-nav-btn:hover {
-            background: rgba(255,215,0,0.18);
-            color: #FFD700;
-        }
 
     .cal-month-label {
         color: #FFD700;
         font-size: 0.95rem;
         font-weight: 800;
-        letter-spacing: 1px;
         text-transform: uppercase;
     }
 
     .cal-grid {
         display: grid;
-        grid-template-columns: repeat(7,1fr);
+        grid-template-columns: repeat(7, 1fr);
         gap: 6px;
         margin-bottom: 6px;
-    }
-
-    .cal-headers {
-        margin-bottom: 2px;
     }
 
     .cal-day-header {
         text-align: center;
         font-size: 0.62rem;
         font-weight: 700;
-        letter-spacing: 1px;
-        text-transform: uppercase;
         color: rgba(255,255,255,0.2);
         padding: 6px 0;
     }
@@ -687,12 +858,10 @@
         border-radius: 10px;
         font-size: 0.85rem;
         font-weight: 600;
-        position: relative;
-        transition: all 0.2s;
+        cursor: pointer;
     }
 
         .cal-day.empty {
-            background: transparent;
             pointer-events: none;
         }
 
@@ -701,65 +870,25 @@
             pointer-events: none;
         }
 
-        .cal-day.no-slot {
-            color: rgba(255,255,255,0.2);
-            pointer-events: none;
-        }
-
-        .cal-day.today {
-            color: rgba(255,255,255,0.45);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
         .cal-day.has-slot {
             background: linear-gradient(135deg,#b30000,#FFD700);
             color: #000;
             font-weight: 800;
-            cursor: pointer;
             box-shadow: 0 0 10px rgba(255,215,0,0.2);
         }
-
-            .cal-day.has-slot:hover {
-                transform: scale(1.1);
-                box-shadow: 0 0 20px rgba(255,215,0,0.45);
-            }
 
         .cal-day.selected {
             background: #FFD700 !important;
             color: #000 !important;
-            font-weight: 900 !important;
-            transform: scale(1.15) !important;
-            box-shadow: 0 0 28px rgba(255,215,0,0.6) !important;
-        }
-
-    .cal-slot-dot {
-        position: absolute;
-        bottom: 4px;
-        width: 4px;
-        height: 4px;
-        border-radius: 50%;
-        background: rgba(0,0,0,0.35);
-    }
-
-    .cal-time-header {
-        display: flex;
-        align-items: center;
-        gap: 7px;
-        color: rgba(255,255,255,0.4);
-        font-size: 0.8rem;
-        margin: 20px 0 12px;
-        padding-top: 20px;
-        border-top: 1px solid rgba(255,215,0,0.08);
-    }
-
-        .cal-time-header strong {
-            color: #FFD700;
+            transform: scale(1.1);
+            box-shadow: 0 0 28px rgba(255,215,0,0.6);
         }
 
     .time-slots-grid {
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
+        margin-top: 10px;
     }
 
     .time-slot-btn {
@@ -768,26 +897,13 @@
         border-radius: 10px;
         color: #fff;
         padding: 10px 20px;
-        font-size: 0.82rem;
-        font-weight: 700;
         cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 6px;
     }
-
-        .time-slot-btn:hover {
-            border-color: rgba(255,215,0,0.4);
-            background: #1a1000;
-            transform: translateY(-2px);
-        }
 
         .time-slot-btn.selected {
             background: rgba(255,215,0,0.1);
             border-color: #FFD700;
             color: #FFD700;
-            box-shadow: 0 0 14px rgba(255,215,0,0.2);
         }
 
     .book-textarea {
@@ -797,20 +913,8 @@
         border-radius: 12px;
         color: #fff;
         padding: 14px 16px;
-        font-size: 0.9rem;
         resize: vertical;
-        outline: none;
-        transition: border-color 0.2s;
     }
-
-        .book-textarea:focus {
-            border-color: rgba(255,215,0,0.4);
-            background: #131300;
-        }
-
-        .book-textarea::placeholder {
-            color: rgba(255,255,255,0.2);
-        }
 
     .book-summary {
         border-color: rgba(255,215,0,0.2);
@@ -819,32 +923,8 @@
     .book-summary-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
         padding: 10px 0;
         border-bottom: 1px solid rgba(255,255,255,0.05);
-        font-size: 0.88rem;
-    }
-
-        .book-summary-row:last-child {
-            border-bottom: none;
-        }
-
-        .book-summary-row span {
-            color: rgba(255,255,255,0.4);
-        }
-
-        .book-summary-row strong {
-            color: #fff;
-        }
-
-    .book-summary-total span {
-        color: rgba(255,215,0,0.6) !important;
-        font-weight: 700;
-    }
-
-    .book-summary-total strong {
-        color: #FFD700 !important;
-        font-size: 1.1rem;
     }
 
     .travel-cost-disclaimer {
@@ -854,33 +934,18 @@
         padding: 10px;
         border-radius: 8px;
         margin-top: 10px;
-        line-height: 1.4;
     }
 
     .book-confirm-btn {
         width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
         padding: 18px;
         background: linear-gradient(135deg,#b30000,#FFD700);
         color: #000;
         font-weight: 800;
-        font-size: 1rem;
-        letter-spacing: 1.5px;
-        text-transform: uppercase;
         border: none;
         border-radius: 999px;
         cursor: pointer;
-        transition: all 0.3s ease;
     }
-
-        .book-confirm-btn:hover {
-            background: linear-gradient(135deg,#FFD700,#b30000);
-            box-shadow: 0 0 30px rgba(255,215,0,0.35);
-            transform: translateY(-2px);
-        }
 
     .book-field-error {
         color: #ff4444;
@@ -891,353 +956,132 @@
         border-radius: 8px;
         border-left: 3px solid #ff4444;
     }
-    @@media (min-width:600px) {
-        .location-options-container
-
-    {
-        flex-direction: row;
-    }
-
-    .location-card {
-        flex: 1;
-    }
-
-    }
 </style>
+
 @section Scripts {
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const artistId = '@Model.ArtistId';
+        document.addEventListener("DOMContentLoaded", function () {
+            let slotsData = [], currentYear = new Date().getFullYear(), currentMonth = new Date().getMonth();
+            const artistId = '@Model.ArtistId';
 
-        // FIX: Read initial location type from the server model so that
-        //      on a validation-fail return the correct card is pre-selected
-        const initialLocationType = '@Model.SelectedLocationType.ToString()';
+            const cardWalkIn = document.getElementById("cardWalkIn");
+            const cardHouseCall = document.getElementById("cardHouseCall");
+            const radWalkIn = document.getElementById("locWalkIn");
+            const radHouseCall = document.getElementById("locHouseCall");
+            const houseCallWrapper = document.getElementById("houseCallWrapper");
+            const textAddress = document.getElementById("textAddress");
+            const summaryLocationType = document.getElementById("summaryLocationType");
+            const travelDisclaimer = document.getElementById("travelDisclaimer");
+            const selectedSlotIdInput = document.getElementById("AvailabilitySlotId");
+            const selectedDateInput = document.getElementById("PreferredDate");
+            const latOutput = document.getElementById("Latitude");
+            const lngOutput = document.getElementById("Longitude");
+            const bookingForm = document.getElementById("bookingForm");
+            const slotError = document.getElementById("slotError");
+            const mapValidationError = document.getElementById("mapValidationError");
 
-        let allSlots     = [];
-        let selectedSlot = null;
-        let currentYear, currentMonth;
-        let map          = null;
-        let mapMarker    = null;
+            let map, marker;
 
-        // ── DOM READY ──
-        document.addEventListener('DOMContentLoaded', function () {
-
-            // Location card click handlers
-            document.getElementById('cardWalkIn').addEventListener('click', function () {
-                updateLocationFlow('WalkIn');
-            });
-            document.getElementById('cardHouseCall').addEventListener('click', function () {
-                updateLocationFlow('HouseCall');
-            });
-
-            // FIX: On page load, apply whichever type the server sent back.
-            //      This handles both first load (WalkIn default) AND the
-            //      case where validation failed and we return with HouseCall.
-            updateLocationFlow(initialLocationType);
-        });
-
-        // ── FETCH AVAILABILITY ──
-        fetch('/ArtistAvailability/GetSlots?artistId=' + artistId)
-            .then(function (res) { return res.json(); })
-            .then(function (slots) {
-                document.getElementById('calLoading').style.display = 'none';
-
-                if (!slots || slots.length === 0) {
-                    document.getElementById('calEmpty').style.display = 'block';
-                    return;
-                }
-
-                allSlots = slots;
-                const now = new Date();
-                currentYear  = now.getFullYear();
-                currentMonth = now.getMonth();
-                document.getElementById('calendarWrap').style.display = 'block';
-                renderCalendar(currentYear, currentMonth);
-            })
-            .catch(function () {
-                document.getElementById('calLoading').style.display = 'none';
-                document.getElementById('calEmpty').style.display   = 'block';
-            });
-
-        // ── MONTH NAV ──
-        document.getElementById('prevMonth').addEventListener('click', function () {
-            currentMonth--;
-            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-            renderCalendar(currentYear, currentMonth);
-        });
-        document.getElementById('nextMonth').addEventListener('click', function () {
-            currentMonth++;
-            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-            renderCalendar(currentYear, currentMonth);
-        });
-
-        // ── RENDER CALENDAR ──
-        function renderCalendar(year, month) {
-            var monthNames = ['January','February','March','April','May','June',
-                              'July','August','September','October','November','December'];
-            document.getElementById('monthLabel').textContent = monthNames[month] + ' ' + year;
-
-            var grid = document.getElementById('calDays');
-            grid.innerHTML = '';
-
-            var availDates = new Set(
-                allSlots.filter(function (s) {
-                    var parts  = s.date.split('-');
-                    var sYear  = parseInt(parts[0], 10);
-                    var sMonth = parseInt(parts[1], 10) - 1;
-                    return sYear === year && sMonth === month;
-                }).map(function (s) { return s.date; })
-            );
-
-            var firstDay    = new Date(year, month, 1).getDay();
-            var daysInMonth = new Date(year, month + 1, 0).getDate();
-            var today       = new Date();
-            today.setHours(0, 0, 0, 0);
-
-            for (var i = 0; i < firstDay; i++) {
-                var empty = document.createElement('div');
-                empty.className = 'cal-day empty';
-                grid.appendChild(empty);
+            function initMap() {
+                if (map) { map.invalidateSize(); return; }
+                map = L.map('leafletMap').setView([-26.2041, 28.0473], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+                marker = L.marker([-26.2041, 28.0473], { draggable: true }).addTo(map);
+                marker.on('dragend', function(e) { updateCoordinates(marker.getLatLng().lat, marker.getLatLng().lng); reverseGeocode(marker.getLatLng().lat, marker.getLatLng().lng); });
+                map.on('click', function(e) { marker.setLatLng(e.latlng); updateCoordinates(e.latlng.lat, e.latlng.lng); reverseGeocode(e.latlng.lat, e.latlng.lng); });
             }
 
-            for (var d = 1; d <= daysInMonth; d++) {
-                var dateStr  = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-                var cellDate = new Date(year, month, d);
-                var cell     = document.createElement('div');
-                cell.textContent = d;
+            async function searchAddress() {
+                const query = document.getElementById('mapSearchInput').value.trim();
+                if (!query) { alert('Please enter an address'); return; }
+                if (!map) { alert('Map loading...'); return; }
+                const searchBtn = document.getElementById('searchAddressBtn');
+                const originalText = searchBtn.textContent;
+                searchBtn.textContent = 'Searching...';
+                searchBtn.disabled = true;
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+                    const data = await response.json();
+                    searchBtn.textContent = originalText;
+                    searchBtn.disabled = false;
+                    if (data && data.length > 0) {
+                        const lat = parseFloat(data[0].lat), lon = parseFloat(data[0].lon);
+                        map.setView([lat, lon], 16);
+                        marker.setLatLng([lat, lon]);
+                        updateCoordinates(lat, lon);
+                        reverseGeocode(lat, lon);
+                    } else { alert('Address not found'); }
+                } catch (error) { alert('Search error'); searchBtn.textContent = originalText; searchBtn.disabled = false; }
+            }
 
-                if (cellDate < today) {
-                    cell.className = 'cal-day past';
-                } else if (availDates.has(dateStr)) {
-                    cell.className = 'cal-day has-slot';
-                    var dot = document.createElement('div');
-                    dot.className = 'cal-slot-dot';
-                    cell.appendChild(dot);
-                    (function (ds, c, dd, mm, yy) {
-                        c.addEventListener('click', function () {
-                            selectDate(ds, c, dd, mm, yy);
-                        });
-                    })(dateStr, cell, d, month, year);
-                } else if (cellDate.getTime() === today.getTime()) {
-                    cell.className = 'cal-day today';
+            function updateCoordinates(lat, lng) { latOutput.value = lat; lngOutput.value = lng; }
+            async function reverseGeocode(lat, lng) {
+                try {
+                    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+                    const data = await response.json();
+                    if (data && data.display_name) textAddress.value = data.display_name;
+                } catch (error) {}
+            }
+
+            function setupSearchListeners() {
+                const searchBtn = document.getElementById('searchAddressBtn');
+                const searchInput = document.getElementById('mapSearchInput');
+                if (searchBtn) searchBtn.onclick = (e) => { e.preventDefault(); searchAddress(); };
+                if (searchInput) searchInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); searchAddress(); } };
+            }
+
+            function selectLocationCard(type) {
+                if (type === "WalkIn") {
+                    radWalkIn.checked = true;
+                    cardWalkIn.classList.add("active");
+                    cardHouseCall.classList.remove("active");
+                    houseCallWrapper.style.display = "none";
+                    summaryLocationType.innerText = "Walk-In";
+                    travelDisclaimer.style.display = "none";
                 } else {
-                    cell.className = 'cal-day no-slot';
-                }
-                grid.appendChild(cell);
-            }
-
-            document.getElementById('timeSlotSection').style.display = 'none';
-        }
-
-        // ── SELECT DATE ──
-        function selectDate(dateStr, cell, day, month, year) {
-            document.querySelectorAll('.cal-day.has-slot').forEach(function (c) {
-                c.classList.remove('selected');
-            });
-            cell.classList.add('selected');
-
-            var daySlots   = allSlots.filter(function (s) { return s.date === dateStr; });
-            var monthNames = ['Jan','Feb','Mar','Apr','May','Jun',
-                              'Jul','Aug','Sep','Oct','Nov','Dec'];
-            var formattedDateLabel = monthNames[month] + ' ' + day + ', ' + year;
-
-            document.getElementById('selectedDateLabel').textContent = formattedDateLabel;
-
-            var grid = document.getElementById('timeSlotsGrid');
-            grid.innerHTML = '';
-
-            daySlots.forEach(function (slot) {
-                var parts    = slot.display.split(': ');
-                var timePart = parts[1] || slot.display;
-                var btn      = document.createElement('button');
-                btn.type      = 'button';
-                btn.className = 'time-slot-btn';
-                btn.innerHTML =
-                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-                    '<circle cx="12" cy="12" r="10"></circle>' +
-                    '<polyline points="12,6 12,12 16,14"></polyline></svg>' +
-                    '<span>' + timePart + '</span>';
-
-                (function (s, t, fd) {
-                    btn.addEventListener('click', function () {
-                        document.querySelectorAll('.time-slot-btn').forEach(function (b) {
-                            b.classList.remove('selected');
-                        });
-                        btn.classList.add('selected');
-                        document.getElementById('selectedSlotId').value = s.id;
-                        document.getElementById('selectedDate').value   = s.date;
-                        document.getElementById('summarySlot').textContent =
-                            fd + ' at ' + t;
-                        checkSummaryVisibility();
-                    });
-                })(slot, timePart, formattedDateLabel);
-
-                grid.appendChild(btn);
-            });
-
-            document.getElementById('timeSlotSection').style.display = 'block';
-        }
-
-        // ── LOCATION FLOW ──
-        function updateLocationFlow(type) {
-            document.querySelectorAll('.location-card').forEach(function (c) {
-                c.classList.remove('active');
-            });
-
-            if (type === 'HouseCall') {
-                document.getElementById('cardHouseCall').classList.add('active');
-                document.getElementById('locHouseCall').checked          = true;
-                document.getElementById('houseCallWrapper').style.display = 'block';
-                document.getElementById('summaryLocationType').textContent = 'House Call';
-                document.getElementById('travelDisclaimer').style.display  = 'block';
-
-                // Initialise map — FIX: 150ms timeout is safer on slow connections
-                if (!map && document.getElementById('leafletMap')) {
-                    setTimeout(function () {
-                        map = L.map('leafletMap').setView([-26.8649, 26.6570], 13);
-
-                        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                            attribution: '&copy; OpenStreetMap &copy; CARTO'
-                        }).addTo(map);
-
-                        map.on('click', function (e) {
-                            updateMarker(e.latlng.lat, e.latlng.lng);
-                        });
-
-                        var geocoder      = L.Control.Geocoder.nominatim();
-                        var searchControl = L.Control.geocoder({
-                            geocoder: geocoder,
-                            defaultMarkGeocode: false,
-                            placeholder: 'Search suburbs, streets...'
-                        }).addTo(map);
-
-                        searchControl.on('markgeocode', function (e) {
-                            var bbox = e.geocode.bbox;
-                            var poly = L.polygon([
-                                bbox.getSouthWest(), bbox.getNorthWest(),
-                                bbox.getNorthEast(), bbox.getSouthEast()
-                            ]);
-                            map.fitBounds(poly.getBounds());
-                            updateMarker(e.geocode.center.lat, e.geocode.center.lng);
-
-                            var fullAddress = e.geocode.name;
-                            if (e.geocode.properties && e.geocode.properties.address) {
-                                var addr        = e.geocode.properties.address;
-                                var houseNumber = addr.house_number || addr.street_number || addr.building || '';
-                                var road        = addr.road || addr.street || '';
-                                var suburb      = addr.suburb || addr.neighbourhood || '';
-                                var city        = addr.city || addr.town || '';
-                                if (houseNumber && road) {
-                                    fullAddress = houseNumber + ' ' + road;
-                                    if (suburb) fullAddress += ', ' + suburb;
-                                    if (city && city !== suburb) fullAddress += ', ' + city;
-                                }
-                            }
-                            document.getElementById('textAddress').value = fullAddress;
-                        });
-
-                        var container = searchControl.getContainer();
-                        if (container) {
-                            L.DomEvent.disableScrollPropagation(container);
-                            L.DomEvent.disableClickPropagation(container);
-                        }
-
-                        map.invalidateSize();
-
-                        // FIX: If we're returning from a validation fail and the user
-                        //      had already pinned a location, restore the marker
-                        var existingLat = document.getElementById('latOutput').value;
-                        var existingLng = document.getElementById('lngOutput').value;
-                        if (existingLat && existingLng &&
-                            parseFloat(existingLat) !== 0 &&
-                            parseFloat(existingLng) !== 0) {
-                            updateMarker(parseFloat(existingLat), parseFloat(existingLng));
-                            map.setView([parseFloat(existingLat), parseFloat(existingLng)], 15);
-                        }
-
-                    }, 150);
-                } else if (map) {
-                    setTimeout(function () { map.invalidateSize(); }, 150);
-                }
-
-            } else {
-                // Walk-In
-                document.getElementById('cardWalkIn').classList.add('active');
-                document.getElementById('locWalkIn').checked            = true;
-                document.getElementById('houseCallWrapper').style.display = 'none';
-                document.getElementById('summaryLocationType').textContent = 'Walk-In';
-                document.getElementById('travelDisclaimer').style.display  = 'none';
-            }
-
-            checkSummaryVisibility();
-        }
-
-        // ── UPDATE MAP MARKER ──
-        function updateMarker(lat, lng) {
-            document.getElementById('latOutput').value = lat;
-            document.getElementById('lngOutput').value = lng;
-            document.getElementById('mapValidationError').style.display = 'none';
-
-            if (mapMarker) {
-                mapMarker.setLatLng([lat, lng]);
-            } else if (map) {
-                mapMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
-                mapMarker.on('dragend', function () {
-                    var pos = mapMarker.getLatLng();
-                    document.getElementById('latOutput').value = pos.lat;
-                    document.getElementById('lngOutput').value = pos.lng;
-                });
-            }
-        }
-
-        // ── SHOW SUMMARY WHEN SLOT IS SELECTED ──
-        function checkSummaryVisibility() {
-            var hasSlot = parseInt(document.getElementById('selectedSlotId').value) > 0;
-            if (hasSlot) {
-                document.getElementById('bookSummary').style.display = 'block';
-            }
-        }
-
-        // ── FORM SUBMIT VALIDATION ──
-        document.getElementById('bookingForm').addEventListener('submit', function (e) {
-            var isValid = true;
-            var slotId  = parseInt(document.getElementById('selectedSlotId').value);
-
-            // Slot must be selected
-            if (!slotId || slotId <= 0) {
-                var slotErr = document.getElementById('slotError');
-                slotErr.style.display = 'block';
-                slotErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                isValid = false;
-            } else {
-                document.getElementById('slotError').style.display = 'none';
-            }
-
-            // House Call: map pin + address required
-            if (document.getElementById('locHouseCall').checked) {
-                var lat  = document.getElementById('latOutput').value;
-                var lng  = document.getElementById('lngOutput').value;
-                var addr = document.getElementById('textAddress').value.trim();
-
-                // FIX: check for empty string OR literal "0" / "0.0" from default
-                var hasPin = lat && lng &&
-                             parseFloat(lat) !== 0 &&
-                             parseFloat(lng) !== 0;
-
-                if (!hasPin || !addr) {
-                    document.getElementById('mapValidationError').style.display = 'block';
-                    document.getElementById('mapValidationError')
-                        .scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    isValid = false;
-                } else {
-                    document.getElementById('mapValidationError').style.display = 'none';
+                    radHouseCall.checked = true;
+                    cardHouseCall.classList.add("active");
+                    cardWalkIn.classList.remove("active");
+                    houseCallWrapper.style.display = "block";
+                    summaryLocationType.innerText = "House Call";
+                    travelDisclaimer.style.display = "block";
+                    setTimeout(() => { initMap(); if(map) map.invalidateSize(); setupSearchListeners(); }, 150);
                 }
             }
 
-            if (!isValid) e.preventDefault();
+            cardWalkIn.onclick = () => selectLocationCard("WalkIn");
+            cardHouseCall.onclick = () => selectLocationCard("HouseCall");
+            if (radWalkIn && radWalkIn.checked) selectLocationCard("WalkIn");
+
+            // Calendar code (simplified)
+            fetch(`/Booking/GetArtistAvailability?artistId=${artistId}`).then(res => res.json()).then(data => { slotsData = data; document.getElementById("calLoading").style.display = "none"; if(slotsData.length) { document.getElementById("calendarWrap").style.display = "block"; renderCalendar(); } else { document.getElementById("calEmpty").style.display = "block"; } });
+
+            function renderCalendar() {
+                const calDays = document.getElementById("calDays");
+                calDays.innerHTML = "";
+                const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+                const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+                for(let i = 0; i < firstDayIndex; i++) { let div = document.createElement("div"); div.classList.add("cal-day","empty"); calDays.appendChild(div); }
+                for(let day = 1; day <= totalDays; day++) {
+                    let dayDiv = document.createElement("div");
+                    dayDiv.classList.add("cal-day");
+                    dayDiv.innerText = day;
+                    let dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                    let hasSlots = slotsData.filter(s => s.date.split('T')[0] === dateStr).length > 0;
+                    if(hasSlots) dayDiv.classList.add("has-slot");
+                    calDays.appendChild(dayDiv);
+                }
+            }
+
+            bookingForm.onsubmit = function(e) {
+                let valid = true;
+                slotError.style.display = "none";
+                mapValidationError.style.display = "none";
+                if (!selectedSlotIdInput.value) { slotError.style.display = "block"; valid = false; }
+                if (radHouseCall && radHouseCall.checked && (!latOutput.value || !textAddress.value.trim())) { mapValidationError.style.display = "block"; valid = false; }
+                if (!valid) e.preventDefault();
+            };
         });
     </script>
 }

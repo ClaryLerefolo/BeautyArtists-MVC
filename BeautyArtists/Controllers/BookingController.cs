@@ -18,15 +18,14 @@ namespace BeautyArtists.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
-        //private readonly IEmailSender _emailSender;
+        private readonly ICommunicationService _commService; // central service reference injected
 
-        public BookingController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IEmailSender emailSender)
+        public BookingController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ICommunicationService commService)
         {
             _context = context;
             _userManager = userManager;
-            //_emailSender = emailSender;
+            _commService = commService;
         }
-
 
         // ══════════════════════════════════
         //  GET: Booking/Book
@@ -47,7 +46,7 @@ namespace BeautyArtists.Controllers
         //  GET: Booking/BookService
         // ══════════════════════════════════
         [Authorize]
-        public async Task<IActionResult> BookService(int userServiceId, string bookingType)
+        public async Task<IActionResult> BookService(int userServiceId)
         {
             var userService = await _context.UserServices
                 .Include(us => us.Service)
@@ -63,13 +62,6 @@ namespace BeautyArtists.Controllers
                 ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
                 : userService.Artist?.UserName ?? "Pro Artist";
 
-            LocationType selectedLocation = LocationType.WalkIn;
-            if (!string.IsNullOrEmpty(bookingType) &&
-                Enum.TryParse(bookingType, true, out LocationType parsedType))
-            {
-                selectedLocation = parsedType;
-            }
-
             var model = new BookingViewModel
             {
                 UserServiceId = userServiceId,
@@ -79,7 +71,7 @@ namespace BeautyArtists.Controllers
                 ArtistId = userService.ArtistId,
                 ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
                 CategoryName = userService.Service?.ServiceCategory?.Name,
-                SelectedLocationType = selectedLocation
+                SelectedLocationType = LocationType.WalkIn  // Default value
             };
 
             return View("BookService", model);
@@ -117,6 +109,7 @@ namespace BeautyArtists.Controllers
             {
                 var userService = await _context.UserServices
                     .Include(us => us.Service)
+                        .ThenInclude(s => s.ServiceCategory)
                     .Include(us => us.Artist)
                         .ThenInclude(a => a.ArtistProfile)
                     .AsNoTracking()
@@ -131,6 +124,7 @@ namespace BeautyArtists.Controllers
                         ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
                         : userService.Artist?.UserName ?? "Pro Artist";
                     model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
+                    model.CategoryName = userService.Service?.ServiceCategory?.Name;
                 }
 
                 return View("BookService", model);
@@ -146,7 +140,9 @@ namespace BeautyArtists.Controllers
 
                 var userService = await _context.UserServices
                     .Include(us => us.Service)
-                    .Include(us => us.Artist).ThenInclude(a => a.ArtistProfile)
+                        .ThenInclude(s => s.ServiceCategory)
+                    .Include(us => us.Artist)
+                        .ThenInclude(a => a.ArtistProfile)
                     .AsNoTracking()
                     .FirstOrDefaultAsync(us => us.Id == model.UserServiceId);
 
@@ -159,6 +155,7 @@ namespace BeautyArtists.Controllers
                         ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
                         : userService.Artist?.UserName ?? "Pro Artist";
                     model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
+                    model.CategoryName = userService.Service?.ServiceCategory?.Name;
                 }
                 return View("BookService", model);
             }
@@ -174,11 +171,11 @@ namespace BeautyArtists.Controllers
                 AppointmentDate = appointmentDate,
                 Notes = model.Notes,
                 HasRescheduled = false,
-                Status = BookingStatus.Pending, // Initial business status
-                SelectedLocationType = model.SelectedLocationType,
+                Status = BookingStatus.Pending,
+                SelectedLocationType = model.SelectedLocationType.GetValueOrDefault(LocationType.WalkIn),
                 TransportCost = 0,
                 TotalAmount = model.Price,
-                IsDepositPaid = false, // Must be false until Artist confirms!
+                IsDepositPaid = false,
                 AvailabilitySlotId = slot.Id
             };
 
@@ -193,7 +190,12 @@ namespace BeautyArtists.Controllers
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
 
-            // FIXED workflow redirection: No automatic checkout redirects
+            // 📢 LIFECYCLE EMAIL 1: Dispatch notification immediately to Artist informing them of pending slots
+            if (!string.IsNullOrEmpty(slot.ArtistId))
+            {
+                await _commService.SendBookingRequestToArtistAsync(slot.ArtistId, booking.Id);
+            }
+
             if (booking.SelectedLocationType == LocationType.WalkIn)
             {
                 TempData["Success"] = "Appointment requested successfully! The Artist must review and confirm your slot before deposit payment can be processed.";
@@ -220,40 +222,69 @@ namespace BeautyArtists.Controllers
 
             if (booking == null) return NotFound();
 
-            // Sync state changes to the data records
             booking.Status = newStatus;
-            booking.ClientNotes = artistNotes; // Useful for passing rejection reasons or updates to the user dashboard
+            booking.ClientNotes = artistNotes;
 
             if (newStatus == Booking.BookingStatus.Confirmed)
             {
                 if (booking.SelectedLocationType == LocationType.HouseCall)
                 {
-                    // Apply transport fee changes and update the complete billing ledger
                     booking.TransportCost = transportCost >= 0 ? transportCost : 0;
                     booking.TotalAmount = (booking.UserService?.Price ?? 0) + booking.TransportCost;
                 }
                 TempData["Success"] = "Appointment status successfully updated to Confirmed.";
-            }
-            else if (newStatus == Booking.BookingStatus.Cancelled)
-            {
-                // Free locked schedule tracking slots back up if cancelled or rejected by artist
-                if (booking.AvailabilitySlotId.HasValue)
+
+                await _context.SaveChangesAsync();
+
+                // 📢 EXACT WORKFLOW MATCH: Notify Client that booking is confirmed and they MUST pay the deposit
+                // We dynamically build the link pointing directly to your CheckoutDeposit GET action
+                var callbackUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
+
+                string subject = "Action Required: Pay Deposit for Booking Confirmation";
+                string body = $@"
+            <div style='font-family: Arial, sans-serif; max-width: 600px; border: 1px solid #d4af37; padding: 20px;'>
+                <h2 style='color: #8b0000;'>Your Appointment Has Been Approved!</h2>
+                <p>Great news! Your booking request has been accepted by the artist.</p>
+                <p>To officially lock in your time slot on the calendar, please click the secure link below to clear your 50% deposit payment:</p>
+                <p style='margin: 25px 0;'>
+                    <a href='{callbackUrl}' style='background-color: #8b0000; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;'>
+                        Pay 50% Deposit Now
+                    </a>
+                </p>
+                <p style='font-size: 12px; color: #666;'>Note: Slots are held temporarily and are only guaranteed once the deposit ledger transaction is processed.</p>
+            </div>";
+
+                // Assuming your SmtpEmailSender is injected or accessible via UserManager, or we route it cleanly:
+                var clientUser = await _userManager.FindByIdAsync(booking.CustomerId);
+                if (clientUser != null)
                 {
-                    var slot = await _context.ArtistAvailabilities.FirstOrDefaultAsync(a => a.Id == booking.AvailabilitySlotId.Value);
-                    if (slot != null) slot.IsBooked = false;
+                    // Using Direct Message wrapper or directly via an email sender to pass the custom HTML payload
+                    await _commService.SendDirectMessageEmailAsync(booking.UserService.ArtistId, booking.CustomerId, subject, $"Your request is approved! Please follow this link to pay your deposit: {callbackUrl}");
                 }
-                TempData["Success"] = "Appointment request has been cancelled/rejected.";
-            }
-            else if (newStatus == Booking.BookingStatus.Completed)
-            {
-                TempData["Success"] = "Booking details finalized and marked as Completed.";
             }
             else
             {
-                TempData["Success"] = "Booking status updated successfully.";
+                // Handle Cancelled / Rejected / Completed blocks...
+                if (newStatus == Booking.BookingStatus.Cancelled || newStatus == Booking.BookingStatus.Rejected)
+                {
+                    if (booking.AvailabilitySlotId.HasValue)
+                    {
+                        var slot = await _context.ArtistAvailabilities.FirstOrDefaultAsync(a => a.Id == booking.AvailabilitySlotId.Value);
+                        if (slot != null) slot.IsBooked = false;
+                    }
+                    TempData["Success"] = "Appointment request has been cancelled/rejected.";
+                }
+                else if (newStatus == Booking.BookingStatus.Completed)
+                {
+                    TempData["Success"] = "Booking details finalized and marked as Completed.";
+                }
+
+                await _context.SaveChangesAsync();
+
+                // Notify of generic status changes (Rejection, Cancellation, etc.)
+                await _commService.SendBookingStatusUpdateAsync(booking.CustomerId, booking.Id, newStatus.ToString());
             }
 
-            await _context.SaveChangesAsync();
             return RedirectToAction("MyAppointments", "Artist");
         }
 
@@ -273,7 +304,6 @@ namespace BeautyArtists.Controllers
 
             if (booking == null) return NotFound();
 
-            // BUSINESS ENFORCEMENT: Client can only view checkout page if the Artist has Confirmed the slot
             if (booking.Status == BookingStatus.Pending)
             {
                 TempData["Error"] = "This booking is currently pending artist approval. You can pay your 50% deposit once confirmed.";
@@ -305,7 +335,6 @@ namespace BeautyArtists.Controllers
 
             if (booking == null) return NotFound();
 
-            // BUSINESS RULE VALIDATION
             if (booking.Status == BookingStatus.Pending)
             {
                 TempData["Error"] = "Action Denied: You cannot process payments for an unconfirmed appointment.";
@@ -315,12 +344,23 @@ namespace BeautyArtists.Controllers
             booking.IsDepositPaid = true;
             await _context.SaveChangesAsync();
 
+            // 📢 EXACT WORKFLOW MATCH: Alert the Artist that the client paid up and their calendar is secure
+            if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
+            {
+                await _commService.SendDirectMessageEmailAsync(
+                    currentUser.Id,
+                    booking.UserService.ArtistId,
+                    "Deposit Paid - Schedule Secured",
+                    $"Client {currentUser.FirstName} has successfully settled the 50% deposit for Booking #{booking.Id}. This appointment slot is now locked in your profile panel grid."
+                );
+            }
+
             TempData["Success"] = "First 50% Deposit cleared! Your appointment is locked in.";
             return RedirectToAction("MyBookings");
         }
 
         // ══════════════════════════════════
-        //  POST: Booking/ProcessFinalPayment (2-Days Before Check)
+        //  POST: Booking/ProcessFinalPayment
         // ══════════════════════════════════
         [Authorize]
         [HttpPost]
@@ -340,14 +380,12 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings");
             }
 
-            // Guard against processing dual payment balance cycles twice
             if (booking.TotalAmount == 0)
             {
                 TempData["Error"] = "This ledger execution balance cycle has already been fully finalized.";
                 return RedirectToAction("MyBookings");
             }
 
-            // BUSINESS ENFORCEMENT: Enforce the 2-day threshold constraint
             double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
             if (daysUntilAppointment < 2)
             {
@@ -355,7 +393,6 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings");
             }
 
-            // COMPLETE FINAL LEDGER UPDATES: Reduce remaining pending payment requirements to complete closure
             booking.TotalAmount = 0;
             await _context.SaveChangesAsync();
 
@@ -422,6 +459,18 @@ namespace BeautyArtists.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            // 📢 LIFECYCLE EMAIL 4: Notify the Artist right away that a client dropped out of their slot assignment
+            if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
+            {
+                await _commService.SendDirectMessageEmailAsync(
+                    currentUser.Id,
+                    booking.UserService.ArtistId,
+                    "Booking Cancelled By Client",
+                    $"Client {currentUser.FirstName} has cancelled Booking #{booking.Id} scheduled for {booking.AppointmentDate:yyyy-MM-dd HH:mm}. Your slot has been returned to the public grid."
+                );
+            }
+
             TempData["Success"] = "Your booking has been cancelled.";
             return RedirectToAction("MyBookings");
         }
@@ -531,6 +580,17 @@ namespace BeautyArtists.Controllers
             newSlot.IsBooked = true;
 
             await _context.SaveChangesAsync();
+
+            // 📢 LIFECYCLE EMAIL 5: Inform the Artist that a client shifted their locked date context
+            if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
+            {
+                await _commService.SendDirectMessageEmailAsync(
+                    currentUser.Id,
+                    booking.UserService.ArtistId,
+                    "Appointment Date Rescheduled",
+                    $"Client {currentUser.FirstName} has shifted their confirmed appointment structure to a new time slot: {booking.AppointmentDate:MMM dd, yyyy} at {newSlot.StartTime:hh\\:mm}."
+                );
+            }
 
             TempData["Success"] = $"Rescheduled to {newSlot.AvailableDate:MMM dd} at {newSlot.StartTime:hh\\:mm}!";
             return RedirectToAction("MyBookings");

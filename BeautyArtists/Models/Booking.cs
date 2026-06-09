@@ -24,32 +24,30 @@ namespace BeautyArtists.Models
 
         [DataType(DataType.Currency)]
         [Column(TypeName = "decimal(18,2)")]
-        public decimal TransportCost { get; set; } = 0; //Set by Artist later for house calls.
+        public decimal TransportCost { get; set; } = 0; // Set by Artist later for house calls.
 
-        //Location Map Additions
         [Required(ErrorMessage = "Please select whether you want a Walk-In or House Call.")]
-        public LocationType SelectedLocationType { get; set; } //WalkIn or HouseCall
+        public LocationType SelectedLocationType { get; set; } // WalkIn or HouseCall
 
-        public string? HouseCallAddress { get; set; } //The descriptive text address
-        public string? Latitude { get; set; }//Lat coordinate for the map pin
-        public string? Longitude { get; set; }// Lng coordinate for the pin.
+        public string? HouseCallAddress { get; set; } // The descriptive text address
+        public string? Latitude { get; set; }         // Lat coordinate for the map pin
+        public string? Longitude { get; set; }        // Lng coordinate for the pin.
         public string? Notes { get; set; }
-        public string? ArtistNotes { get; set; }   // Artist's comment when confirming/rejecting
-        public string? ClientNotes { get; set; }    // Client's reason when cancelling/rescheduling
+        public string? ArtistNotes { get; set; }      // Artist's comment when confirming/rejecting
+        public string? ClientNotes { get; set; }      // Client's reason when cancelling/rescheduling
         public bool HasRescheduled { get; set; } = false;
         public bool IsDepositPaid { get; set; } = false;
 
-        // Navigation property
+        // Navigation properties
         public virtual ApplicationUser Customer { get; set; } = default!;
         public virtual UserService UserService { get; set; } = default!;
 
         public int? AvailabilitySlotId { get; set; }
-        public virtual ArtistAvailability AvailabilitySlot { get; set; } = default!;
+        public virtual ArtistAvailability? AvailabilitySlot { get; set; } // Fixed to match its nullable foreign key
 
         // Enum to represent different booking statuses
         public BookingStatus Status { get; set; }
 
-        // Enum to represent the status of a booking
         public enum BookingStatus
         {
             Pending,      // Booking is created but not yet confirmed
@@ -58,9 +56,8 @@ namespace BeautyArtists.Models
             Cancelled,    // Booking has been cancelled
             Rejected
         }
-    } // <-- Booking class ends here
+    }
 
-    // ADDED THIS RIGHT HERE: This is what was missing!
     public enum LocationType
     {
         [Display(Name = "Walk-In (At Salon/Studio)")]

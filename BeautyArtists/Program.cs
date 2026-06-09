@@ -43,7 +43,8 @@ builder.Services.AddControllersWithViews();
 
 // Register production email service
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
-
+//communication pipeline service
+builder.Services.AddTransient<ICommunicationService, CommunicationService>();
 builder.Services.AddRazorPages()
     .AddRazorPagesOptions(options =>
     {
