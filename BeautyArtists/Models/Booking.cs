@@ -28,15 +28,16 @@ namespace BeautyArtists.Models
 
         //Location Map Additions
         [Required(ErrorMessage = "Please select whether you want a Walk-In or House Call.")]
-        public LocationType SelectLocationType { get; set; } //WalkIn or HouseCall
+        public LocationType SelectedLocationType { get; set; } //WalkIn or HouseCall
 
         public string? HouseCallAddress { get; set; } //The descriptive text address
-        public double? Latitude { get; set; }//Lat coordinate for the map pin
-        public double? Longitude { get; set; }// Lng coordinate for the pin.
+        public string? Latitude { get; set; }//Lat coordinate for the map pin
+        public string? Longitude { get; set; }// Lng coordinate for the pin.
         public string? Notes { get; set; }
         public string? ArtistNotes { get; set; }   // Artist's comment when confirming/rejecting
         public string? ClientNotes { get; set; }    // Client's reason when cancelling/rescheduling
         public bool HasRescheduled { get; set; } = false;
+        public bool IsDepositPaid { get; set; } = false;
 
         // Navigation property
         public virtual ApplicationUser Customer { get; set; } = default!;

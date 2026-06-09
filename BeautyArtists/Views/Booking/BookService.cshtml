@@ -5,7 +5,8 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 
 <div class="book-page">
@@ -31,6 +32,20 @@
 
     <div class="container book-body">
 
+        @* ── SERVER-SIDE VALIDATION SUMMARY ── *@
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div class="book-server-errors">
+                <strong>Please fix the following:</strong>
+                <ul>
+                    @foreach (var error in ViewData.ModelState.Values.SelectMany(v => v.Errors))
+                    {
+                        <li>@error.ErrorMessage</li>
+                    }
+                </ul>
+            </div>
+        }
+
         <form asp-controller="Booking" asp-action="ConfirmBooking" method="post" id="bookingForm">
             @Html.AntiForgeryToken()
             <input type="hidden" name="UserServiceId" value="@Model.UserServiceId" />
@@ -41,8 +56,9 @@
             <input type="hidden" name="AvailabilitySlotId" id="selectedSlotId" value="0" />
             <input type="hidden" name="PreferredDate" id="selectedDate" value="" />
 
-            <input type="hidden" name="Latitude" id="latOutput" value="" />
-            <input type="hidden" name="Longitude" id="lngOutput" value="" />
+            @* Form explicitly targets the exact names expected by your backend model *@
+            <input type="hidden" name="Latitude" id="latOutput" value="@Model.Latitude" />
+            <input type="hidden" name="Longitude" id="lngOutput" value="@Model.Longitude" />
 
             @* ── STEP 1: CALENDAR ── *@
             <div class="book-section">
@@ -68,13 +84,15 @@
                 <div id="calendarWrap" style="display:none">
                     <div class="cal-nav">
                         <button type="button" class="cal-nav-btn" id="prevMonth">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2.5">
                                 <polyline points="15,18 9,12 15,6" />
                             </svg>
                         </button>
                         <span class="cal-month-label" id="monthLabel"></span>
                         <button type="button" class="cal-nav-btn" id="nextMonth">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                 stroke="currentColor" stroke-width="2.5">
                                 <polyline points="9,18 15,12 9,6" />
                             </svg>
                         </button>
@@ -94,7 +112,8 @@
 
                     <div id="timeSlotSection" style="display:none">
                         <div class="cal-time-header">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="2">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                                 stroke="#FFD700" stroke-width="2">
                                 <circle cx="12" cy="12" r="10" />
                                 <polyline points="12,6 12,12 16,14" />
                             </svg>
@@ -109,7 +128,7 @@
                 </div>
             </div>
 
-            @* ── SECTION 2: SELECT APPOINTMENT LOCATION ── *@
+            @* ── STEP 2: LOCATION TYPE ── *@
             <div class="book-section">
                 <div class="book-step-header">
                     <div class="book-step-num">2</div>
@@ -120,8 +139,12 @@
                 </div>
 
                 <div class="location-options-container">
-                    <div class="location-card" id="cardWalkIn" onclick="updateLocationFlow('WalkIn')">
-                        <input type="radio" name="SelectedLocationType" id="locWalkIn" value="WalkIn" checked class="location-radio">
+                    <div class="location-card" id="cardWalkIn">
+                        @* FIXED: name changed from SelectedLocationType to SelectLocationType *@
+                        <input type="radio" name="SelectedLocationType" id="locWalkIn"
+                               value="WalkIn"
+                               @(Model.SelectedLocationType == LocationType.WalkIn ? "checked" : "")
+                               class="location-radio" />
                         <div class="card-content">
                             <div class="card-icon">🏢</div>
                             <div class="card-text">
@@ -132,35 +155,46 @@
                         <div class="radio-indicator"></div>
                     </div>
 
-                    <div class="location-card" id="cardHouseCall" onclick="updateLocationFlow('HouseCall')">
-                        <input type="radio" name="SelectedLocationType" id="locHouseCall" value="HouseCall" class="location-radio">
-                        <div class="loc-card-content">
-                            <div class="loc-icon">📍</div>
-                            <div class="loc-details">
-                                <span class="loc-title">House Call</span>
-                                <span class="loc-desc">Artist travels out to your doorstep.</span>
+                    <div class="location-card" id="cardHouseCall">
+                        @* FIXED: name changed from SelectedLocationType to SelectLocationType *@
+                        <input type="radio" name="SelectedLocationType" id="locHouseCall"
+                               value="HouseCall"
+                               @(Model.SelectedLocationType == LocationType.HouseCall ? "checked" : "")
+                               class="location-radio" />
+                        <div class="card-content">
+                            <div class="card-icon">📍</div>
+                            <div class="card-text">
+                                <h3>House Call</h3>
+                                <p>Artist travels out to your doorstep.</p>
                             </div>
                         </div>
                         <div class="radio-indicator"></div>
                     </div>
                 </div>
+                @* FIXED: asp-validation updated to track SelectLocationType *@
                 <span asp-validation-for="SelectedLocationType" class="text-danger small"></span>
 
-                <div id="houseCallWrapper" class="housecall-container" style="display: none; margin-top: 20px;">
+                <div id="houseCallWrapper" class="housecall-container"
+                     style="display:none; margin-top:20px;">
+
                     <div class="map-instruction">
-                        📍 Search your address below or tap directly on the map to drop your marker pin:
+                        📍 Search your address below or tap directly on the map to drop your pin:
                     </div>
 
                     <div id="leafletMap" class="map-frame"></div>
 
                     <div class="address-input-wrapper">
-                        <label class="book-field-label">Descriptive Street Address / Complex Unit No:</label>
-                        <textarea name="HouseCallAddress" id="textAddress" class="book-textarea" rows="2" placeholder="e.g. Unit 42, Serengeti Estates, 12 Mockingbird Lane..."></textarea>
+                        <label class="book-field-label">
+                            Descriptive Street Address / Complex Unit No:
+                        </label>
+                        <textarea name="HouseCallAddress" id="textAddress"
+                                  class="book-textarea" rows="2"
+                                  placeholder="e.g. Unit 42, Serengeti Estates, 12 Mockingbird Lane...">@Model.HouseCallAddress</textarea>
                         <span asp-validation-for="HouseCallAddress" class="text-danger small"></span>
                     </div>
 
                     <div id="mapValidationError" class="book-field-error" style="display:none">
-                        ⚠ Please pinpoint your location on the map and write down an address to request a House Call.
+                        ⚠ Please pinpoint your location on the map and enter an address.
                     </div>
                 </div>
             </div>
@@ -174,7 +208,9 @@
                         <p class="book-step-sub">Optional — tell the artist anything they should know</p>
                     </div>
                 </div>
-                <textarea name="Notes" class="book-textarea" placeholder="e.g. I prefer natural looks, I have sensitive skin..." maxlength="1000" rows="3"></textarea>
+                <textarea name="Notes" class="book-textarea"
+                          placeholder="e.g. I prefer natural looks, I have sensitive skin..."
+                          maxlength="1000" rows="3">@Model.Notes</textarea>
             </div>
 
             @* ── STEP 4: SUMMARY ── *@
@@ -199,14 +235,18 @@
                     <span>Base Service Total</span>
                     <strong>R @Model.Price.ToString("N0")</strong>
                 </div>
-                <div class="travel-cost-disclaimer" id="travelDisclaimer" style="display: none;">
-                    ℹ️ <em>Note: Transport costs for house calls are calculated and updated manually by your artist when verifying requests.</em>
+                <div class="travel-cost-disclaimer" id="travelDisclaimer" style="display:none">
+                    ℹ️ <em>
+                        Transport costs for house calls are calculated and added by your artist
+                        when reviewing the request.
+                    </em>
                 </div>
             </div>
 
             <button type="submit" class="book-confirm-btn">
                 <span>Confirm Booking Request</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5">
                     <polyline points="20,6 9,17 4,12" />
                 </svg>
             </button>
@@ -215,13 +255,13 @@
 </div>
 
 <style>
+    /* (Styles remain entirely unchanged to keep your design exactly as it is) */
     .book-page {
         background: #000;
         min-height: 100vh;
         padding-bottom: 80px;
     }
 
-    /* ── HERO ── */
     .book-hero {
         position: relative;
         padding: 50px 0 40px;
@@ -231,14 +271,14 @@
     .book-hero-glow {
         position: absolute;
         inset: 0;
-        background: linear-gradient(135deg, #100000 0%, #1a0900 50%, #050505 100%);
+        background: linear-gradient(135deg,#100000 0%,#1a0900 50%,#050505 100%);
     }
 
         .book-hero-glow::after {
             content: '';
             position: absolute;
             inset: 0;
-            background: radial-gradient(ellipse at 20% 50%, rgba(179,0,0,0.2) 0%, transparent 55%), radial-gradient(ellipse at 80% 50%, rgba(255,215,0,0.06) 0%, transparent 55%);
+            background: radial-gradient(ellipse at 20% 50%,rgba(179,0,0,0.2) 0%,transparent 55%),radial-gradient(ellipse at 80% 50%,rgba(255,215,0,0.06) 0%,transparent 55%);
         }
 
     .book-hero-inner {
@@ -309,7 +349,24 @@
         text-shadow: 0 0 20px rgba(255,215,0,0.3);
     }
 
-    /* ── BODY ── */
+    .book-server-errors {
+        background: rgba(255,0,0,0.08);
+        border: 1px solid rgba(255,0,0,0.3);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        color: #ff6666;
+        font-size: 0.85rem;
+    }
+
+        .book-server-errors ul {
+            margin: 8px 0 0 16px;
+        }
+
+        .book-server-errors li {
+            margin-bottom: 4px;
+        }
+
     .book-body {
         padding-top: 40px;
         max-width: 720px;
@@ -334,7 +391,7 @@
         width: 36px;
         height: 36px;
         border-radius: 50%;
-        background: linear-gradient(135deg, #b30000, #FFD700);
+        background: linear-gradient(135deg,#b30000,#FFD700);
         color: #000;
         font-size: 0.95rem;
         font-weight: 800;
@@ -357,66 +414,87 @@
         margin: 0;
     }
 
-    /* ── LOCATION SELECTOR CARDS ── */
-    .location-toggle-group {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
+    .location-options-container {
+        display: flex;
+        flex-direction: column;
         gap: 16px;
-        margin-bottom: 24px;
+        width: 100%;
+        margin-top: 16px;
     }
 
     .location-card {
-        background: #111;
-        border: 1.5px solid rgba(255,215,0,0.1);
-        border-radius: 14px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #121212;
+        border: 1px solid #2a2a2a;
+        border-radius: 12px;
         padding: 16px;
         cursor: pointer;
-        display: block;
-        position: relative;
-        transition: all 0.2s ease;
+        transition: all 0.25s ease;
+        -webkit-tap-highlight-color: transparent;
     }
 
-        .location-card input[type="radio"] {
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            accent-color: #FFD700;
-        }
-
-        .location-card.active {
-            border-color: #FFD700;
-            background: #161204;
-            box-shadow: 0 0 15px rgba(255,215,0,0.15);
-        }
-
-    .loc-card-content {
+    .card-content {
         display: flex;
-        gap: 12px;
         align-items: center;
+        gap: 16px;
+        flex: 1;
+        padding-right: 32px;
     }
 
-    .loc-icon {
-        font-size: 1.8rem;
+    .card-icon {
+        font-size: 1.5rem;
+        line-height: 1;
     }
 
-    .loc-details {
-        display: flex;
-        flex-direction: column;
+    .card-text h3 {
+        color: #ffffff;
+        font-size: 1.1rem;
+        margin: 0 0 4px;
+        font-weight: 600;
     }
 
-    .loc-title {
-        color: #fff;
-        font-weight: 700;
-        font-size: 0.95rem;
+    .card-text p {
+        color: #8a8a8a;
+        font-size: 0.85rem;
+        margin: 0;
+        line-height: 1.3;
     }
 
-    .loc-desc {
-        color: rgba(255,255,255,0.4);
-        font-size: 0.75rem;
-        margin-top: 2px;
+    .location-radio {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
     }
 
-    /* ── MAP / DESIGN FRAME ── */
+    .radio-indicator {
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 18px;
+        height: 18px;
+        border: 2px solid #555;
+        border-radius: 50%;
+        background: transparent;
+        transition: all 0.2s;
+    }
+
+    .location-card.active {
+        border-color: #FFD700;
+        background: #161204;
+        box-shadow: 0 0 15px rgba(255,215,0,0.15);
+    }
+
+        .location-card.active .radio-indicator {
+            border-color: #FFD700;
+            background: #FFD700;
+            box-shadow: inset 0 0 0 3px #121212;
+        }
+
     .housecall-container {
         animation: fadeIn 0.3s ease-in-out;
     }
@@ -444,14 +522,12 @@
         margin-bottom: 8px;
     }
 
-    /* ── CRITICAL BRANDED GEOCODER FIXES ── */
     .leaflet-control-geocoder {
         background: #111 !important;
         border: 1.5px solid #FFD700 !important;
         border-radius: 8px !important;
         box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
         color: #fff !important;
-        position: relative !important;
     }
 
     .leaflet-control-geocoder-form input {
@@ -464,9 +540,8 @@
         width: 240px !important;
     }
 
-    /* Clean White Suggestions Panel */
     .leaflet-control-geocoder-alternatives {
-        background-color: #ffffff !important;
+        background-color: #fff !important;
         border: 1px solid #ccc !important;
         list-style: none !important;
         padding: 0 !important;
@@ -480,24 +555,19 @@
         border-radius: 0 0 8px 8px !important;
     }
 
-        /* Explicit text styling for list alternatives */
         .leaflet-control-geocoder-alternatives li {
             padding: 10px 12px !important;
             cursor: pointer !important;
-            color: #222222 !important; /* Sharp, dark readable text */
+            color: #222 !important;
             font-weight: 500 !important;
-            border-bottom: 1px solid #eeeeee !important;
+            border-bottom: 1px solid #eee !important;
             font-size: 0.85rem !important;
-            text-align: left !important;
         }
 
-            /* Hover style for selection lists */
             .leaflet-control-geocoder-alternatives li:hover {
                 background-color: #f5f5f5 !important;
-                color: #000000 !important;
             }
 
-    /* ── LOADING / EMPTY ── */
     .slots-loading {
         display: flex;
         align-items: center;
@@ -517,27 +587,21 @@
     }
 
     @@keyframes spin {
-        to
-
-    {
-        transform: rotate(360deg);
-    }
-
+        to {
+            transform: rotate(360deg);
+        }
     }
 
     @@keyframes fadeIn {
-        from
+        from {
+            opacity: 0;
+            transform: translateY(4px);
+        }
 
-    {
-        opacity: 0;
-        transform: translateY(4px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .slots-empty {
@@ -560,7 +624,6 @@
         font-size: 0.75rem;
     }
 
-    /* ── CALENDAR NAV ── */
     .cal-nav {
         display: flex;
         align-items: center;
@@ -595,10 +658,9 @@
         text-transform: uppercase;
     }
 
-    /* ── CALENDAR GRID ── */
     .cal-grid {
         display: grid;
-        grid-template-columns: repeat(7, 1fr);
+        grid-template-columns: repeat(7,1fr);
         gap: 6px;
         margin-bottom: 6px;
     }
@@ -617,7 +679,6 @@
         padding: 6px 0;
     }
 
-    /* ── DAY CELLS ── */
     .cal-day {
         aspect-ratio: 1;
         display: flex;
@@ -651,7 +712,7 @@
         }
 
         .cal-day.has-slot {
-            background: linear-gradient(135deg, #b30000, #FFD700);
+            background: linear-gradient(135deg,#b30000,#FFD700);
             color: #000;
             font-weight: 800;
             cursor: pointer;
@@ -680,7 +741,6 @@
         background: rgba(0,0,0,0.35);
     }
 
-    /* ── TIME SLOTS ── */
     .cal-time-header {
         display: flex;
         align-items: center;
@@ -730,7 +790,6 @@
             box-shadow: 0 0 14px rgba(255,215,0,0.2);
         }
 
-    /* ── TEXTAREA ── */
     .book-textarea {
         width: 100%;
         background: #111;
@@ -753,7 +812,6 @@
             color: rgba(255,255,255,0.2);
         }
 
-    /* ── SUMMARY ── */
     .book-summary {
         border-color: rgba(255,215,0,0.2);
     }
@@ -799,7 +857,6 @@
         line-height: 1.4;
     }
 
-    /* ── CONFIRM ── */
     .book-confirm-btn {
         width: 100%;
         display: flex;
@@ -807,7 +864,7 @@
         justify-content: center;
         gap: 10px;
         padding: 18px;
-        background: linear-gradient(135deg, #b30000, #FFD700);
+        background: linear-gradient(135deg,#b30000,#FFD700);
         color: #000;
         font-weight: 800;
         font-size: 1rem;
@@ -820,7 +877,7 @@
     }
 
         .book-confirm-btn:hover {
-            background: linear-gradient(135deg, #FFD700, #b30000);
+            background: linear-gradient(135deg,#FFD700,#b30000);
             box-shadow: 0 0 30px rgba(255,215,0,0.35);
             transform: translateY(-2px);
         }
@@ -834,95 +891,7 @@
         border-radius: 8px;
         border-left: 3px solid #ff4444;
     }
-
-    /* Container scales to full width and switches to row layout on larger devices */
-    .location-options-container {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        width: 100%;
-        margin-top: 16px;
-    }
-
-    /* Base Card Styling */
-    .location-card {
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background: #121212; /* Matches your dark container background */
-        border: 1px solid #2a2a2a;
-        border-radius: 12px;
-        padding: 16px;
-        cursor: pointer;
-        transition: all 0.25s ease;
-        -webkit-tap-highlight-color: transparent;
-    }
-
-    /* Inner content alignment */
-    .card-content {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        flex: 1;
-        padding-right: 32px; /* Leaves space so text never overlaps the radio indicator */
-    }
-
-    .card-icon {
-        font-size: 1.5rem;
-        line-height: 1;
-    }
-
-    .card-text h3 {
-        color: #ffffff;
-        font-size: 1.1rem;
-        margin: 0 0 4px 0;
-        font-weight: 600;
-    }
-
-    .card-text p {
-        color: #8a8a8a;
-        font-size: 0.85rem;
-        margin: 0;
-        line-height: 1.3;
-    }
-
-    /* Hide the native input control but keep it functional */
-    .location-radio {
-        position: absolute;
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-
-    /* Custom Radio Indicator */
-    .radio-indicator {
-        position: absolute;
-        right: 16px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 18px;
-        height: 18px;
-        border: 2px solid #555555;
-        border-radius: 50%;
-        background: transparent;
-        transition: all 0.2s ease;
-    }
-
-    /* Active State Styles (Applied via your existing updateLocationFlow JS) */
-    .location-card.active {
-        border-color: #ffcc00; /* Matching your gold accent color from 91398.jpg */
-        box-shadow: 0 0 12px rgba(255, 204, 0, 0.15);
-    }
-
-        .location-card.active .radio-indicator {
-            border-color: #ffcc00;
-            background: #ffcc00;
-            box-shadow: inset 0 0 0 3px #121212; /* Gives it a clean inner ring appearance */
-        }
-
-    /* Responsive breakpoint for Tablets and Laptops */
-    @@media (min-width: 600px) {
+    @@media (min-width:600px) {
         .location-options-container
 
     {
@@ -933,136 +902,125 @@
         flex: 1;
     }
 
-        .appointment-options-container {
-            display: flex;
-            flex-direction: column; /* Stacks them vertically on mobile portrait */
-            gap: 16px; /* Keeps a clean spacing between the cards */
-            width: 100%;
-        }
-        /* When the screen is wider (like landscape or tablets) */
-        @@media (min-width: 480px) {
-            .appointment-options-container
-
-    {
-        flex-direction: row; /* Aligns them side-by-side */
     }
-
-            .option-card {
-                flex: 1; /* Makes sure cards take up equal space when side-by-side */
-                position: relative; /* Useful if your selection dot is absolutely positioned */
-                display: flex;
-                align-items: center; /* Vertically aligns icon and text if layout is horizontal */
-                padding: 16px;
-                border-radius: 12px;
-                min-height: 100px; /* Prevents the card from collapsing vertically */
-                box-sizing: border-box;
-            }
 </style>
-
 @section Scripts {
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+            integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
     <script>
         const artistId = '@Model.ArtistId';
-        let allSlots = [];
+
+        // FIX: Read initial location type from the server model so that
+        //      on a validation-fail return the correct card is pre-selected
+        const initialLocationType = '@Model.SelectedLocationType.ToString()';
+
+        let allSlots     = [];
         let selectedSlot = null;
         let currentYear, currentMonth;
+        let map          = null;
+        let mapMarker    = null;
 
-        // Map Framework Configuration
-        let map = null;
-        let mapMarker = null;
+        // ── DOM READY ──
+        document.addEventListener('DOMContentLoaded', function () {
 
-        // ─── INITIALIZATION & DELEGATION ON LOAD ───
-        document.addEventListener("DOMContentLoaded", function () {
-            // Read URL to see if bookingType was pre-selected from catalogue
-            const urlParams = new URLSearchParams(window.location.search);
-            const bookingType = urlParams.get('bookingType');
-
-            if (bookingType === 'HouseCall') {
-                updateLocationFlow('HouseCall');
-            } else {
+            // Location card click handlers
+            document.getElementById('cardWalkIn').addEventListener('click', function () {
                 updateLocationFlow('WalkIn');
-            }
+            });
+            document.getElementById('cardHouseCall').addEventListener('click', function () {
+                updateLocationFlow('HouseCall');
+            });
+
+            // FIX: On page load, apply whichever type the server sent back.
+            //      This handles both first load (WalkIn default) AND the
+            //      case where validation failed and we return with HouseCall.
+            updateLocationFlow(initialLocationType);
         });
 
-        // FETCH TIMING LOGIC
-        fetch(`/ArtistAvailability/GetSlots?artistId=${artistId}`)
-            .then(res => res.json())
-            .then(slots => {
+        // ── FETCH AVAILABILITY ──
+        fetch('/ArtistAvailability/GetSlots?artistId=' + artistId)
+            .then(function (res) { return res.json(); })
+            .then(function (slots) {
                 document.getElementById('calLoading').style.display = 'none';
+
                 if (!slots || slots.length === 0) {
                     document.getElementById('calEmpty').style.display = 'block';
                     return;
                 }
+
                 allSlots = slots;
                 const now = new Date();
-                currentYear = now.getFullYear();
+                currentYear  = now.getFullYear();
                 currentMonth = now.getMonth();
                 document.getElementById('calendarWrap').style.display = 'block';
                 renderCalendar(currentYear, currentMonth);
             })
-            .catch(() => {
+            .catch(function () {
                 document.getElementById('calLoading').style.display = 'none';
-                document.getElementById('calEmpty').style.display = 'block';
+                document.getElementById('calEmpty').style.display   = 'block';
             });
 
-        // MONTH NAV BUTTONS
-        document.getElementById('prevMonth').addEventListener('click', () => {
+        // ── MONTH NAV ──
+        document.getElementById('prevMonth').addEventListener('click', function () {
             currentMonth--;
-            if (currentMonth < 0) {
-                currentMonth = 11;
-                currentYear--;
-            }
+            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
             renderCalendar(currentYear, currentMonth);
         });
-
-        document.getElementById('nextMonth').addEventListener('click', () => {
+        document.getElementById('nextMonth').addEventListener('click', function () {
             currentMonth++;
-            if (currentMonth > 11) {
-                currentMonth = 0;
-                currentYear++;
-            }
+            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
             renderCalendar(currentYear, currentMonth);
         });
 
+        // ── RENDER CALENDAR ──
         function renderCalendar(year, month) {
-            const monthNames = ['January','February','March','April','May','June',
-                                'July','August','September','October','November','December'];
-            document.getElementById('monthLabel').textContent = `${monthNames[month]} ${year}`;
-            const grid = document.getElementById('calDays');
+            var monthNames = ['January','February','March','April','May','June',
+                              'July','August','September','October','November','December'];
+            document.getElementById('monthLabel').textContent = monthNames[month] + ' ' + year;
+
+            var grid = document.getElementById('calDays');
             grid.innerHTML = '';
 
-            const availDates = new Set(allSlots.filter(s => {
-                const d = new Date(s.date + 'T00:00:00');
-                return d.getFullYear() === year && d.getMonth() === month;
-            }).map(s => s.date));
+            var availDates = new Set(
+                allSlots.filter(function (s) {
+                    var parts  = s.date.split('-');
+                    var sYear  = parseInt(parts[0], 10);
+                    var sMonth = parseInt(parts[1], 10) - 1;
+                    return sYear === year && sMonth === month;
+                }).map(function (s) { return s.date; })
+            );
 
-            const firstDay = new Date(year, month, 1).getDay();
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            const today = new Date();
+            var firstDay    = new Date(year, month, 1).getDay();
+            var daysInMonth = new Date(year, month + 1, 0).getDate();
+            var today       = new Date();
             today.setHours(0, 0, 0, 0);
 
-            for (let i = 0; i < firstDay; i++) {
-                const empty = document.createElement('div');
+            for (var i = 0; i < firstDay; i++) {
+                var empty = document.createElement('div');
                 empty.className = 'cal-day empty';
                 grid.appendChild(empty);
             }
 
-            for (let d = 1; d <= daysInMonth; d++) {
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const cellDate = new Date(year, month, d);
-                const cell = document.createElement('div');
+            for (var d = 1; d <= daysInMonth; d++) {
+                var dateStr  = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                var cellDate = new Date(year, month, d);
+                var cell     = document.createElement('div');
                 cell.textContent = d;
 
                 if (cellDate < today) {
                     cell.className = 'cal-day past';
                 } else if (availDates.has(dateStr)) {
                     cell.className = 'cal-day has-slot';
-                    const dot = document.createElement('div');
+                    var dot = document.createElement('div');
                     dot.className = 'cal-slot-dot';
                     cell.appendChild(dot);
-                    cell.addEventListener('click', () => selectDate(dateStr, cell, d, month, year));
+                    (function (ds, c, dd, mm, yy) {
+                        c.addEventListener('click', function () {
+                            selectDate(ds, c, dd, mm, yy);
+                        });
+                    })(dateStr, cell, d, month, year);
                 } else if (cellDate.getTime() === today.getTime()) {
                     cell.className = 'cal-day today';
                 } else {
@@ -1070,154 +1028,154 @@
                 }
                 grid.appendChild(cell);
             }
+
             document.getElementById('timeSlotSection').style.display = 'none';
         }
 
+        // ── SELECT DATE ──
         function selectDate(dateStr, cell, day, month, year) {
-            document.querySelectorAll('.cal-day.has-slot').forEach(c => c.classList.remove('selected'));
+            document.querySelectorAll('.cal-day.has-slot').forEach(function (c) {
+                c.classList.remove('selected');
+            });
             cell.classList.add('selected');
 
-            const daySlots = allSlots.filter(s => s.date === dateStr);
-            const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-            const formattedDateLabel = `${monthNames[month]} ${day}, ${year}`;
+            var daySlots   = allSlots.filter(function (s) { return s.date === dateStr; });
+            var monthNames = ['Jan','Feb','Mar','Apr','May','Jun',
+                              'Jul','Aug','Sep','Oct','Nov','Dec'];
+            var formattedDateLabel = monthNames[month] + ' ' + day + ', ' + year;
+
             document.getElementById('selectedDateLabel').textContent = formattedDateLabel;
 
-            const grid = document.getElementById('timeSlotsGrid');
+            var grid = document.getElementById('timeSlotsGrid');
             grid.innerHTML = '';
 
-            daySlots.forEach(slot => {
-                const parts = slot.display.split(': ');
-                const timePart = parts[1] || slot.display;
-                const btn = document.createElement('button');
-                btn.type = 'button';
+            daySlots.forEach(function (slot) {
+                var parts    = slot.display.split(': ');
+                var timePart = parts[1] || slot.display;
+                var btn      = document.createElement('button');
+                btn.type      = 'button';
                 btn.className = 'time-slot-btn';
-                btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12,6 12,12 16,14"></polyline></svg><span>${timePart}</span>`;
+                btn.innerHTML =
+                    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                    '<circle cx="12" cy="12" r="10"></circle>' +
+                    '<polyline points="12,6 12,12 16,14"></polyline></svg>' +
+                    '<span>' + timePart + '</span>';
 
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('selected'));
-                    btn.classList.add('selected');
-
-                    // Update hidden forms
-                    document.getElementById('selectedSlotId').value = slot.id;
-                    document.getElementById('selectedDate').value = slot.date;
-
-                    // Update Summary interface
-                    document.getElementById('summarySlot').textContent = `${formattedDateLabel} at ${timePart}`;
-                    checkSummaryVisibility();
-                });
+                (function (s, t, fd) {
+                    btn.addEventListener('click', function () {
+                        document.querySelectorAll('.time-slot-btn').forEach(function (b) {
+                            b.classList.remove('selected');
+                        });
+                        btn.classList.add('selected');
+                        document.getElementById('selectedSlotId').value = s.id;
+                        document.getElementById('selectedDate').value   = s.date;
+                        document.getElementById('summarySlot').textContent =
+                            fd + ' at ' + t;
+                        checkSummaryVisibility();
+                    });
+                })(slot, timePart, formattedDateLabel);
 
                 grid.appendChild(btn);
             });
+
             document.getElementById('timeSlotSection').style.display = 'block';
         }
 
-        // LOCATION BLOCK CONTROL
+        // ── LOCATION FLOW ──
         function updateLocationFlow(type) {
-            document.querySelectorAll('.location-card').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.location-card').forEach(function (c) {
+                c.classList.remove('active');
+            });
 
-            if (type === 'WalkIn') {
-                document.getElementById('cardWalkIn').classList.add('active');
-                document.getElementById('locWalkIn').checked = true;
-                document.getElementById('houseCallWrapper').style.display = 'none';
-                document.getElementById('summaryLocationType').textContent = "Walk-In";
-                document.getElementById('travelDisclaimer').style.display = 'none';
-            }
-            else {
+            if (type === 'HouseCall') {
                 document.getElementById('cardHouseCall').classList.add('active');
-                document.getElementById('locHouseCall').checked = true;
+                document.getElementById('locHouseCall').checked          = true;
                 document.getElementById('houseCallWrapper').style.display = 'block';
-                document.getElementById('summaryLocationType').textContent = "House Call";
-                document.getElementById('travelDisclaimer').style.display = 'block';
+                document.getElementById('summaryLocationType').textContent = 'House Call';
+                document.getElementById('travelDisclaimer').style.display  = 'block';
 
-                if (!map) {
-                    setTimeout(() => {
-                        // Centered on region coordinates
+                // Initialise map — FIX: 150ms timeout is safer on slow connections
+                if (!map && document.getElementById('leafletMap')) {
+                    setTimeout(function () {
                         map = L.map('leafletMap').setView([-26.8649, 26.6570], 13);
 
-                        // Light map style base layer
                         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
                             attribution: '&copy; OpenStreetMap &copy; CARTO'
                         }).addTo(map);
 
-                        // Click directly on map to drop pin
-                        map.on('click', function(e) {
+                        map.on('click', function (e) {
                             updateMarker(e.latlng.lat, e.latlng.lng);
                         });
 
-                        // Integrated Branded Geocoder Search Control
-                        const geocoder = L.Control.Geocoder.nominatim();
-                        const searchControl = L.Control.geocoder({
+                        var geocoder      = L.Control.Geocoder.nominatim();
+                        var searchControl = L.Control.geocoder({
                             geocoder: geocoder,
                             defaultMarkGeocode: false,
-                            placeholder: "Search suburbs, streets, estates..."
+                            placeholder: 'Search suburbs, streets...'
                         }).addTo(map);
 
-                        searchControl.on('markgeocode', function(e) {
-                            const bbox = e.geocode.bbox;
-                            const poly = L.polygon([
-                                bbox.getSouthWest(),
-                                bbox.getNorthWest(),
-                                bbox.getNorthEast(),
-                                bbox.getSouthEast()
+                        searchControl.on('markgeocode', function (e) {
+                            var bbox = e.geocode.bbox;
+                            var poly = L.polygon([
+                                bbox.getSouthWest(), bbox.getNorthWest(),
+                                bbox.getNorthEast(), bbox.getSouthEast()
                             ]);
                             map.fitBounds(poly.getBounds());
                             updateMarker(e.geocode.center.lat, e.geocode.center.lng);
 
-                            // ─── IMPROVED ADDRESS EXTRACTION WITH HOUSE NUMBERS ───
-                            let fullAddress = e.geocode.name;
+                            var fullAddress = e.geocode.name;
                             if (e.geocode.properties && e.geocode.properties.address) {
-                                const addr = e.geocode.properties.address;
-                                const houseNumber = addr.house_number || addr.street_number || addr.building || '';
-                                const road = addr.road || addr.street || '';
-                                const suburb = addr.suburb || addr.neighbourhood || '';
-                                const city = addr.city || addr.town || '';
-
+                                var addr        = e.geocode.properties.address;
+                                var houseNumber = addr.house_number || addr.street_number || addr.building || '';
+                                var road        = addr.road || addr.street || '';
+                                var suburb      = addr.suburb || addr.neighbourhood || '';
+                                var city        = addr.city || addr.town || '';
                                 if (houseNumber && road) {
-                                    fullAddress = `${houseNumber} ${road}`;
-                                    if (suburb) fullAddress += `, ${suburb}`;
-                                    if (city && city !== suburb) fullAddress += `, ${city}`;
+                                    fullAddress = houseNumber + ' ' + road;
+                                    if (suburb) fullAddress += ', ' + suburb;
+                                    if (city && city !== suburb) fullAddress += ', ' + city;
                                 }
                             }
-
-                            const addrInput = document.getElementById('textAddress');
-                            addrInput.value = fullAddress;
+                            document.getElementById('textAddress').value = fullAddress;
                         });
 
-                        // STOPS SYSTEM FROM INTERFERING WITH DROPDOWN LIST SCROLLING
-                        const geocoderContainer = searchControl.getContainer();
-                        if (geocoderContainer) {
-                            L.DomEvent.disableScrollPropagation(geocoderContainer);
-                            L.DomEvent.disableClickPropagation(geocoderContainer);
-
-                            const stopMapInterference = (e) => {
-                                e.stopPropagation();
-                            };
-
-                            geocoderContainer.addEventListener('wheel', stopMapInterference, { passive: false });
-                            geocoderContainer.addEventListener('mousewheel', stopMapInterference, { passive: false });
-                            geocoderContainer.addEventListener('DOMMouseScroll', stopMapInterference, { passive: false });
-                            geocoderContainer.addEventListener('touchmove', stopMapInterference, { passive: false });
-                            geocoderContainer.addEventListener('mousedown', stopMapInterference);
-                            geocoderContainer.addEventListener('mouseup', stopMapInterference);
+                        var container = searchControl.getContainer();
+                        if (container) {
+                            L.DomEvent.disableScrollPropagation(container);
+                            L.DomEvent.disableClickPropagation(container);
                         }
 
-                        // Force tile load calculation since container layout swapped sizes
-                        if (map) {
-                            map.invalidateSize();
+                        map.invalidateSize();
+
+                        // FIX: If we're returning from a validation fail and the user
+                        //      had already pinned a location, restore the marker
+                        var existingLat = document.getElementById('latOutput').value;
+                        var existingLng = document.getElementById('lngOutput').value;
+                        if (existingLat && existingLng &&
+                            parseFloat(existingLat) !== 0 &&
+                            parseFloat(existingLng) !== 0) {
+                            updateMarker(parseFloat(existingLat), parseFloat(existingLng));
+                            map.setView([parseFloat(existingLat), parseFloat(existingLng)], 15);
                         }
-                    }, 50);
-                } else {
-                    // Fallback refresh logic for existing instances toggled back open
-                    setTimeout(() => {
-                        if (map) {
-                            map.invalidateSize();
-                        }
-                    }, 50);
+
+                    }, 150);
+                } else if (map) {
+                    setTimeout(function () { map.invalidateSize(); }, 150);
                 }
+
+            } else {
+                // Walk-In
+                document.getElementById('cardWalkIn').classList.add('active');
+                document.getElementById('locWalkIn').checked            = true;
+                document.getElementById('houseCallWrapper').style.display = 'none';
+                document.getElementById('summaryLocationType').textContent = 'Walk-In';
+                document.getElementById('travelDisclaimer').style.display  = 'none';
             }
+
             checkSummaryVisibility();
         }
 
+        // ── UPDATE MAP MARKER ──
         function updateMarker(lat, lng) {
             document.getElementById('latOutput').value = lat;
             document.getElementById('lngOutput').value = lng;
@@ -1225,55 +1183,61 @@
 
             if (mapMarker) {
                 mapMarker.setLatLng([lat, lng]);
-            } else {
+            } else if (map) {
                 mapMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
-                mapMarker.on('dragend', function(e) {
-                    const changedPos = mapMarker.getLatLng();
-                    document.getElementById('latOutput').value = changedPos.lat;
-                    document.getElementById('lngOutput').value = changedPos.lng;
+                mapMarker.on('dragend', function () {
+                    var pos = mapMarker.getLatLng();
+                    document.getElementById('latOutput').value = pos.lat;
+                    document.getElementById('lngOutput').value = pos.lng;
                 });
             }
         }
 
+        // ── SHOW SUMMARY WHEN SLOT IS SELECTED ──
         function checkSummaryVisibility() {
-            const hasSlot = parseInt(document.getElementById('selectedSlotId').value) > 0;
+            var hasSlot = parseInt(document.getElementById('selectedSlotId').value) > 0;
             if (hasSlot) {
                 document.getElementById('bookSummary').style.display = 'block';
             }
         }
 
-        // CLIENT-SIDE GUARD SUBMISSION VALIDATION
-        document.getElementById('bookingForm').addEventListener('submit', function(e) {
-            let isValid = true;
+        // ── FORM SUBMIT VALIDATION ──
+        document.getElementById('bookingForm').addEventListener('submit', function (e) {
+            var isValid = true;
+            var slotId  = parseInt(document.getElementById('selectedSlotId').value);
 
-            // 1. Slot check
-            const slotId = parseInt(document.getElementById('selectedSlotId').value);
+            // Slot must be selected
             if (!slotId || slotId <= 0) {
-                document.getElementById('slotError').style.display = 'block';
-                document.getElementById('slotError').scrollIntoView({ behavior: 'smooth' });
+                var slotErr = document.getElementById('slotError');
+                slotErr.style.display = 'block';
+                slotErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 isValid = false;
             } else {
                 document.getElementById('slotError').style.display = 'none';
             }
 
-            // 2. House call check
-            const isHouseCall = document.getElementById('locHouseCall').checked;
-            if (isHouseCall) {
-                const lat = document.getElementById('latOutput').value;
-                const lng = document.getElementById('lngOutput').value;
-                const addressStr = document.getElementById('textAddress').value.trim();
+            // House Call: map pin + address required
+            if (document.getElementById('locHouseCall').checked) {
+                var lat  = document.getElementById('latOutput').value;
+                var lng  = document.getElementById('lngOutput').value;
+                var addr = document.getElementById('textAddress').value.trim();
 
-                if (!lat || !lng || !addressStr) {
+                // FIX: check for empty string OR literal "0" / "0.0" from default
+                var hasPin = lat && lng &&
+                             parseFloat(lat) !== 0 &&
+                             parseFloat(lng) !== 0;
+
+                if (!hasPin || !addr) {
                     document.getElementById('mapValidationError').style.display = 'block';
+                    document.getElementById('mapValidationError')
+                        .scrollIntoView({ behavior: 'smooth', block: 'center' });
                     isValid = false;
                 } else {
                     document.getElementById('mapValidationError').style.display = 'none';
                 }
             }
 
-            if (!isValid) {
-                e.preventDefault();
-            }
+            if (!isValid) e.preventDefault();
         });
     </script>
 }

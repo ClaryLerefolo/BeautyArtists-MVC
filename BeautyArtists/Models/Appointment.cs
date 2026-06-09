@@ -4,6 +4,18 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BeautyArtists.Models
 {
+    public enum AppointmentType
+    {
+        WalkIn,
+        HouseCall
+    }
+    public enum AppointmentStatus
+    {
+        PendingDeposit, // Customer needs to pay 50%
+        Confirmed,      // Paid 50%, shows up as confirmed for the Artist
+        Completed,
+        Cancelled
+    }
     public class Appointment
     {
         public int Id { get; set; }

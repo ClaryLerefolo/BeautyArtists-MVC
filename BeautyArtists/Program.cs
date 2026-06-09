@@ -1,5 +1,7 @@
 using BeautyArtists.Data;
 using BeautyArtists.Models;
+using BeautyArtists.Services;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
@@ -7,15 +9,19 @@ using System.Globalization;
 using System.Net;
 using System.Net.WebSockets;
 
+// Global culture configuration
+var cultureInfo = new CultureInfo("en-ZA");
+CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
+CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Add services to the container
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString, sqlServerOptionsAction: sqlOptions =>
     {
-        // Tells Entity Framework to retry connecting automatically if Azure is waking up or drops transiently
         sqlOptions.EnableRetryOnFailure(
             maxRetryCount: 5,
             maxRetryDelay: TimeSpan.FromSeconds(5),
@@ -24,10 +30,20 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = false)
-    .AddRoles<IdentityRole>() //Enable roles
-    .AddEntityFrameworkStores<ApplicationDbContext>();
+// Production Identity setup requiring confirmed accounts
+builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
+{
+    options.SignIn.RequireConfirmedAccount = true;
+})
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
 builder.Services.AddControllersWithViews();
+
+// Register production email service
+builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
+
 builder.Services.AddRazorPages()
     .AddRazorPagesOptions(options =>
     {
@@ -36,10 +52,9 @@ builder.Services.AddRazorPages()
         options.Conventions.AddAreaPageRoute("Identity", "/Account/RegisterArtist", "/Identity/Account/RegisterArtist");
     });
 
-
 var app = builder.Build();
 
-//Seed Roles On Startup
+// Seed Roles and Demo Users On Startup
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
@@ -47,7 +62,6 @@ using (var scope = app.Services.CreateScope())
 
     string[] roles = { "Client", "Artist", "Admin" };
 
-    //Create Roles If They Don't Already Exist
     foreach (var role in roles)
     {
         if (!await roleManager.RoleExistsAsync(role))
@@ -56,7 +70,7 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    //Create the admin user automatically
+    // Seed Admin
     string adminEmail = "admin@example.com";
     string adminPassword = "Admin@123";
 
@@ -77,6 +91,7 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
+    // Seed Demo Artist
     string artistEmail = "artist@example.com";
     string artistPassword = "Artist@123";
 
@@ -87,6 +102,8 @@ using (var scope = app.Services.CreateScope())
         {
             UserName = artistEmail,
             Email = artistEmail,
+            FirstName = "Test",
+            LastName = "Artist",
             EmailConfirmed = true
         };
 
@@ -97,6 +114,7 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
+    // Seed Demo Client
     string clientEmail = "client@example.com";
     string clientPassword = "Client@123";
 
@@ -107,6 +125,8 @@ using (var scope = app.Services.CreateScope())
         {
             UserName = clientEmail,
             Email = clientEmail,
+            FirstName = "Test",
+            LastName = "Client",
             EmailConfirmed = true
         };
 
@@ -115,14 +135,10 @@ using (var scope = app.Services.CreateScope())
         {
             await userManager.AddToRoleAsync(newClient, "Client");
         }
-
-        var cultureInfo = new CultureInfo("en-ZA");
-        CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
-        CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
     }
 }
 
-// Configure the HTTP request pipeline.
+// Configure HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
@@ -138,6 +154,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllerRoute(
