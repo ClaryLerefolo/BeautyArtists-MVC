@@ -962,9 +962,12 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            let slotsData = [], currentYear = new Date().getFullYear(), currentMonth = new Date().getMonth();
+            let slotsData = [];
+            let currentYear = new Date().getFullYear();
+            let currentMonth = new Date().getMonth();
             const artistId = '@Model.ArtistId';
 
+            // DOM Elements
             const cardWalkIn = document.getElementById("cardWalkIn");
             const cardHouseCall = document.getElementById("cardHouseCall");
             const radWalkIn = document.getElementById("locWalkIn");
@@ -980,9 +983,17 @@
             const bookingForm = document.getElementById("bookingForm");
             const slotError = document.getElementById("slotError");
             const mapValidationError = document.getElementById("mapValidationError");
+            const monthLabel = document.getElementById("monthLabel");
+            const calDays = document.getElementById("calDays");
+            const timeSlotSection = document.getElementById("timeSlotSection");
+            const selectedDateLabel = document.getElementById("selectedDateLabel");
+            const timeSlotsGrid = document.getElementById("timeSlotsGrid");
+            const bookSummary = document.getElementById("bookSummary");
+            const summarySlot = document.getElementById("summarySlot");
 
             let map, marker;
 
+            // Map functions
             function initMap() {
                 if (map) { map.invalidateSize(); return; }
                 map = L.map('leafletMap').setView([-26.2041, 28.0473], 13);
@@ -1016,6 +1027,7 @@
             }
 
             function updateCoordinates(lat, lng) { latOutput.value = lat; lngOutput.value = lng; }
+
             async function reverseGeocode(lat, lng) {
                 try {
                     const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
@@ -1031,6 +1043,7 @@
                 if (searchInput) searchInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); searchAddress(); } };
             }
 
+            // Location selection
             function selectLocationCard(type) {
                 if (type === "WalkIn") {
                     radWalkIn.checked = true;
@@ -1054,34 +1067,177 @@
             cardHouseCall.onclick = () => selectLocationCard("HouseCall");
             if (radWalkIn && radWalkIn.checked) selectLocationCard("WalkIn");
 
-            // Calendar code (simplified)
-            fetch(`/Booking/GetArtistAvailability?artistId=${artistId}`).then(res => res.json()).then(data => { slotsData = data; document.getElementById("calLoading").style.display = "none"; if(slotsData.length) { document.getElementById("calendarWrap").style.display = "block"; renderCalendar(); } else { document.getElementById("calEmpty").style.display = "block"; } });
+            // ========== FIXED CALENDAR CODE ==========
 
+            // Function to show time slots for selected date
+            function showTimeSlots(dateString, slots) {
+                timeSlotsGrid.innerHTML = "";
+                selectedDateLabel.innerText = new Date(dateString).toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric' });
+                timeSlotSection.style.display = "block";
+
+                slots.forEach(slot => {
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "time-slot-btn";
+                    btn.innerHTML = `<span>${slot.timeString}</span>`;
+
+                    if (selectedSlotIdInput.value == slot.id) {
+                        btn.classList.add("selected");
+                    }
+
+                    btn.addEventListener("click", () => {
+                        document.querySelectorAll(".time-slot-btn").forEach(b => b.classList.remove("selected"));
+                        btn.classList.add("selected");
+
+                        selectedSlotIdInput.value = slot.id;
+                        selectedDateInput.value = dateString;
+
+                        summarySlot.innerText = `${new Date(dateString).toLocaleDateString('default', { month: 'short', day: 'numeric' })} at ${slot.timeString}`;
+                        bookSummary.style.display = "block";
+                    });
+                    timeSlotsGrid.appendChild(btn);
+                });
+            }
+
+            // Main render calendar function
             function renderCalendar() {
-                const calDays = document.getElementById("calDays");
+                if (!calDays) return;
+
                 calDays.innerHTML = "";
+                const dateObj = new Date(currentYear, currentMonth, 1);
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                monthLabel.innerText = `${monthNames[currentMonth]} ${currentYear}`;
+
                 const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
                 const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
-                for(let i = 0; i < firstDayIndex; i++) { let div = document.createElement("div"); div.classList.add("cal-day","empty"); calDays.appendChild(div); }
-                for(let day = 1; day <= totalDays; day++) {
+                const todayStr = new Date().toISOString().split('T')[0];
+
+                // Add empty cells for days before month starts
+                for (let i = 0; i < firstDayIndex; i++) {
+                    let div = document.createElement("div");
+                    div.classList.add("cal-day", "empty");
+                    calDays.appendChild(div);
+                }
+
+                // Add days of the month
+                for (let day = 1; day <= totalDays; day++) {
                     let dayDiv = document.createElement("div");
                     dayDiv.classList.add("cal-day");
                     dayDiv.innerText = day;
-                    let dateStr = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                    let hasSlots = slotsData.filter(s => s.date.split('T')[0] === dateStr).length > 0;
-                    if(hasSlots) dayDiv.classList.add("has-slot");
+
+                    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+                    // Check if date is past
+                    if (dateStr < todayStr) {
+                        dayDiv.classList.add("past");
+                    } else {
+                        // Check if today
+                        if (dateStr === todayStr) {
+                            dayDiv.classList.add("today");
+                            dayDiv.style.border = "1px solid #FFD700";
+                        }
+
+                        // Check if has slots
+                        const daySlots = slotsData.filter(s => {
+                            const slotDate = s.date ? s.date.split('T')[0] : s.split('T')[0];
+                            return slotDate === dateStr;
+                        });
+
+                        if (daySlots.length > 0) {
+                            dayDiv.classList.add("has-slot");
+
+                            // Add click handler
+                            dayDiv.addEventListener("click", (function(date, slots) {
+                                return function() {
+                                    // Remove selected class from all days
+                                    document.querySelectorAll(".cal-day").forEach(d => d.classList.remove("selected"));
+                                    this.classList.add("selected");
+                                    showTimeSlots(date, slots);
+                                };
+                            })(dateStr, daySlots));
+
+                            // Check if this date is currently selected
+                            if (selectedDateInput.value === dateStr) {
+                                dayDiv.classList.add("selected");
+                                showTimeSlots(dateStr, daySlots);
+                            }
+                        }
+                    }
                     calDays.appendChild(dayDiv);
                 }
             }
 
+            // Navigation functions
+            function prevMonth() {
+                currentMonth--;
+                if (currentMonth < 0) {
+                    currentMonth = 11;
+                    currentYear--;
+                }
+                renderCalendar();
+            }
+
+            function nextMonth() {
+                currentMonth++;
+                if (currentMonth > 11) {
+                    currentMonth = 0;
+                    currentYear++;
+                }
+                renderCalendar();
+            }
+
+            // Fetch availability data
+            const calLoading = document.getElementById("calLoading");
+            const calEmpty = document.getElementById("calEmpty");
+            const calendarWrap = document.getElementById("calendarWrap");
+
+            fetch(`/Booking/GetArtistAvailability?artistId=${artistId}`)
+                .then(res => res.json())
+                .then(data => {
+                    slotsData = data;
+                    calLoading.style.display = "none";
+                    if (!slotsData || slotsData.length === 0) {
+                        calEmpty.style.display = "block";
+                    } else {
+                        calendarWrap.style.display = "block";
+                        renderCalendar();
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching slots:", error);
+                    calLoading.style.display = "none";
+                    calEmpty.style.display = "block";
+                });
+
+            // Attach navigation event listeners
+            const prevBtn = document.getElementById("prevMonth");
+            const nextBtn = document.getElementById("nextMonth");
+            if (prevBtn) prevBtn.onclick = prevMonth;
+            if (nextBtn) nextBtn.onclick = nextMonth;
+
+            // Form validation
             bookingForm.onsubmit = function(e) {
                 let valid = true;
                 slotError.style.display = "none";
                 mapValidationError.style.display = "none";
-                if (!selectedSlotIdInput.value) { slotError.style.display = "block"; valid = false; }
-                if (radHouseCall && radHouseCall.checked && (!latOutput.value || !textAddress.value.trim())) { mapValidationError.style.display = "block"; valid = false; }
+
+                if (!selectedSlotIdInput.value) {
+                    slotError.style.display = "block";
+                    slotError.scrollIntoView({ behavior: 'smooth' });
+                    valid = false;
+                }
+
+                if (radHouseCall && radHouseCall.checked) {
+                    if (!latOutput.value || !lngOutput.value || !textAddress.value.trim()) {
+                        mapValidationError.style.display = "block";
+                        mapValidationError.scrollIntoView({ behavior: 'smooth' });
+                        valid = false;
+                    }
+                }
+
                 if (!valid) e.preventDefault();
             };
         });
     </script>
+}
 }
