@@ -278,6 +278,7 @@ namespace BeautyArtists.Controllers
         // ══════════════════════════════════
         //  POST: Booking/ArtistUpdateStatus
         // ══════════════════════════════════
+        // Update your existing ArtistUpdateStatus method in BookingController
         [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -290,40 +291,49 @@ namespace BeautyArtists.Controllers
             if (booking == null) return NotFound();
 
             booking.Status = newStatus;
-            booking.ClientNotes = artistNotes;
+            booking.ArtistNotes = artistNotes; // Fixed: should be ArtistNotes, not ClientNotes
 
             if (newStatus == Booking.BookingStatus.Confirmed)
             {
                 if (booking.SelectedLocationType == LocationType.HouseCall)
                 {
-                    booking.TransportCost = transportCost >= 0 ? transportCost : 0;
+                    // If transport cost was already set, keep it; otherwise use the one passed
+                    if (transportCost > 0 || booking.TransportCost == 0)
+                    {
+                        booking.TransportCost = transportCost >= 0 ? transportCost : 0;
+                    }
                     booking.TotalAmount = (booking.UserService?.Price ?? 0) + booking.TransportCost;
                 }
                 TempData["Success"] = "Appointment status successfully updated to Confirmed.";
 
                 await _context.SaveChangesAsync();
 
+                // Send deposit payment notification
                 var callbackUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
-                await _commService.SendDirectMessageEmailAsync(booking.UserService.ArtistId, booking.CustomerId, "Deposit Payment Required", $"Please pay your deposit here: {callbackUrl}");
+                await _commService.SendDirectMessageEmailAsync(
+                    booking.UserService?.ArtistId,
+                    booking.CustomerId,
+                    "Deposit Payment Required",
+                    $"Your booking has been confirmed! Please pay your 50% deposit here: {callbackUrl}"
+                );
             }
-            else
+            else if (newStatus == Booking.BookingStatus.Cancelled || newStatus == Booking.BookingStatus.Rejected)
             {
-                if (newStatus == Booking.BookingStatus.Cancelled || newStatus == Booking.BookingStatus.Rejected)
+                if (booking.AvailabilitySlotId.HasValue)
                 {
-                    if (booking.AvailabilitySlotId.HasValue)
-                    {
-                        var slot = await _context.ArtistAvailabilities.FirstOrDefaultAsync(a => a.Id == booking.AvailabilitySlotId.Value);
-                        if (slot != null) slot.IsBooked = false;
-                    }
-                    TempData["Success"] = "Appointment request has been cancelled/rejected.";
+                    var slot = await _context.ArtistAvailabilities.FirstOrDefaultAsync(a => a.Id == booking.AvailabilitySlotId.Value);
+                    if (slot != null) slot.IsBooked = false;
                 }
-                else if (newStatus == Booking.BookingStatus.Completed)
-                {
-                    TempData["Success"] = "Booking details finalized and marked as Completed.";
-                }
-
+                TempData["Success"] = $"Appointment request has been {newStatus.ToString().ToLower()}.";
                 await _context.SaveChangesAsync();
+
+                // Notify client of rejection/cancellation
                 await _commService.SendBookingStatusUpdateAsync(booking.CustomerId, booking.Id, newStatus.ToString());
+            }
+            else if (newStatus == Booking.BookingStatus.Completed)
+            {
+                TempData["Success"] = "Booking marked as Completed.";
+                await _context.SaveChangesAsync();
             }
 
             return RedirectToAction("MyAppointments", "Artist");

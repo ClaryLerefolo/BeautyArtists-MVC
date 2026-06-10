@@ -1,6 +1,7 @@
 ﻿using BeautyArtists.Data;
 using BeautyArtists.Models;
 using BeautyArtists.Models.ViewModels;
+using BeautyArtists.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -19,12 +20,15 @@ namespace BeautyArtists.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _env;
+        private readonly ICommunicationService _commService;
 
-        public ArtistController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env)
+
+        public ArtistController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, ICommunicationService communicationService)
         {
             _context = context;
             _userManager = userManager;
             _env = env;
+            _commService = communicationService;
         }
 
         public async Task<IActionResult> Dashboard()
@@ -442,6 +446,50 @@ namespace BeautyArtists.Controllers
             await _context.SaveChangesAsync();
             await LogActivity(artistId, $"Artist updated Booking #{bookingId} to {newStatus}");
             return RedirectToAction(nameof(MyAppointments));
+        }
+        // Add this to your ArtistController.cs
+        [Authorize(Roles = "Artist")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateTransportCost(int bookingId, decimal transportCost)
+        {
+            var artistId = _userManager.GetUserId(User);
+
+            var booking = await _context.Bookings
+                .Include(b => b.UserService)
+                .FirstOrDefaultAsync(b => b.Id == bookingId && b.UserService.ArtistId == artistId);
+
+            if (booking == null)
+                return NotFound();
+
+            if (booking.SelectedLocationType != LocationType.HouseCall)
+            {
+                TempData["Error"] = "Transport costs only apply to House Call bookings.";
+                return RedirectToAction("MyAppointments");
+            }
+
+            if (booking.Status != BookingStatus.Pending && booking.Status != BookingStatus.Confirmed)
+            {
+                TempData["Error"] = "Transport cost can only be set for pending or confirmed bookings.";
+                return RedirectToAction("MyAppointments");
+            }
+
+            // Update transport cost
+            booking.TransportCost = transportCost;
+            booking.TotalAmount = (booking.UserService?.Price ?? 0) + transportCost;
+
+            await _context.SaveChangesAsync();
+
+            // Notify client about transport cost addition
+            await _commService.SendDirectMessageEmailAsync(
+                artistId,
+                booking.CustomerId,
+                "Transport Cost Added to Your Booking",
+                $"The artist has added R{transportCost} for transport to your location. Your new total is R{booking.TotalAmount}."
+            );
+
+            TempData["Success"] = $"Transport cost of R{transportCost} added successfully!";
+            return RedirectToAction("MyAppointments");
         }
 
 
