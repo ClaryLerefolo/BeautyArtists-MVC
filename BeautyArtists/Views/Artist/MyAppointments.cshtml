@@ -1,251 +1,324 @@
 ﻿@model IEnumerable<BeautyArtists.Models.Booking>
+@using static BeautyArtists.Models.Booking
 
 @{
     ViewData["Title"] = "My Appointments";
     Layout = "~/Views/Shared/_ArtistLayout.cshtml";
 }
 
+@section Styles {
+    <style>
+        body {
+            background: #000;
+            color: #f0f0f0;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .dashboard-header {
+            background: linear-gradient(90deg, #e50914, #f0c808);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            margin-bottom: 25px;
+        }
+
+            .dashboard-header h2 {
+                color: #000;
+                font-weight: 800;
+                text-transform: uppercase;
+                margin: 0;
+            }
+
+        .appointment-card {
+            background-color: #121212;
+            border: 1px solid rgba(240, 200, 8, 0.2);
+            border-radius: 15px;
+            transition: 0.3s ease;
+            overflow: hidden;
+        }
+
+            .appointment-card:hover {
+                transform: translateY(-5px);
+                border-color: #f0c808;
+                box-shadow: 0 10px 20px rgba(240, 200, 8, 0.1);
+            }
+
+        .status-badge {
+            padding: 5px 15px;
+            border-radius: 50px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        .bg-pending {
+            background-color: #f0c808 !important;
+            color: #000 !important;
+        }
+
+        .bg-confirmed {
+            background-color: #28a745 !important;
+            color: #fff !important;
+        }
+
+        .bg-completed {
+            background-color: #007bff !important;
+            color: #fff !important;
+        }
+
+        .bg-cancelled {
+            background-color: #e50914 !important;
+            color: #fff !important;
+        }
+
+        .bg-rejected {
+            background-color: #6c757d !important;
+            color: #fff !important;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            border: none;
+        }
+
+        .client-info-box {
+            background: #1a1a1a;
+            border-left: 4px solid #f0c808;
+            padding: 15px;
+            border-radius: 4px;
+        }
+
+        .type-indicator {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .type-walkin {
+            background: rgba(52, 152, 219, 0.15);
+            color: #3498db;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+        }
+
+        .type-housecall {
+            background: rgba(155, 89, 182, 0.15);
+            color: #9b59b6;
+            border: 1px solid rgba(155, 89, 182, 0.3);
+        }
+
+        .financial-row {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .map-btn {
+            background: #1e1e1e;
+            border: 1px solid #444;
+            color: #00ffcc;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+
+            .map-btn:hover {
+                background: #00ffcc;
+                color: #000;
+            }
+    </style>
+}
+
 <div class="dashboard-header">
-    <h2><i class="bi bi-calendar-event-fill"></i> MY APPOINTMENTS</h2>
+    <h2><i class="fas fa-calendar-check"></i> MY APPOINTMENTS</h2>
 </div>
 
-<div class="container mt-4">
-    @if (TempData["Success"] != null)
-    {
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            ✅ @TempData["Success"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-
-    @if (TempData["Error"] != null)
-    {
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            ❌ @TempData["Error"]
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    }
-
-    @if (!Model.Any())
-    {
-        <div class="text-center py-5">
-            <h3 class="text-muted">No appointments yet.</h3>
-        </div>
-    }
-    else
-    {
-        <div class="row">
-            @foreach (var booking in Model.OrderByDescending(b => b.AppointmentDate))
-            {
-                <div class="col-md-6 col-lg-4 mb-4">
-                    <div class="card availability-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <h5 class="card-title" style="color: #f0c808;">@booking.UserService?.Service?.Name</h5>
-                                <span class="badge @(booking.Status == BeautyArtists.Models.Booking.BookingStatus.Pending ? "bg-warning" :
-                                                                                         booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed ? "bg-success" :
-                                                                                         booking.Status == BeautyArtists.Models.Booking.BookingStatus.Completed ? "bg-info" : "bg-danger")">
-                            @booking.Status
-                        </span>
+<div class="container-fluid px-4">
+    <div class="row">
+        @foreach (var item in Model)
+        {
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card h-100 appointment-card text-white">
+                    <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center pt-4 px-4">
+                        <div class="text-muted small">
+                            <i class="far fa-clock me-1"></i> @item.AppointmentDate.ToString("MMM dd, yyyy @ HH:mm")
+                        </div>
+                        <span class="status-badge bg-@item.Status.ToString().ToLower()">@item.Status</span>
                     </div>
 
-                            <p><strong>Client:</strong> @booking.Customer?.FirstName @booking.Customer?.LastName</p>
-                            <p><strong>Date:</strong> @booking.AppointmentDate.ToString("MMM dd, yyyy")</p>
-                            <p><strong>Time:</strong> @booking.AppointmentDate.ToString("hh:mm tt")</p>
-                            <p><strong>Location Type:</strong> @(booking.SelectedLocationType == LocationType.HouseCall ? "🏠 House Call" : "🏢 Walk-In")</p>
+                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="client-info-box mb-3">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <h5 class="mb-0" style="color: #f0c808;">@item.Customer?.FirstName @item.Customer?.LastName</h5>
 
-                    @if (booking.SelectedLocationType == LocationType.HouseCall)
+                                    @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
+                                    {
+                                        <span class="type-indicator type-housecall">🏠 House Call</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="type-indicator type-walkin">💈 Walk-In</span>
+                                    }
+                                </div>
+                                <div class="small text-white-50">@item.UserService?.Service?.Name</div>
+                            </div>
+
+                            @* GOOGLE MAPS FOR ARTIST - NOT LEAFLET *@
+                            @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall && !string.IsNullOrEmpty(item.HouseCallAddress))
                             {
-                                <hr />
-                                <p><strong>📍 Client Address:</strong></p>
-                                <p class="small bg-dark p-2 rounded">@booking.HouseCallAddress</p>
+                                <div class="p-3 mb-3 rounded border border-secondary" style="background: rgba(155, 89, 182, 0.05);">
+                                    <small class="text-muted text-uppercase d-block mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Client Location:</small>
+                                    <p class="small text-white-50 mb-2"><i class="fas fa-map-marker-alt text-danger me-1"></i> @item.HouseCallAddress</p>
 
-                                @if (!string.IsNullOrEmpty(booking.Latitude) && !string.IsNullOrEmpty(booking.Longitude))
-                                {
-                                    <button type="button" class="btn btn-sm btn-outline-info mb-2" onclick="openMap(@booking.Latitude, @booking.Longitude)">
-                                        🗺️ View on Map
-                                    </button>
-                                }
-
-                                <hr />
-                                <p><strong>💰 Pricing:</strong></p>
-                                <p>Base Price: <strong>R @booking.UserService?.Price.ToString("N0")</strong></p>
-
-                                @if (booking.TransportCost > 0)
-                                {
-                                    <p>Transport Cost: <strong class="text-warning">R @booking.TransportCost.ToString("N0")</strong></p>
-                                    <p>Total Amount: <strong class="text-success">R @booking.TotalAmount.ToString("N0")</strong></p>
-                                }
-                                else
-                                {
-                                    <p>Transport Cost: <strong class="text-muted">Not set yet</strong></p>
-                                    <p>Total Amount: <strong>R @booking.UserService?.Price.ToString("N0")</strong></p>
-                                }
-
-                                <!-- TRANSPORT COST INPUT - ONLY SHOW FOR PENDING BOOKINGS -->
-                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Pending)
-                                {
-                                    <hr />
-                                    <div class="transport-cost-section mt-3">
-                                        <label class="form-label text-warning">✈️ Add Transport Cost:</label>
-                                        <div class="input-group">
-                                            <span class="input-group-text">R</span>
-                                            <input type="number" id="transportCost_@booking.Id" class="form-control"
-                                                   placeholder="Enter amount" step="0.01" min="0" />
-                                            <button type="button" class="btn btn-warning" onclick="submitTransportCost(@booking.Id)">
-                                                Apply Cost
-                                            </button>
-                                        </div>
-                                        <small class="text-muted">Enter transport cost to travel to client's location</small>
-                                    </div>
-                                }
+                                    @if (!string.IsNullOrEmpty(item.Latitude) && !string.IsNullOrEmpty(item.Longitude))
+                                    {
+                                        <a href="https://www.google.com/maps/search/?api=1&query=@item.Latitude,@item.Longitude"
+                                           target="_blank" class="btn btn-sm map-btn w-100 fw-bold rounded-2 shadow-sm text-center">
+                                            <i class="fas fa-route me-1"></i> OPEN IN GOOGLE MAPS
+                                        </a>
+                                    }
+                                </div>
                             }
 
-                            <hr />
-                            <div class="mt-3">
-                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Pending)
-                                {
-                                    <button class="btn btn-success btn-sm" onclick="updateStatus(@booking.Id, 'Confirmed')">
-                                        ✅ Confirm
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" onclick="updateStatus(@booking.Id, 'Rejected')">
-                                        ❌ Reject
-                                    </button>
-                                }
-                                else if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
-                                {
-                                    <button class="btn btn-info btn-sm" onclick="updateStatus(@booking.Id, 'Completed')">
-                                        ✔️ Mark Complete
-                                    </button>
-                                }
+                            @if (!string.IsNullOrEmpty(item.Notes))
+                            {
+                                <div class="mb-3">
+                                    <small class="text-muted d-block text-uppercase" style="font-size: 0.6rem; letter-spacing: 1px;">Initial Client Notes:</small>
+                                    <p class="small mb-0" style="color: #ddd;">@item.Notes</p>
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(item.ClientNotes))
+                            {
+                                <div class="note-box mb-3 p-2 rounded" style="background: rgba(241, 196, 15, 0.05); border: 1px dashed rgba(241, 196, 15, 0.2);">
+                                    <small class="text-warning d-block text-uppercase" style="font-size: 0.6rem; font-weight: bold;">Update Message:</small>
+                                    <span class="small" style="font-style: italic; color: #eee;">"@item.ClientNotes"</span>
+                                </div>
+                            }
+
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Duration</small>
+                                    <strong>@item.UserService?.Duration mins</strong>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted d-block">Base Price</small>
+                                    <strong style="color: #ddd;">R @(item.UserService?.Price.ToString("N2") ?? "0.00")</strong>
+                                </div>
                             </div>
+                        </div>
+
+                        <div>
+                            <div class="financial-row small mb-4">
+                                @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
+                                {
+                                    <div class="d-flex justify-content-between text-white-50 mb-1">
+                                        <span>Transport Costs:</span>
+                                        <span>R @item.TransportCost.ToString("N2")</span>
+                                    </div>
+                                }
+                                <div class="d-flex justify-content-between font-weight-bold border-top border-secondary pt-1">
+                                    <span style="color: #f0c808;">Total Amount:</span>
+                                    <span style="color: #f0c808; font-weight: bold;">R @item.TotalAmount.ToString("N2")</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-secondary" style="font-size: 0.7rem;">
+                                    <span class="text-muted">Deposit Status (50%):</span>
+                                    @if (item.IsDepositPaid)
+                                    {
+                                        <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> PAID</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-warning fw-bold"><i class="fas fa-hourglass-half me-1"></i> AWAITING</span>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (item.Status == BookingStatus.Pending)
+                            {
+                                <div class="mt-3">
+                                    @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
+                                    {
+                                        <div class="mb-2">
+                                            <small class="text-muted d-block text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Set Transport Fee (R):</small>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-dark border-secondary text-white-50">R</span>
+                                                <input type="number" id="transport-@item.Id" class="form-control bg-dark text-white border-secondary"
+                                                       placeholder="0.00" step="0.01" min="0" value="@(item.TransportCost > 0 ? item.TransportCost.ToString("F2") : "")" />
+                                            </div>
+                                        </div>
+                                    }
+
+                                    <input type="text" id="note-@item.Id" class="form-control bg-dark text-white border-secondary mb-2" placeholder="Add a note for the client..." style="font-size: 0.8rem;" />
+
+                                    <div class="d-flex gap-2">
+                                        <form asp-action="ArtistUpdateStatus" method="post" class="flex-grow-1">
+                                            <input type="hidden" name="bookingId" value="@item.Id" />
+                                            <input type="hidden" name="newStatus" value="@BookingStatus.Confirmed" />
+                                            <input type="hidden" name="artistNotes" id="confirm-note-@item.Id" />
+                                            <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
+
+                                            <button type="submit" class="btn btn-success w-100 font-weight-bold"
+                                                    onclick="
+                                                                        document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
+                                                                        var tInput = document.getElementById('transport-@item.Id');
+                                                                        if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }
+                                                                    ">
+                                                ✅ CONFIRM
+                                            </button>
+                                        </form>
+
+                                        <form asp-action="ArtistUpdateStatus" method="post" class="flex-grow-1">
+                                            <input type="hidden" name="bookingId" value="@item.Id" />
+                                            <input type="hidden" name="newStatus" value="@BookingStatus.Rejected" />
+                                            <input type="hidden" name="artistNotes" id="reject-note-@item.Id" />
+
+                                            <button type="submit" class="btn btn-outline-danger w-100 font-weight-bold"
+                                                    onclick="document.getElementById('reject-note-@item.Id').value = document.getElementById('note-@item.Id').value">
+                                                ❌ REJECT
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            }
+
+                            @if (item.Status == BookingStatus.Confirmed)
+                            {
+                                <div class="mt-3">
+                                    <form asp-action="ArtistUpdateStatus" method="post">
+                                        <input type="hidden" name="bookingId" value="@item.Id" />
+                                        <input type="hidden" name="newStatus" value="@BookingStatus.Completed" />
+
+                                        <button type="submit" class="btn btn-primary w-100 font-weight-bold shadow-sm">
+                                            <i class="fas fa-check-double me-2"></i> MARK AS COMPLETED
+                                        </button>
+                                    </form>
+                                    <p class="text-center small text-white-50 mt-2" style="font-size: 0.7rem;">
+                                        Click once service is finished to finalize.
+                                    </p>
+                                </div>
+                            }
                         </div>
                     </div>
                 </div>
-            }
-        </div>
-    }
-</div>
-
-<!-- Map Modal -->
-<div class="modal fade" id="mapModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content" style="background: #0a0a0a;">
-            <div class="modal-header border-0">
-                <h5 class="modal-title" style="color: #f0c808;">Client Location</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div id="clientMap" style="height: 400px;"></div>
-            </div>
-        </div>
+        }
     </div>
 </div>
 
-<!-- Leaflet CSS and JS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-@section Scripts {
-    <script>
-        let currentMap = null;
-
-        // Open map with client location
-        function openMap(lat, lng) {
-            const mapModal = new bootstrap.Modal(document.getElementById('mapModal'));
-            mapModal.show();
-
-            setTimeout(() => {
-                if (currentMap) {
-                    currentMap.remove();
-                }
-                currentMap = L.map('clientMap').setView([parseFloat(lat), parseFloat(lng)], 15);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap'
-                }).addTo(currentMap);
-                L.marker([parseFloat(lat), parseFloat(lng)]).addTo(currentMap)
-                    .bindPopup('Client Location')
-                    .openPopup();
-                currentMap.invalidateSize();
-            }, 100);
-        }
-
-        // Submit transport cost
-        async function submitTransportCost(bookingId) {
-            const transportInput = document.getElementById(`transportCost_${bookingId}`);
-            const transportCost = parseFloat(transportInput.value);
-
-            if (isNaN(transportCost) || transportCost < 0) {
-                alert('Please enter a valid transport cost amount');
-                return;
-            }
-
-            if (!confirm(`Add R${transportCost} transport cost to this booking?`)) {
-                return;
-            }
-
-            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-            if (!token) {
-                alert('Security token not found. Please refresh the page.');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('bookingId', bookingId);
-            formData.append('transportCost', transportCost);
-
-            try {
-                const response = await fetch('/Artist/UpdateTransportCost', {
-                    method: 'POST',
-                    headers: {
-                        'RequestVerificationToken': token
-                    },
-                    body: formData
-                });
-
-                if (response.ok) {
-                    location.reload();
-                } else {
-                    const error = await response.text();
-                    alert('Error: ' + error);
-                }
-            } catch (error) {
-                alert('Error updating transport cost: ' + error.message);
-            }
-        }
-
-        // Update booking status
-        async function updateStatus(bookingId, status) {
-            if (!confirm(`Are you sure you want to ${status} this booking?`)) return;
-
-            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
-            if (!token) {
-                alert('Security token not found. Please refresh the page.');
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('bookingId', bookingId);
-            formData.append('newStatus', status);
-
-            try {
-                const response = await fetch('/Booking/ArtistUpdateStatus', {
-                    method: 'POST',
-                    headers: {
-                        'RequestVerificationToken': token
-                    },
-                    body: formData
-                });
-
-                if (response.ok) {
-                    location.reload();
-                } else {
-                    const error = await response.text();
-                    alert('Error updating status: ' + error);
-                }
-            } catch (error) {
-                alert('Error updating status: ' + error.message);
-            }
-        }
-    </script>
+@if (!Model.Any())
+{
+    <div class="text-center py-5">
+        <h3 class="text-muted">No appointments yet.</h3>
+    </div>
 }
