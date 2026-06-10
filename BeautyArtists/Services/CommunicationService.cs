@@ -74,17 +74,27 @@ namespace BeautyArtists.Services
 
             if (sender == null || recipient == null) return;
 
-            // Strict design alignment template enclosing user-to-user content safely 
-            string subject = $"[Message from {sender.FirstName}] {messageSubject}";
-            string body = $@"
+            // For HTML content that's already formatted (like the confirmation email),
+            // just pass it through - DON'T double-wrap!
+            // Check if the messageBody already contains HTML structure
+            bool isHtmlContent = messageBody.Contains("<div") || messageBody.Contains("<html") || messageBody.Contains("<!DOCTYPE");
+
+            string subject = $"{messageSubject}";
+            string body = messageBody; // Use the HTML as-is if it's already formatted
+
+            // Only wrap plain text messages
+            if (!isHtmlContent)
+            {
+                body = $@"
                 <div style='font-family: Arial, sans-serif; max-width: 600px; border: 1px solid #d4af37; padding: 20px;'>
                     <h3 style='color: #8b0000; margin-top:0;'>Message via Beauty in Red and Gold</h3>
-                    <p style='font-size: 12px; color: #555;'>From: {sender.FirstName} {sender.LastName} ({sender.Email})</p>
+                    <p style='font-size: 12px; color: #555;'>From: {sender.FirstName} {sender.LastName}</p>
                     <hr style='border: 0; border-top: 1px solid #eee; margin: 15px 0;' />
                     <p style='white-space: pre-line; line-height: 1.6;'>{messageBody}</p>
                     <hr style='border: 0; border-top: 1px solid #eee; margin: 15px 0;' />
-                    <p style='font-size: 11px; color: #888;'>Do not reply directly to this automated email system notification. Please use the application portal to continue conversations.</p>
+                    <p style='font-size: 11px; color: #888;'>Please use the application portal to continue conversations.</p>
                 </div>";
+            }
 
             await _emailSender.SendEmailAsync(recipient.Email, subject, body);
         }
