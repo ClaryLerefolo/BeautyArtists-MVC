@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BeautyArtists.Controllers
 {
+    [Authorize(Roles = "Artist")]
     public class ArtistAvailabilityController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -18,11 +19,14 @@ namespace BeautyArtists.Controllers
             _userManager = userManager;
         }
 
-        // --- ARTIST VIEW: Manage My Schedule ---
-        [Authorize(Roles = "Artist")]
+        // GET: ArtistAvailability/Index
+        [HttpGet]
         public async Task<IActionResult> Index()
         {
             var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId))
+                return Challenge();
+
             var slots = await _context.ArtistAvailabilities
                 .Where(a => a.ArtistId == userId && a.AvailableDate >= DateTime.Now.Date)
                 .OrderBy(a => a.AvailableDate)
@@ -32,16 +36,39 @@ namespace BeautyArtists.Controllers
             return View(slots);
         }
 
+        // POST: ArtistAvailability/AddSlot
         [HttpPost]
-        [Authorize(Roles = "Artist")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddSlot(DateTime AvailableDate, TimeSpan StartTime, TimeSpan EndTime)
         {
             var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId))
+                return Challenge();
 
+            // Validation
             if (StartTime >= EndTime)
             {
                 TempData["Error"] = "Start time must be before end time.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (AvailableDate < DateTime.Now.Date)
+            {
+                TempData["Error"] = "Cannot add availability for past dates.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            // Check for overlapping slots
+            var overlappingSlot = await _context.ArtistAvailabilities
+                .FirstOrDefaultAsync(a => a.ArtistId == userId
+                    && a.AvailableDate == AvailableDate
+                    && ((StartTime >= a.StartTime && StartTime < a.EndTime)
+                        || (EndTime > a.StartTime && EndTime <= a.EndTime)
+                        || (StartTime <= a.StartTime && EndTime >= a.EndTime)));
+
+            if (overlappingSlot != null)
+            {
+                TempData["Error"] = $"Time slot overlaps with existing slot ({overlappingSlot.StartTime:hh\\:mm} - {overlappingSlot.EndTime:hh\\:mm}).";
                 return RedirectToAction(nameof(Index));
             }
 
@@ -54,40 +81,50 @@ namespace BeautyArtists.Controllers
                 IsBooked = false
             };
 
-            _context.ArtistAvailabilities.Add(newSlot);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.ArtistAvailabilities.Add(newSlot);
+                await _context.SaveChangesAsync();
+                TempData["Success"] = $"✅ Slot added for {AvailableDate:MMM dd, yyyy} from {StartTime:hh\\:mm} to {EndTime:hh\\:mm}!";
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Failed to add slot: {ex.Message}";
+            }
 
-            TempData["Success"] = "Time slot added successfully!";
             return RedirectToAction(nameof(Index));
         }
 
+        // POST: ArtistAvailability/DeleteSlot
         [HttpPost]
-        [Authorize(Roles = "Artist")]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteSlot(int id)
         {
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized();
+
             var slot = await _context.ArtistAvailabilities.FindAsync(id);
-            if (slot == null || slot.ArtistId != _userManager.GetUserId(User)) return NotFound();
 
-            _context.ArtistAvailabilities.Remove(slot);
-            await _context.SaveChangesAsync();
-            return Ok();
-        }
+            if (slot == null)
+                return NotFound(new { success = false, message = "Slot not found" });
 
-        // --- CLIENT API: Fetch available slots for specific Artist ---
-        [HttpGet]
-        public async Task<IActionResult> GetSlots(string artistId)
-        {
-            var slots = await _context.ArtistAvailabilities
-                .Where(a => a.ArtistId == artistId && !a.IsBooked && a.AvailableDate >= DateTime.Now.Date)
-                .OrderBy(a => a.AvailableDate)
-                .Select(a => new {
-                    id = a.Id,
-                    date = a.AvailableDate.ToString("yyyy-MM-dd"),
-                    display = $"{a.AvailableDate:MMM dd}: {a.StartTime:hh\\:mm} - {a.EndTime:hh\\:mm}"
-                })
-                .ToListAsync();
+            if (slot.ArtistId != userId)
+                return Unauthorized(new { success = false, message = "You don't own this slot" });
 
-            return Json(slots);
+            if (slot.IsBooked)
+                return BadRequest(new { success = false, message = "Cannot delete a booked slot" });
+
+            try
+            {
+                _context.ArtistAvailabilities.Remove(slot);
+                await _context.SaveChangesAsync();
+                return Ok(new { success = true, message = "Slot deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
         }
     }
 }

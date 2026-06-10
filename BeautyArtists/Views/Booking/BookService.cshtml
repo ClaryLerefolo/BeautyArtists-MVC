@@ -1067,138 +1067,160 @@
             cardHouseCall.onclick = () => selectLocationCard("HouseCall");
             if (radWalkIn && radWalkIn.checked) selectLocationCard("WalkIn");
 
-            // ========== FIXED CALENDAR CODE ==========
+                // ========== FIXED CALENDAR CODE WITH DEBUGGING ==========
 
-            // Function to show time slots for selected date
-            function showTimeSlots(dateString, slots) {
-                timeSlotsGrid.innerHTML = "";
-                selectedDateLabel.innerText = new Date(dateString).toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric' });
-                timeSlotSection.style.display = "block";
+        // Function to show time slots for selected date
+        function showTimeSlots(dateString, slots) {
+            timeSlotsGrid.innerHTML = "";
+            selectedDateLabel.innerText = new Date(dateString).toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric' });
+            timeSlotSection.style.display = "block";
 
-                slots.forEach(slot => {
-                    const btn = document.createElement("button");
-                    btn.type = "button";
-                    btn.className = "time-slot-btn";
-                    btn.innerHTML = `<span>${slot.timeString}</span>`;
+            slots.forEach(slot => {
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.className = "time-slot-btn";
+                btn.innerHTML = `<span>${slot.timeString}</span>`;
 
-                    if (selectedSlotIdInput.value == slot.id) {
-                        btn.classList.add("selected");
-                    }
+                if (selectedSlotIdInput.value == slot.id) {
+                    btn.classList.add("selected");
+                }
 
-                    btn.addEventListener("click", () => {
-                        document.querySelectorAll(".time-slot-btn").forEach(b => b.classList.remove("selected"));
-                        btn.classList.add("selected");
+                btn.addEventListener("click", () => {
+                    document.querySelectorAll(".time-slot-btn").forEach(b => b.classList.remove("selected"));
+                    btn.classList.add("selected");
 
-                        selectedSlotIdInput.value = slot.id;
-                        selectedDateInput.value = dateString;
+                    selectedSlotIdInput.value = slot.id;
+                    selectedDateInput.value = dateString;
 
-                        summarySlot.innerText = `${new Date(dateString).toLocaleDateString('default', { month: 'short', day: 'numeric' })} at ${slot.timeString}`;
-                        bookSummary.style.display = "block";
-                    });
-                    timeSlotsGrid.appendChild(btn);
+                    summarySlot.innerText = `${new Date(dateString).toLocaleDateString('default', { month: 'short', day: 'numeric' })} at ${slot.timeString}`;
+                    bookSummary.style.display = "block";
                 });
+                timeSlotsGrid.appendChild(btn);
+            });
+        }
+
+        // Main render calendar function WITH DEBUGGING
+        function renderCalendar() {
+            console.log("Rendering calendar with slotsData:", slotsData);
+            console.log("Current month/year:", currentMonth, currentYear);
+
+            if (!calDays) return;
+
+            calDays.innerHTML = "";
+            const dateObj = new Date(currentYear, currentMonth, 1);
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            monthLabel.innerText = `${monthNames[currentMonth]} ${currentYear}`;
+
+            const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
+            const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            // Add empty cells for days before month starts
+            for (let i = 0; i < firstDayIndex; i++) {
+                let div = document.createElement("div");
+                div.classList.add("cal-day", "empty");
+                calDays.appendChild(div);
             }
 
-            // Main render calendar function
-            function renderCalendar() {
-                if (!calDays) return;
+            // Add days of the month
+            for (let day = 1; day <= totalDays; day++) {
+                let dayDiv = document.createElement("div");
+                dayDiv.classList.add("cal-day");
+                dayDiv.innerText = day;
 
-                calDays.innerHTML = "";
-                const dateObj = new Date(currentYear, currentMonth, 1);
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-                monthLabel.innerText = `${monthNames[currentMonth]} ${currentYear}`;
+                const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-                const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
-                const totalDays = new Date(currentYear, currentMonth + 1, 0).getDate();
-                const todayStr = new Date().toISOString().split('T')[0];
+                // Check if date is past
+                if (dateStr < todayStr) {
+                    dayDiv.classList.add("past");
+                } else {
+                    // Check if today
+                    if (dateStr === todayStr) {
+                        dayDiv.classList.add("today");
+                        dayDiv.style.border = "1px solid #FFD700";
+                    }
 
-                // Add empty cells for days before month starts
-                for (let i = 0; i < firstDayIndex; i++) {
-                    let div = document.createElement("div");
-                    div.classList.add("cal-day", "empty");
-                    calDays.appendChild(div);
-                }
+                    // Check if has slots - FIXED to handle slot.date correctly
+                    const daySlots = slotsData.filter(s => {
+                        // Handle both string and object formats
+                        const slotDate = s.date ? s.date.split('T')[0] : s;
+                        return slotDate === dateStr;
+                    });
 
-                // Add days of the month
-                for (let day = 1; day <= totalDays; day++) {
-                    let dayDiv = document.createElement("div");
-                    dayDiv.classList.add("cal-day");
-                    dayDiv.innerText = day;
+                    if (daySlots.length > 0) {
+                        dayDiv.classList.add("has-slot");
 
-                    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                        // Add click handler
+                        dayDiv.addEventListener("click", (function(date, slots) {
+                            return function() {
+                                // Remove selected class from all days
+                                document.querySelectorAll(".cal-day").forEach(d => d.classList.remove("selected"));
+                                this.classList.add("selected");
+                                showTimeSlots(date, slots);
+                            };
+                        })(dateStr, daySlots));
 
-                    // Check if date is past
-                    if (dateStr < todayStr) {
-                        dayDiv.classList.add("past");
-                    } else {
-                        // Check if today
-                        if (dateStr === todayStr) {
-                            dayDiv.classList.add("today");
-                            dayDiv.style.border = "1px solid #FFD700";
-                        }
-
-                        // Check if has slots
-                        const daySlots = slotsData.filter(s => {
-                            const slotDate = s.date ? s.date.split('T')[0] : s.split('T')[0];
-                            return slotDate === dateStr;
-                        });
-
-                        if (daySlots.length > 0) {
-                            dayDiv.classList.add("has-slot");
-
-                            // Add click handler
-                            dayDiv.addEventListener("click", (function(date, slots) {
-                                return function() {
-                                    // Remove selected class from all days
-                                    document.querySelectorAll(".cal-day").forEach(d => d.classList.remove("selected"));
-                                    this.classList.add("selected");
-                                    showTimeSlots(date, slots);
-                                };
-                            })(dateStr, daySlots));
-
-                            // Check if this date is currently selected
-                            if (selectedDateInput.value === dateStr) {
-                                dayDiv.classList.add("selected");
-                                showTimeSlots(dateStr, daySlots);
-                            }
+                        // Check if this date is currently selected
+                        if (selectedDateInput.value === dateStr) {
+                            dayDiv.classList.add("selected");
+                            showTimeSlots(dateStr, daySlots);
                         }
                     }
-                    calDays.appendChild(dayDiv);
                 }
+                calDays.appendChild(dayDiv);
             }
+        }
 
-            // Navigation functions
-            function prevMonth() {
-                currentMonth--;
-                if (currentMonth < 0) {
-                    currentMonth = 11;
-                    currentYear--;
-                }
-                renderCalendar();
+        // Navigation functions
+        function prevMonth() {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
             }
+            renderCalendar();
+        }
 
-            function nextMonth() {
-                currentMonth++;
-                if (currentMonth > 11) {
-                    currentMonth = 0;
-                    currentYear++;
-                }
-                renderCalendar();
+        function nextMonth() {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
             }
+            renderCalendar();
+        }
 
-            // Fetch availability data
-            const calLoading = document.getElementById("calLoading");
-            const calEmpty = document.getElementById("calEmpty");
-            const calendarWrap = document.getElementById("calendarWrap");
+        // ========== FETCH AVAILABILITY DATA WITH DEBUGGING ==========
+        const calLoading = document.getElementById("calLoading");
+        const calEmpty = document.getElementById("calEmpty");
+        const calendarWrap = document.getElementById("calendarWrap");
 
+        console.log("Fetching slots for artistId:", artistId);
+
+        if (!artistId || artistId === '' || artistId === 'null') {
+            console.error("No artistId provided!");
+            calLoading.style.display = "none";
+            calEmpty.style.display = "block";
+            calEmpty.innerHTML = '<div class="slots-empty-icon">⚠️</div><p>Artist ID not found. Please try again.</p>';
+        } else {
             fetch(`/Booking/GetArtistAvailability?artistId=${artistId}`)
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return res.json();
+                })
                 .then(data => {
+                    console.log("Raw slots data received:", data);
+                    console.log("Number of slots:", data.length);
+
                     slotsData = data;
                     calLoading.style.display = "none";
+
                     if (!slotsData || slotsData.length === 0) {
+                        console.log("No slots found - showing empty state");
                         calEmpty.style.display = "block";
+                        calEmpty.innerHTML = '<div class="slots-empty-icon">📅</div><p>This artist has no available slots right now.</p><small>Check back soon or contact them directly.</small>';
                     } else {
+                        console.log("Slots found - rendering calendar");
                         calendarWrap.style.display = "block";
                         renderCalendar();
                     }
@@ -1207,36 +1229,38 @@
                     console.error("Error fetching slots:", error);
                     calLoading.style.display = "none";
                     calEmpty.style.display = "block";
+                    calEmpty.innerHTML = '<div class="slots-empty-icon">⚠️</div><p>Error loading availability. Please try again later.</p>';
                 });
+        }
 
-            // Attach navigation event listeners
-            const prevBtn = document.getElementById("prevMonth");
-            const nextBtn = document.getElementById("nextMonth");
-            if (prevBtn) prevBtn.onclick = prevMonth;
-            if (nextBtn) nextBtn.onclick = nextMonth;
+        // Attach navigation event listeners
+        const prevBtn = document.getElementById("prevMonth");
+        const nextBtn = document.getElementById("nextMonth");
+        if (prevBtn) prevBtn.onclick = prevMonth;
+        if (nextBtn) nextBtn.onclick = nextMonth;
 
-            // Form validation
-            bookingForm.onsubmit = function(e) {
-                let valid = true;
-                slotError.style.display = "none";
-                mapValidationError.style.display = "none";
+        // Form validation
+        bookingForm.onsubmit = function(e) {
+            let valid = true;
+            slotError.style.display = "none";
+            mapValidationError.style.display = "none";
 
-                if (!selectedSlotIdInput.value) {
-                    slotError.style.display = "block";
-                    slotError.scrollIntoView({ behavior: 'smooth' });
+            if (!selectedSlotIdInput.value) {
+                slotError.style.display = "block";
+                slotError.scrollIntoView({ behavior: 'smooth' });
+                valid = false;
+            }
+
+            if (radHouseCall && radHouseCall.checked) {
+                if (!latOutput.value || !lngOutput.value || !textAddress.value.trim()) {
+                    mapValidationError.style.display = "block";
+                    mapValidationError.scrollIntoView({ behavior: 'smooth' });
                     valid = false;
                 }
+            }
 
-                if (radHouseCall && radHouseCall.checked) {
-                    if (!latOutput.value || !lngOutput.value || !textAddress.value.trim()) {
-                        mapValidationError.style.display = "block";
-                        mapValidationError.scrollIntoView({ behavior: 'smooth' });
-                        valid = false;
-                    }
-                }
-
-                if (!valid) e.preventDefault();
-            };
+            if (!valid) e.preventDefault();
+        };
         });
     </script>
 }

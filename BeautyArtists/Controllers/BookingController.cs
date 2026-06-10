@@ -18,7 +18,7 @@ namespace BeautyArtists.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly ICommunicationService _commService; // central service reference injected
+        private readonly ICommunicationService _commService;
 
         public BookingController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ICommunicationService commService)
         {
@@ -40,6 +40,73 @@ namespace BeautyArtists.Controllers
                 .ToListAsync();
 
             return View(services);
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //  GET: Booking/GetArtistAvailability - FIXED FOR CALENDAR
+        // ═══════════════════════════════════════════════════════════
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetArtistAvailability(string artistId)
+        {
+            if (string.IsNullOrEmpty(artistId))
+            {
+                return Json(new List<object>());
+            }
+
+            var today = DateTime.Now.Date;
+
+            var slots = await _context.ArtistAvailabilities
+                .Where(a => a.ArtistId == artistId
+                    && !a.IsBooked
+                    && a.AvailableDate >= today)
+                .OrderBy(a => a.AvailableDate)
+                .ThenBy(a => a.StartTime)
+                .Select(a => new
+                {
+                    id = a.Id,
+                    date = a.AvailableDate.ToString("yyyy-MM-dd"),
+                    timeString = $"{a.StartTime:hh\\:mm} - {a.EndTime:hh\\:mm}"
+                })
+                .ToListAsync();
+
+            return Json(slots);
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //  DEBUG: Check slots in database (REMOVE AFTER TESTING)
+        // ═══════════════════════════════════════════════════════════
+        [HttpGet]
+        [AllowAnonymous]
+        public async Task<IActionResult> DebugSlots(string artistId)
+        {
+            if (string.IsNullOrEmpty(artistId))
+                return Json(new { error = "No artistId provided" });
+
+            var allSlots = await _context.ArtistAvailabilities
+                .Where(a => a.ArtistId == artistId)
+                .Select(a => new
+                {
+                    a.Id,
+                    a.AvailableDate,
+                    a.StartTime,
+                    a.EndTime,
+                    a.IsBooked,
+                    IsFuture = a.AvailableDate >= DateTime.Now.Date,
+                    CurrentDate = DateTime.Now.Date
+                })
+                .ToListAsync();
+
+            var availableSlots = allSlots.Where(s => !s.IsBooked && s.AvailableDate >= DateTime.Now.Date).ToList();
+
+            return Json(new
+            {
+                artistId = artistId,
+                totalSlots = allSlots.Count,
+                availableSlots = availableSlots.Count,
+                allSlots = allSlots,
+                message = availableSlots.Count == 0 ? "NO AVAILABLE SLOTS FOUND! Please add availability as an artist." : "Slots found!"
+            });
         }
 
         // ══════════════════════════════════
@@ -71,7 +138,7 @@ namespace BeautyArtists.Controllers
                 ArtistId = userService.ArtistId,
                 ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
                 CategoryName = userService.Service?.ServiceCategory?.Name,
-                SelectedLocationType = LocationType.WalkIn  // Default value
+                SelectedLocationType = LocationType.WalkIn
             };
 
             return View("BookService", model);
@@ -162,7 +229,7 @@ namespace BeautyArtists.Controllers
 
             var appointmentDate = slot.AvailableDate.Add(slot.StartTime);
 
-            // ── CREATE INITIAL BOOKING AS PENDING FOR BOTH TYPES ──
+            // ── CREATE INITIAL BOOKING AS PENDING ──
             var booking = new Booking
             {
                 CustomerId = currentUser.Id,
@@ -190,7 +257,7 @@ namespace BeautyArtists.Controllers
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
 
-            // 📢 LIFECYCLE EMAIL 1: Dispatch notification immediately to Artist informing them of pending slots
+            // Notify artist
             if (!string.IsNullOrEmpty(slot.ArtistId))
             {
                 await _commService.SendBookingRequestToArtistAsync(slot.ArtistId, booking.Id);
@@ -236,35 +303,11 @@ namespace BeautyArtists.Controllers
 
                 await _context.SaveChangesAsync();
 
-                // 📢 EXACT WORKFLOW MATCH: Notify Client that booking is confirmed and they MUST pay the deposit
-                // We dynamically build the link pointing directly to your CheckoutDeposit GET action
                 var callbackUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
-
-                string subject = "Action Required: Pay Deposit for Booking Confirmation";
-                string body = $@"
-            <div style='font-family: Arial, sans-serif; max-width: 600px; border: 1px solid #d4af37; padding: 20px;'>
-                <h2 style='color: #8b0000;'>Your Appointment Has Been Approved!</h2>
-                <p>Great news! Your booking request has been accepted by the artist.</p>
-                <p>To officially lock in your time slot on the calendar, please click the secure link below to clear your 50% deposit payment:</p>
-                <p style='margin: 25px 0;'>
-                    <a href='{callbackUrl}' style='background-color: #8b0000; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;'>
-                        Pay 50% Deposit Now
-                    </a>
-                </p>
-                <p style='font-size: 12px; color: #666;'>Note: Slots are held temporarily and are only guaranteed once the deposit ledger transaction is processed.</p>
-            </div>";
-
-                // Assuming your SmtpEmailSender is injected or accessible via UserManager, or we route it cleanly:
-                var clientUser = await _userManager.FindByIdAsync(booking.CustomerId);
-                if (clientUser != null)
-                {
-                    // Using Direct Message wrapper or directly via an email sender to pass the custom HTML payload
-                    await _commService.SendDirectMessageEmailAsync(booking.UserService.ArtistId, booking.CustomerId, subject, $"Your request is approved! Please follow this link to pay your deposit: {callbackUrl}");
-                }
+                await _commService.SendDirectMessageEmailAsync(booking.UserService.ArtistId, booking.CustomerId, "Deposit Payment Required", $"Please pay your deposit here: {callbackUrl}");
             }
             else
             {
-                // Handle Cancelled / Rejected / Completed blocks...
                 if (newStatus == Booking.BookingStatus.Cancelled || newStatus == Booking.BookingStatus.Rejected)
                 {
                     if (booking.AvailabilitySlotId.HasValue)
@@ -280,8 +323,6 @@ namespace BeautyArtists.Controllers
                 }
 
                 await _context.SaveChangesAsync();
-
-                // Notify of generic status changes (Rejection, Cancellation, etc.)
                 await _commService.SendBookingStatusUpdateAsync(booking.CustomerId, booking.Id, newStatus.ToString());
             }
 
@@ -344,14 +385,13 @@ namespace BeautyArtists.Controllers
             booking.IsDepositPaid = true;
             await _context.SaveChangesAsync();
 
-            // 📢 EXACT WORKFLOW MATCH: Alert the Artist that the client paid up and their calendar is secure
             if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
             {
                 await _commService.SendDirectMessageEmailAsync(
                     currentUser.Id,
                     booking.UserService.ArtistId,
                     "Deposit Paid - Schedule Secured",
-                    $"Client {currentUser.FirstName} has successfully settled the 50% deposit for Booking #{booking.Id}. This appointment slot is now locked in your profile panel grid."
+                    $"Client {currentUser.FirstName} has successfully settled the 50% deposit for Booking #{booking.Id}."
                 );
             }
 
@@ -449,25 +489,16 @@ namespace BeautyArtists.Controllers
                     .FirstOrDefaultAsync(a => a.Id == booking.AvailabilitySlotId.Value);
                 if (slot != null) slot.IsBooked = false;
             }
-            else
-            {
-                var slot = await _context.ArtistAvailabilities
-                    .FirstOrDefaultAsync(a =>
-                        a.ArtistId == booking.UserService.ArtistId &&
-                        a.AvailableDate.Add(a.StartTime) == booking.AppointmentDate);
-                if (slot != null) slot.IsBooked = false;
-            }
 
             await _context.SaveChangesAsync();
 
-            // 📢 LIFECYCLE EMAIL 4: Notify the Artist right away that a client dropped out of their slot assignment
             if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
             {
                 await _commService.SendDirectMessageEmailAsync(
                     currentUser.Id,
                     booking.UserService.ArtistId,
                     "Booking Cancelled By Client",
-                    $"Client {currentUser.FirstName} has cancelled Booking #{booking.Id} scheduled for {booking.AppointmentDate:yyyy-MM-dd HH:mm}. Your slot has been returned to the public grid."
+                    $"Client {currentUser.FirstName} has cancelled Booking #{booking.Id}."
                 );
             }
 
@@ -562,16 +593,6 @@ namespace BeautyArtists.Controllers
                     .FirstOrDefaultAsync(a => a.Id == booking.AvailabilitySlotId.Value);
                 if (oldSlot != null) oldSlot.IsBooked = false;
             }
-            else
-            {
-                var oldSlot = await _context.ArtistAvailabilities
-                    .FirstOrDefaultAsync(a =>
-                        a.ArtistId == booking.UserService.ArtistId &&
-                        a.AvailableDate.Date == booking.AppointmentDate.Date &&
-                        booking.AppointmentDate.TimeOfDay >= a.StartTime &&
-                        booking.AppointmentDate.TimeOfDay < a.EndTime);
-                if (oldSlot != null) oldSlot.IsBooked = false;
-            }
 
             booking.AppointmentDate = newSlot.AvailableDate.Add(newSlot.StartTime);
             booking.AvailabilitySlotId = newSlot.Id;
@@ -581,14 +602,13 @@ namespace BeautyArtists.Controllers
 
             await _context.SaveChangesAsync();
 
-            // 📢 LIFECYCLE EMAIL 5: Inform the Artist that a client shifted their locked date context
             if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
             {
                 await _commService.SendDirectMessageEmailAsync(
                     currentUser.Id,
                     booking.UserService.ArtistId,
                     "Appointment Date Rescheduled",
-                    $"Client {currentUser.FirstName} has shifted their confirmed appointment structure to a new time slot: {booking.AppointmentDate:MMM dd, yyyy} at {newSlot.StartTime:hh\\:mm}."
+                    $"Client {currentUser.FirstName} has rescheduled to {booking.AppointmentDate:MMM dd, yyyy} at {newSlot.StartTime:hh\\:mm}."
                 );
             }
 
