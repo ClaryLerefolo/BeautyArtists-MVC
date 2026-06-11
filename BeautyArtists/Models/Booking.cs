@@ -51,6 +51,7 @@ namespace BeautyArtists.Models
         public enum BookingStatus
         {
             Pending,      // Booking is created but not yet confirmed
+            Accepted,     // Artist accepted, waiting for deposit payment
             Confirmed,    // Booking is confirmed
             Completed,    // Booking has been completed
             Cancelled,    // Booking has been cancelled

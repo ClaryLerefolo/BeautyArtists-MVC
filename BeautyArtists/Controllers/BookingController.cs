@@ -505,30 +505,68 @@ namespace BeautyArtists.Controllers
 
             var booking = await _context.Bookings
                 .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                .Include(b => b.UserService.Service)
                 .FirstOrDefaultAsync(b => b.Id == id && b.CustomerId == currentUser.Id);
 
             if (booking == null) return NotFound();
 
-            if (booking.Status == BookingStatus.Pending)
+            if (booking.Status != BookingStatus.Accepted)
             {
-                TempData["Error"] = "Action Denied: You cannot process payments for an unconfirmed appointment.";
+                TempData["Error"] = "Action Denied: This booking must be accepted by the artist before payment.";
                 return RedirectToAction("MyBookings");
             }
 
             booking.IsDepositPaid = true;
+            booking.Status = BookingStatus.Confirmed; // Change to Confirmed after payment
             await _context.SaveChangesAsync();
 
-            if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
+            // ========== SEND CONFIRMATION EMAIL TO ARTIST ==========
+            var artist = booking.UserService?.Artist;
+            if (artist != null && !string.IsNullOrEmpty(artist.Email))
             {
-                await _commService.SendDirectMessageEmailAsync(
-                    currentUser.Id,
-                    booking.UserService.ArtistId,
-                    "Deposit Paid - Schedule Secured",
-                    $"Client {currentUser.FirstName} has successfully settled the 50% deposit for Booking #{booking.Id}."
-                );
+                string artistSubject = "💰 Deposit Paid - Appointment Confirmed!";
+                string artistBody = $@"
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+            <h2 style='color: #28a745; text-align: center;'>Deposit Payment Received! ✅</h2>
+            <p>Dear {artist.FirstName},</p>
+            <p>The client <strong>{currentUser.FirstName} {currentUser.LastName}</strong> has paid the 50% deposit for:</p>
+            <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
+                <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
+                <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
+                <p><strong>Deposit Amount:</strong> <span style='color: #28a745;'>R {(booking.TotalAmount / 2):N2}</span></p>
+            </div>
+            <p>This appointment is now <strong>CONFIRMED</strong> and locked in your calendar.</p>
+            <hr>
+            <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+        </div>";
+
+                await _commService.SendDirectMessageEmailAsync(currentUser.Id, artist.Id, artistSubject, artistBody);
             }
 
-            TempData["Success"] = "First 50% Deposit cleared! Your appointment is locked in.";
+            // ========== SEND CONFIRMATION EMAIL TO CLIENT ==========
+            string clientSubject = "🎉 Appointment Confirmed! Deposit Received";
+            string clientBody = $@"
+    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+        <h2 style='color: #28a745; text-align: center;'>Payment Successful! 🎉</h2>
+        <p>Dear {currentUser.FirstName},</p>
+        <p>Your 50% deposit of <strong>R {(booking.TotalAmount / 2):N2}</strong> has been received.</p>
+        <p>Your appointment is now <strong style='color: #28a745;'>CONFIRMED!</strong></p>
+        <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+            <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
+            <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
+            <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
+            <p><strong>Location:</strong> {(booking.SelectedLocationType == LocationType.HouseCall ? "🏠 House Call" : "🏢 Walk-In")}</p>
+        </div>
+        <p>Thank you for choosing Beauty Artists Hub!</p>
+        <hr>
+        <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+    </div>";
+
+            await _commService.SendDirectMessageEmailAsync(artist?.Id, currentUser.Id, clientSubject, clientBody);
+
+            TempData["Success"] = "Deposit cleared! Your appointment is now confirmed.";
             return RedirectToAction("MyBookings");
         }
 
