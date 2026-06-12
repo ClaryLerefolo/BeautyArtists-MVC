@@ -265,22 +265,18 @@ namespace BeautyArtists.Controllers
 
             if (booking.SelectedLocationType == LocationType.WalkIn)
             {
-                TempData["Success"] = "Appointment requested successfully! The Artist must review and confirm your slot before deposit payment can be processed.";
+                TempData["Success"] = "Appointment requested successfully! The Artist must review and accept your slot before deposit payment can be processed.";
             }
             else
             {
-                TempData["Success"] = "House Call request sent! The Artist will review your location coordinates, apply any relevant transport costs, and confirm.";
+                TempData["Success"] = "House Call request sent! The Artist will review your location coordinates, apply any relevant transport costs, and accept.";
             }
 
             return RedirectToAction("MyBookings");
         }
 
         // ══════════════════════════════════
-        //  POST: Booking/ArtistUpdateStatus
-        // ══════════════════════════════════
-        // Update your existing ArtistUpdateStatus method in BookingController
-        // ══════════════════════════════════
-        //  POST: Booking/ArtistUpdateStatus - FIXED WITH EMAIL NOTIFICATIONS
+        //  POST: Booking/ArtistUpdateStatus - FIXED WITH ACCEPTED STATUS
         // ══════════════════════════════════
         [Authorize]
         [HttpPost]
@@ -298,10 +294,11 @@ namespace BeautyArtists.Controllers
             // Store the artist's notes
             booking.ArtistNotes = artistNotes;
 
-            // Get client email before updating
+            // Get client for email
             var client = await _userManager.FindByIdAsync(booking.CustomerId);
 
-            if (newStatus == Booking.BookingStatus.Confirmed)
+            // ========== ARTIST ACCEPTS THE BOOKING ==========
+            if (newStatus == Booking.BookingStatus.Accepted)
             {
                 // Handle transport cost for house calls
                 if (booking.SelectedLocationType == LocationType.HouseCall)
@@ -313,23 +310,23 @@ namespace BeautyArtists.Controllers
                     }
                 }
 
-                booking.Status = BookingStatus.Confirmed;
+                booking.Status = BookingStatus.Accepted;  // Changed from Confirmed to Accepted
                 await _context.SaveChangesAsync();
 
-                // ========== SEND EMAIL TO CLIENT ==========
+                // ========== SEND "APPOINTMENT ACCEPTED" EMAIL TO CLIENT ==========
                 var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
 
-                string subject = "✅ Your Appointment Has Been Confirmed!";
+                string subject = "✅ Your Appointment Has Been Accepted!";
                 string emailBody = $@"
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
             <div style='text-align: center; margin-bottom: 20px;'>
-                <h1 style='color: #f0c808; margin: 0;'>✨ Appointment Confirmed! ✨</h1>
+                <h1 style='color: #f0c808; margin: 0;'>✨ Appointment Accepted! ✨</h1>
                 <hr style='border-color: #f0c808;'>
             </div>
             
             <p style='font-size: 16px;'>Dear <strong>{booking.Customer?.FirstName} {booking.Customer?.LastName}</strong>,</p>
             
-            <p style='font-size: 14px; color: #ddd;'>Good news! Your appointment has been <strong style='color: #28a745;'>CONFIRMED</strong> by the artist.</p>
+            <p style='font-size: 14px; color: #ddd;'>Great news! The artist has <strong style='color: #28a745;'>ACCEPTED</strong> your appointment request.</p>
             
             <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #f0c808; margin-top: 0;'>📋 Booking Details</h3>
@@ -364,7 +361,7 @@ namespace BeautyArtists.Controllers
             
             <div style='background: rgba(229, 9, 20, 0.1); padding: 12px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #e50914;'>
                 <p style='margin: 0; font-size: 12px; color: #ff8888;'>
-                    <strong>⚠️ IMPORTANT:</strong> Your appointment slot is only guaranteed once the 50% deposit is paid. Please complete your payment as soon as possible.
+                    <strong>⚠️ IMPORTANT:</strong> Your appointment is not confirmed until the 50% deposit is paid. Please complete your payment as soon as possible.
                 </p>
             </div>
             
@@ -386,7 +383,7 @@ namespace BeautyArtists.Controllers
                     );
                 }
 
-                TempData["Success"] = "Appointment confirmed! Client has been notified via email.";
+                TempData["Success"] = "Appointment accepted! Client has been notified to pay deposit.";
             }
             else if (newStatus == Booking.BookingStatus.Rejected)
             {
@@ -397,9 +394,9 @@ namespace BeautyArtists.Controllers
                 string rejectSubject = "❌ Appointment Request Update";
                 string rejectBody = $@"
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #e50914; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-            <h2 style='color: #e50914; text-align: center;'>Appointment Not Confirmed</h2>
+            <h2 style='color: #e50914; text-align: center;'>Appointment Not Accepted</h2>
             <p>Dear {booking.Customer?.FirstName},</p>
-            <p>Unfortunately, your appointment request for <strong>{booking.UserService?.Service?.Name}</strong> on <strong>{booking.AppointmentDate:MMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> could not be confirmed by the artist.</p>
+            <p>Unfortunately, your appointment request for <strong>{booking.UserService?.Service?.Name}</strong> on <strong>{booking.AppointmentDate:MMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> has been declined.</p>
             {(artistNotes != null ? $"<p><strong>Reason:</strong> {artistNotes}</p>" : "")}
             <p>Please try booking a different time slot or contact the artist directly.</p>
             <hr>
@@ -438,8 +435,8 @@ namespace BeautyArtists.Controllers
             <h2 style='color: #28a745; text-align: center;'>Service Completed! 🎉</h2>
             <p>Dear {booking.Customer?.FirstName},</p>
             <p>Your <strong>{booking.UserService?.Service?.Name}</strong> appointment has been marked as completed.</p>
-            <p>We hope you had a great experience! Please leave a review and share your feedback.</p>
-            <p style='text-align: center; margin-top: 20px;'>✨ Thank you for choosing Beauty Artists Hub! ✨</p>
+            <p>We hope you had a great experience! Thank you for choosing Beauty Artists Hub!</p>
+            <p style='text-align: center; margin-top: 20px;'>✨ We hope to see you again soon! ✨</p>
         </div>";
 
                 if (client != null && !string.IsNullOrEmpty(client.Email))
@@ -453,10 +450,6 @@ namespace BeautyArtists.Controllers
                 }
 
                 TempData["Success"] = "Service marked as completed! Client has been notified.";
-            }
-            else
-            {
-                await _context.SaveChangesAsync();
             }
 
             return RedirectToAction("MyAppointments", "Artist");
@@ -480,8 +473,14 @@ namespace BeautyArtists.Controllers
 
             if (booking.Status == BookingStatus.Pending)
             {
-                TempData["Error"] = "This booking is currently pending artist approval. You can pay your 50% deposit once confirmed.";
+                TempData["Error"] = "This booking is pending artist approval. You can pay your deposit once the artist accepts your request.";
                 return RedirectToAction("MyBookings");
+            }
+
+            if (booking.Status == BookingStatus.Accepted && !booking.IsDepositPaid)
+            {
+                // This is good - show deposit page
+                return View(booking);
             }
 
             if (booking.IsDepositPaid || booking.Status == BookingStatus.Cancelled)
@@ -518,10 +517,10 @@ namespace BeautyArtists.Controllers
             }
 
             booking.IsDepositPaid = true;
-            booking.Status = BookingStatus.Confirmed; // Change to Confirmed after payment
+            booking.Status = BookingStatus.Confirmed;
             await _context.SaveChangesAsync();
 
-            // ========== SEND CONFIRMATION EMAIL TO ARTIST ==========
+            // Send confirmation email to artist
             var artist = booking.UserService?.Artist;
             if (artist != null && !string.IsNullOrEmpty(artist.Email))
             {
@@ -545,7 +544,7 @@ namespace BeautyArtists.Controllers
                 await _commService.SendDirectMessageEmailAsync(currentUser.Id, artist.Id, artistSubject, artistBody);
             }
 
-            // ========== SEND CONFIRMATION EMAIL TO CLIENT ==========
+            // Send confirmation email to client
             string clientSubject = "🎉 Appointment Confirmed! Deposit Received";
             string clientBody = $@"
     <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>

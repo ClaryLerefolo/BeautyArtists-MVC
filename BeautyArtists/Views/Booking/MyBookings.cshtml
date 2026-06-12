@@ -4,6 +4,7 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
     var bookingsList = Model.ToList();
     var pending = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Pending);
+    var accepted = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted);
     var confirmed = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed);
     var completed = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Completed);
     var cancelled = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Cancelled);
@@ -32,6 +33,11 @@
                 </div>
                 <div class="mb-stat-div"></div>
                 <div class="mb-stat">
+                    <span class="mb-stat-num" style="color:#17a2b8">@accepted</span>
+                    <span class="mb-stat-label">ACCEPTED</span>
+                </div>
+                <div class="mb-stat-div"></div>
+                <div class="mb-stat">
                     <span class="mb-stat-num" style="color:#00c853">@confirmed</span>
                     <span class="mb-stat-label">CONFIRMED</span>
                 </div>
@@ -56,6 +62,7 @@
             </div>
         </div>
     }
+
     @* ── BOOKINGS LIST ── *@
     <div class="container mb-body">
 
@@ -77,6 +84,7 @@
                 string statusClass = booking.Status switch
                 {
                     BeautyArtists.Models.Booking.BookingStatus.Pending => "status-pending",
+                    BeautyArtists.Models.Booking.BookingStatus.Accepted => "status-accepted",
                     BeautyArtists.Models.Booking.BookingStatus.Confirmed => "status-confirmed",
                     BeautyArtists.Models.Booking.BookingStatus.Completed => "status-completed",
                     BeautyArtists.Models.Booking.BookingStatus.Cancelled => "status-cancelled",
@@ -85,11 +93,18 @@
                 string statusIcon = booking.Status switch
                 {
                     BeautyArtists.Models.Booking.BookingStatus.Pending => "⏳",
+                    BeautyArtists.Models.Booking.BookingStatus.Accepted => "👍",
                     BeautyArtists.Models.Booking.BookingStatus.Confirmed => "✅",
                     BeautyArtists.Models.Booking.BookingStatus.Completed => "⭐",
                     BeautyArtists.Models.Booking.BookingStatus.Cancelled => "❌",
                     _ => "⏳"
                 };
+                string statusDisplay = booking.Status switch
+                {
+                    BeautyArtists.Models.Booking.BookingStatus.Accepted => "ACCEPTED - AWAITING DEPOSIT",
+                    _ => booking.Status.ToString().ToUpper()
+                };
+
                 string artistName = booking.UserService?.Artist?.ArtistProfile?.FullName
                 ?? (!string.IsNullOrEmpty(booking.UserService?.Artist?.FirstName)
                 ? $"{booking.UserService.Artist.FirstName} {booking.UserService.Artist.LastName}".Trim()
@@ -106,7 +121,7 @@
                         <div class="mb-card-main">
                             <div class="mb-card-header">
                                 <span class="mb-status-badge @statusClass">
-                                    @statusIcon @booking.Status.ToString()
+                                    @statusIcon @statusDisplay
                                 </span>
                                 <span class="mb-booking-id">#@booking.Id</span>
                             </div>
@@ -143,6 +158,19 @@
                                     @booking.AppointmentDate.ToString("HH:mm")
                                 </div>
 
+                                @* Show Transport Cost if House Call *@
+                                @if (booking.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall && booking.TransportCost > 0)
+                                {
+                                    <div class="mb-meta-item" style="color: #FFD700;">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M1 3h3l4 9h10l4-9h3" />
+                                            <circle cx="7" cy="19" r="2" />
+                                            <circle cx="17" cy="19" r="2" />
+                                        </svg>
+                                        Transport Cost: <strong>R @booking.TransportCost.ToString("N0")</strong>
+                                    </div>
+                                }
+
                                 @if (!string.IsNullOrEmpty(booking.Notes))
                                 {
                                     <div class="mb-meta-item mb-notes">
@@ -155,7 +183,18 @@
                                     </div>
                                 }
 
-                                @* --- PATCH: Reason for Cancel/Reschedule --- *@
+                                @* Artist Notes *@
+                                @if (!string.IsNullOrEmpty(booking.ArtistNotes))
+                                {
+                                    <div class="mb-meta-item" style="color: #FFD700 !important; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,215,0,0.1);">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                                        </svg>
+                                        <span style="font-weight: 700; margin-right: 4px;">Artist Note:</span> @booking.ArtistNotes
+                                    </div>
+                                }
+
+                                @* Cancellation Reason *@
                                 @if (!string.IsNullOrEmpty(booking.ClientNotes))
                                 {
                                     <div class="mb-meta-item" style="color: #ff5555 !important; border-top: 1px solid rgba(255,85,85,0.1); margin-top: 4px; padding-top: 4px;">
@@ -167,16 +206,6 @@
                                         <strong>Update Reason:</strong> @booking.ClientNotes
                                     </div>
                                 }
-
-                                @if (!string.IsNullOrEmpty(booking.ArtistNotes))
-                                {
-                                    <div class="mb-meta-item" style="color: #FFD700 !important; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,215,0,0.1);">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                                        </svg>
-                                        <span style="font-weight: 700; margin-right: 4px;">Artist Note:</span> @booking.ArtistNotes
-                                    </div>
-                                }
                             </div>
                         </div>
 
@@ -185,11 +214,26 @@
                             <div class="mb-amount">
                                 <span class="mb-amount-label">Total</span>
                                 <span class="mb-amount-value">R @booking.TotalAmount.ToString("N0")</span>
+                                @if (booking.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall && booking.TransportCost > 0)
+                                {
+                                    <span class="mb-amount-label" style="font-size: 0.5rem;">(includes transport)</span>
+                                }
                             </div>
 
                             <div class="mb-actions">
-                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed
-                                                        && !booking.HasRescheduled)
+                                @* PAY DEPOSIT BUTTON - FOR ACCEPTED STATUS *@
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted && !booking.IsDepositPaid)
+                                {
+                                    <a asp-controller="Booking"
+                                       asp-action="CheckoutDeposit"
+                                       asp-route-id="@booking.Id"
+                                       class="mb-btn-deposit">
+                                        💰 PAY 50% DEPOSIT
+                                    </a>
+                                }
+
+                                @* RESCHEDULE BUTTON - ONLY FOR CONFIRMED BOOKINGS *@
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed && !booking.HasRescheduled)
                                 {
                                     <a asp-controller="Booking"
                                        asp-action="Reschedule"
@@ -199,10 +243,11 @@
                                     </a>
                                 }
 
+                                @* CANCEL BUTTON - FOR PENDING, ACCEPTED, AND CONFIRMED *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Pending
+                                                        || booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted
                                                         || booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
                                 {
-                                    @* PATCH: Added onsubmit handler to capture reason *@
                                     <form asp-controller="Booking" asp-action="Cancel"
                                           asp-route-id="@booking.Id" method="post"
                                           onsubmit="return handleCancelPrompt(this);">
@@ -356,6 +401,16 @@
         font-weight: 600;
     }
 
+    .mb-alert-error {
+        background: rgba(255,50,50,0.08);
+        border: 1px solid rgba(255,50,50,0.25);
+        border-radius: 10px;
+        padding: 12px 18px;
+        color: #ff5555;
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+
     .mb-body {
         padding-top: 32px;
     }
@@ -413,6 +468,10 @@
         background: #f0c808;
     }
 
+    .status-accepted {
+        background: #17a2b8;
+    }
+
     .status-confirmed {
         background: #00c853;
     }
@@ -444,6 +503,7 @@
         align-items: center;
         gap: 10px;
         margin-bottom: 10px;
+        flex-wrap: wrap;
     }
 
     .mb-status-badge {
@@ -458,6 +518,11 @@
     .status-pending.mb-status-badge {
         background: rgba(240,200,8,0.15);
         color: #f0c808;
+    }
+
+    .status-accepted.mb-status-badge {
+        background: rgba(23,162,184,0.15);
+        color: #17a2b8;
     }
 
     .status-confirmed.mb-status-badge {
@@ -551,7 +616,7 @@
         gap: 8px;
     }
 
-    .mb-btn-primary, .mb-btn-secondary, .mb-btn-cancel {
+    .mb-btn-primary, .mb-btn-secondary, .mb-btn-cancel, .mb-btn-deposit {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -576,6 +641,18 @@
             background: linear-gradient(135deg, #FFD700, #b30000);
             color: #000;
             box-shadow: 0 0 20px rgba(255,215,0,0.3);
+        }
+
+    .mb-btn-deposit {
+        background: linear-gradient(135deg, #f0c808, #e50914);
+        color: #000;
+        font-weight: 800;
+    }
+
+        .mb-btn-deposit:hover {
+            background: linear-gradient(135deg, #e50914, #f0c808);
+            box-shadow: 0 0 20px rgba(240,200,8,0.4);
+            transform: translateY(-1px);
         }
 
     .mb-btn-secondary {
@@ -625,14 +702,4 @@
         .cat-back-btn:hover {
             color: #FFD700;
         }
-
-    .mb-alert-error {
-        background: rgba(255,50,50,0.08);
-        border: 1px solid rgba(255,50,50,0.25);
-        border-radius: 10px;
-        padding: 12px 18px;
-        color: #ff5555;
-        font-size: 0.88rem;
-        font-weight: 600;
-    }
 </style>
