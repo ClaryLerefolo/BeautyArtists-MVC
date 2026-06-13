@@ -147,7 +147,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ══════════════════════════════════
-        //  POST: Booking/ConfirmBooking - FIXED (NO MORE ORPHANED SLOTS)
+        //  POST: Booking/ConfirmBooking - SIMPLE FIXED VERSION
         // ══════════════════════════════════
         [Authorize]
         [HttpPost]
@@ -199,7 +199,7 @@ namespace BeautyArtists.Controllers
                 return View("BookService", model);
             }
 
-            // ── FETCH SLOT (NOT LOCKED YET) ──
+            // ── FETCH SLOT ──
             var slot = await _context.ArtistAvailabilities
                 .FirstOrDefaultAsync(a => a.Id == model.AvailabilitySlotId && !a.IsBooked);
 
@@ -255,29 +255,13 @@ namespace BeautyArtists.Controllers
                 booking.Longitude = model.Longitude;
             }
 
-            // 🔥 CRITICAL FIX: Use transaction to ensure both operations succeed
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            // 🔥 SIMPLE FIX: Save booking FIRST, then mark slot as booked
+            _context.Bookings.Add(booking);
+            await _context.SaveChangesAsync();
 
-            try
-            {
-                _context.Bookings.Add(booking);
-                await _context.SaveChangesAsync();
-
-                // Only mark slot as booked AFTER booking is successfully saved
-                slot.IsBooked = true;
-                await _context.SaveChangesAsync();
-
-                await transaction.CommitAsync();
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                // Log the error
-                Console.WriteLine($"Error creating booking: {ex.Message}");
-
-                TempData["Error"] = "There was an error processing your booking. Please try again.";
-                return RedirectToAction("BookService", new { userServiceId = model.UserServiceId });
-            }
+            // Only mark slot as booked AFTER booking is successfully saved
+            slot.IsBooked = true;
+            await _context.SaveChangesAsync();
 
             // 🔔 IN-APP NOTIFICATION: New booking request to artist
             await _notificationService.CreateNotificationAsync(
