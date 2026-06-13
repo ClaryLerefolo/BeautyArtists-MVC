@@ -661,6 +661,7 @@ namespace BeautyArtists.Controllers
             var currentUser = await _userManager.GetUserAsync(User);
 
             var booking = await _context.Bookings
+                .Include(b => b.UserService)
                 .FirstOrDefaultAsync(b => b.Id == id && b.CustomerId == currentUser.Id);
 
             if (booking == null) return NotFound();
@@ -686,6 +687,16 @@ namespace BeautyArtists.Controllers
 
             booking.TotalAmount = 0;
             await _context.SaveChangesAsync();
+
+            // 🔔 IN-APP NOTIFICATION: To artist - Final Payment Received
+            await _notificationService.CreateNotificationAsync(
+                booking.UserService.ArtistId,
+                "Final Payment Received! 💵",
+                $"{currentUser.FirstName} has paid the remaining balance for {booking.UserService?.Service?.Name}.",
+                "payment_received",
+                booking.Id.ToString(),
+                Url.Action("Earnings", "Artist")
+            );
 
             TempData["Success"] = "Final settlement cleared! See you at your session.";
             return RedirectToAction("MyBookings");
@@ -874,6 +885,27 @@ namespace BeautyArtists.Controllers
 
             await _context.SaveChangesAsync();
 
+            // 🔔 IN-APP NOTIFICATION: To client - Appointment Rescheduled
+            await _notificationService.CreateNotificationAsync(
+                booking.CustomerId,
+                "Appointment Rescheduled 🔄",
+                $"Your appointment for {booking.UserService?.Service?.Name} has been rescheduled to {newSlot.AvailableDate:MMM dd} at {newSlot.StartTime:hh\\:mm}.",
+                "booking_rescheduled",
+                booking.Id.ToString(),
+                Url.Action("MyBookings", "Booking")
+            );
+
+            // 🔔 IN-APP NOTIFICATION: To artist - Appointment Rescheduled
+            await _notificationService.CreateNotificationAsync(
+                booking.UserService.ArtistId,
+                "Appointment Rescheduled 🔄",
+                $"{currentUser.FirstName} has rescheduled their appointment to {newSlot.AvailableDate:MMM dd} at {newSlot.StartTime:hh\\:mm}.",
+                "booking_rescheduled",
+                booking.Id.ToString(),
+                Url.Action("MyAppointments", "Artist")
+            );
+
+            // Email notification to artist
             if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
             {
                 await _commService.SendDirectMessageEmailAsync(
