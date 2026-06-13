@@ -154,6 +154,7 @@ namespace BeautyArtists.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmBooking(BookingViewModel model)
         {
+
             if (!User.Identity.IsAuthenticated)
                 return Challenge();
 
