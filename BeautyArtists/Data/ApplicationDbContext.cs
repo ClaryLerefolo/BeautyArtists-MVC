@@ -104,6 +104,8 @@ namespace BeautyArtists.Data
         public DbSet<ArtistAvailability> ArtistAvailabilities { get; set; }
         public DbSet<ActivityLog> ActivityLogs { get; set; }
 
+        public DbSet<Notification> Notifications { get; set; }
+
 
 
 

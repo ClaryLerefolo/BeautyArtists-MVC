@@ -19,12 +19,14 @@ namespace BeautyArtists.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ICommunicationService _commService;
+        private readonly INotificationService _notificationService;
 
-        public BookingController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ICommunicationService commService)
+        public BookingController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ICommunicationService commService, INotificationService notificationService)
         {
             _context = context;
             _userManager = userManager;
             _commService = commService;
+            _notificationService = notificationService;
         }
 
         // ══════════════════════════════════
@@ -257,7 +259,27 @@ namespace BeautyArtists.Controllers
             _context.Bookings.Add(booking);
             await _context.SaveChangesAsync();
 
-            // Notify artist
+            // 🔔 IN-APP NOTIFICATION: New booking request to artist
+            await _notificationService.CreateNotificationAsync(
+                slot.ArtistId,
+                "New Booking Request! 📅",
+                $"{currentUser.FirstName} has requested {booking.UserService?.Service?.Name} on {appointmentDate:MMM dd} at {appointmentDate:hh:mm tt}",
+                "booking_pending",
+                booking.Id.ToString(),
+                Url.Action("MyAppointments", "Artist")
+            );
+
+            // 🔔 IN-APP NOTIFICATION: Booking confirmation to client
+            await _notificationService.CreateNotificationAsync(
+                currentUser.Id,
+                "Booking Request Sent! 📤",
+                $"Your request for {booking.UserService?.Service?.Name} has been sent. You'll be notified when the artist responds.",
+                "booking_pending",
+                booking.Id.ToString(),
+                Url.Action("MyBookings", "Booking")
+            );
+
+            // Email notification to artist
             if (!string.IsNullOrEmpty(slot.ArtistId))
             {
                 await _commService.SendBookingRequestToArtistAsync(slot.ArtistId, booking.Id);
@@ -310,10 +332,10 @@ namespace BeautyArtists.Controllers
                     }
                 }
 
-                booking.Status = BookingStatus.Accepted;  // Changed from Confirmed to Accepted
+                booking.Status = BookingStatus.Accepted;
                 await _context.SaveChangesAsync();
 
-                // ========== SEND "APPOINTMENT ACCEPTED" EMAIL TO CLIENT ==========
+                // ========== SEND EMAIL TO CLIENT ==========
                 var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
 
                 string subject = "✅ Your Appointment Has Been Accepted!";
@@ -372,7 +394,7 @@ namespace BeautyArtists.Controllers
             </p>
         </div>";
 
-                // Send email using your communication service
+                // Send email
                 if (client != null && !string.IsNullOrEmpty(client.Email))
                 {
                     await _commService.SendDirectMessageEmailAsync(
@@ -382,6 +404,26 @@ namespace BeautyArtists.Controllers
                         emailBody
                     );
                 }
+
+                // 🔔 IN-APP NOTIFICATION: To client - Appointment Accepted
+                await _notificationService.CreateNotificationAsync(
+                    booking.CustomerId,
+                    "Appointment Accepted! ✅",
+                    $"Great news! Your appointment for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd} has been ACCEPTED. Pay your 50% deposit now!",
+                    "booking_accepted",
+                    booking.Id.ToString(),
+                    Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id })
+                );
+
+                // 🔔 IN-APP NOTIFICATION: To artist - Confirmation
+                await _notificationService.CreateNotificationAsync(
+                    booking.UserService.ArtistId,
+                    "You Accepted an Appointment 🎉",
+                    $"You accepted {booking.Customer?.FirstName}'s appointment for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd}.",
+                    "booking_accepted",
+                    booking.Id.ToString(),
+                    Url.Action("MyAppointments", "Artist")
+                );
 
                 TempData["Success"] = "Appointment accepted! Client has been notified to pay deposit.";
             }
@@ -412,6 +454,16 @@ namespace BeautyArtists.Controllers
                         rejectBody
                     );
                 }
+
+                // 🔔 IN-APP NOTIFICATION: To client - Appointment Rejected
+                await _notificationService.CreateNotificationAsync(
+                    booking.CustomerId,
+                    "Appointment Declined ❌",
+                    $"Unfortunately, your appointment request for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd} has been declined.",
+                    "booking_rejected",
+                    booking.Id.ToString(),
+                    Url.Action("MyBookings", "Booking")
+                );
 
                 // Free up the slot
                 if (booking.AvailabilitySlotId.HasValue)
@@ -449,6 +501,16 @@ namespace BeautyArtists.Controllers
                     );
                 }
 
+                // 🔔 IN-APP NOTIFICATION: To client - Service Completed
+                await _notificationService.CreateNotificationAsync(
+                    booking.CustomerId,
+                    "Service Completed! ⭐",
+                    $"Your {booking.UserService?.Service?.Name} appointment has been completed. Thank you for choosing us!",
+                    "booking_completed",
+                    booking.Id.ToString(),
+                    Url.Action("MyBookings", "Booking")
+                );
+
                 TempData["Success"] = "Service marked as completed! Client has been notified.";
             }
 
@@ -479,7 +541,6 @@ namespace BeautyArtists.Controllers
 
             if (booking.Status == BookingStatus.Accepted && !booking.IsDepositPaid)
             {
-                // This is good - show deposit page
                 return View(booking);
             }
 
@@ -564,6 +625,26 @@ namespace BeautyArtists.Controllers
     </div>";
 
             await _commService.SendDirectMessageEmailAsync(artist?.Id, currentUser.Id, clientSubject, clientBody);
+
+            // 🔔 IN-APP NOTIFICATION: To client - Payment Confirmed
+            await _notificationService.CreateNotificationAsync(
+                booking.CustomerId,
+                "Payment Received! 💰",
+                $"Your 50% deposit of R{(booking.TotalAmount / 2):N2} has been received. Your appointment is now CONFIRMED!",
+                "payment_received",
+                booking.Id.ToString(),
+                Url.Action("MyBookings", "Booking")
+            );
+
+            // 🔔 IN-APP NOTIFICATION: To artist - Payment Confirmed
+            await _notificationService.CreateNotificationAsync(
+                booking.UserService.ArtistId,
+                "Deposit Paid! 🎉",
+                $"{currentUser.FirstName} paid the deposit. Appointment is now CONFIRMED!",
+                "payment_received",
+                booking.Id.ToString(),
+                Url.Action("MyAppointments", "Artist")
+            );
 
             TempData["Success"] = "Deposit cleared! Your appointment is now confirmed.";
             return RedirectToAction("MyBookings");
@@ -662,6 +743,7 @@ namespace BeautyArtists.Controllers
 
             await _context.SaveChangesAsync();
 
+            // Email notification to artist
             if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
             {
                 await _commService.SendDirectMessageEmailAsync(
@@ -671,6 +753,26 @@ namespace BeautyArtists.Controllers
                     $"Client {currentUser.FirstName} has cancelled Booking #{booking.Id}."
                 );
             }
+
+            // 🔔 IN-APP NOTIFICATION: To artist
+            await _notificationService.CreateNotificationAsync(
+                booking.UserService.ArtistId,
+                "Booking Cancelled ❌",
+                $"{currentUser.FirstName} has cancelled their booking for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd}.",
+                "booking_cancelled",
+                booking.Id.ToString(),
+                Url.Action("MyAppointments", "Artist")
+            );
+
+            // 🔔 IN-APP NOTIFICATION: To client
+            await _notificationService.CreateNotificationAsync(
+                currentUser.Id,
+                "Booking Cancelled ❌",
+                $"You have cancelled your appointment for {booking.UserService?.Service?.Name}.",
+                "booking_cancelled",
+                booking.Id.ToString(),
+                Url.Action("MyBookings", "Booking")
+            );
 
             TempData["Success"] = "Your booking has been cancelled.";
             return RedirectToAction("MyBookings");

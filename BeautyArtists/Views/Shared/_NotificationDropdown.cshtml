@@ -1,0 +1,42 @@
+﻿@model List<BeautyArtists.Models.Notification>
+
+@if (!Model.Any())
+{
+    <div class="notification-empty">
+        <span>🔔</span>
+        <p>No notifications yet</p>
+    </div>
+}
+else
+{
+    <div class="notification-list">
+        @foreach (var notification in Model)
+        {
+            <div class="notification-item @(notification.IsRead ? "read" : "unread")"
+                 data-id="@notification.Id"
+                 onclick="markAsRead(@notification.Id, '@notification.ActionUrl')">
+                <div class="notification-icon">@notification.Icon</div>
+                <div class="notification-content">
+                    <div class="notification-title">@notification.Title</div>
+                    <div class="notification-message">@notification.Message</div>
+                    <div class="notification-time">@TimeAgo(notification.CreatedAt)</div>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="notification-footer">
+        <button onclick="markAllAsRead()" class="btn-mark-all">Mark all as read</button>
+    </div>
+}
+
+@functions {
+    string TimeAgo(DateTime dt)
+    {
+        var ts = DateTime.UtcNow - dt;
+        if (ts.TotalMinutes < 1) return "just now";
+        if (ts.TotalMinutes < 60) return $"{(int)ts.TotalMinutes}m ago";
+        if (ts.TotalHours < 24) return $"{(int)ts.TotalHours}h ago";
+        if (ts.TotalDays < 7) return $"{(int)ts.TotalDays}d ago";
+        return $"{dt:MMM dd}";
+    }
+}

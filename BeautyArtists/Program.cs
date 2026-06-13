@@ -40,11 +40,12 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     .AddDefaultTokenProviders();
 
 builder.Services.AddControllersWithViews();
-
+builder.Services.AddSignalR();  
 // Register production email service
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 //communication pipeline service
 builder.Services.AddTransient<ICommunicationService, CommunicationService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddRazorPages()
     .AddRazorPagesOptions(options =>
     {
