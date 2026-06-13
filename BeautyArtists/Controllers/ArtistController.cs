@@ -21,16 +21,20 @@ namespace BeautyArtists.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _env;
         private readonly ICommunicationService _commService;
+        private readonly INotificationService _notificationService;
 
-
-        public ArtistController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, ICommunicationService communicationService)
+        public ArtistController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, ICommunicationService communicationService, INotificationService notificationService)
         {
             _context = context;
             _userManager = userManager;
             _env = env;
             _commService = communicationService;
+            _notificationService = notificationService;
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // DASHBOARD
+        // ═══════════════════════════════════════════════════════════
         public async Task<IActionResult> Dashboard()
         {
             var user = await _userManager.GetUserAsync(User);
@@ -102,6 +106,9 @@ namespace BeautyArtists.Controllers
             return View(model);
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // PROFILE
+        // ═══════════════════════════════════════════════════════════
         public async Task<IActionResult> Profile()
         {
             var user = await _userManager.GetUserAsync(User);
@@ -131,6 +138,7 @@ namespace BeautyArtists.Controllers
             }
             return View(profile);
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IFormFile? ProfilePicture)
@@ -142,7 +150,6 @@ namespace BeautyArtists.Controllers
 
             if (profile == null) return NotFound();
 
-            // Update text data
             profile.FullName = updatedProfile.FullName;
             profile.Bio = updatedProfile.Bio;
             profile.YearsExperience = updatedProfile.YearsExperience;
@@ -151,7 +158,6 @@ namespace BeautyArtists.Controllers
             profile.ContactInfo = updatedProfile.ContactInfo;
             profile.InstagramUrl = updatedProfile.InstagramUrl;
 
-            // Update image if provided
             if (ProfilePicture != null && ProfilePicture.Length > 0)
             {
                 var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");
@@ -163,8 +169,6 @@ namespace BeautyArtists.Controllers
                 profile.ProfilePictureUrl = "/uploads/profile_pictures/" + uniqueFileName;
             }
 
-            // ← REMOVE ModelState.IsValid check — just save directly
-            // Navigation properties like User, Services cause ModelState to fail
             _context.ArtistProfiles.Update(profile);
             await _context.SaveChangesAsync();
             TempData["Success"] = "Profile updated successfully!";
@@ -198,6 +202,9 @@ namespace BeautyArtists.Controllers
             return RedirectToAction(nameof(Profile));
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // MANAGE SERVICES
+        // ═══════════════════════════════════════════════════════════
         public async Task<IActionResult> ManageServices()
         {
             var userId = _userManager.GetUserId(User);
@@ -218,11 +225,9 @@ namespace BeautyArtists.Controllers
                 Text = s.Name
             }).ToList();
 
-            // MATCHING THE JAVASCRIPT STRUCTURE EXACTLY
             ViewBag.RawServices = available.Select(s => new {
                 id = s.Id,
                 name = s.Name,
-                // This object structure is what your JS (s.serviceCategory.name) requires
                 serviceCategory = new { name = s.ServiceCategory?.Name ?? "General" },
                 basePrice = s.BasePrice,
                 duration = s.Duration,
@@ -231,7 +236,7 @@ namespace BeautyArtists.Controllers
 
             return View(userServices);
         }
-     
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddService(UserService model, IFormFile? ImageFile)
@@ -239,7 +244,6 @@ namespace BeautyArtists.Controllers
             var userId = _userManager.GetUserId(User);
             if (string.IsNullOrEmpty(userId)) return Challenge();
 
-            // 1. Check if this Service actually exists in the Admin's table
             var baseService = await _context.Services.FindAsync(model.ServiceId);
             if (baseService == null)
             {
@@ -247,16 +251,12 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction(nameof(ManageServices));
             }
 
-            // 2. Set the ID manually
             model.ArtistId = userId;
             model.IsActive = true;
 
-            // 3. FORCE CLEAR everything except the raw data fields
-            // We don't want EF trying to validate the 'Service' or 'Artist' objects
             ModelState.Clear();
-            model.IsActive = Request.Form["IsActive"].Contains("true"); // ADD THIS
+            model.IsActive = Request.Form["IsActive"].Contains("true");
 
-            // Re-validate only the fields we actually care about
             if (model.Price <= 0 || model.Duration <= 0)
             {
                 TempData["Error"] = "Price and Duration must be greater than zero.";
@@ -265,7 +265,6 @@ namespace BeautyArtists.Controllers
 
             try
             {
-                // 4. Handle Image
                 if (ImageFile != null && ImageFile.Length > 0)
                 {
                     var uploadDir = Path.Combine(_env.WebRootPath, "uploads/services");
@@ -281,7 +280,6 @@ namespace BeautyArtists.Controllers
                     model.ImagePath = "/uploads/services/" + fileName;
                 }
 
-                // 5. THE SAVE
                 _context.UserServices.Add(model);
                 await _context.SaveChangesAsync();
 
@@ -289,23 +287,20 @@ namespace BeautyArtists.Controllers
             }
             catch (Exception ex)
             {
-                // This is the "Truth Serum" - it will tell us exactly what column is failing
                 var dbError = ex.InnerException?.Message ?? ex.Message;
                 TempData["Error"] = "Database Refused Save: " + dbError;
             }
 
             return RedirectToAction(nameof(ManageServices));
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditUserService(UserService model, IFormFile? ImageFile)
         {
-            // FIND the actual record first
             var existingService = await _context.UserServices.FindAsync(model.Id);
             if (existingService == null) return NotFound();
 
-            // MANDATORY: Remove these from validation because they aren't in the Edit form
-            // If you don't do this, ModelState.IsValid will ALWAYS be false.
             ModelState.Remove("ArtistId");
             ModelState.Remove("ServiceId");
             ModelState.Remove("Artist");
@@ -316,7 +311,6 @@ namespace BeautyArtists.Controllers
             {
                 try
                 {
-                    // 1. Handle Image Update
                     if (ImageFile != null && ImageFile.Length > 0)
                     {
                         if (!string.IsNullOrEmpty(existingService.ImagePath))
@@ -337,7 +331,6 @@ namespace BeautyArtists.Controllers
                         existingService.ImagePath = "/uploads/services/" + fileName;
                     }
 
-                    // 2. Update Text Fields - Apply changes to the EXISTING tracked entity
                     existingService.Price = model.Price;
                     existingService.Duration = model.Duration;
                     existingService.CustomDescription = model.CustomDescription;
@@ -356,26 +349,13 @@ namespace BeautyArtists.Controllers
             }
             else
             {
-                // If we hit here, validation failed. Let's see why in the debug console.
                 var errors = string.Join(" | ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
                 TempData["Error"] = "Validation Error: " + errors;
             }
 
             return RedirectToAction(nameof(ManageServices));
         }
-        private async Task LogActivity(string artistId, string message)
-        {
-            var log = new ActivityLog
-            {
-                ArtistId = artistId,
-                Action = message, // This matches your Model's 'Action' property
-                Description = $"Log generated at {DateTime.Now}", // Optional detail
-                Timestamp = DateTime.Now
-            };
 
-            _context.ActivityLogs.Add(log);
-            await _context.SaveChangesAsync();
-        }
         [HttpPost]
         public async Task<IActionResult> DeleteUserService(int id)
         {
@@ -384,7 +364,6 @@ namespace BeautyArtists.Controllers
 
             try
             {
-                // 1. Delete the physical image file from the server
                 if (!string.IsNullOrEmpty(userService.ImagePath))
                 {
                     var filePath = Path.Combine(_env.WebRootPath, userService.ImagePath.TrimStart('/'));
@@ -394,20 +373,34 @@ namespace BeautyArtists.Controllers
                     }
                 }
 
-                // 2. Remove from Database
                 _context.UserServices.Remove(userService);
                 await _context.SaveChangesAsync();
 
-                return Ok(); // Returns 200 OK to the JavaScript
+                return Ok();
             }
             catch (Exception)
             {
                 return BadRequest("Could not delete service.");
             }
-
-
         }
-        // This shows ONLY the bookings for the logged-in Artist
+
+        private async Task LogActivity(string artistId, string message)
+        {
+            var log = new ActivityLog
+            {
+                ArtistId = artistId,
+                Action = message,
+                Description = $"Log generated at {DateTime.Now}",
+                Timestamp = DateTime.Now
+            };
+
+            _context.ActivityLogs.Add(log);
+            await _context.SaveChangesAsync();
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // MY APPOINTMENTS
+        // ═══════════════════════════════════════════════════════════
         public async Task<IActionResult> MyAppointments()
         {
             var artistId = _userManager.GetUserId(User);
@@ -424,7 +417,9 @@ namespace BeautyArtists.Controllers
             return View(myBookings);
         }
 
-        // UPDATE TRANSPORT COST ONLY
+        // ═══════════════════════════════════════════════════════════
+        // UPDATE TRANSPORT COST
+        // ═══════════════════════════════════════════════════════════
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> UpdateTransportCost(int bookingId, decimal transportCost)
@@ -451,13 +446,11 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyAppointments");
             }
 
-            // Update transport cost
             booking.TransportCost = transportCost;
             booking.TotalAmount = (booking.UserService?.Price ?? 0) + transportCost;
 
             await _context.SaveChangesAsync();
 
-            // Notify client about transport cost addition
             if (booking.Customer != null && !string.IsNullOrEmpty(booking.Customer.Email))
             {
                 string subject = "🚗 Transport Cost Added to Your Booking";
@@ -477,7 +470,9 @@ namespace BeautyArtists.Controllers
             return RedirectToAction("MyAppointments");
         }
 
-        // MAIN ARTIST UPDATE STATUS WITH EMAILS - THIS IS THE ONE YOUR VIEW CALLS
+        // ═══════════════════════════════════════════════════════════
+        // ARTIST UPDATE STATUS - FIXED WITH NOTIFICATIONS
+        // ═══════════════════════════════════════════════════════════
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ArtistUpdateStatus(int bookingId, BookingStatus newStatus, string artistNotes, decimal transportCost = 0)
@@ -495,17 +490,14 @@ namespace BeautyArtists.Controllers
             if (booking == null)
                 return Unauthorized();
 
-            // Save the artist's notes
             booking.ArtistNotes = artistNotes;
 
-            // Get client info for email
             var client = booking.Customer;
             var clientEmail = client?.Email;
             var clientName = client?.FirstName ?? "Valued Client";
 
-            if (newStatus == BookingStatus.Accepted)  // Artist accepts the booking
+            if (newStatus == BookingStatus.Accepted)
             {
-                // Handle transport cost for house calls
                 if (booking.SelectedLocationType == LocationType.HouseCall && transportCost > 0)
                 {
                     booking.TransportCost = transportCost;
@@ -521,65 +513,42 @@ namespace BeautyArtists.Controllers
 
                 await _context.SaveChangesAsync();
 
-                // ========== SEND "APPOINTMENT ACCEPTED" EMAIL TO CLIENT ==========
+                // ========== SEND IN-APP NOTIFICATION TO CLIENT ==========
+                try
+                {
+                    await _notificationService.CreateNotificationAsync(
+                        booking.CustomerId,
+                        "Appointment Accepted! ✅",
+                        $"Great news! {booking.UserService?.Artist?.FirstName} has ACCEPTED your appointment for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd}. Pay your 50% deposit now!",
+                        "booking_accepted",
+                        booking.Id.ToString(),
+                        Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id })
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"In-app notification error (non-critical): {ex.Message}");
+                }
+
+                // ========== SEND EMAIL TO CLIENT ==========
                 if (!string.IsNullOrEmpty(clientEmail))
                 {
                     var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
-
                     string subject = "✅ Your Appointment Has Been Accepted!";
                     string emailBody = $@"
-            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                <div style='text-align: center; margin-bottom: 20px;'>
-                    <h1 style='color: #f0c808; margin: 0;'>✨ Appointment Accepted! ✨</h1>
-                    <hr style='border-color: #f0c808;'>
-                </div>
-                
-                <p>Dear <strong>{clientName}</strong>,</p>
-                
-                <p>Great news! The artist has <strong style='color: #28a745;'>ACCEPTED</strong> your appointment request.</p>
-                
-                <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-                    <h3 style='color: #f0c808; margin-top: 0;'>📋 Booking Details</h3>
-                    <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
-                    <p><strong>Artist:</strong> {booking.UserService?.Artist?.FirstName} {booking.UserService?.Artist?.LastName}</p>
-                    <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
-                    <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-                    <p><strong>Location Type:</strong> {(booking.SelectedLocationType == LocationType.HouseCall ? "🏠 House Call" : "🏢 Walk-In")}</p>
-                    {(booking.SelectedLocationType == LocationType.HouseCall && !string.IsNullOrEmpty(booking.HouseCallAddress) ? $"<p><strong>📍 Address:</strong> {booking.HouseCallAddress}</p>" : "")}
-                </div>
-                
-                <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-                    <h3 style='color: #f0c808; margin-top: 0;'>💰 Payment Details</h3>
-                    <p><strong>Base Price:</strong> R {(booking.UserService?.Price ?? 0):N2}</p>
-                    {(booking.TransportCost > 0 ? $"<p><strong>Transport Cost:</strong> R {booking.TransportCost:N2}</p>" : "")}
-                    <p><strong>Total Amount:</strong> <span style='color: #f0c808; font-size: 18px;'>R {booking.TotalAmount:N2}</span></p>
-                    <hr style='border-color: #333;'>
-                    <p><strong>Deposit Required (50%):</strong> <span style='color: #ff6600;'>R {(booking.TotalAmount / 2):N2}</span></p>
-                </div>
-                
-                {(booking.ArtistNotes != null ? $@"
-                <div style='background: rgba(240, 200, 8, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f0c808;'>
-                    <p><strong>📝 Message from your artist:</strong></p>
-                    <p style='color: #ddd; font-style: italic;'>“{booking.ArtistNotes}”</p>
-                </div>" : "")}
-                
-                <div style='text-align: center; margin: 25px 0;'>
-                    <a href='{depositUrl}' style='background: linear-gradient(45deg, #f0c808, #e50914); color: #000; padding: 14px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; display: inline-block;'>
-                        💰 PAY YOUR 50% DEPOSIT NOW
-                    </a>
-                </div>
-                
-                <div style='background: rgba(229, 9, 20, 0.1); padding: 12px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #e50914;'>
-                    <p style='margin: 0; font-size: 12px; color: #ff8888;'>
-                        <strong>⚠️ IMPORTANT:</strong> Your appointment is not confirmed until the 50% deposit is paid. Please complete your payment as soon as possible.
-                    </p>
-                </div>
-                
-                <hr>
-                <p style='font-size: 11px; color: #666; text-align: center;'>
-                    &copy; {DateTime.Now.Year} Beauty Artists Hub
-                </p>
-            </div>";
+                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+                        <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
+                        <p>Dear {clientName},</p>
+                        <p>Great news! The artist has ACCEPTED your appointment request.</p>
+                        <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
+                        <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
+                        <p><strong>Total Amount:</strong> R {booking.TotalAmount:N2}</p>
+                        <p><strong>Deposit Required (50%):</strong> R {(booking.TotalAmount / 2):N2}</p>
+                        <div style='text-align: center; margin: 20px 0;'>
+                            <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR 50% DEPOSIT NOW</a>
+                        </div>
+                        <p>Thank you for choosing Beauty Artists Hub!</p>
+                    </div>";
 
                     await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
                 }
@@ -590,7 +559,6 @@ namespace BeautyArtists.Controllers
             {
                 booking.Status = BookingStatus.Rejected;
 
-                // Free up the slot
                 if (booking.AvailabilitySlot != null)
                 {
                     booking.AvailabilitySlot.IsBooked = false;
@@ -598,22 +566,20 @@ namespace BeautyArtists.Controllers
 
                 await _context.SaveChangesAsync();
 
-                // ========== SEND REJECTION EMAIL TO CLIENT ==========
-                if (!string.IsNullOrEmpty(clientEmail))
+                try
                 {
-                    string rejectSubject = "❌ Appointment Request Update";
-                    string rejectBody = $@"
-            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #e50914; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                <h2 style='color: #e50914; text-align: center;'>Appointment Not Accepted</h2>
-                <p>Dear {clientName},</p>
-                <p>Unfortunately, your appointment request for <strong>{booking.UserService?.Service?.Name}</strong> on <strong>{booking.AppointmentDate:MMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> has been declined.</p>
-                {(artistNotes != null ? $"<p><strong>Reason:</strong> {artistNotes}</p>" : "<p>No specific reason was provided.</p>")}
-                <p>Please try booking a different time slot or contact the artist directly.</p>
-                <hr>
-                <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
-            </div>";
-
-                    await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, rejectSubject, rejectBody);
+                    await _notificationService.CreateNotificationAsync(
+                        booking.CustomerId,
+                        "Appointment Declined ❌",
+                        $"Unfortunately, your appointment request for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd} has been declined.",
+                        "booking_rejected",
+                        booking.Id.ToString(),
+                        Url.Action("MyBookings", "Booking")
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"In-app notification error (non-critical): {ex.Message}");
                 }
 
                 TempData["Success"] = "Appointment request rejected. Client has been notified.";
@@ -623,20 +589,20 @@ namespace BeautyArtists.Controllers
                 booking.Status = BookingStatus.Completed;
                 await _context.SaveChangesAsync();
 
-                // ========== SEND COMPLETION EMAIL TO CLIENT ==========
-                if (!string.IsNullOrEmpty(clientEmail))
+                try
                 {
-                    string completeSubject = "🎉 Service Completed! Thank You!";
-                    string completeBody = $@"
-            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                <h2 style='color: #28a745; text-align: center;'>Service Completed! 🎉</h2>
-                <p>Dear {clientName},</p>
-                <p>Your <strong>{booking.UserService?.Service?.Name}</strong> appointment has been marked as completed.</p>
-                <p>We hope you had a great experience! Thank you for choosing Beauty Artists Hub!</p>
-                <p style='text-align: center; margin-top: 20px;'>✨ We hope to see you again soon! ✨</p>
-            </div>";
-
-                    await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, completeSubject, completeBody);
+                    await _notificationService.CreateNotificationAsync(
+                        booking.CustomerId,
+                        "Service Completed! ⭐",
+                        $"Your {booking.UserService?.Service?.Name} appointment has been completed. Thank you for choosing us!",
+                        "booking_completed",
+                        booking.Id.ToString(),
+                        Url.Action("MyBookings", "Booking")
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"In-app notification error (non-critical): {ex.Message}");
                 }
 
                 TempData["Success"] = "Service marked as completed! Client has been notified.";
@@ -644,8 +610,5 @@ namespace BeautyArtists.Controllers
 
             return RedirectToAction(nameof(MyAppointments));
         }
-
     }
 }
-
-
