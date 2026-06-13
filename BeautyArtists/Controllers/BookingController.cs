@@ -147,7 +147,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ══════════════════════════════════
-        //  POST: Booking/ConfirmBooking
+        //  POST: Booking/ConfirmBooking - FIXED (NO MORE ORPHANED SLOTS)
         // ══════════════════════════════════
         [Authorize]
         [HttpPost]
@@ -199,7 +199,7 @@ namespace BeautyArtists.Controllers
                 return View("BookService", model);
             }
 
-            // ── FETCH & LOCK SLOT ──
+            // ── FETCH SLOT (NOT LOCKED YET) ──
             var slot = await _context.ArtistAvailabilities
                 .FirstOrDefaultAsync(a => a.Id == model.AvailabilitySlotId && !a.IsBooked);
 
@@ -255,9 +255,29 @@ namespace BeautyArtists.Controllers
                 booking.Longitude = model.Longitude;
             }
 
-            slot.IsBooked = true;
-            _context.Bookings.Add(booking);
-            await _context.SaveChangesAsync();
+            // 🔥 CRITICAL FIX: Use transaction to ensure both operations succeed
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                _context.Bookings.Add(booking);
+                await _context.SaveChangesAsync();
+
+                // Only mark slot as booked AFTER booking is successfully saved
+                slot.IsBooked = true;
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                // Log the error
+                Console.WriteLine($"Error creating booking: {ex.Message}");
+
+                TempData["Error"] = "There was an error processing your booking. Please try again.";
+                return RedirectToAction("BookService", new { userServiceId = model.UserServiceId });
+            }
 
             // 🔔 IN-APP NOTIFICATION: New booking request to artist
             await _notificationService.CreateNotificationAsync(
