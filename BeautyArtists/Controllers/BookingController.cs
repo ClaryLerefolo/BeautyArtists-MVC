@@ -531,11 +531,14 @@ namespace BeautyArtists.Controllers
         {
             var currentUser = await _userManager.GetUserAsync(User);
             var booking = await _context.Bookings
-                .Include(b => b.UserService)
-                    .ThenInclude(us => us.Service)
-                .FirstOrDefaultAsync(b => b.Id == id && b.CustomerId == currentUser.Id);
+         .Include(b => b.UserService)
+             .ThenInclude(us => us.Service)
+         .Include(b => b.UserService.Artist)          // ← ADD THIS LINE
+             .ThenInclude(a => a.ArtistProfile)      // Optional
+         .FirstOrDefaultAsync(b => b.Id == id && b.CustomerId == currentUser.Id);
 
             if (booking == null) return NotFound();
+
 
             if (booking.Status != BookingStatus.Accepted)
             {

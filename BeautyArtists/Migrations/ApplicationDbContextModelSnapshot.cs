@@ -63,7 +63,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ArtistId");
 
-                    b.ToTable("ActivityLogs");
+                    b.ToTable("ActivityLogs", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ApplicationUser", b =>
@@ -188,7 +188,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ServiceId");
 
-                    b.ToTable("Appointments");
+                    b.ToTable("Appointments", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ArtistAvailability", b =>
@@ -219,7 +219,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ArtistId");
 
-                    b.ToTable("ArtistAvailabilities");
+                    b.ToTable("ArtistAvailabilities", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ArtistProfile", b =>
@@ -270,7 +270,7 @@ namespace BeautyInRedAndGold.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("ArtistProfiles");
+                    b.ToTable("ArtistProfiles", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Booking", b =>
@@ -342,7 +342,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("UserServiceId");
 
-                    b.ToTable("Bookings");
+                    b.ToTable("Bookings", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.HeroBanner", b =>
@@ -367,7 +367,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("HeroBanners");
+                    b.ToTable("HeroBanners", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Notification", b =>
@@ -421,7 +421,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Payment", b =>
@@ -475,7 +475,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("BookingId");
 
-                    b.ToTable("Payments");
+                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Portfolio", b =>
@@ -507,7 +507,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ArtistId");
 
-                    b.ToTable("Portfolios");
+                    b.ToTable("Portfolios", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.PortfolioImage", b =>
@@ -529,7 +529,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("PortfolioId");
 
-                    b.ToTable("PortfolioImages");
+                    b.ToTable("PortfolioImages", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.PortfolioItem", b =>
@@ -602,7 +602,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("PortfolioId");
 
-                    b.ToTable("PortfolioItems");
+                    b.ToTable("PortfolioItems", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Review", b =>
@@ -636,7 +636,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ServiceId");
 
-                    b.ToTable("Reviews");
+                    b.ToTable("Reviews", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Service", b =>
@@ -687,7 +687,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Services");
+                    b.ToTable("Services", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ServiceCategory", b =>
@@ -713,7 +713,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ServiceCategories");
+                    b.ToTable("ServiceCategories", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ServiceImage", b =>
@@ -735,7 +735,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("UserServiceId");
 
-                    b.ToTable("ServiceImages");
+                    b.ToTable("ServiceImages", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Testimonial", b =>
@@ -763,7 +763,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Testimonials");
+                    b.ToTable("Testimonials", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.UserService", b =>
@@ -807,7 +807,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ServiceId");
 
-                    b.ToTable("UserServices");
+                    b.ToTable("UserServices", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
