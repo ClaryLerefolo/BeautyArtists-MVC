@@ -1,8 +1,9 @@
 using BeautyArtists.Data;
+using BeautyArtists.Hubs;
 using BeautyArtists.Models;
 using BeautyArtists.Services;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using System.Globalization;
@@ -165,5 +166,5 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
-
+app.MapHub<NotificationHub>("/notificationHub");
 app.Run();

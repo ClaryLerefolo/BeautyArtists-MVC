@@ -272,18 +272,15 @@
         }
 
         @@keyframes slideInRight {
-            from
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
 
-        {
-            transform: translateX(100%);
-            opacity: 0;
-        }
-
-        to {
-            transform: translateX(0);
-            opacity: 1;
-        }
-
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
 
         .toast-icon {
@@ -493,16 +490,19 @@
     <script src="~/js/notifications.js"></script>
 
     <script>
-        // Initialize notification system after user is logged in
+        // 🔧 TEMPORARILY DISABLED: SignalR hub not deployed on Azure yet
+        // Uncomment below after SignalR hub is configured (WebSockets enabled and hub mapped)
+        @* 
         @if (SignInManager.IsSignedIn(User))
         {
-                <text>
-                    var userId = '@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value';
-                    if (typeof initNotificationSystem === 'function') {
-                        initNotificationSystem(userId);
-                    }
-                </text>
+            <text>
+                var userId = '@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value';
+                if (typeof initNotificationSystem === 'function') {
+                    initNotificationSystem(userId);
+                }
+            </text>
         }
+        *@
     </script>
 
     @await RenderSectionAsync("Scripts", required: false)
