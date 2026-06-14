@@ -523,14 +523,13 @@ namespace BeautyArtists.Controllers
         }
 
         // ══════════════════════════════════
-        //  GET: Booking/CheckoutDeposit
+        //  GET: Booking/CheckoutDeposit – NEW (Paystack ready)
         // ══════════════════════════════════
         [Authorize]
         [HttpGet]
         public async Task<IActionResult> CheckoutDeposit(int id)
         {
             var currentUser = await _userManager.GetUserAsync(User);
-
             var booking = await _context.Bookings
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Service)
@@ -538,122 +537,30 @@ namespace BeautyArtists.Controllers
 
             if (booking == null) return NotFound();
 
-            if (booking.Status == BookingStatus.Pending)
-            {
-                TempData["Error"] = "This booking is pending artist approval. You can pay your deposit once the artist accepts your request.";
-                return RedirectToAction("MyBookings");
-            }
-
-            if (booking.Status == BookingStatus.Accepted && !booking.IsDepositPaid)
-            {
-                return View(booking);
-            }
-
-            if (booking.IsDepositPaid || booking.Status == BookingStatus.Cancelled)
-            {
-                TempData["Error"] = "This booking is either already paid or has been cancelled.";
-                return RedirectToAction("MyBookings");
-            }
-
-            return View(booking);
-        }
-
-        // ══════════════════════════════════
-        //  POST: Booking/ProcessDepositPayment
-        // ══════════════════════════════════
-        [Authorize]
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ProcessDepositPayment(int id)
-        {
-            var currentUser = await _userManager.GetUserAsync(User);
-
-            var booking = await _context.Bookings
-                .Include(b => b.UserService)
-                    .ThenInclude(us => us.Artist)
-                .Include(b => b.UserService.Service)
-                .FirstOrDefaultAsync(b => b.Id == id && b.CustomerId == currentUser.Id);
-
-            if (booking == null) return NotFound();
-
             if (booking.Status != BookingStatus.Accepted)
             {
-                TempData["Error"] = "Action Denied: This booking must be accepted by the artist before payment.";
+                TempData["Error"] = "This booking must be accepted by the artist before payment.";
                 return RedirectToAction("MyBookings");
             }
 
-            booking.IsDepositPaid = true;
-            booking.Status = BookingStatus.Confirmed;
-            await _context.SaveChangesAsync();
-
-            // Send confirmation email to artist
-            var artist = booking.UserService?.Artist;
-            if (artist != null && !string.IsNullOrEmpty(artist.Email))
+            if (booking.IsDepositPaid)
             {
-                string artistSubject = "💰 Deposit Paid - Appointment Confirmed!";
-                string artistBody = $@"
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-            <h2 style='color: #28a745; text-align: center;'>Deposit Payment Received! ✅</h2>
-            <p>Dear {artist.FirstName},</p>
-            <p>The client <strong>{currentUser.FirstName} {currentUser.LastName}</strong> has paid the 50% deposit for:</p>
-            <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-                <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
-                <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
-                <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-                <p><strong>Deposit Amount:</strong> <span style='color: #28a745;'>R {(booking.TotalAmount / 2):N2}</span></p>
-            </div>
-            <p>This appointment is now <strong>CONFIRMED</strong> and locked in your calendar.</p>
-            <hr>
-            <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
-        </div>";
-
-                await _commService.SendDirectMessageEmailAsync(currentUser.Id, artist.Id, artistSubject, artistBody);
+                TempData["Error"] = "Deposit already paid for this booking.";
+                return RedirectToAction("MyBookings");
             }
 
-            // Send confirmation email to client
-            string clientSubject = "🎉 Appointment Confirmed! Deposit Received";
-            string clientBody = $@"
-    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-        <h2 style='color: #28a745; text-align: center;'>Payment Successful! 🎉</h2>
-        <p>Dear {currentUser.FirstName},</p>
-        <p>Your 50% deposit of <strong>R {(booking.TotalAmount / 2):N2}</strong> has been received.</p>
-        <p>Your appointment is now <strong style='color: #28a745;'>CONFIRMED!</strong></p>
-        <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-            <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
-            <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
-            <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-            <p><strong>Location:</strong> {(booking.SelectedLocationType == LocationType.HouseCall ? "🏠 House Call" : "🏢 Walk-In")}</p>
-        </div>
-        <p>Thank you for choosing Beauty Artists Hub!</p>
-        <hr>
-        <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
-    </div>";
+            var model = new CheckoutViewModel
+            {
+                Booking = booking,
+                DepositAmount = booking.TotalAmount / 2,
+                UserEmail = currentUser.Email,
+                UserName = $"{currentUser.FirstName} {currentUser.LastName}"
+            };
 
-            await _commService.SendDirectMessageEmailAsync(artist?.Id, currentUser.Id, clientSubject, clientBody);
-
-            // 🔔 IN-APP NOTIFICATION: To client - Payment Confirmed
-            await _notificationService.CreateNotificationAsync(
-                booking.CustomerId,
-                "Payment Received! 💰",
-                $"Your 50% deposit of R{(booking.TotalAmount / 2):N2} has been received. Your appointment is now CONFIRMED!",
-                "payment_received",
-                booking.Id.ToString(),
-                Url.Action("MyBookings", "Booking")
-            );
-
-            // 🔔 IN-APP NOTIFICATION: To artist - Payment Confirmed
-            await _notificationService.CreateNotificationAsync(
-                booking.UserService.ArtistId,
-                "Deposit Paid! 🎉",
-                $"{currentUser.FirstName} paid the deposit. Appointment is now CONFIRMED!",
-                "payment_received",
-                booking.Id.ToString(),
-                Url.Action("MyAppointments", "Artist")
-            );
-
-            TempData["Success"] = "Deposit cleared! Your appointment is now confirmed.";
-            return RedirectToAction("MyBookings");
+            return View(model);
         }
+        
+
 
         // ══════════════════════════════════
         //  POST: Booking/ProcessFinalPayment

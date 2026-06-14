@@ -46,6 +46,8 @@ builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 //communication pipeline service
 builder.Services.AddTransient<ICommunicationService, CommunicationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddHttpClient();
 builder.Services.AddRazorPages()
     .AddRazorPagesOptions(options =>
     {

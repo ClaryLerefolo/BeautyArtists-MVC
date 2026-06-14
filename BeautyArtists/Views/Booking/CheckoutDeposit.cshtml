@@ -1,0 +1,42 @@
+﻿@model BeautyArtists.Models.ViewModels.CheckoutViewModel
+@{
+    ViewData["Title"] = "Complete Your Deposit";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card" style="background: #0b0b0b; border: 1px solid rgba(255,215,0,0.2);">
+                <div class="card-header text-center" style="border-bottom-color: rgba(255,215,0,0.1);">
+                    <h3 style="color: #FFD700;">Complete Your Deposit</h3>
+                    <p style="color: #fff;">Booking #@Model.Booking.Id</p>
+                </div>
+                <div class="card-body">
+                    <div class="booking-summary mb-4">
+                        <h4 style="color: #FFD700;">Booking Summary</h4>
+                        <hr style="border-color: rgba(255,215,0,0.2);">
+                        <p><strong>Service:</strong> @Model.Booking.UserService?.Service?.Name</p>
+                        <p><strong>Artist:</strong> @Model.Booking.UserService?.Artist?.FirstName @Model.Booking.UserService?.Artist?.LastName</p>
+                        <p><strong>Date:</strong> @Model.Booking.AppointmentDate.ToString("MMMM dd, yyyy")</p>
+                        <p><strong>Time:</strong> @Model.Booking.AppointmentDate.ToString("hh:mm tt")</p>
+                        <p><strong>Total Amount:</strong> <span style="color: #FFD700;">R @Model.Booking.TotalAmount.ToString("N2")</span></p>
+                        <hr style="border-color: rgba(255,215,0,0.2);">
+                        <p><strong>Deposit Required (50%):</strong> <span style="color: #ff6600;">R @Model.DepositAmount.ToString("N2")</span></p>
+                    </div>
+
+                    <form method="post" asp-action="InitiatePayment" asp-controller="Payment">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="bookingId" value="@Model.Booking.Id" />
+                        <input type="hidden" name="email" value="@Model.UserEmail" />
+                        <input type="hidden" name="amount" value="@Model.DepositAmount" />
+
+                        <button type="submit" class="btn btn-warning w-100 py-3" style="background: linear-gradient(135deg, #f0c808, #e50914); color: #000; font-weight: 800;">
+                            💳 Pay R @Model.DepositAmount.ToString("N2") Deposit
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
