@@ -78,28 +78,25 @@ namespace BeautyArtists.Controllers
             // 1️⃣ Verify with Paystack
             var result = await _paymentService.VerifyPayment(refToVerify);
 
-            // 2️⃣ If verification fails, show error
             if (!result.success)
             {
                 TempData["Error"] = $"Payment verification failed: {result.message}";
                 return RedirectToAction("MyBookings", "Booking");
             }
 
-            // 3️⃣ If data is null, show error
             if (result.data == null)
             {
                 TempData["Error"] = "Payment verification returned no data.";
                 return RedirectToAction("MyBookings", "Booking");
             }
 
-            // 4️⃣ Only proceed if payment was successful
             if (result.data.status != "success")
             {
                 TempData["Error"] = $"Payment was not successful. Status: {result.data.status}";
                 return RedirectToAction("MyBookings", "Booking");
             }
 
-            // 5️⃣ Find the payment record (with null‑safe access)
+            // 2️⃣ Find the payment record (must exist)
             var payment = await _context.Payments
                 .Include(p => p.Booking)
                 .FirstOrDefaultAsync(p => p.Reference == refToVerify);
@@ -110,21 +107,34 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings", "Booking");
             }
 
-            // 6️⃣ Update payment and booking (only if still pending)
+            // 3️⃣ Update payment record if still pending
+            bool paymentUpdated = false;
             if (payment.Status == "pending")
             {
                 payment.Status = "success";
                 payment.PaidAt = DateTime.UtcNow;
-                payment.PaymentMethod = result.data.channel;  // safe because data is not null
+                payment.PaymentMethod = result.data.channel;
+                paymentUpdated = true;
+            }
 
-                var booking = payment.Booking;
-                if (booking != null && !booking.IsDepositPaid)
+            // 4️⃣ Update booking status (always attempt if not already confirmed)
+            var booking = payment.Booking;
+            bool bookingUpdated = false;
+            if (booking != null && !booking.IsDepositPaid)
+            {
+                booking.IsDepositPaid = true;
+                booking.Status = BookingStatus.Confirmed;
+                bookingUpdated = true;
+            }
+
+            // 5️⃣ Save changes if anything was updated
+            if (paymentUpdated || bookingUpdated)
+            {
+                await _context.SaveChangesAsync();
+
+                // Send notifications only when booking is newly confirmed
+                if (bookingUpdated)
                 {
-                    booking.IsDepositPaid = true;
-                    booking.Status = BookingStatus.Confirmed;
-                    await _context.SaveChangesAsync();
-
-                    // Send notifications...
                     var currentUser = await _userManager.FindByIdAsync(booking.CustomerId);
                     var artist = await _userManager.FindByIdAsync(booking.UserService.ArtistId);
 
@@ -150,12 +160,12 @@ namespace BeautyArtists.Controllers
                 }
                 else
                 {
-                    TempData["Success"] = "Payment verified, but booking already confirmed.";
+                    TempData["Success"] = "Payment verified, but booking was already confirmed.";
                 }
             }
             else
             {
-                TempData["Success"] = "Payment already verified.";
+                TempData["Success"] = "Payment already verified and booking confirmed.";
             }
 
             return RedirectToAction("MyBookings", "Booking");
