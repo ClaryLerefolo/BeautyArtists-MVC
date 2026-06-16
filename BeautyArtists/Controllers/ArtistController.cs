@@ -469,9 +469,8 @@ namespace BeautyArtists.Controllers
             TempData["Success"] = $"Transport cost of R{transportCost:N2} added successfully!";
             return RedirectToAction("MyAppointments");
         }
-
         // ═══════════════════════════════════════════════════════════
-        // ARTIST UPDATE STATUS - FIXED WITH NOTIFICATIONS
+        // ARTIST UPDATE STATUS - FIXED WITH NOTIFICATIONS & CHECKS
         // ═══════════════════════════════════════════════════════════
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -498,10 +497,18 @@ namespace BeautyArtists.Controllers
 
             if (newStatus == BookingStatus.Accepted)
             {
+                // Handle transport cost for house calls
                 if (booking.SelectedLocationType == LocationType.HouseCall && transportCost > 0)
                 {
                     booking.TransportCost = transportCost;
                     booking.TotalAmount = (booking.UserService?.Price ?? 0) + transportCost;
+                }
+
+                // Prevent accepting if already confirmed or deposit paid
+                if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
+                {
+                    TempData["Error"] = "This booking is already confirmed or paid.";
+                    return RedirectToAction(nameof(MyAppointments));
                 }
 
                 booking.Status = BookingStatus.Accepted;
@@ -536,19 +543,19 @@ namespace BeautyArtists.Controllers
                     var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
                     string subject = "✅ Your Appointment Has Been Accepted!";
                     string emailBody = $@"
-                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                        <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
-                        <p>Dear {clientName},</p>
-                        <p>Great news! The artist has ACCEPTED your appointment request.</p>
-                        <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
-                        <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
-                        <p><strong>Total Amount:</strong> R {booking.TotalAmount:N2}</p>
-                        <p><strong>Deposit Required (50%):</strong> R {(booking.TotalAmount / 2):N2}</p>
-                        <div style='text-align: center; margin: 20px 0;'>
-                            <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR 50% DEPOSIT NOW</a>
-                        </div>
-                        <p>Thank you for choosing Beauty Artists Hub!</p>
-                    </div>";
+            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+                <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
+                <p>Dear {clientName},</p>
+                <p>Great news! The artist has ACCEPTED your appointment request.</p>
+                <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
+                <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
+                <p><strong>Total Amount:</strong> R {booking.TotalAmount:N2}</p>
+                <p><strong>Deposit Required (50%):</strong> R {(booking.TotalAmount / 2):N2}</p>
+                <div style='text-align: center; margin: 20px 0;'>
+                    <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR 50% DEPOSIT NOW</a>
+                </div>
+                <p>Thank you for choosing Beauty Artists Hub!</p>
+            </div>";
 
                     await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
                 }
@@ -557,6 +564,13 @@ namespace BeautyArtists.Controllers
             }
             else if (newStatus == BookingStatus.Rejected)
             {
+                // Prevent rejecting if already confirmed or deposit paid
+                if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
+                {
+                    TempData["Error"] = "Cannot reject a booking that is already confirmed or paid.";
+                    return RedirectToAction(nameof(MyAppointments));
+                }
+
                 booking.Status = BookingStatus.Rejected;
 
                 if (booking.AvailabilitySlot != null)
@@ -586,6 +600,20 @@ namespace BeautyArtists.Controllers
             }
             else if (newStatus == BookingStatus.Completed)
             {
+                // 🔥 CRITICAL: Check if client has paid the remaining balance
+                if (booking.TotalAmount > 0)
+                {
+                    TempData["Error"] = "Client must pay the remaining balance before you can mark this as completed.";
+                    return RedirectToAction(nameof(MyAppointments));
+                }
+
+                // Prevent completing if not confirmed
+                if (booking.Status != BookingStatus.Confirmed)
+                {
+                    TempData["Error"] = "Booking must be confirmed before it can be marked as completed.";
+                    return RedirectToAction(nameof(MyAppointments));
+                }
+
                 booking.Status = BookingStatus.Completed;
                 await _context.SaveChangesAsync();
 

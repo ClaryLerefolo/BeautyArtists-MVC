@@ -231,6 +231,24 @@
                                         💰 PAY 50% DEPOSIT
                                     </a>
                                 }
+                                @* PAY REMAINING BALANCE BUTTON *@
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed && booking.TotalAmount > 0)
+                                {
+                                    var daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
+                                    if (daysUntilAppointment >= 2)
+                                    {
+                                        <a asp-controller="Booking"
+                                           asp-action="CheckoutFinalPayment"
+                                           asp-route-id="@booking.Id"
+                                           class="mb-btn-final">
+                                            💳 Pay Remaining R @booking.TotalAmount.ToString("N0")
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">Final payment must be made 2 days before appointment</span>
+                                    }
+                                }
 
                                 @* RESCHEDULE BUTTON - ONLY FOR CONFIRMED BOOKINGS *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed && !booking.HasRescheduled)
@@ -701,5 +719,29 @@
 
         .cat-back-btn:hover {
             color: #FFD700;
+        }
+
+    .mb-btn-final {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 9px 20px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        text-decoration: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+        color: #fff;
+    }
+
+        .mb-btn-final:hover {
+            background: linear-gradient(135deg, #1e7e34, #28a745);
+            transform: translateY(-1px);
+            box-shadow: 0 0 20px rgba(40,167,69,0.4);
         }
 </style>

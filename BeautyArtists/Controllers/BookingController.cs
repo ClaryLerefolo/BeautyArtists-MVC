@@ -834,5 +834,50 @@ namespace BeautyArtists.Controllers
             TempData["Success"] = $"Rescheduled to {newSlot.AvailableDate:MMM dd} at {newSlot.StartTime:hh\\:mm}!";
             return RedirectToAction("MyBookings");
         }
+
+        // ══════════════════════════════════
+        //  GET: Booking/CheckoutFinalPayment
+        // ══════════════════════════════════
+        [Authorize]
+        [HttpGet]
+        public async Task<IActionResult> CheckoutFinalPayment(int id)
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            var booking = await _context.Bookings
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Service)
+                .FirstOrDefaultAsync(b => b.Id == id && b.CustomerId == currentUser.Id);
+
+            if (booking == null) return NotFound();
+
+            if (booking.Status != BookingStatus.Confirmed)
+            {
+                TempData["Error"] = "This booking must be confirmed before final payment.";
+                return RedirectToAction("MyBookings");
+            }
+
+            if (booking.TotalAmount == 0)
+            {
+                TempData["Error"] = "No remaining balance to pay.";
+                return RedirectToAction("MyBookings");
+            }
+
+            double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
+            if (daysUntilAppointment < 2)
+            {
+                TempData["Error"] = "Final payment must be cleared at least 2 days before the appointment.";
+                return RedirectToAction("MyBookings");
+            }
+
+            var model = new CheckoutViewModel
+            {
+                Booking = booking,
+                DepositAmount = booking.TotalAmount, // Remaining balance
+                UserEmail = currentUser.Email,
+                UserName = $"{currentUser.FirstName} {currentUser.LastName}"
+            };
+
+            return View("CheckoutFinalPayment", model);
+        }
     }
 }
