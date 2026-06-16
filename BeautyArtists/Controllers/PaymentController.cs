@@ -40,6 +40,22 @@ namespace BeautyArtists.Controllers
         {
             try
             {
+                // 🔥 Prevent duplicate payment for already confirmed booking
+                var booking = await _context.Bookings
+                    .FirstOrDefaultAsync(b => b.Id == bookingId && b.CustomerId == _userManager.GetUserId(User));
+
+                if (booking == null)
+                {
+                    TempData["Error"] = "Booking not found.";
+                    return RedirectToAction("MyBookings", "Booking");
+                }
+
+                if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
+                {
+                    TempData["Error"] = "This booking is already confirmed or paid.";
+                    return RedirectToAction("MyBookings", "Booking");
+                }
+
                 var result = await _paymentService.InitializePayment(email, amount, bookingId);
 
                 if (!result.success)
@@ -65,6 +81,7 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
             }
         }
+
         [HttpGet]
         public async Task<IActionResult> PaymentCallback(string reference, string trxref)
         {
@@ -109,15 +126,61 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // 3️⃣ Check if this payment was already processed
+                // 3️⃣ If payment already processed, ensure booking is confirmed
                 if (payment.Status == "success")
                 {
-                    // Already processed – just redirect with success message
+                    var existingBooking = payment.Booking;
+                    if (existingBooking != null && !existingBooking.IsDepositPaid)
+                    {
+                        // In case the booking wasn't confirmed (shouldn't happen, but just in case)
+                        existingBooking.IsDepositPaid = true;
+                        existingBooking.Status = BookingStatus.Confirmed;
+                        await _context.SaveChangesAsync();
+
+                        // Send notifications (if not already sent)
+                        try
+                        {
+                            var currentUser = await _userManager.FindByIdAsync(existingBooking.CustomerId);
+                            var artist = await _userManager.FindByIdAsync(existingBooking.UserService?.ArtistId);
+
+                            if (currentUser != null)
+                            {
+                                await _notificationService.CreateNotificationAsync(
+                                    existingBooking.CustomerId,
+                                    "Payment Received! 💰",
+                                    $"Your deposit of R{payment.Amount:N2} has been received. Appointment CONFIRMED!",
+                                    "payment_received",
+                                    existingBooking.Id.ToString(),
+                                    Url.Action("MyBookings", "Booking")
+                                );
+                            }
+
+                            if (artist != null)
+                            {
+                                await _notificationService.CreateNotificationAsync(
+                                    artist.Id,
+                                    "Deposit Paid! 🎉",
+                                    $"{currentUser?.FirstName ?? "A client"} paid deposit. Appointment confirmed.",
+                                    "payment_received",
+                                    existingBooking.Id.ToString(),
+                                    Url.Action("MyAppointments", "Artist")
+                                );
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Notification error (non-critical): {ex.Message}");
+                        }
+
+                        TempData["Success"] = "Payment successful! Your appointment is now confirmed.";
+                        return RedirectToAction("MyBookings", "Booking");
+                    }
+
                     TempData["Success"] = "Payment already verified and booking confirmed.";
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // 4️⃣ Update payment record
+                // 4️⃣ Update payment record (fresh payment)
                 payment.Status = "success";
                 payment.PaidAt = DateTime.UtcNow;
                 payment.PaymentMethod = result.data.channel;
@@ -169,7 +232,6 @@ namespace BeautyArtists.Controllers
                     }
                     catch (Exception ex)
                     {
-                        // Log but don't crash – notification failure shouldn't break the flow
                         Console.WriteLine($"Notification error (non-critical): {ex.Message}");
                     }
 
@@ -188,11 +250,11 @@ namespace BeautyArtists.Controllers
                 Console.WriteLine($"Stack: {ex.StackTrace}");
 
                 // If the booking was already updated, show success anyway
-                var payment = await _context.Payments
+                var existingPayment = await _context.Payments
                     .Include(p => p.Booking)
                     .FirstOrDefaultAsync(p => p.Reference == refToVerify);
 
-                if (payment?.Booking?.IsDepositPaid == true)
+                if (existingPayment?.Booking?.IsDepositPaid == true)
                 {
                     TempData["Success"] = "Payment successful! Your appointment is confirmed.";
                 }
@@ -204,6 +266,5 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings", "Booking");
             }
         }
-
     }
 }
