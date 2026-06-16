@@ -2,8 +2,10 @@
 using BeautyArtists.Models;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using System;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace BeautyArtists.Services
 {
@@ -48,11 +50,14 @@ namespace BeautyArtists.Services
 
                 var response = await _httpClient.PostAsync("https://api.paystack.co/transaction/initialize", content);
                 var responseString = await response.Content.ReadAsStringAsync();
+
+                // 🔥 Log for debugging
+                Console.WriteLine($"Paystack Init Response: {responseString}");
+
                 var result = JsonConvert.DeserializeObject<PaystackInitResponse>(responseString);
 
-                if (result.status && result.data != null)
+                if (result != null && result.status && result.data != null)
                 {
-                    // Save payment record
                     var payment = new Payment
                     {
                         BookingId = bookingId,
@@ -60,7 +65,9 @@ namespace BeautyArtists.Services
                         Amount = amount,
                         Reference = reference,
                         Status = "pending",
-                        IsDeposit = true
+                        IsDeposit = true,
+                        PaymentMethod = null,   // will be set in callback
+                        PhoneNumber = null       // optional
                     };
                     _context.Payments.Add(payment);
                     await _context.SaveChangesAsync();
@@ -68,10 +75,11 @@ namespace BeautyArtists.Services
                     return (true, result.message, result.data.authorization_url, reference);
                 }
 
-                return (false, result.message, null, null);
+                return (false, result?.message ?? "Unknown error", null, null);
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"InitializePayment Exception: {ex.Message}");
                 return (false, $"Error: {ex.Message}", null, null);
             }
         }
@@ -82,11 +90,14 @@ namespace BeautyArtists.Services
             {
                 var response = await _httpClient.GetAsync($"https://api.paystack.co/transaction/verify/{reference}");
                 var responseString = await response.Content.ReadAsStringAsync();
+
+                // 🔥 Log for debugging
+                Console.WriteLine($"Paystack Verify Response: {responseString}");
+
                 var result = JsonConvert.DeserializeObject<PaystackVerifyResponse>(responseString);
 
-                if (result.status && result.data != null)
+                if (result != null && result.status && result.data != null)
                 {
-                    // Update payment record
                     var payment = await _context.Payments.FirstOrDefaultAsync(p => p.Reference == reference);
                     if (payment != null)
                     {
@@ -96,13 +107,14 @@ namespace BeautyArtists.Services
                         await _context.SaveChangesAsync();
                     }
 
-                    return (result.status, result.message, result.data);
+                    return (true, result.message, result.data);
                 }
 
-                return (false, result.message, null);
+                return (false, result?.message ?? "Unknown error", null);
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"VerifyPayment Exception: {ex.Message}");
                 return (false, $"Error: {ex.Message}", null);
             }
         }
@@ -111,7 +123,5 @@ namespace BeautyArtists.Services
         {
             return $"BEAUTY_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
         }
-
-
     }
 }

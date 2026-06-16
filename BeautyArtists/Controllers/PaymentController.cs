@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Threading.Tasks;
 using static BeautyArtists.Models.Booking;
 
@@ -41,32 +42,25 @@ namespace BeautyArtists.Controllers
             {
                 var result = await _paymentService.InitializePayment(email, amount, bookingId);
 
-                // Check if the payment initialization was successful
                 if (!result.success)
                 {
                     TempData["Error"] = $"Payment initialization failed: {result.message}";
                     return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
                 }
 
-                // 🔥 CRITICAL: Validate that we got a valid authorization URL
                 if (string.IsNullOrEmpty(result.authorizationUrl))
                 {
-                    // Log the error for debugging
-                    Console.WriteLine($"Paystack returned success but authorizationUrl is null or empty. Message: {result.message}");
-
+                    Console.WriteLine($"Paystack returned success but authorizationUrl is null/empty. Message: {result.message}");
                     TempData["Error"] = "Payment gateway returned an invalid response. Please try again.";
                     return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
                 }
 
-                // ✅ Success - redirect to Paystack payment page
                 return Redirect(result.authorizationUrl);
             }
             catch (Exception ex)
             {
-                // Log the full exception
                 Console.WriteLine($"InitiatePayment Exception: {ex.Message}");
                 Console.WriteLine($"Stack Trace: {ex.StackTrace}");
-
                 TempData["Error"] = $"An error occurred: {ex.Message}";
                 return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
             }
@@ -84,7 +78,22 @@ namespace BeautyArtists.Controllers
 
             var result = await _paymentService.VerifyPayment(refToVerify);
 
-            if (result.success && result.data.status == "success")
+            // ✅ Check success status (tuple cannot be null, so check .success)
+            if (!result.success)
+            {
+                TempData["Error"] = $"Payment verification failed: {result.message}";
+                return RedirectToAction("MyBookings", "Booking");
+            }
+
+            // ✅ Check if data is null
+            if (result.data == null)
+            {
+                TempData["Error"] = "Payment verification returned no data. Please contact support.";
+                return RedirectToAction("MyBookings", "Booking");
+            }
+
+            // ✅ Safe to access result.data
+            if (result.data.status == "success")
             {
                 var payment = await _context.Payments
                     .Include(p => p.Booking)
@@ -94,6 +103,7 @@ namespace BeautyArtists.Controllers
                 {
                     payment.Status = "success";
                     payment.PaidAt = DateTime.UtcNow;
+                    payment.PaymentMethod = result.data.channel;
 
                     var booking = payment.Booking;
                     booking.IsDepositPaid = true;
@@ -130,7 +140,7 @@ namespace BeautyArtists.Controllers
             }
             else
             {
-                TempData["Error"] = $"Payment verification failed: {result.message}";
+                TempData["Error"] = $"Payment was not successful. Status: {result.data.status}";
             }
 
             return RedirectToAction("MyBookings", "Booking");
