@@ -25,9 +25,11 @@
                         <p><strong>Remaining Balance:</strong> <span style="color: #28a745; font-size: 1.5rem;">R @Model.DepositAmount.ToString("N2")</span></p>
                     </div>
 
-                    <form method="post" asp-action="ProcessFinalPayment" asp-controller="Booking">
+                    <form method="post" asp-action="InitiateFinalPayment" asp-controller="Payment">
                         @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@Model.Booking.Id" />
+                        <input type="hidden" name="bookingId" value="@Model.Booking.Id" />
+                        <input type="hidden" name="email" value="@Model.UserEmail" />
+                        <input type="hidden" name="amount" value="@Model.DepositAmount" />
 
                         <button type="submit" class="btn w-100 py-3" style="background: linear-gradient(135deg, #28a745, #1e7e34); color: #fff; font-weight: 800; border-radius: 999px;">
                             💳 Pay R @Model.DepositAmount.ToString("N2") Final Balance
