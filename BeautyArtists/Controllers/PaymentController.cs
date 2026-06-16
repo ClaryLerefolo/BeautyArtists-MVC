@@ -65,7 +65,6 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
             }
         }
-
         [HttpGet]
         public async Task<IActionResult> PaymentCallback(string reference, string trxref)
         {
@@ -76,40 +75,56 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings", "Booking");
             }
 
+            // 1️⃣ Verify with Paystack
             var result = await _paymentService.VerifyPayment(refToVerify);
 
-            // ✅ Check success status (tuple cannot be null, so check .success)
+            // 2️⃣ If verification fails, show error
             if (!result.success)
             {
                 TempData["Error"] = $"Payment verification failed: {result.message}";
                 return RedirectToAction("MyBookings", "Booking");
             }
 
-            // ✅ Check if data is null
+            // 3️⃣ If data is null, show error
             if (result.data == null)
             {
-                TempData["Error"] = "Payment verification returned no data. Please contact support.";
+                TempData["Error"] = "Payment verification returned no data.";
                 return RedirectToAction("MyBookings", "Booking");
             }
 
-            // ✅ Safe to access result.data
-            if (result.data.status == "success")
+            // 4️⃣ Only proceed if payment was successful
+            if (result.data.status != "success")
             {
-                var payment = await _context.Payments
-                    .Include(p => p.Booking)
-                    .FirstOrDefaultAsync(p => p.Reference == refToVerify);
+                TempData["Error"] = $"Payment was not successful. Status: {result.data.status}";
+                return RedirectToAction("MyBookings", "Booking");
+            }
 
-                if (payment != null && payment.Status == "pending")
+            // 5️⃣ Find the payment record (with null‑safe access)
+            var payment = await _context.Payments
+                .Include(p => p.Booking)
+                .FirstOrDefaultAsync(p => p.Reference == refToVerify);
+
+            if (payment == null)
+            {
+                TempData["Error"] = "Payment record not found.";
+                return RedirectToAction("MyBookings", "Booking");
+            }
+
+            // 6️⃣ Update payment and booking (only if still pending)
+            if (payment.Status == "pending")
+            {
+                payment.Status = "success";
+                payment.PaidAt = DateTime.UtcNow;
+                payment.PaymentMethod = result.data.channel;  // safe because data is not null
+
+                var booking = payment.Booking;
+                if (booking != null && !booking.IsDepositPaid)
                 {
-                    payment.Status = "success";
-                    payment.PaidAt = DateTime.UtcNow;
-                    payment.PaymentMethod = result.data.channel;
-
-                    var booking = payment.Booking;
                     booking.IsDepositPaid = true;
                     booking.Status = BookingStatus.Confirmed;
                     await _context.SaveChangesAsync();
 
+                    // Send notifications...
                     var currentUser = await _userManager.FindByIdAsync(booking.CustomerId);
                     var artist = await _userManager.FindByIdAsync(booking.UserService.ArtistId);
 
@@ -135,15 +150,17 @@ namespace BeautyArtists.Controllers
                 }
                 else
                 {
-                    TempData["Success"] = "Payment verified successfully!";
+                    TempData["Success"] = "Payment verified, but booking already confirmed.";
                 }
             }
             else
             {
-                TempData["Error"] = $"Payment was not successful. Status: {result.data.status}";
+                TempData["Success"] = "Payment already verified.";
             }
 
             return RedirectToAction("MyBookings", "Booking");
         }
+
+
     }
 }
