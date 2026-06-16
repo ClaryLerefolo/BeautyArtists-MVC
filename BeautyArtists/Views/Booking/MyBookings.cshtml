@@ -241,7 +241,7 @@
                                            asp-action="CheckoutFinalPayment"
                                            asp-route-id="@booking.Id"
                                            class="mb-btn-final">
-                                            💳 Pay Remaining R @booking.TotalAmount.ToString("N0")
+                                            💳 Pay Remaining R @((booking.TotalAmount / 2).ToString("N0"))
                                         </a>
                                     }
                                     else
