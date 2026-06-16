@@ -37,15 +37,39 @@ namespace BeautyArtists.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> InitiatePayment(int bookingId, string email, decimal amount)
         {
-            var result = await _paymentService.InitializePayment(email, amount, bookingId);
-
-            if (result.success)
+            try
             {
+                var result = await _paymentService.InitializePayment(email, amount, bookingId);
+
+                // Check if the payment initialization was successful
+                if (!result.success)
+                {
+                    TempData["Error"] = $"Payment initialization failed: {result.message}";
+                    return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
+                }
+
+                // 🔥 CRITICAL: Validate that we got a valid authorization URL
+                if (string.IsNullOrEmpty(result.authorizationUrl))
+                {
+                    // Log the error for debugging
+                    Console.WriteLine($"Paystack returned success but authorizationUrl is null or empty. Message: {result.message}");
+
+                    TempData["Error"] = "Payment gateway returned an invalid response. Please try again.";
+                    return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
+                }
+
+                // ✅ Success - redirect to Paystack payment page
                 return Redirect(result.authorizationUrl);
             }
+            catch (Exception ex)
+            {
+                // Log the full exception
+                Console.WriteLine($"InitiatePayment Exception: {ex.Message}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
 
-            TempData["Error"] = $"Payment initialization failed: {result.message}";
-            return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
+                TempData["Error"] = $"An error occurred: {ex.Message}";
+                return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
+            }
         }
 
         [HttpGet]
