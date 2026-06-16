@@ -562,7 +562,7 @@ namespace BeautyArtists.Controllers
 
             return View(model);
         }
-        
+
 
 
         // ══════════════════════════════════
@@ -577,6 +577,8 @@ namespace BeautyArtists.Controllers
 
             var booking = await _context.Bookings
                 .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                .Include(b => b.UserService.Service)
                 .FirstOrDefaultAsync(b => b.Id == id && b.CustomerId == currentUser.Id);
 
             if (booking == null) return NotFound();
@@ -589,16 +591,19 @@ namespace BeautyArtists.Controllers
 
             if (booking.TotalAmount == 0)
             {
-                TempData["Error"] = "This ledger execution balance cycle has already been fully finalized.";
+                TempData["Error"] = "This booking has already been fully paid.";
                 return RedirectToAction("MyBookings");
             }
 
             double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
             if (daysUntilAppointment < 2)
             {
-                TempData["Error"] = "Payment Processing Lockout: Final settlements must be cleared at least 2 days before the scheduled execution date.";
+                TempData["Error"] = "Final payment must be cleared at least 2 days before the scheduled execution date.";
                 return RedirectToAction("MyBookings");
             }
+
+            // Calculate remaining balance
+            decimal remainingBalance = booking.TotalAmount / 2;
 
             booking.TotalAmount = 0;
             await _context.SaveChangesAsync();
@@ -607,11 +612,50 @@ namespace BeautyArtists.Controllers
             await _notificationService.CreateNotificationAsync(
                 booking.UserService.ArtistId,
                 "Final Payment Received! 💵",
-                $"{currentUser.FirstName} has paid the remaining balance for {booking.UserService?.Service?.Name}.",
+                $"{currentUser.FirstName} has paid the remaining balance of R{remainingBalance:N2} for {booking.UserService?.Service?.Name}.",
                 "payment_received",
                 booking.Id.ToString(),
-                Url.Action("Earnings", "Artist")
+                Url.Action("MyAppointments", "Artist")
             );
+
+            // 📧 SEND EMAIL TO ARTIST
+            var artist = booking.UserService?.Artist;
+            if (artist != null && !string.IsNullOrEmpty(artist.Email))
+            {
+                string artistSubject = "💰 Final Payment Received – Appointment Fully Paid!";
+                string artistBody = $@"
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+            <h2 style='color: #28a745; text-align: center;'>Final Payment Received! ✅</h2>
+            <p>Dear {artist.FirstName},</p>
+            <p>The client <strong>{currentUser.FirstName} {currentUser.LastName}</strong> has paid the remaining balance of <strong>R{remainingBalance:N2}</strong> for:</p>
+            <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
+                <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
+                <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
+                <p><strong>Total Paid:</strong> <span style='color: #28a745;'>R {(booking.UserService?.Price ?? 0):N2}</span></p>
+            </div>
+            <p>This appointment is now <strong>FULLY PAID</strong>. You can now mark it as completed after the service is done.</p>
+            <hr>
+            <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+        </div>";
+
+                await _commService.SendDirectMessageEmailAsync(currentUser.Id, artist.Id, artistSubject, artistBody);
+            }
+
+            // 📧 SEND EMAIL TO CLIENT (Confirmation)
+            string clientSubject = "✅ Final Payment Confirmed!";
+            string clientBody = $@"
+    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+        <h2 style='color: #28a745; text-align: center;'>Final Payment Confirmed! 🎉</h2>
+        <p>Dear {currentUser.FirstName},</p>
+        <p>Your final payment of <strong>R{remainingBalance:N2}</strong> has been received.</p>
+        <p>Your appointment for <strong>{booking.UserService?.Service?.Name}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>FULLY PAID</strong>.</p>
+        <p>Thank you for choosing Beauty Artists Hub!</p>
+        <hr>
+        <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+    </div>";
+
+            await _commService.SendDirectMessageEmailAsync(artist?.Id, currentUser.Id, clientSubject, clientBody);
 
             TempData["Success"] = "Final settlement cleared! See you at your session.";
             return RedirectToAction("MyBookings");
@@ -855,6 +899,7 @@ namespace BeautyArtists.Controllers
                 TempData["Error"] = "This booking must be confirmed before final payment.";
                 return RedirectToAction("MyBookings");
             }
+            decimal remainingBalance = booking.TotalAmount / 2;
 
             if (booking.TotalAmount == 0)
             {
@@ -872,7 +917,7 @@ namespace BeautyArtists.Controllers
             var model = new CheckoutViewModel
             {
                 Booking = booking,
-                DepositAmount = booking.TotalAmount, // Remaining balance
+                DepositAmount = remainingBalance, // 🔥 Fixed: remaining 50%
                 UserEmail = currentUser.Email,
                 UserName = $"{currentUser.FirstName} {currentUser.LastName}"
             };

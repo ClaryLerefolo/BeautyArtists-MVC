@@ -20,15 +20,17 @@
                         <p><strong>Artist:</strong> @Model.Booking.UserService?.Artist?.FirstName @Model.Booking.UserService?.Artist?.LastName</p>
                         <p><strong>Date:</strong> @Model.Booking.AppointmentDate.ToString("MMMM dd, yyyy")</p>
                         <p><strong>Time:</strong> @Model.Booking.AppointmentDate.ToString("hh:mm tt")</p>
-                        <p><strong>Remaining Balance:</strong> <span style="color: #28a745;">R @Model.DepositAmount.ToString("N2")</span></p>
+                        <hr style="border-color: rgba(40, 167, 69, 0.2);">
+                        <p><strong>Deposit Paid (50%):</strong> <span style="color: #ff6600;">R @((Model.Booking.TotalAmount / 2).ToString("N2"))</span></p>
+                        <p><strong>Remaining Balance:</strong> <span style="color: #28a745; font-size: 1.5rem;">R @Model.DepositAmount.ToString("N2")</span></p>
                     </div>
 
                     <form method="post" asp-action="ProcessFinalPayment" asp-controller="Booking">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="id" value="@Model.Booking.Id" />
 
-                        <button type="submit" class="btn w-100 py-3" style="background: linear-gradient(135deg, #28a745, #1e7e34); color: #fff; font-weight: 800;">
-                            💳 Pay R @Model.DepositAmount.ToString("N2")
+                        <button type="submit" class="btn w-100 py-3" style="background: linear-gradient(135deg, #28a745, #1e7e34); color: #fff; font-weight: 800; border-radius: 999px;">
+                            💳 Pay R @Model.DepositAmount.ToString("N2") Final Balance
                         </button>
                     </form>
                 </div>
