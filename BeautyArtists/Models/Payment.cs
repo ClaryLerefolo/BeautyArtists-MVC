@@ -16,18 +16,22 @@ namespace BeautyArtists.Models
         [EmailAddress]
         public string Email { get; set; }
 
+        // ✅ NULLABLE
         public string? PhoneNumber { get; set; }
 
         [Required]
         [Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
 
-        public string Reference { get; set; }
+        // ✅ NULLABLE
+        public string? Reference { get; set; }
 
         public string Currency { get; set; } = "ZAR";
 
-        public string Status { get; set; } = "pending"; // pending, success, failed
+        // ✅ NULLABLE
+        public string? Status { get; set; } = "pending";
 
+        // ✅ NULLABLE
         public string? PaymentMethod { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -36,8 +40,7 @@ namespace BeautyArtists.Models
 
         public bool IsDeposit { get; set; } = true;
 
-        // Navigation property
         [ForeignKey("BookingId")]
-        public virtual Booking Booking { get; set; }
+        public virtual Booking? Booking { get; set; }
     }
 }
