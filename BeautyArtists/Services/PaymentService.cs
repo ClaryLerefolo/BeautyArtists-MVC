@@ -66,8 +66,8 @@ namespace BeautyArtists.Services
                         Reference = reference,
                         Status = "pending",
                         IsDeposit = true,
-                        PaymentMethod = null,   // will be set in callback
-                        PhoneNumber = null       // optional
+                        PaymentMethod = "pending",   // will be set in callback
+                        PhoneNumber = ""      // optional
                     };
                     _context.Payments.Add(payment);
                     await _context.SaveChangesAsync();

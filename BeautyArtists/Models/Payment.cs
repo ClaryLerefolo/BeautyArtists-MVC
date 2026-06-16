@@ -16,7 +16,7 @@ namespace BeautyArtists.Models
         [EmailAddress]
         public string Email { get; set; }
 
-        public string PhoneNumber { get; set; }
+        public string? PhoneNumber { get; set; }
 
         [Required]
         [Column(TypeName = "decimal(18,2)")]
@@ -28,7 +28,7 @@ namespace BeautyArtists.Models
 
         public string Status { get; set; } = "pending"; // pending, success, failed
 
-        public string PaymentMethod { get; set; }
+        public string? PaymentMethod { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
