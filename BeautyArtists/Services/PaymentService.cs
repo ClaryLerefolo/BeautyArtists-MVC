@@ -111,5 +111,7 @@ namespace BeautyArtists.Services
         {
             return $"BEAUTY_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
         }
+
+
     }
 }
