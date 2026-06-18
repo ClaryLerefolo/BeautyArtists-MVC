@@ -295,58 +295,48 @@ namespace BeautyArtists.Controllers
             var existingService = await _context.UserServices.FindAsync(model.Id);
             if (existingService == null) return NotFound();
 
+            // Remove validation for properties not in the edit form
             ModelState.Remove("ArtistId");
             ModelState.Remove("ServiceId");
             ModelState.Remove("Artist");
             ModelState.Remove("Service");
             ModelState.Remove("ImagePath");
 
-            if (ModelState.IsValid)
+            // Ensure IsActive is correctly bound (checkbox unchecked -> false)
+            // The model binder will set IsActive to false if the checkbox is not present,
+            // but we explicitly get the form value for safety.
+            var isActiveForm = Request.Form["IsActive"].FirstOrDefault();
+            model.IsActive = !string.IsNullOrEmpty(isActiveForm) && isActiveForm == "true";
+
+            // Update only allowed fields
+            existingService.Price = model.Price;
+            existingService.Duration = model.Duration;
+            existingService.CustomDescription = model.CustomDescription;
+            existingService.IsActive = model.IsActive;
+
+            if (ImageFile != null && ImageFile.Length > 0)
             {
-                try
+                // Delete old image if exists
+                if (!string.IsNullOrEmpty(existingService.ImagePath))
                 {
-                    if (ImageFile != null && ImageFile.Length > 0)
-                    {
-                        if (!string.IsNullOrEmpty(existingService.ImagePath))
-                        {
-                            var oldPath = Path.Combine(_env.WebRootPath, existingService.ImagePath.TrimStart('/'));
-                            if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
-                        }
-
-                        var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(ImageFile.FileName)}";
-                        var uploadDir = Path.Combine(_env.WebRootPath, "uploads/services");
-                        if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
-
-                        var filePath = Path.Combine(uploadDir, fileName);
-                        using (var stream = new FileStream(filePath, FileMode.Create))
-                        {
-                            await ImageFile.CopyToAsync(stream);
-                        }
-                        existingService.ImagePath = "/uploads/services/" + fileName;
-                    }
-
-                    existingService.Price = model.Price;
-                    existingService.Duration = model.Duration;
-                    existingService.CustomDescription = model.CustomDescription;
-                    existingService.IsActive = model.IsActive;
-
-                    _context.Update(existingService);
-                    await _context.SaveChangesAsync();
-
-                    TempData["Success"] = "Service updated successfully!";
-                    return RedirectToAction(nameof(ManageServices));
+                    var oldPath = Path.Combine(_env.WebRootPath, existingService.ImagePath.TrimStart('/'));
+                    if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
                 }
-                catch (Exception ex)
+
+                // Save new image
+                var uploadDir = Path.Combine(_env.WebRootPath, "uploads/services");
+                if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
+                var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(ImageFile.FileName)}";
+                var filePath = Path.Combine(uploadDir, fileName);
+                using (var stream = new FileStream(filePath, FileMode.Create))
                 {
-                    TempData["Error"] = "Update Failed: " + (ex.InnerException?.Message ?? ex.Message);
+                    await ImageFile.CopyToAsync(stream);
                 }
-            }
-            else
-            {
-                var errors = string.Join(" | ", ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage));
-                TempData["Error"] = "Validation Error: " + errors;
+                existingService.ImagePath = "/uploads/services/" + fileName;
             }
 
+            await _context.SaveChangesAsync();
+            TempData["Success"] = "Service updated successfully!";
             return RedirectToAction(nameof(ManageServices));
         }
 

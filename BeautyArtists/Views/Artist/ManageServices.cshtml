@@ -66,6 +66,21 @@
             font-size: 0.9rem;
             margin-bottom: 5px;
         }
+
+        .badge-active {
+            background: #28a745;
+            color: #fff;
+        }
+
+        .badge-inactive {
+            background: #6c757d;
+            color: #fff;
+        }
+
+        .service-card .card-img-top {
+            height: 200px;
+            object-fit: cover;
+        }
     </style>
 }
 
@@ -74,7 +89,7 @@
 </div>
 
 <div class="d-flex justify-content-between align-items-center mb-4 px-4">
-    <h4 class="text-white mb-0">Active Services: <span style="color: #f0c808;">@Model.Count()</span></h4>
+    <h4 class="text-white mb-0">Active Services: <span style="color: #f0c808;">@Model.Count(s => s.IsActive)</span></h4>
     <button class="btn rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#addServiceModal"
             style="background: linear-gradient(45deg, #f0c808, #e50914); color: #000; font-weight: 700; border: none;">
         <i class="fas fa-plus-circle me-2"></i>+ ADD SERVICE
@@ -87,18 +102,20 @@
         <div class="col-md-4 mb-4" id="service-row-@item.Id">
             <div class="card h-100 service-card text-white overflow-hidden">
                 <img src="@(string.IsNullOrEmpty(item.ImagePath) ? (item.Service?.ImagePath ?? "/images/default-service.jpg") : item.ImagePath)"
-                     class="card-img-top" style="height: 200px; object-fit: cover;" alt="@item.Service?.Name">
-
+                     class="card-img-top" alt="@item.Service?.Name">
                 <div class="card-body p-4">
-                    <h3 style="color: #f0c808; font-weight: 700;">@item.Service?.Name</h3>
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h3 style="color: #f0c808; font-weight: 700;">@item.Service?.Name</h3>
+                        <span class="badge @(item.IsActive ? "badge-active" : "badge-inactive") px-3 py-2 rounded-pill">
+                            @(item.IsActive ? "ACTIVE" : "INACTIVE")
+                        </span>
+                    </div>
                     <p class="text-muted small">@item.CustomDescription</p>
-
                     <div class="p-3 rounded mb-3" style="background: #1a1a1a;">
                         <div class="small mb-1"><span style="color:#f0c808">Category:</span> @(item.Service?.ServiceCategory?.Name ?? "General")</div>
                         <div class="small mb-1"><span style="color:#f0c808">Duration:</span> @item.Duration min</div>
                         <div class="h5 mt-2 mb-0 font-weight-bold" style="color:#f0c808">Price: R @item.Price.ToString("N2")</div>
                     </div>
-
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-outline-warning flex-grow-1 font-weight-bold"
                                 onclick="openEditModal('@item.Id', '@item.Price', '@item.Duration', '@Html.Raw(JavaScriptEncoder.Default.Encode(item.CustomDescription ?? ""))', @item.IsActive.ToString().ToLower())">
@@ -169,7 +186,6 @@
                         </div>
                         <div class="col-12">
                             <div class="form-check form-switch">
-                                <input type="hidden" name="IsActive" value="false" />
                                 <input class="form-check-input" type="checkbox" name="IsActive" value="true" checked>
                                 <label class="form-check-label text-white ms-2">Make Service Active Immediately</label>
                             </div>
@@ -216,7 +232,6 @@
                         </div>
                         <div class="col-12">
                             <div class="form-check form-switch">
-                                <input type="hidden" name="IsActive" value="false" />
                                 <input class="form-check-input" type="checkbox" name="IsActive" id="edit_IsActive" value="true">
                                 <label class="form-check-label text-white ms-2">Active</label>
                             </div>
@@ -240,10 +255,8 @@
         document.getElementById('baseServiceSelect').addEventListener('change', function() {
             const s = rawServices.find(x => (x.id || x.Id) == this.value);
             if (s) {
-                // FIXED: Checked both camelCase and PascalCase for compatibility
                 const category = s.serviceCategory || s.ServiceCategory;
                 $('#adminCategory').text(category ? (category.name || category.Name) : "N/A");
-
                 $('#adminBasePrice').text('R ' + parseFloat(s.basePrice || s.BasePrice).toFixed(2));
                 $('#adminBaseDuration').text((s.duration || s.Duration) + ' Mins');
                 $('#adminBaseDescription').text(s.description || s.Description);
@@ -260,8 +273,7 @@
             document.getElementById('edit_Price').value = price;
             document.getElementById('edit_Duration').value = duration;
             document.getElementById('edit_Description').value = desc;
-            const activeCheckbox = document.getElementById('edit_IsActive');
-            activeCheckbox.checked = (isActive === true || isActive === "true");
+            document.getElementById('edit_IsActive').checked = (isActive === true || isActive === "true");
             var myModal = new bootstrap.Modal(document.getElementById('editServiceModal'));
             myModal.show();
         }
