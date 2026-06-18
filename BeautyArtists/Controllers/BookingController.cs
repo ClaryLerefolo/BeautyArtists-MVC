@@ -145,6 +145,7 @@ namespace BeautyArtists.Controllers
 
             return View("BookService", model);
         }
+
         [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -158,21 +159,17 @@ namespace BeautyArtists.Controllers
                 var currentUser = await _userManager.GetUserAsync(User);
                 if (currentUser == null) return Challenge();
 
-                // ── HOUSE CALL SPECIFIC VALIDATION ──
+                // ── HOUSE CALL VALIDATION ──
                 if (model.SelectedLocationType == LocationType.HouseCall)
                 {
                     if (string.IsNullOrWhiteSpace(model.HouseCallAddress))
-                    {
                         ModelState.AddModelError("HouseCallAddress", "An address is required for house calls.");
-                    }
 
                     if (string.IsNullOrEmpty(model.Latitude) || string.IsNullOrEmpty(model.Longitude))
-                    {
                         ModelState.AddModelError(string.Empty, "Please pin your exact location on the map.");
-                    }
                 }
 
-                // ── IF VALIDATION FAILS: REPOPULATE AND RETURN VIEW ──
+                // ── IF VALIDATION FAILS ──
                 if (!ModelState.IsValid)
                 {
                     var userService = await _context.UserServices
@@ -194,7 +191,6 @@ namespace BeautyArtists.Controllers
                         model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
                         model.CategoryName = userService.Service?.ServiceCategory?.Name;
                     }
-
                     return View("BookService", model);
                 }
 
@@ -230,19 +226,7 @@ namespace BeautyArtists.Controllers
 
                 var appointmentDate = slot.AvailableDate.Add(slot.StartTime);
 
-                // ── FETCH USER SERVICE WITH INCLUDES (FOR NOTIFICATIONS) ──
-                var userServiceForBooking = await _context.UserServices
-                    .Include(us => us.Service)
-                    .Include(us => us.Artist)
-                    .FirstOrDefaultAsync(us => us.Id == model.UserServiceId);
-
-                if (userServiceForBooking == null)
-                {
-                    TempData["Error"] = "Service not found.";
-                    return RedirectToAction("Book", "Booking");
-                }
-
-                // ── CREATE INITIAL BOOKING AS PENDING ──
+                // ── CREATE BOOKING ──
                 var booking = new Booking
                 {
                     CustomerId = currentUser.Id,
@@ -266,31 +250,22 @@ namespace BeautyArtists.Controllers
                     booking.Longitude = model.Longitude ?? "";
                 }
 
-                // 🔥 SAVE BOOKING FIRST, THEN MARK SLOT AS BOOKED
-                using var transaction = await _context.Database.BeginTransactionAsync();
+                // ✅ SAVE BOOKING
+                _context.Bookings.Add(booking);
+                await _context.SaveChangesAsync();
+
+                // ✅ LOCK SLOT
+                slot.IsBooked = true;
+                await _context.SaveChangesAsync();
+
+                // ✅ SEND NOTIFICATIONS (fire-and-forget, won't break redirect)
                 try
                 {
-                    _context.Bookings.Add(booking);
-                    await _context.SaveChangesAsync();
+                    var serviceName = await _context.Services
+                        .Where(s => s.Id == model.UserServiceId)
+                        .Select(s => s.Name)
+                        .FirstOrDefaultAsync() ?? "your service";
 
-                    slot.IsBooked = true;
-                    await _context.SaveChangesAsync();
-
-                    await transaction.CommitAsync();
-                }
-                catch
-                {
-                    await transaction.RollbackAsync();
-                    throw;
-                }
-
-                // 🔔 SEND NOTIFICATIONS (wrapped in try-catch so they don't break the booking)
-                try
-                {
-                    // Get service name safely
-                    var serviceName = userServiceForBooking.Service?.Name ?? "a service";
-
-                    // Notify artist
                     await _notificationService.CreateNotificationAsync(
                         slot.ArtistId,
                         "New Booking Request! 📅",
@@ -300,7 +275,6 @@ namespace BeautyArtists.Controllers
                         Url.Action("MyAppointments", "Artist")
                     );
 
-                    // Notify client
                     await _notificationService.CreateNotificationAsync(
                         currentUser.Id,
                         "Booking Request Sent! 📤",
@@ -310,7 +284,6 @@ namespace BeautyArtists.Controllers
                         Url.Action("MyBookings", "Booking")
                     );
 
-                    // Email notification to artist
                     if (!string.IsNullOrEmpty(slot.ArtistId))
                     {
                         await _commService.SendBookingRequestToArtistAsync(slot.ArtistId, booking.Id);
@@ -318,24 +291,18 @@ namespace BeautyArtists.Controllers
                 }
                 catch (Exception ex)
                 {
-                    // Log but don't fail the booking
                     Console.WriteLine($"Notification error (non-critical): {ex.Message}");
                 }
 
-                if (booking.SelectedLocationType == LocationType.WalkIn)
-                {
-                    TempData["Success"] = "Appointment requested successfully! The Artist must review and accept your slot before deposit payment can be processed.";
-                }
-                else
-                {
-                    TempData["Success"] = "House Call request sent! The Artist will review your location coordinates, apply any relevant transport costs, and accept.";
-                }
+                // ✅ ALWAYS REDIRECT TO MYBOOKINGS
+                TempData["Success"] = booking.SelectedLocationType == LocationType.WalkIn
+                    ? "Appointment requested successfully! The Artist must review and accept your slot before deposit payment can be processed."
+                    : "House Call request sent! The Artist will review your location coordinates, apply any relevant transport costs, and accept.";
 
                 return RedirectToAction("MyBookings");
             }
             catch (Exception ex)
             {
-                // Log the error
                 Console.WriteLine($"FATAL ERROR in ConfirmBooking: {ex.Message}");
                 Console.WriteLine($"Stack Trace: {ex.StackTrace}");
 
