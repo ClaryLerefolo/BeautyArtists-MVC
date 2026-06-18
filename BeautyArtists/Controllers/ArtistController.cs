@@ -139,65 +139,87 @@ namespace BeautyArtists.Controllers
             return View(profile);
         }
 
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IFormFile? ProfilePicture)
+       [HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IFormFile? ProfilePicture)
+{
+    var user = await _userManager.GetUserAsync(User);
+    if (user == null) return Challenge();
+
+    var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+    if (profile == null) return NotFound();
+
+    // 🔥 Only update allowed fields – keep UserId intact
+    profile.FullName = updatedProfile.FullName ?? profile.FullName;
+    profile.Bio = updatedProfile.Bio ?? profile.Bio;
+    profile.YearsExperience = updatedProfile.YearsExperience;
+    profile.Province = updatedProfile.Province ?? profile.Province;
+    profile.City = updatedProfile.City ?? profile.City;
+    profile.ContactInfo = updatedProfile.ContactInfo ?? profile.ContactInfo;
+    profile.InstagramUrl = updatedProfile.InstagramUrl ?? profile.InstagramUrl;
+
+    // Handle image upload
+    if (ProfilePicture != null && ProfilePicture.Length > 0)
+    {
+        // Ensure directory exists
+        var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");
+        if (!Directory.Exists(uploadsFolder))
         {
-            ModelState.Clear();
-
-            var user = await _userManager.GetUserAsync(User);
-            var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
-
-            if (profile == null) return NotFound();
-
-            profile.FullName = updatedProfile.FullName;
-            profile.Bio = updatedProfile.Bio;
-            profile.YearsExperience = updatedProfile.YearsExperience;
-            profile.Province = updatedProfile.Province;
-            profile.City = updatedProfile.City;
-            profile.ContactInfo = updatedProfile.ContactInfo;
-            profile.InstagramUrl = updatedProfile.InstagramUrl;
-
-            if (ProfilePicture != null && ProfilePicture.Length > 0)
-            {
-                var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");
-                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-                var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(ProfilePicture.FileName);
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                    await ProfilePicture.CopyToAsync(fileStream);
-                profile.ProfilePictureUrl = "/uploads/profile_pictures/" + uniqueFileName;
-            }
-
-            _context.ArtistProfiles.Update(profile);
-            await _context.SaveChangesAsync();
-            TempData["Success"] = "Profile updated successfully!";
-            return RedirectToAction(nameof(Profile));
+            Directory.CreateDirectory(uploadsFolder);
         }
 
+        // Delete old image if exists (optional)
+        if (!string.IsNullOrEmpty(profile.ProfilePictureUrl) && !profile.ProfilePictureUrl.StartsWith("/images/"))
+        {
+            var oldPath = Path.Combine(_env.WebRootPath, profile.ProfilePictureUrl.TrimStart('/'));
+            if (System.IO.File.Exists(oldPath))
+                System.IO.File.Delete(oldPath);
+        }
+
+        // Save new image
+        var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(ProfilePicture.FileName);
+        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+        using (var fileStream = new FileStream(filePath, FileMode.Create))
+        {
+            await ProfilePicture.CopyToAsync(fileStream);
+        }
+        profile.ProfilePictureUrl = "/uploads/profile_pictures/" + uniqueFileName;
+    }
+
+    // 🔥 Explicitly mark only modified properties to avoid overwriting UserId
+    _context.Entry(profile).State = EntityState.Modified;
+    await _context.SaveChangesAsync();
+
+    TempData["Success"] = "Profile updated successfully!";
+    return RedirectToAction(nameof(Profile));
+}
         [HttpPost]
         public async Task<IActionResult> UpdatePicture(IFormFile ProfilePicture)
         {
             var user = await _userManager.GetUserAsync(User);
             var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+            if (profile == null || ProfilePicture == null || ProfilePicture.Length == 0)
+                return RedirectToAction(nameof(Profile));
 
-            if (profile != null && ProfilePicture != null && ProfilePicture.Length > 0)
+            var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");
+            if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
+
+            // Delete old image if not default
+            if (!string.IsNullOrEmpty(profile.ProfilePictureUrl) && !profile.ProfilePictureUrl.StartsWith("/images/"))
             {
-                var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");
-                if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
-
-                var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(ProfilePicture.FileName);
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    await ProfilePicture.CopyToAsync(fileStream);
-                }
-
-                profile.ProfilePictureUrl = "/uploads/profile_pictures/" + uniqueFileName;
-                _context.ArtistProfiles.Update(profile);
-                await _context.SaveChangesAsync();
+                var oldPath = Path.Combine(_env.WebRootPath, profile.ProfilePictureUrl.TrimStart('/'));
+                if (System.IO.File.Exists(oldPath))
+                    System.IO.File.Delete(oldPath);
             }
+
+            var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(ProfilePicture.FileName);
+            var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+            using (var stream = new FileStream(filePath, FileMode.Create))
+                await ProfilePicture.CopyToAsync(stream);
+
+            profile.ProfilePictureUrl = "/uploads/profile_pictures/" + uniqueFileName;
+            _context.ArtistProfiles.Update(profile);
+            await _context.SaveChangesAsync();
 
             return RedirectToAction(nameof(Profile));
         }
