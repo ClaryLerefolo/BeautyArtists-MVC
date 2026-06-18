@@ -258,7 +258,7 @@ namespace BeautyArtists.Controllers
                 slot.IsBooked = true;
                 await _context.SaveChangesAsync();
 
-                // ✅ SEND NOTIFICATIONS (fire-and-forget, won't break redirect)
+                // ✅ SEND NOTIFICATIONS & EMAILS
                 try
                 {
                     var serviceName = await _context.Services
@@ -266,6 +266,7 @@ namespace BeautyArtists.Controllers
                         .Select(s => s.Name)
                         .FirstOrDefaultAsync() ?? "your service";
 
+                    // 🔔 In-app notification to artist
                     await _notificationService.CreateNotificationAsync(
                         slot.ArtistId,
                         "New Booking Request! 📅",
@@ -275,6 +276,7 @@ namespace BeautyArtists.Controllers
                         Url.Action("MyAppointments", "Artist")
                     );
 
+                    // 🔔 In-app notification to client
                     await _notificationService.CreateNotificationAsync(
                         currentUser.Id,
                         "Booking Request Sent! 📤",
@@ -284,17 +286,45 @@ namespace BeautyArtists.Controllers
                         Url.Action("MyBookings", "Booking")
                     );
 
+                    // =============================================
+                    // 📧 EMAIL TO ARTIST (FIXED)
+                    // =============================================
                     if (!string.IsNullOrEmpty(slot.ArtistId))
                     {
-                        await _commService.SendBookingRequestToArtistAsync(slot.ArtistId, booking.Id);
+                        // Get the artist user to check email
+                        var artist = await _userManager.FindByIdAsync(slot.ArtistId);
+
+                        if (artist != null && !string.IsNullOrEmpty(artist.Email))
+                        {
+                            Console.WriteLine($"✅ Sending booking email to artist: {artist.Email}");
+                            await _commService.SendBookingRequestToArtistAsync(slot.ArtistId, booking.Id);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"❌ Cannot send email to artist: Email is null or empty. ArtistId: {slot.ArtistId}, Email: {artist?.Email ?? "null"}");
+                        }
+                    }
+
+                    // 📧 EMAIL TO CLIENT
+                    if (!string.IsNullOrEmpty(currentUser.Email))
+                    {
+                        try
+                        {
+                            await _commService.SendBookingConfirmationToClientAsync(currentUser.Id, booking.Id);
+                            Console.WriteLine($"✅ Booking confirmation email sent to client: {currentUser.Email}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"❌ Failed to send client confirmation email: {ex.Message}");
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Notification error (non-critical): {ex.Message}");
+                    Console.WriteLine($"❌ Notification/Email error: {ex.Message}");
+                    Console.WriteLine($"Stack: {ex.StackTrace}");
                 }
 
-                // ✅ ALWAYS REDIRECT TO MYBOOKINGS
                 TempData["Success"] = booking.SelectedLocationType == LocationType.WalkIn
                     ? "Appointment requested successfully! The Artist must review and accept your slot before deposit payment can be processed."
                     : "House Call request sent! The Artist will review your location coordinates, apply any relevant transport costs, and accept.";
