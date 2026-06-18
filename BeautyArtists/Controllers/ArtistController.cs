@@ -252,10 +252,9 @@ namespace BeautyArtists.Controllers
             }
 
             model.ArtistId = userId;
-            model.IsActive = true;
+            model.IsActive = true;              // ✅ FORCE ACTIVE
 
             ModelState.Clear();
-            model.IsActive = Request.Form["IsActive"].Contains("true");
 
             if (model.Price <= 0 || model.Duration <= 0)
             {
@@ -272,28 +271,23 @@ namespace BeautyArtists.Controllers
 
                     var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(ImageFile.FileName)}";
                     var filePath = Path.Combine(uploadDir, fileName);
-
                     using (var stream = new FileStream(filePath, FileMode.Create))
-                    {
                         await ImageFile.CopyToAsync(stream);
-                    }
                     model.ImagePath = "/uploads/services/" + fileName;
                 }
 
                 _context.UserServices.Add(model);
                 await _context.SaveChangesAsync();
-
                 TempData["Success"] = "Service added successfully!";
+                return RedirectToAction(nameof(ManageServices));
             }
             catch (Exception ex)
             {
-                var dbError = ex.InnerException?.Message ?? ex.Message;
-                TempData["Error"] = "Database Refused Save: " + dbError;
+                Console.WriteLine($"❌ AddService ERROR: {ex.Message}");
+                TempData["Error"] = $"Failed to add service: {ex.Message}";
+                return RedirectToAction(nameof(ManageServices));
             }
-
-            return RedirectToAction(nameof(ManageServices));
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditUserService(UserService model, IFormFile? ImageFile)
