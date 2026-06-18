@@ -145,161 +145,203 @@ namespace BeautyArtists.Controllers
 
             return View("BookService", model);
         }
-
-        // ══════════════════════════════════
-        //  POST: Booking/ConfirmBooking - SIMPLE FIXED VERSION
-        // ══════════════════════════════════
         [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ConfirmBooking(BookingViewModel model)
         {
-
-            if (!User.Identity.IsAuthenticated)
-                return Challenge();
-
-            var currentUser = await _userManager.GetUserAsync(User);
-
-            // ── HOUSE CALL SPECIFIC VALIDATION ──
-            if (model.SelectedLocationType == LocationType.HouseCall)
+            try
             {
-                if (string.IsNullOrWhiteSpace(model.HouseCallAddress))
+                if (!User.Identity.IsAuthenticated)
+                    return Challenge();
+
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (currentUser == null) return Challenge();
+
+                // ── HOUSE CALL SPECIFIC VALIDATION ──
+                if (model.SelectedLocationType == LocationType.HouseCall)
                 {
-                    ModelState.AddModelError("HouseCallAddress", "An address is required for house calls.");
+                    if (string.IsNullOrWhiteSpace(model.HouseCallAddress))
+                    {
+                        ModelState.AddModelError("HouseCallAddress", "An address is required for house calls.");
+                    }
+
+                    if (string.IsNullOrEmpty(model.Latitude) || string.IsNullOrEmpty(model.Longitude))
+                    {
+                        ModelState.AddModelError(string.Empty, "Please pin your exact location on the map.");
+                    }
                 }
 
-                if (string.IsNullOrEmpty(model.Latitude) || string.IsNullOrEmpty(model.Longitude))
+                // ── IF VALIDATION FAILS: REPOPULATE AND RETURN VIEW ──
+                if (!ModelState.IsValid)
                 {
-                    ModelState.AddModelError(string.Empty, "Please pin your exact location on the map.");
-                }
-            }
+                    var userService = await _context.UserServices
+                        .Include(us => us.Service)
+                            .ThenInclude(s => s.ServiceCategory)
+                        .Include(us => us.Artist)
+                            .ThenInclude(a => a.ArtistProfile)
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(us => us.Id == model.UserServiceId);
 
-            // ── IF VALIDATION FAILS: REPOPULATE AND RETURN VIEW ──
-            if (!ModelState.IsValid)
-            {
-                var userService = await _context.UserServices
+                    if (userService != null)
+                    {
+                        model.ServiceName = userService.Service?.Name;
+                        model.Price = userService.Price;
+                        model.ArtistId = userService.ArtistId;
+                        model.ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
+                            ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
+                            : userService.Artist?.UserName ?? "Pro Artist";
+                        model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
+                        model.CategoryName = userService.Service?.ServiceCategory?.Name;
+                    }
+
+                    return View("BookService", model);
+                }
+
+                // ── FETCH SLOT ──
+                var slot = await _context.ArtistAvailabilities
+                    .FirstOrDefaultAsync(a => a.Id == model.AvailabilitySlotId && !a.IsBooked);
+
+                if (slot == null)
+                {
+                    ModelState.AddModelError(string.Empty, "Sorry, this slot was just booked by someone else. Please select another.");
+
+                    var userService = await _context.UserServices
+                        .Include(us => us.Service)
+                            .ThenInclude(s => s.ServiceCategory)
+                        .Include(us => us.Artist)
+                            .ThenInclude(a => a.ArtistProfile)
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(us => us.Id == model.UserServiceId);
+
+                    if (userService != null)
+                    {
+                        model.ServiceName = userService.Service?.Name;
+                        model.Price = userService.Price;
+                        model.ArtistId = userService.ArtistId;
+                        model.ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
+                            ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
+                            : userService.Artist?.UserName ?? "Pro Artist";
+                        model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
+                        model.CategoryName = userService.Service?.ServiceCategory?.Name;
+                    }
+                    return View("BookService", model);
+                }
+
+                var appointmentDate = slot.AvailableDate.Add(slot.StartTime);
+
+                // ── FETCH USER SERVICE WITH INCLUDES (FOR NOTIFICATIONS) ──
+                var userServiceForBooking = await _context.UserServices
                     .Include(us => us.Service)
-                        .ThenInclude(s => s.ServiceCategory)
                     .Include(us => us.Artist)
-                        .ThenInclude(a => a.ArtistProfile)
-                    .AsNoTracking()
                     .FirstOrDefaultAsync(us => us.Id == model.UserServiceId);
 
-                if (userService != null)
+                if (userServiceForBooking == null)
                 {
-                    model.ServiceName = userService.Service?.Name;
-                    model.Price = userService.Price;
-                    model.ArtistId = userService.ArtistId;
-                    model.ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
-                        ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
-                        : userService.Artist?.UserName ?? "Pro Artist";
-                    model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
-                    model.CategoryName = userService.Service?.ServiceCategory?.Name;
+                    TempData["Error"] = "Service not found.";
+                    return RedirectToAction("Book", "Booking");
                 }
 
-                return View("BookService", model);
-            }
-
-            // ── FETCH SLOT ──
-            var slot = await _context.ArtistAvailabilities
-                .FirstOrDefaultAsync(a => a.Id == model.AvailabilitySlotId && !a.IsBooked);
-
-            if (slot == null)
-            {
-                ModelState.AddModelError(string.Empty, "Sorry, this slot was just booked by someone else. Please select another.");
-
-                var userService = await _context.UserServices
-                    .Include(us => us.Service)
-                        .ThenInclude(s => s.ServiceCategory)
-                    .Include(us => us.Artist)
-                        .ThenInclude(a => a.ArtistProfile)
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(us => us.Id == model.UserServiceId);
-
-                if (userService != null)
+                // ── CREATE INITIAL BOOKING AS PENDING ──
+                var booking = new Booking
                 {
-                    model.ServiceName = userService.Service?.Name;
-                    model.Price = userService.Price;
-                    model.ArtistId = userService.ArtistId;
-                    model.ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
-                        ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
-                        : userService.Artist?.UserName ?? "Pro Artist";
-                    model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
-                    model.CategoryName = userService.Service?.ServiceCategory?.Name;
+                    CustomerId = currentUser.Id,
+                    UserServiceId = model.UserServiceId,
+                    BookingDate = DateTime.UtcNow,
+                    AppointmentDate = appointmentDate,
+                    Notes = model.Notes ?? "",
+                    HasRescheduled = false,
+                    Status = BookingStatus.Pending,
+                    SelectedLocationType = model.SelectedLocationType.GetValueOrDefault(LocationType.WalkIn),
+                    TransportCost = 0,
+                    TotalAmount = model.Price,
+                    IsDepositPaid = false,
+                    AvailabilitySlotId = slot.Id
+                };
+
+                if (model.SelectedLocationType == LocationType.HouseCall)
+                {
+                    booking.HouseCallAddress = model.HouseCallAddress ?? "";
+                    booking.Latitude = model.Latitude ?? "";
+                    booking.Longitude = model.Longitude ?? "";
                 }
-                return View("BookService", model);
+
+                // 🔥 SAVE BOOKING FIRST, THEN MARK SLOT AS BOOKED
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    _context.Bookings.Add(booking);
+                    await _context.SaveChangesAsync();
+
+                    slot.IsBooked = true;
+                    await _context.SaveChangesAsync();
+
+                    await transaction.CommitAsync();
+                }
+                catch
+                {
+                    await transaction.RollbackAsync();
+                    throw;
+                }
+
+                // 🔔 SEND NOTIFICATIONS (wrapped in try-catch so they don't break the booking)
+                try
+                {
+                    // Get service name safely
+                    var serviceName = userServiceForBooking.Service?.Name ?? "a service";
+
+                    // Notify artist
+                    await _notificationService.CreateNotificationAsync(
+                        slot.ArtistId,
+                        "New Booking Request! 📅",
+                        $"{currentUser.FirstName} has requested {serviceName} on {appointmentDate:MMM dd} at {appointmentDate:hh:mm tt}",
+                        "booking_pending",
+                        booking.Id.ToString(),
+                        Url.Action("MyAppointments", "Artist")
+                    );
+
+                    // Notify client
+                    await _notificationService.CreateNotificationAsync(
+                        currentUser.Id,
+                        "Booking Request Sent! 📤",
+                        $"Your request for {serviceName} has been sent. You'll be notified when the artist responds.",
+                        "booking_pending",
+                        booking.Id.ToString(),
+                        Url.Action("MyBookings", "Booking")
+                    );
+
+                    // Email notification to artist
+                    if (!string.IsNullOrEmpty(slot.ArtistId))
+                    {
+                        await _commService.SendBookingRequestToArtistAsync(slot.ArtistId, booking.Id);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log but don't fail the booking
+                    Console.WriteLine($"Notification error (non-critical): {ex.Message}");
+                }
+
+                if (booking.SelectedLocationType == LocationType.WalkIn)
+                {
+                    TempData["Success"] = "Appointment requested successfully! The Artist must review and accept your slot before deposit payment can be processed.";
+                }
+                else
+                {
+                    TempData["Success"] = "House Call request sent! The Artist will review your location coordinates, apply any relevant transport costs, and accept.";
+                }
+
+                return RedirectToAction("MyBookings");
             }
-
-            var appointmentDate = slot.AvailableDate.Add(slot.StartTime);
-
-            // ── CREATE INITIAL BOOKING AS PENDING ──
-            var booking = new Booking
+            catch (Exception ex)
             {
-                CustomerId = currentUser.Id,
-                UserServiceId = model.UserServiceId,
-                BookingDate = DateTime.UtcNow,
-                AppointmentDate = appointmentDate,
-                Notes = model.Notes,
-                HasRescheduled = false,
-                Status = BookingStatus.Pending,
-                SelectedLocationType = model.SelectedLocationType.GetValueOrDefault(LocationType.WalkIn),
-                TransportCost = 0,
-                TotalAmount = model.Price,
-                IsDepositPaid = false,
-                AvailabilitySlotId = slot.Id
-            };
+                // Log the error
+                Console.WriteLine($"FATAL ERROR in ConfirmBooking: {ex.Message}");
+                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
 
-            if (model.SelectedLocationType == LocationType.HouseCall)
-            {
-                booking.HouseCallAddress = model.HouseCallAddress;
-                booking.Latitude = model.Latitude;
-                booking.Longitude = model.Longitude;
+                TempData["Error"] = "There was an error processing your booking. Please try again.";
+                return RedirectToAction("BookService", new { userServiceId = model.UserServiceId });
             }
-
-            // 🔥 SIMPLE FIX: Save booking FIRST, then mark slot as booked
-            _context.Bookings.Add(booking);
-            await _context.SaveChangesAsync();
-
-            // Only mark slot as booked AFTER booking is successfully saved
-            slot.IsBooked = true;
-            await _context.SaveChangesAsync();
-
-            // 🔔 IN-APP NOTIFICATION: New booking request to artist
-            await _notificationService.CreateNotificationAsync(
-                slot.ArtistId,
-                "New Booking Request! 📅",
-                $"{currentUser.FirstName} has requested {booking.UserService?.Service?.Name} on {appointmentDate:MMM dd} at {appointmentDate:hh:mm tt}",
-                "booking_pending",
-                booking.Id.ToString(),
-                Url.Action("MyAppointments", "Artist")
-            );
-
-            // 🔔 IN-APP NOTIFICATION: Booking confirmation to client
-            await _notificationService.CreateNotificationAsync(
-                currentUser.Id,
-                "Booking Request Sent! 📤",
-                $"Your request for {booking.UserService?.Service?.Name} has been sent. You'll be notified when the artist responds.",
-                "booking_pending",
-                booking.Id.ToString(),
-                Url.Action("MyBookings", "Booking")
-            );
-
-            // Email notification to artist
-            if (!string.IsNullOrEmpty(slot.ArtistId))
-            {
-                await _commService.SendBookingRequestToArtistAsync(slot.ArtistId, booking.Id);
-            }
-
-            if (booking.SelectedLocationType == LocationType.WalkIn)
-            {
-                TempData["Success"] = "Appointment requested successfully! The Artist must review and accept your slot before deposit payment can be processed.";
-            }
-            else
-            {
-                TempData["Success"] = "House Call request sent! The Artist will review your location coordinates, apply any relevant transport costs, and accept.";
-            }
-
-            return RedirectToAction("MyBookings");
         }
 
         // ══════════════════════════════════
