@@ -4,370 +4,420 @@
 }
 
 <style>
-    .profile-container {
-        padding: 20px 15px; /* Added horizontal padding for mobile breathing room */
-        background-color: transparent;
-        display: flex;
-        justify-content: center;
-        font-family: 'Segoe UI', Roboto, sans-serif;
+    .profile-wrapper {
+        padding: 20px;
+        max-width: 900px;
+        margin: 0 auto;
     }
 
-    /* THE CORE CARD - Defaults to vertical column stack on mobile portrait */
-    .artist-profile-card {
+    /* ── PROFILE CARD ── */
+    .profile-card {
         background: #0d0d0d;
         border: 1px solid #1a1a1a;
         border-radius: 20px;
-        padding: 24px; /* Reduced from 40px for small screens */
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 25px;
-        width: 100%;
-        max-width: 900px;
+        padding: 30px;
         box-shadow: 0 10px 40px rgba(0,0,0,0.7);
-        box-sizing: border-box;
-    }
-
-    .asset-column {
         display: flex;
         flex-direction: column;
         align-items: center;
-        width: 100%; /* Spans full horizontal container area on mobile */
-        max-width: 220px;
+        gap: 30px;
+    }
+
+    @@media (min-width: 768px) {
+        .profile-card
+
+    {
+        flex-direction: row;
+        align-items: flex-start;
+        padding: 40px;
+    }
+
+    }
+
+    /* ── LEFT: PROFILE PICTURE ── */
+    .profile-pic-section {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         flex-shrink: 0;
+        width: 100%;
+        max-width: 200px;
     }
 
-    /* ── CLICKABLE PROFILE PICTURE ── */
-    .pfp-glow {
-        width: 200px;
-        height: 200px;
+    .profile-pic {
+        width: 180px;
+        height: 180px;
         border-radius: 50%;
-        border: 2px solid #ffcc00;
-        padding: 5px;
-        margin-bottom: 10px;
-        box-shadow: 0 0 20px rgba(255, 204, 0, 0.15);
-        position: relative;
-        overflow: hidden;
+        border: 3px solid #f0c808;
+        object-fit: cover;
         cursor: pointer;
+        transition: 0.3s;
+        box-shadow: 0 0 20px rgba(240, 200, 8, 0.15);
     }
 
-        .pfp-glow img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-            display: block;
+        .profile-pic:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 30px rgba(240, 200, 8, 0.3);
         }
 
-    .pfp-hover-overlay {
-        position: absolute;
-        inset: 5px;
-        border-radius: 50%;
-        background: rgba(0,0,0,0.6);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        transition: opacity 0.25s;
-        color: #ffcc00;
-        font-size: 1rem;
-        font-weight: 700;
-    }
-
-    .pfp-glow:hover .pfp-hover-overlay {
-        opacity: 1;
-    }
-
-    .pfp-hint {
-        color: rgba(255,204,0,0.4);
-        font-size: 0.72rem;
+    .pic-hint {
+        color: rgba(240, 200, 8, 0.4);
+        font-size: 0.7rem;
+        margin-top: 8px;
         letter-spacing: 1px;
-        text-align: center;
-        margin-bottom: 10px;
     }
 
-    .content-column {
+    /* ── RIGHT: INFO ── */
+    .profile-info {
         flex: 1;
-        width: 100%; /* Ensures details flow across the whole layout card width */
-        padding-top: 5px;
-        min-width: 0; /* Prevents long string variables from popping layout borders wide */
+        width: 100%;
     }
 
-    .artist-name {
-        color: #ffcc00;
-        font-size: 2rem;
+    .profile-name {
+        color: #f0c808;
+        font-size: 1.8rem;
         font-weight: 700;
         margin: 0 0 20px 0;
-        letter-spacing: -0.5px;
-        text-align: center; /* Centered on mobile portrait */
+        text-align: center;
+    }
+
+    @@media (min-width: 768px) {
+        .profile-name
+
+    {
+        text-align: left;
+    }
+
     }
 
     .info-grid {
         display: flex;
         flex-direction: column;
-        gap: 14px;
-        margin-bottom: 35px;
+        gap: 12px;
     }
 
     .info-row {
         display: flex;
-        flex-direction: column; /* Stack Label above Value on small devices */
-        align-items: flex-start;
-        font-size: 1.05rem;
-        line-height: 1.4;
+        flex-direction: column;
         gap: 2px;
+        font-size: 1rem;
+        line-height: 1.4;
     }
 
-    .info-key {
+    @@media (min-width: 768px) {
+        .info-row
+
+    {
+        flex-direction: row;
+    }
+
+    .info-label {
+        width: 120px;
+        flex-shrink: 0;
         font-weight: 700;
         color: #fff;
-        width: 100%; /* Takes full width so value falls safely below */
-        flex-shrink: 0;
     }
 
-    .info-val {
+    }
+
+    .info-label {
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .info-value {
         color: #bbb;
-        word-break: break-word; /* Breaks up dense paragraphs safely */
+        word-break: break-word;
     }
 
-    .insta-link {
-        color: #ff3366;
-        text-decoration: none;
-        font-weight: 600;
-        transition: 0.3s;
-        word-break: break-all; /* Forces ultra-long query strings/links to wrap lines cleanly */
-    }
-
-        .insta-link:hover {
-            color: #ffcc00;
-            text-decoration: underline;
+        .info-value a {
+            color: #ff3366;
+            text-decoration: none;
         }
 
-    .btn-red-gold {
-        background: linear-gradient(to right, #e60000 0%, #ffcc00 100%);
+            .info-value a:hover {
+                color: #f0c808;
+                text-decoration: underline;
+            }
+
+    /* ── BUTTONS ── */
+    .btn-edit {
+        background: linear-gradient(135deg, #e50914, #f0c808);
         border: none;
         padding: 10px 30px;
         border-radius: 8px;
         color: #000;
         font-weight: 800;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
         cursor: pointer;
-        transition: 0.2s ease-in-out;
+        transition: 0.3s;
         text-transform: uppercase;
+        margin-top: 20px;
     }
 
-        .btn-red-gold:hover {
+        .btn-edit:hover {
             transform: translateY(-2px);
-            filter: brightness(1.1);
+            box-shadow: 0 0 20px rgba(240, 200, 8, 0.3);
         }
 
-    .custom-input {
-        background: #111 !important;
+    .btn-save {
+        background: linear-gradient(135deg, #f0c808, #e50914);
+        border: none;
+        padding: 10px 30px;
+        border-radius: 8px;
+        color: #000;
+        font-weight: 800;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+        .btn-save:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(240, 200, 8, 0.3);
+        }
+
+    .btn-cancel {
+        background: transparent;
+        border: 1px solid #444;
+        color: #888;
+        padding: 10px 30px;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+        .btn-cancel:hover {
+            background: #1a1a1a;
+            color: #fff;
+        }
+
+    /* ── MODAL ── */
+    .modal-content-custom {
+        background: #0d0d0d;
+        border: 1px solid #f0c808;
+        border-radius: 20px;
+        color: #fff;
+    }
+
+    .modal-header-custom {
+        padding: 20px 25px;
+        border-bottom: 1px solid #1a1a1a;
+    }
+
+    .modal-body-custom {
+        padding: 25px;
+    }
+
+    .modal-footer-custom {
+        padding: 15px 25px;
+        border-top: 1px solid #1a1a1a;
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .form-control-custom {
+        background: #1a1a1a !important;
         border: 1px solid #333 !important;
         color: #fff !important;
         border-radius: 8px !important;
+        padding: 10px 14px !important;
+    }
+
+        .form-control-custom:focus {
+            border-color: #f0c808 !important;
+            box-shadow: 0 0 0 2px rgba(240, 200, 8, 0.2) !important;
+        }
+
+    .form-label-custom {
+        color: #f0c808;
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 5px;
+    }
+
+    .pic-preview {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #f0c808;
+        margin-bottom: 10px;
     }
 
     /* ── SUCCESS ALERT ── */
-    .profile-success {
-        background: rgba(0,200,83,0.1);
-        border: 1px solid rgba(0,200,83,0.3);
+    .alert-success-custom {
+        background: rgba(0, 200, 83, 0.1);
+        border: 1px solid rgba(0, 200, 83, 0.3);
         border-radius: 10px;
-        padding: 10px 16px;
+        padding: 12px 18px;
         color: #00c853;
-        font-size: 0.85rem;
         font-weight: 600;
-        margin: 0 auto 20px auto;
+        margin-bottom: 20px;
         max-width: 900px;
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    /* ── RESPONSIVE MEDIA BREAKPOINT (Tablets / Desktops) ── */
-    @@media (min-width: 768px) {
-        .artist-profile-card
-
-    {
-        flex-direction: row; /* Turn back into a clean side-by-side split row layout */
-        align-items: flex-start;
-        padding: 40px;
-        gap: 40px;
-    }
-
-    .asset-column {
-        width: 220px;
-    }
-
-    .artist-name {
-        text-align: left; /* Realigns left for broad view layouts */
-    }
-
-    .info-row {
-        flex-direction: row; /* Side-by-side key-value pairs */
-    }
-
-    .info-key {
-        width: 125px; /* Gives standard text labels a fixed uniform spacing width column */
-    }
-
     }
 </style>
 
-@* Success message *@
+@* Success Message *@
 @if (TempData["Success"] != null)
 {
-    <div class="profile-success">✓ @TempData["Success"]</div>
+    <div class="alert-success-custom">✅ @TempData["Success"]</div>
 }
 
-<div class="profile-container">
-    <div class="artist-profile-card">
+<div class="profile-wrapper">
+    <div class="profile-card">
 
-        @* ── LEFT: PROFILE PICTURE ── *@
-        <div class="asset-column">
-            <div class="pfp-glow"
-                 data-bs-toggle="modal"
-                 data-bs-target="#editProfileModal"
-                 title="Click to edit profile">
-                <img src="@Model.ProfilePictureUrl"
-                     id="pfp-main"
-                     alt="Profile"
-                     onerror="this.src='/images/default-profile.png'" />
-                <div class="pfp-hover-overlay">✎ Edit</div>
-            </div>
-            <p class="pfp-hint">Click photo to edit</p>
+        @* ── PROFILE PICTURE ── *@
+        <div class="profile-pic-section">
+            <img src="@Model.ProfilePictureUrl"
+                 class="profile-pic"
+                 alt="Profile"
+                 onclick="openEditModal()"
+                 onerror="this.src='/images/default-profile.png'" />
+            <span class="pic-hint">📸 Click to edit</span>
         </div>
 
-        @* ── RIGHT: INFO ── *@
-        <div class="content-column">
-            <h2 class="artist-name">@Model.FullName</h2>
+        @* ── PROFILE INFO ── *@
+        <div class="profile-info">
+            <h1 class="profile-name">@Model.FullName</h1>
 
             <div class="info-grid">
                 <div class="info-row">
-                    <span class="info-key">Bio:</span>
-                    <span class="info-val">@Model.Bio</span>
+                    <span class="info-label">Bio:</span>
+                    <span class="info-value">@Model.Bio</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-key">Experience:</span>
-                    <span class="info-val">@Model.YearsExperience years</span>
+                    <span class="info-label">Experience:</span>
+                    <span class="info-value">@Model.YearsExperience years</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-key">Province:</span>
-                    <span class="info-val">@Model.Province</span>
+                    <span class="info-label">Location:</span>
+                    <span class="info-value">@Model.City, @Model.Province</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-key">City:</span>
-                    <span class="info-val">@Model.City</span>
+                    <span class="info-label">Contact:</span>
+                    <span class="info-value">@Model.ContactInfo</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-key">Contact:</span>
-                    <span class="info-val">@Model.ContactInfo</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-key">Instagram:</span>
-                    <a class="insta-link" href="@Model.InstagramUrl" target="_blank">
-                        @Model.InstagramUrl
-                    </a>
+                    <span class="info-label">Instagram:</span>
+                    <span class="info-value">
+                        <a href="@Model.InstagramUrl" target="_blank">
+                            @Model.InstagramUrl
+                        </a>
+                    </span>
                 </div>
             </div>
+
+            <button class="btn-edit" onclick="openEditModal()">✎ Edit Profile</button>
         </div>
 
     </div>
 </div>
 
-@* ── EDIT PROFILE MODAL ── *@
-<div class="modal fade" id="editProfileModal" tabindex="-1">
+@* ── EDIT MODAL ── *@
+<div class="modal fade" id="editModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content"
-             style="background:#0d0d0d; border:1px solid #ffcc00; border-radius:20px; color:#fff;">
+        <div class="modal-content modal-content-custom">
+
+            <div class="modal-header-custom">
+                <h4 style="color:#f0c808; font-weight:800; margin:0;">Edit Profile</h4>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
 
             <form asp-action="EditProfile" method="post" enctype="multipart/form-data">
                 @Html.AntiForgeryToken()
                 <input type="hidden" asp-for="Id" />
                 <input type="hidden" asp-for="UserId" />
 
-                <div class="modal-body p-4 p-md-5">
-                    <h3 style="color:#ffcc00; margin-bottom:30px; font-weight:800;">
-                        UPDATE PROFILE
-                    </h3>
-
-                    @* ── PROFILE PICTURE ── *@
-                    <div class="mb-4">
-                        <label class="fw-bold mb-2">Profile Picture</label><br />
-                        <input type="file" name="ProfilePicture" id="file-hidden"
-                               hidden accept="image/*" />
-
-                        @* Preview — hidden until photo chosen *@
-                        <div id="previewWrap" style="margin-bottom:12px; display:none;">
-                            <img id="imgPreview"
-                                 style="width:80px; height:80px; border-radius:50%;
-                                        object-fit:cover; border:2px solid #ffcc00;" />
-                            <p class="text-muted small mt-1">
-                                Looking good! Save changes below ↓
-                            </p>
+                <div class="modal-body-custom">
+                    <div class="row">
+                        <div class="col-12">
+                            <label class="form-label-custom">Profile Picture</label>
+                            <div class="mb-3">
+                                <img id="editPfpPreview" src="@Model.ProfilePictureUrl"
+                                     class="pic-preview" onerror="this.src='/images/default-profile.png'" />
+                            </div>
+                            <input type="file" name="ProfilePicture" id="editPfpInput"
+                                   class="form-control form-control-custom" accept="image/*" />
+                            <small class="text-muted">Upload a new photo (optional)</small>
                         </div>
-
-                        <button type="button" class="btn-red-gold" id="btn-trigger"
-                                style="font-size:0.8rem; padding:8px 20px;">
-                            📷 Choose Photo
-                        </button>
                     </div>
 
-                    <div class="row">
+                    <div class="row mt-3">
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold mb-2">Full Name</label>
-                            <input asp-for="FullName" class="form-control custom-input" />
+                            <label class="form-label-custom">Full Name</label>
+                            <input asp-for="FullName" class="form-control form-control-custom" />
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold mb-2">Experience (Years)</label>
+                            <label class="form-label-custom">Years Experience</label>
                             <input asp-for="YearsExperience" type="number"
-                                   class="form-control custom-input" />
+                                   class="form-control form-control-custom" />
                         </div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="fw-bold mb-2">Bio</label>
-                        <textarea asp-for="Bio" class="form-control custom-input" rows="3"></textarea>
+                        <label class="form-label-custom">Bio</label>
+                        <textarea asp-for="Bio" class="form-control form-control-custom" rows="2"></textarea>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold mb-2">Province</label>
-                            <select id="pSel" asp-for="Province"
-                                    class="form-select custom-input"></select>
+                            <label class="form-label-custom">Province</label>
+                            <select id="editProvince" asp-for="Province"
+                                    class="form-select form-control-custom">
+                                <option value="">Select Province</option>
+                                <option value="Gauteng">Gauteng</option>
+                                <option value="North West">North West</option>
+                                <option value="Western Cape">Western Cape</option>
+                                <option value="KwaZulu-Natal">KwaZulu-Natal</option>
+                                <option value="Free State">Free State</option>
+                                <option value="Eastern Cape">Eastern Cape</option>
+                                <option value="Limpopo">Limpopo</option>
+                                <option value="Mpumalanga">Mpumalanga</option>
+                                <option value="Northern Cape">Northern Cape</option>
+                            </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold mb-2">City</label>
-                            <select id="cSel" asp-for="City"
-                                    class="form-select custom-input"></select>
+                            <label class="form-label-custom">City</label>
+                            <select id="editCity" asp-for="City"
+                                    class="form-select form-control-custom">
+                                <option value="">Select City</option>
+                            </select>
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold mb-2">Contact Number</label>
-                            <input asp-for="ContactInfo" class="form-control custom-input" />
+                            <label class="form-label-custom">Contact Number</label>
+                            <input asp-for="ContactInfo" class="form-control form-control-custom" />
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold mb-2">Instagram Link</label>
-                            <input asp-for="InstagramUrl" class="form-control custom-input" />
+                            <label class="form-label-custom">Instagram URL</label>
+                            <input asp-for="InstagramUrl" class="form-control form-control-custom" />
                         </div>
-                    </div>
-
-                    <div class="d-flex justify-content-end gap-3 mt-4">
-                        <button type="button" class="btn btn-outline-secondary"
-                                data-bs-dismiss="modal">
-                            Cancel
-                        </button>
-                        <button type="submit" class="btn-red-gold">Save All Changes</button>
                     </div>
                 </div>
+
+                <div class="modal-footer-custom">
+                    <button type="button" class="btn-cancel" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-save">💾 Save Changes</button>
+                </div>
             </form>
+
         </div>
     </div>
 </div>
 
 <script>
-    const cityData = {
+    // ── OPEN MODAL ──
+    function openEditModal() {
+        var myModal = new bootstrap.Modal(document.getElementById('editModal'));
+        myModal.show();
+    }
+
+    // ── CITY DROPDOWN LOGIC ──
+    const cityMap = {
         "Gauteng": ["Johannesburg", "Pretoria", "Sandton", "Soweto", "Centurion"],
         "North West": ["Rustenburg", "Potchefstroom", "Klerksdorp", "Mahikeng"],
         "Western Cape": ["Cape Town", "Stellenbosch", "George", "Paarl"],
@@ -379,52 +429,49 @@
         "Northern Cape": ["Kimberley", "Upington"]
     };
 
-    document.getElementById('editProfileModal')
-        .addEventListener('shown.bs.modal', function () {
+    const provSelect = document.getElementById('editProvince');
+    const citySelect = document.getElementById('editCity');
 
-            // ── DROPDOWNS ──
-            const ps = document.getElementById("pSel");
-            const cs = document.getElementById("cSel");
-            const currP = "@Model.Province";
-            const currC = "@Model.City";
-
-            ps.innerHTML = "";
-            Object.keys(cityData).forEach(p => {
-                const opt = new Option(p, p);
-                if (p === currP) opt.selected = true;
-                ps.add(opt);
+    function updateCities() {
+        const selected = provSelect.value;
+        citySelect.innerHTML = '<option value="">Select City</option>';
+        if (selected && cityMap[selected]) {
+            cityMap[selected].forEach(function(city) {
+                const opt = document.createElement('option');
+                opt.value = city;
+                opt.textContent = city;
+                if (city === '@Model.City') opt.selected = true;
+                citySelect.appendChild(opt);
             });
+        }
+    }
 
-            function loadCities(p, c = "") {
-                cs.innerHTML = "";
-                if (cityData[p]) {
-                    cityData[p].forEach(item => {
-                        const opt = new Option(item, item);
-                        if (item === c) opt.selected = true;
-                        cs.add(opt);
-                    });
-                }
-            }
+    // Set initial province selected value
+    const initialProvince = '@Model.Province';
+    if (initialProvince) {
+        provSelect.value = initialProvince;
+    }
+    updateCities();
 
-            ps.onchange = () => loadCities(ps.value);
-            if (currP) loadCities(currP, currC);
+    provSelect.addEventListener('change', updateCities);
 
-            // ── PHOTO UPLOAD ──
-            const fh = document.getElementById('file-hidden');
-            const btn = document.getElementById('btn-trigger');
-            if (btn && fh) {
-                btn.onclick = () => fh.click();
-                fh.onchange = () => {
-                    if (fh.files[0]) {
-                        const r = new FileReader();
-                        r.onload = (e) => {
-                            document.getElementById('pfp-main').src = e.target.result;
-                            document.getElementById('imgPreview').src = e.target.result;
-                            document.getElementById('previewWrap').style.display = 'block';
-                        };
-                        r.readAsDataURL(fh.files[0]);
-                    }
-                };
-            }
-        });
+    // ── IMAGE PREVIEW ──
+    document.getElementById('editPfpInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                document.getElementById('editPfpPreview').src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // ── Show modal if there are validation errors ──
+    @if (!ViewData.ModelState.IsValid)
+    {
+            <text>
+                openEditModal();
+            </text>
+    }
 </script>
