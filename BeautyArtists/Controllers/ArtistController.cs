@@ -156,10 +156,14 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
     profile.Province = updatedProfile.Province ?? profile.Province;
     profile.City = updatedProfile.City ?? profile.City;
     profile.ContactInfo = updatedProfile.ContactInfo ?? profile.ContactInfo;
-    profile.InstagramUrl = updatedProfile.InstagramUrl ?? profile.InstagramUrl;
+            profile.InstagramUrl = updatedProfile.InstagramUrl ?? profile.InstagramUrl;
+                    profile.FacebookUrl = updatedProfile.FacebookUrl ?? profile.FacebookUrl;
+            profile.TwitterUrl = updatedProfile.TwitterUrl ?? profile.TwitterUrl;
+            profile.TikTokUrl = updatedProfile.TikTokUrl ?? profile.TikTokUrl;
 
-    // Handle image upload
-    if (ProfilePicture != null && ProfilePicture.Length > 0)
+
+            // Handle image upload
+            if (ProfilePicture != null && ProfilePicture.Length > 0)
     {
         // Ensure directory exists
         var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");

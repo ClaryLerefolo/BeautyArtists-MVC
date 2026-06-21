@@ -44,6 +44,9 @@ namespace BeautyArtists.Models
         [Display(Name = " Instagram Url ")]
 
         public string InstagramUrl { get; set; }
+        public string? FacebookUrl { get; set; }
+        public string? TwitterUrl { get; set; }
+        public string? TikTokUrl { get; set; }
 
         public ICollection<Service> Services { get; set; }
 
