@@ -756,6 +756,11 @@
                 <i class="bi bi-graph-up-arrow"></i>
                 <span class="nav-link-text">Earnings</span>
             </a>
+            <a class="nav-link" data-label="Messages" asp-controller="Chat" asp-action="Index">
+                <i class="bi bi-chat-dots"></i>
+                <span class="nav-link-text">Messages</span>
+                <span id="chatUnreadBadge" class="badge" style="display:none; background:#e50914; color:#fff; border-radius:50%; padding:1px 6px; font-size:0.6rem; margin-left:auto;"></span>
+            </a>
         </nav>
 
         <div class="sidebar-footer">
@@ -908,6 +913,34 @@
         var userId = '@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value';
         if (typeof initNotificationSystem === 'function') {
             initNotificationSystem(userId);
+        }
+
+                // ── CHAT UNREAD BADGE FOR ARTIST LAYOUT ──
+        function updateChatBadge(count) {
+            var badge = document.getElementById('chatUnreadBadge');
+            if (badge) {
+                if (count > 0) {
+                    badge.textContent = count;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        }
+
+        // Fetch initial unread count
+        fetch('/Chat/GetUnreadCount')
+            .then(res => res.json())
+            .then(data => {
+                updateChatBadge(data.count);
+            })
+            .catch(() => {});
+
+        // If you have SignalR connection, listen for updates
+        if (typeof connection !== 'undefined' && connection) {
+            connection.on("UnreadCount", function(count) {
+                updateChatBadge(count);
+            });
         }
     </script>
 
