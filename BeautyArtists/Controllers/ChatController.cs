@@ -32,6 +32,11 @@ namespace BeautyArtists.Controllers
         {
             var userId = _userManager.GetUserId(User);
             var users = await _chatService.GetChatUsersAsync(userId);
+
+            ViewData["Layout"] = User.IsInRole("Artist")
+                ? "~/Views/Shared/_ArtistLayout.cshtml"
+                : "~/Views/Shared/_Layout.cshtml";
+
             return View(users);
         }
 
@@ -64,7 +69,10 @@ namespace BeautyArtists.Controllers
                 Messages = messages
             };
 
-            // Mark messages as read
+            ViewData["Layout"] = User.IsInRole("Artist")
+                ? "~/Views/Shared/_ArtistLayout.cshtml"
+                : "~/Views/Shared/_Layout.cshtml";
+
             await _chatService.MarkAllAsReadAsync(currentUserId, userId);
 
             return View(model);

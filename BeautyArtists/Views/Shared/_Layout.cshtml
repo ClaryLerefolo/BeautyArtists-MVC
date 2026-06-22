@@ -101,59 +101,6 @@
                     transform: scaleX(1);
                 }
 
-        /* ── CHAT NAV LINK – DISTINCT & FLOATING FEEL ── */
-        .nav-chat-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: #fff !important;
-            background: linear-gradient(135deg, rgba(229, 9, 20, 0.15), rgba(255, 215, 0, 0.15));
-            border: 1px solid rgba(255, 215, 0, 0.25);
-            border-radius: 999px;
-            padding: 6px 16px 6px 12px !important;
-            font-size: 0.8rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            position: relative;
-            box-shadow: 0 0 15px rgba(255, 215, 0, 0.05);
-        }
-
-        .nav-chat-link:hover {
-            background: linear-gradient(135deg, rgba(229, 9, 20, 0.3), rgba(255, 215, 0, 0.3));
-            border-color: #FFD700;
-            color: #FFD700 !important;
-            transform: translateY(-1px) scale(1.02);
-            box-shadow: 0 0 25px rgba(255, 215, 0, 0.15);
-        }
-
-        .nav-chat-link .chat-icon {
-            font-size: 1.1rem;
-        }
-
-        .nav-chat-link .chat-badge {
-            background: #e50914;
-            color: #fff;
-            border-radius: 50%;
-            padding: 1px 6px;
-            font-size: 0.6rem;
-            font-weight: 800;
-            min-width: 18px;
-            text-align: center;
-            animation: pulse-badge 1.5s ease-in-out infinite;
-        }
-
-        .nav-chat-link .chat-badge.hidden {
-            display: none;
-        }
-
-        @@keyframes pulse-badge {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-
         .dropdown-menu {
             background: #0a0a0a !important;
             border: 1px solid rgba(255,215,0,0.2) !important;
@@ -299,6 +246,64 @@
                 text-decoration: underline;
             }
 
+        /* ── FLOATING CHAT BUTTON ── */
+        .chat-float-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, #f0c808, #e50914);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 20px rgba(240, 200, 8, 0.5);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 9999;
+            text-decoration: none;
+            color: #000;
+            font-size: 1.8rem;
+        }
+
+            .chat-float-btn:hover {
+                transform: scale(1.1) translateY(-3px);
+                box-shadow: 0 8px 30px rgba(240, 200, 8, 0.7);
+            }
+
+        .chat-float-badge {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            background: #e50914;
+            color: #fff;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            font-weight: 800;
+            min-width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 5px;
+            box-shadow: 0 0 10px rgba(229, 9, 20, 0.5);
+            animation: pulse-badge 1.5s ease-in-out infinite;
+        }
+
+        @@keyframes pulse-badge {
+            0%, 100%
+
+        {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.15);
+        }
+
+        }
+
         /* Toast Notifications */
         #toastContainer {
             position: fixed;
@@ -325,15 +330,18 @@
         }
 
         @@keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
+            from
 
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
+        {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
         }
 
         .toast-icon {
@@ -491,18 +499,6 @@
                             </li>
                         }
 
-                        @* ── 💬 CHAT - Distinct floating pill style ── *@
-                        @if (SignInManager.IsSignedIn(User))
-                        {
-                            <li class="nav-item" style="display: flex; align-items: center;">
-                                <a class="nav-chat-link" asp-controller="Chat" asp-action="Index">
-                                    <span class="chat-icon">💬</span>
-                                    Messages
-                                    <span id="chatUnreadBadge" class="chat-badge hidden">0</span>
-                                </a>
-                            </li>
-                        }
-
                     </ul>
 
                     @* AUTH *@
@@ -547,6 +543,15 @@
         </div>
     </footer>
 
+    @* ── FLOATING CHAT BUTTON ── *@
+    @if (SignInManager.IsSignedIn(User))
+    {
+        <div class="chat-float-btn" onclick="window.location.href='@Url.Action("Index", "Chat")'">
+            <span>💬</span>
+            <span class="chat-float-badge" id="chatUnreadBadge">0</span>
+        </div>
+    }
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 
@@ -555,44 +560,42 @@
     <script src="~/js/notifications.js"></script>
 
     <script>
-        // Initialize notification system after user is logged in
         @if (SignInManager.IsSignedIn(User))
         {
-            <text>
-                var userId = '@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value';
-                if (typeof initNotificationSystem === 'function') {
-                    initNotificationSystem(userId);
-                }
+                <text>
+                    var userId = '@User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value';
+                    if (typeof initNotificationSystem === 'function') {
+                        initNotificationSystem(userId);
+                    }
 
-                // ── CHAT UNREAD BADGE ──
-                // This will be updated via SignalR, but we'll also fetch initial count
-                function updateChatBadge(count) {
-                    var badge = document.getElementById('chatUnreadBadge');
-                    if (badge) {
-                        if (count > 0) {
-                            badge.textContent = count;
-                            badge.classList.remove('hidden');
-                        } else {
-                            badge.classList.add('hidden');
+                    // ── CHAT UNREAD BADGE ──
+                    function updateChatBadge(count) {
+                        var badge = document.getElementById('chatUnreadBadge');
+                        if (badge) {
+                            if (count > 0) {
+                                badge.textContent = count;
+                                badge.style.display = 'flex'; // show with flex
+                            } else {
+                                badge.style.display = 'none';
+                            }
                         }
                     }
-                }
 
-                // Fetch initial unread count
-                fetch('/Chat/GetUnreadCount')
-                    .then(res => res.json())
-                    .then(data => {
-                        updateChatBadge(data.count);
-                    })
-                    .catch(() => {});
+                    // Fetch initial unread count
+                    fetch('/Chat/GetUnreadCount')
+                        .then(res => res.json())
+                        .then(data => {
+                            updateChatBadge(data.count);
+                        })
+                        .catch(() => {});
 
-                // Listen for SignalR unread count updates
-                if (typeof connection !== 'undefined' && connection) {
-                    connection.on("UnreadCount", function(count) {
-                        updateChatBadge(count);
-                    });
-                }
-            </text>
+                    // Listen for SignalR unread count updates
+                    if (typeof connection !== 'undefined' && connection) {
+                        connection.on("UnreadCount", function(count) {
+                            updateChatBadge(count);
+                        });
+                    }
+                </text>
         }
     </script>
 

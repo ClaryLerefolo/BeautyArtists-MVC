@@ -563,145 +563,151 @@
                            TABLET (769–1024px)
                         ══════════════════════ */
         @@media (min-width: 769px) and (max-width: 1024px) {
-            .sidebar {
-                width: var(--sidebar-collapsed) !important;
+            .sidebar
+
+        {
+            width: var(--sidebar-collapsed) !important;
+        }
+
+        .sidebar .sidebar-brand-text {
+            opacity: 0 !important;
+            width: 0 !important;
+        }
+
+        .sidebar .nav-link-text {
+            opacity: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .sidebar .nav-link {
+            justify-content: center !important;
+            margin: 2px 8px !important;
+            padding: 11px !important;
+            position: relative;
+        }
+
+            .sidebar .nav-link::after {
+                content: attr(data-label);
+                position: absolute;
+                left: calc(var(--sidebar-collapsed) + 4px);
+                background: #111;
+                color: var(--gold);
+                border: 1px solid rgba(255,215,0,0.2);
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-size: 0.75rem;
+                font-weight: 600;
+                white-space: nowrap;
+                pointer-events: none;
+                opacity: 0;
+                transition: opacity 0.15s;
+                z-index: 9999;
             }
 
-                .sidebar .sidebar-brand-text {
-                    opacity: 0 !important;
-                    width: 0 !important;
-                }
-
-                .sidebar .nav-link-text {
-                    opacity: 0 !important;
-                    width: 0 !important;
-                    overflow: hidden !important;
-                }
-
-                .sidebar .nav-link {
-                    justify-content: center !important;
-                    margin: 2px 8px !important;
-                    padding: 11px !important;
-                    position: relative;
-                }
-
-                    .sidebar .nav-link::after {
-                        content: attr(data-label);
-                        position: absolute;
-                        left: calc(var(--sidebar-collapsed) + 4px);
-                        background: #111;
-                        color: var(--gold);
-                        border: 1px solid rgba(255,215,0,0.2);
-                        border-radius: 8px;
-                        padding: 6px 12px;
-                        font-size: 0.75rem;
-                        font-weight: 600;
-                        white-space: nowrap;
-                        pointer-events: none;
-                        opacity: 0;
-                        transition: opacity 0.15s;
-                        z-index: 9999;
-                    }
-
-                    .sidebar .nav-link:hover::after {
-                        opacity: 1;
-                    }
-
-                .sidebar .logout-btn {
-                    justify-content: center !important;
-                    padding: 11px !important;
-                }
-
-                .sidebar .logout-btn-text {
-                    opacity: 0 !important;
-                    width: 0 !important;
-                    overflow: hidden !important;
-                }
-
-            .main-content {
-                margin-left: var(--sidebar-collapsed) !important;
+            .sidebar .nav-link:hover::after {
+                opacity: 1;
             }
 
-            .sidebar-toggle {
-                left: calc(var(--sidebar-collapsed) - 16px) !important;
-            }
+        .sidebar .logout-btn {
+            justify-content: center !important;
+            padding: 11px !important;
+        }
+
+        .sidebar .logout-btn-text {
+            opacity: 0 !important;
+            width: 0 !important;
+            overflow: hidden !important;
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-collapsed) !important;
+        }
+
+        .sidebar-toggle {
+            left: calc(var(--sidebar-collapsed) - 16px) !important;
+        }
+
         }
 
         /* ══════════════════════
                            MOBILE (max 768px)
                         ══════════════════════ */
         @@media (max-width: 768px) {
-            .sidebar-toggle {
-                display: none !important;
+            .sidebar-toggle
+
+        {
+            display: none !important;
+        }
+
+        .hamburger-btn {
+            display: inline-flex !important;
+            align-items: center;
+        }
+
+        .sidebar {
+            transform: translateX(-100%);
+            width: var(--sidebar-width) !important;
+            box-shadow: none;
+        }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+                box-shadow: 6px 0 40px rgba(0,0,0,0.9);
             }
 
-            .hamburger-btn {
-                display: inline-flex !important;
-                align-items: center;
-            }
-
-            .sidebar {
-                transform: translateX(-100%);
+            .sidebar.collapsed {
                 width: var(--sidebar-width) !important;
-                box-shadow: none;
+                transform: translateX(-100%);
             }
 
-                .sidebar.mobile-open {
-                    transform: translateX(0);
-                    box-shadow: 6px 0 40px rgba(0,0,0,0.9);
+                .sidebar.collapsed.mobile-open {
+                    transform: translateX(0) !important;
                 }
 
-                .sidebar.collapsed {
-                    width: var(--sidebar-width) !important;
-                    transform: translateX(-100%);
+                .sidebar.collapsed .sidebar-brand-text {
+                    opacity: 1 !important;
+                    width: auto !important;
                 }
 
-                    .sidebar.collapsed.mobile-open {
-                        transform: translateX(0) !important;
+                .sidebar.collapsed .nav-link-text {
+                    opacity: 1 !important;
+                    width: auto !important;
+                }
+
+                .sidebar.collapsed .logout-btn-text {
+                    opacity: 1 !important;
+                    width: auto !important;
+                }
+
+                .sidebar.collapsed .nav-link {
+                    justify-content: flex-start !important;
+                    margin: 2px 10px !important;
+                    padding: 11px 18px !important;
+                }
+
+                    .sidebar.collapsed .nav-link::after {
+                        display: none !important;
                     }
 
-                    .sidebar.collapsed .sidebar-brand-text {
-                        opacity: 1 !important;
-                        width: auto !important;
-                    }
+                .sidebar.collapsed .logout-btn {
+                    justify-content: flex-start !important;
+                    padding: 11px 18px !important;
+                }
 
-                    .sidebar.collapsed .nav-link-text {
-                        opacity: 1 !important;
-                        width: auto !important;
-                    }
+        .main-content {
+            margin-left: 0 !important;
+            padding: 0 14px 40px 14px !important;
+        }
 
-                    .sidebar.collapsed .logout-btn-text {
-                        opacity: 1 !important;
-                        width: auto !important;
-                    }
+        .top-branding-bar {
+            padding: 14px 0 10px;
+        }
 
-                    .sidebar.collapsed .nav-link {
-                        justify-content: flex-start !important;
-                        margin: 2px 10px !important;
-                        padding: 11px 18px !important;
-                    }
+        .branding-text {
+            font-size: 1.05rem;
+        }
 
-                        .sidebar.collapsed .nav-link::after {
-                            display: none !important;
-                        }
-
-                    .sidebar.collapsed .logout-btn {
-                        justify-content: flex-start !important;
-                        padding: 11px 18px !important;
-                    }
-
-            .main-content {
-                margin-left: 0 !important;
-                padding: 0 14px 40px 14px !important;
-            }
-
-            .top-branding-bar {
-                padding: 14px 0 10px;
-            }
-
-            .branding-text {
-                font-size: 1.05rem;
-            }
         }
     </style>
 </head>
@@ -740,7 +746,6 @@
                 <i class="bi bi-images"></i>
                 <span class="nav-link-text">My Portfolio</span>
             </a>
-       
             <a class="nav-link" data-label="Availability"
                asp-controller="ArtistAvailability" asp-action="Index">
                 <i class="bi bi-calendar3"></i>
@@ -915,7 +920,7 @@
             initNotificationSystem(userId);
         }
 
-                // ── CHAT UNREAD BADGE FOR ARTIST LAYOUT ──
+        // ── CHAT UNREAD BADGE FOR ARTIST LAYOUT ──
         function updateChatBadge(count) {
             var badge = document.getElementById('chatUnreadBadge');
             if (badge) {

@@ -1,14 +1,22 @@
 ﻿@model List<BeautyArtists.Models.ViewModels.ChatUserListItem>
 @{
+    Layout = ViewData["Layout"] as string ?? "~/Views/Shared/_Layout.cshtml";
     ViewData["Title"] = "Messages";
-    Layout = "~/Views/Shared/_Layout.cshtml";
 }
 
 <style>
     .chat-list {
         max-width: 700px;
         margin: 0 auto;
+        padding: 20px;
     }
+
+        .chat-list h2 {
+            color: #f0c808;
+            font-weight: 800;
+            margin-bottom: 25px;
+        }
+
     .chat-user-item {
         display: flex;
         align-items: center;
@@ -23,10 +31,12 @@
         text-decoration: none;
         color: #fff;
     }
-    .chat-user-item:hover {
-        border-color: #f0c808;
-        transform: translateX(5px);
-    }
+
+        .chat-user-item:hover {
+            border-color: #f0c808;
+            transform: translateX(5px);
+        }
+
     .chat-avatar {
         width: 50px;
         height: 50px;
@@ -34,14 +44,17 @@
         object-fit: cover;
         border: 2px solid #f0c808;
     }
+
     .chat-user-info {
         flex: 1;
     }
+
     .chat-user-name {
         font-weight: 700;
         color: #f0c808;
         font-size: 1rem;
     }
+
     .chat-last-msg {
         color: #888;
         font-size: 0.85rem;
@@ -50,6 +63,7 @@
         text-overflow: ellipsis;
         max-width: 300px;
     }
+
     .chat-badge {
         background: #e50914;
         color: #fff;
@@ -58,11 +72,13 @@
         font-size: 0.7rem;
         font-weight: 700;
     }
+
     .chat-time {
         color: #666;
         font-size: 0.7rem;
         white-space: nowrap;
     }
+
     .empty-chat {
         text-align: center;
         padding: 60px 20px;
@@ -71,7 +87,7 @@
 </style>
 
 <div class="chat-list">
-    <h2 style="color: #f0c808; font-weight: 800; margin-bottom: 25px;">💬 Messages</h2>
+    <h2>💬 Messages</h2>
 
     @if (!Model.Any())
     {
