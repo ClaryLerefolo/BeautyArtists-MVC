@@ -1,0 +1,106 @@
+﻿@model List<BeautyArtists.Models.ViewModels.ChatUserListItem>
+@{
+    ViewData["Title"] = "Messages";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .chat-list {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    .chat-user-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px 20px;
+        background: #0d0d0d;
+        border: 1px solid #1a1a1a;
+        border-radius: 12px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: 0.2s;
+        text-decoration: none;
+        color: #fff;
+    }
+    .chat-user-item:hover {
+        border-color: #f0c808;
+        transform: translateX(5px);
+    }
+    .chat-avatar {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #f0c808;
+    }
+    .chat-user-info {
+        flex: 1;
+    }
+    .chat-user-name {
+        font-weight: 700;
+        color: #f0c808;
+        font-size: 1rem;
+    }
+    .chat-last-msg {
+        color: #888;
+        font-size: 0.85rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 300px;
+    }
+    .chat-badge {
+        background: #e50914;
+        color: #fff;
+        border-radius: 50%;
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        font-weight: 700;
+    }
+    .chat-time {
+        color: #666;
+        font-size: 0.7rem;
+        white-space: nowrap;
+    }
+    .empty-chat {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+    }
+</style>
+
+<div class="chat-list">
+    <h2 style="color: #f0c808; font-weight: 800; margin-bottom: 25px;">💬 Messages</h2>
+
+    @if (!Model.Any())
+    {
+        <div class="empty-chat">
+            <span style="font-size: 3rem;">💭</span>
+            <p style="margin-top: 15px; font-size: 1.1rem;">No messages yet.</p>
+            <p style="color: #444;">Start a conversation by booking a service!</p>
+        </div>
+    }
+    else
+    {
+        @foreach (var user in Model)
+        {
+            <a asp-action="Conversation" asp-route-userId="@user.UserId" class="chat-user-item">
+                <img src="@user.ProfilePicture" class="chat-avatar" onerror="this.src='/images/default-profile.png'" />
+                <div class="chat-user-info">
+                    <div class="chat-user-name">@user.Name</div>
+                    <div class="chat-last-msg">@user.LastMessage</div>
+                </div>
+                <div style="text-align: right;">
+                    @if (user.UnreadCount > 0)
+                    {
+                        <span class="chat-badge">@user.UnreadCount</span>
+                    }
+                    <div class="chat-time">
+                        @(user.LastMessageTime?.ToString("MMM dd, hh:mm tt") ?? "")
+                    </div>
+                </div>
+            </a>
+        }
+    }
+</div>

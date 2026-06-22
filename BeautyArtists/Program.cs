@@ -49,6 +49,7 @@ builder.Services.AddTransient<ICommunicationService, CommunicationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddHttpClient();
 builder.Services.AddRazorPages()
     .AddRazorPagesOptions(options =>
@@ -168,4 +169,5 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
 app.MapHub<NotificationHub>("/notificationHub");
+app.MapHub<ChatHub>("/chatHub");
 app.Run();

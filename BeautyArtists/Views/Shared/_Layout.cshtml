@@ -101,6 +101,59 @@
                     transform: scaleX(1);
                 }
 
+        /* ── CHAT NAV LINK – DISTINCT & FLOATING FEEL ── */
+        .nav-chat-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #fff !important;
+            background: linear-gradient(135deg, rgba(229, 9, 20, 0.15), rgba(255, 215, 0, 0.15));
+            border: 1px solid rgba(255, 215, 0, 0.25);
+            border-radius: 999px;
+            padding: 6px 16px 6px 12px !important;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            position: relative;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.05);
+        }
+
+        .nav-chat-link:hover {
+            background: linear-gradient(135deg, rgba(229, 9, 20, 0.3), rgba(255, 215, 0, 0.3));
+            border-color: #FFD700;
+            color: #FFD700 !important;
+            transform: translateY(-1px) scale(1.02);
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.15);
+        }
+
+        .nav-chat-link .chat-icon {
+            font-size: 1.1rem;
+        }
+
+        .nav-chat-link .chat-badge {
+            background: #e50914;
+            color: #fff;
+            border-radius: 50%;
+            padding: 1px 6px;
+            font-size: 0.6rem;
+            font-weight: 800;
+            min-width: 18px;
+            text-align: center;
+            animation: pulse-badge 1.5s ease-in-out infinite;
+        }
+
+        .nav-chat-link .chat-badge.hidden {
+            display: none;
+        }
+
+        @@keyframes pulse-badge {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
         .dropdown-menu {
             background: #0a0a0a !important;
             border: 1px solid rgba(255,215,0,0.2) !important;
@@ -438,6 +491,18 @@
                             </li>
                         }
 
+                        @* ── 💬 CHAT - Distinct floating pill style ── *@
+                        @if (SignInManager.IsSignedIn(User))
+                        {
+                            <li class="nav-item" style="display: flex; align-items: center;">
+                                <a class="nav-chat-link" asp-controller="Chat" asp-action="Index">
+                                    <span class="chat-icon">💬</span>
+                                    Messages
+                                    <span id="chatUnreadBadge" class="chat-badge hidden">0</span>
+                                </a>
+                            </li>
+                        }
+
                     </ul>
 
                     @* AUTH *@
@@ -490,9 +555,7 @@
     <script src="~/js/notifications.js"></script>
 
     <script>
-        // 🔧 TEMPORARILY DISABLED: SignalR hub not deployed on Azure yet
-        // Uncomment below after SignalR hub is configured (WebSockets enabled and hub mapped)
-        @* 
+        // Initialize notification system after user is logged in
         @if (SignInManager.IsSignedIn(User))
         {
             <text>
@@ -500,9 +563,37 @@
                 if (typeof initNotificationSystem === 'function') {
                     initNotificationSystem(userId);
                 }
+
+                // ── CHAT UNREAD BADGE ──
+                // This will be updated via SignalR, but we'll also fetch initial count
+                function updateChatBadge(count) {
+                    var badge = document.getElementById('chatUnreadBadge');
+                    if (badge) {
+                        if (count > 0) {
+                            badge.textContent = count;
+                            badge.classList.remove('hidden');
+                        } else {
+                            badge.classList.add('hidden');
+                        }
+                    }
+                }
+
+                // Fetch initial unread count
+                fetch('/Chat/GetUnreadCount')
+                    .then(res => res.json())
+                    .then(data => {
+                        updateChatBadge(data.count);
+                    })
+                    .catch(() => {});
+
+                // Listen for SignalR unread count updates
+                if (typeof connection !== 'undefined' && connection) {
+                    connection.on("UnreadCount", function(count) {
+                        updateChatBadge(count);
+                    });
+                }
             </text>
         }
-        *@
     </script>
 
     @await RenderSectionAsync("Scripts", required: false)

@@ -108,6 +108,8 @@ namespace BeautyArtists.Data
 
         public DbSet<Payment> Payments { get; set; }
 
+        public DbSet<ChatMessage> ChatMessages { get; set; }
+
 
 
 
