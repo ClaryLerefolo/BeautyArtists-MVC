@@ -23,10 +23,7 @@ namespace BeautyArtists.Hubs
             var userId = Context.UserIdentifier;
             if (!string.IsNullOrEmpty(userId))
             {
-                // Track online status
                 await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
-
-                // Update online status
                 await Clients.Group($"user_{userId}").SendAsync("UserOnline", userId, true);
             }
             await base.OnConnectedAsync();
@@ -48,14 +45,13 @@ namespace BeautyArtists.Hubs
             var senderId = Context.UserIdentifier;
 
             if (string.IsNullOrEmpty(senderId))
-            {
                 throw new HubException("Sender not authenticated.");
-            }
 
-            if (string.IsNullOrEmpty(receiverId) || string.IsNullOrEmpty(message))
-            {
-                throw new HubException("Receiver and message are required.");
-            }
+            if (string.IsNullOrEmpty(receiverId))
+                throw new HubException("Receiver ID is required.");
+
+            if (string.IsNullOrEmpty(message))
+                throw new HubException("Message cannot be empty.");
 
             try
             {
@@ -72,7 +68,7 @@ namespace BeautyArtists.Hubs
                 _context.ChatMessages.Add(chatMessage);
                 await _context.SaveChangesAsync();
 
-                // Send to receiver (real-time)
+                // Notify receiver
                 await Clients.User(receiverId).SendAsync("ReceiveMessage", new
                 {
                     id = chatMessage.Id,
@@ -83,7 +79,7 @@ namespace BeautyArtists.Hubs
                     bookingId = chatMessage.BookingId
                 });
 
-                // Also send back to sender for confirmation
+                // Confirm to sender
                 await Clients.User(senderId).SendAsync("MessageSent", new
                 {
                     id = chatMessage.Id,
@@ -96,21 +92,22 @@ namespace BeautyArtists.Hubs
             }
             catch (Exception ex)
             {
-                // Log the error (you can use ILogger)
-                throw new HubException($"Failed to send message: {ex.Message}");
+                // 🔥 This will send the REAL error to the client
+                var errorMessage = ex.InnerException?.Message ?? ex.Message;
+
+                throw new HubException($"Database error: {ex.InnerException?.Message ?? ex.Message}");
             }
         }
+
         public async Task MarkAsRead(int messageId)
         {
             var userId = Context.UserIdentifier;
             var message = await _context.ChatMessages.FindAsync(messageId);
-
             if (message != null && message.ReceiverId == userId && !message.IsRead)
             {
                 message.IsRead = true;
                 message.ReadAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
-
                 await Clients.Group($"user_{message.SenderId}").SendAsync("MessageRead", messageId);
             }
         }
@@ -121,39 +118,13 @@ namespace BeautyArtists.Hubs
             var messages = await _context.ChatMessages
                 .Where(m => m.SenderId == senderId && m.ReceiverId == userId && !m.IsRead)
                 .ToListAsync();
-
             foreach (var msg in messages)
             {
                 msg.IsRead = true;
                 msg.ReadAt = DateTime.UtcNow;
             }
-
             await _context.SaveChangesAsync();
-
             await Clients.Group($"user_{senderId}").SendAsync("MessagesRead", userId);
-        }
-
-        public async Task GetChatHistory(string otherUserId, int? bookingId = null, int skip = 0, int take = 50)
-        {
-            var userId = Context.UserIdentifier;
-
-            var query = _context.ChatMessages
-                .Where(m => (m.SenderId == userId && m.ReceiverId == otherUserId) ||
-                            (m.SenderId == otherUserId && m.ReceiverId == userId));
-
-            if (bookingId.HasValue)
-            {
-                query = query.Where(m => m.BookingId == bookingId);
-            }
-
-            var messages = await query
-                .OrderByDescending(m => m.SentAt)
-                .Skip(skip)
-                .Take(take)
-                .OrderBy(m => m.SentAt)
-                .ToListAsync();
-
-            await Clients.Caller.SendAsync("ChatHistory", messages);
         }
 
         public async Task GetUnreadCount()
@@ -162,17 +133,7 @@ namespace BeautyArtists.Hubs
             var count = await _context.ChatMessages
                 .Where(m => m.ReceiverId == userId && !m.IsRead)
                 .CountAsync();
-
             await Clients.Caller.SendAsync("UnreadCount", count);
-        }
-        public async Task Typing(string receiverId)
-        {
-            await Clients.User(receiverId).SendAsync("UserTyping", Context.UserIdentifier);
-        }
-
-        public async Task StopTyping(string receiverId)
-        {
-            await Clients.User(receiverId).SendAsync("UserStoppedTyping", Context.UserIdentifier);
         }
     }
 }
