@@ -208,12 +208,23 @@
                                             data-service-id="@service.UserServiceId">
                                         View Portfolio
                                     </button>
-                                    <a asp-controller="Home" asp-action="Catalogue"
-                                       asp-route-artistId="@service.ArtistId"
-                                       asp-route-categoryId="@service.CategoryId"
-                                       class="btn btn-service-tertiary">
-                                        View Catalogue
-                                    </a>
+                                    <div style="display: flex; gap: 8px;">
+                                        <a asp-controller="Home" asp-action="Catalogue"
+                                           asp-route-artistId="@service.ArtistId"
+                                           asp-route-categoryId="@service.CategoryId"
+                                           class="btn btn-service-tertiary" style="flex: 1;">
+                                            View Catalogue
+                                        </a>
+                                        @if (User.Identity!.IsAuthenticated)
+                                        {
+                                            <a asp-controller="Chat"
+                                               asp-action="Conversation"
+                                               asp-route-userId="@service.ArtistId"
+                                               class="btn btn-outline-gold" style="flex: 0 0 auto; padding: 10px 16px; border-radius: 30px;">
+                                                💬 Message
+                                            </a>
+                                        }
+                                    </div>
                                 </div>
                                 <small class="mt-3 text-muted">Artist: @service.ArtistName</small>
                             </div>
@@ -248,6 +259,19 @@
 </div>
 
 <style>
+    .btn-outline-gold {
+        background: transparent;
+        border: 1px solid #FFD700;
+        color: #FFD700;
+        transition: 0.25s;
+    }
+
+        .btn-outline-gold:hover {
+            background: #FFD700;
+            color: #000;
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(255,215,0,0.3);
+        }
     .sl-topbar {
         background: #000;
         border-bottom: 1px solid rgba(255,215,0,0.08);

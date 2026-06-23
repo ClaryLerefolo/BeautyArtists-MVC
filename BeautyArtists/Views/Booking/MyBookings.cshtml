@@ -45,7 +45,7 @@
         </div>
     </div>
 
-    @* ── SUCCESS MESSAGE ── *@
+    @* ── SUCCESS / ERROR MESSAGES ── *@
     @if (TempData["Success"] != null)
     {
         <div class="container mt-4">
@@ -209,7 +209,7 @@
                             </div>
                         </div>
 
-                        @* Right: Price + Actions *@
+                        @* ── RIGHT: PRICE + ACTIONS (FIXED) ── *@
                         <div class="mb-card-right">
                             <div class="mb-amount">
                                 <span class="mb-amount-label">Total</span>
@@ -246,7 +246,9 @@
                                     }
                                     else
                                     {
-                                        <span class="text-muted small">Final payment must be made 2 days before appointment</span>
+                                        <span class="text-muted small" style="font-size:0.65rem; text-align:center; display:block; color:rgba(255,255,255,0.3);">
+                                            Final payment must be made 2 days before appointment
+                                        </span>
                                     }
                                 }
 
@@ -274,7 +276,22 @@
                                         <button type="submit" class="mb-btn-cancel">Cancel</button>
                                     </form>
                                 }
+                                @* ── MESSAGE ARTIST ── *@
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted ||
+                                                        booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
+                                {
+                                    <a asp-controller="Chat"
+                                       asp-action="Conversation"
+                                       asp-route-userId="@booking.UserService.ArtistId"
+                                       asp-route-bookingId="@booking.Id"
+                                       class="mb-btn-chat">
+                                        💬 Message Artist
+                                    </a>
+                                }
+                            </div>
 
+                            @* ── BOOKED DATE ── moved outside actions, now has its own wrapper *@
+                            <div class="mb-booked-wrapper">
                                 <span class="mb-booked-on">
                                     Booked @booking.BookingDate.ToString("dd MMM yyyy")
                                 </span>
@@ -312,7 +329,7 @@
 </script>
 
 <style>
-    /* ... (Your original styles remain exactly the same) ... */
+    /* ────────── YOUR EXISTING STYLES (kept) ────────── */
     .mb-page {
         background: #000;
         min-height: 100vh;
@@ -597,17 +614,21 @@
         margin-top: 4px;
     }
 
+    /* ────────── FIXED RIGHT COLUMN ────────── */
     .mb-card-right {
         display: flex;
         flex-direction: column;
-        align-items: flex-end;
-        justify-content: space-between;
-        gap: 16px;
-        min-width: 140px;
+        align-items: stretch; /* all children stretch to full width */
+        gap: 12px; /* consistent spacing */
+        min-width: 160px;
+        flex-shrink: 0;
+        width: 180px; /* fixed width for predictability */
     }
 
     .mb-amount {
         text-align: right;
+        padding-bottom: 4px;
+        border-bottom: 1px solid rgba(255,215,0,0.1);
     }
 
     .mb-amount-label {
@@ -630,36 +651,36 @@
     .mb-actions {
         display: flex;
         flex-direction: column;
-        align-items: flex-end;
+        align-items: stretch;
         gap: 8px;
+        width: 100%;
     }
 
-    .mb-btn-primary, .mb-btn-secondary, .mb-btn-cancel, .mb-btn-deposit {
-        display: inline-flex;
+    /* ── BUTTONS: full width, centered text ── */
+    .mb-btn-deposit,
+    .mb-btn-final,
+    .mb-btn-secondary,
+    .mb-btn-cancel,
+    .mb-btn-chat {
+        display: flex;
         align-items: center;
         justify-content: center;
-        padding: 9px 20px;
+        padding: 8px 12px;
         border-radius: 999px;
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 700;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
         text-transform: uppercase;
         text-decoration: none;
         cursor: pointer;
         transition: all 0.2s ease;
         border: none;
+        width: 100%;
+        box-sizing: border-box;
+        white-space: nowrap;
+        min-height: 34px;
+        text-align: center;
     }
-
-    .mb-btn-primary {
-        background: linear-gradient(135deg, #b30000, #FFD700);
-        color: #000;
-    }
-
-        .mb-btn-primary:hover {
-            background: linear-gradient(135deg, #FFD700, #b30000);
-            color: #000;
-            box-shadow: 0 0 20px rgba(255,215,0,0.3);
-        }
 
     .mb-btn-deposit {
         background: linear-gradient(135deg, #f0c808, #e50914);
@@ -671,6 +692,17 @@
             background: linear-gradient(135deg, #e50914, #f0c808);
             box-shadow: 0 0 20px rgba(240,200,8,0.4);
             transform: translateY(-1px);
+        }
+
+    .mb-btn-final {
+        background: linear-gradient(135deg, #28a745, #1e7e34);
+        color: #fff;
+    }
+
+        .mb-btn-final:hover {
+            background: linear-gradient(135deg, #1e7e34, #28a745);
+            transform: translateY(-1px);
+            box-shadow: 0 0 20px rgba(40,167,69,0.4);
         }
 
     .mb-btn-secondary {
@@ -695,11 +727,33 @@
             color: #ff5555;
         }
 
-    .mb-booked-on {
-        color: rgba(255,255,255,0.18);
-        font-size: 0.65rem;
+    .mb-btn-chat {
+        background: linear-gradient(135deg, #f0c808, #e50914);
+        color: #000;
+        font-weight: 700;
     }
 
+        .mb-btn-chat:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(240,200,8,0.3);
+        }
+
+    /* ── BOOKED DATE WRAPPER ── */
+    .mb-booked-wrapper {
+        width: 100%;
+        text-align: center;
+        margin-top: 4px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .mb-booked-on {
+        color: rgba(255,255,255,0.25);
+        font-size: 0.65rem;
+        display: block;
+    }
+
+    /* ── FOOTER ── */
     .mb-footer-link {
         margin-top: 32px;
         padding-top: 24px;
@@ -721,27 +775,40 @@
             color: #FFD700;
         }
 
-    .mb-btn-final {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 9px 20px;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        text-decoration: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        border: none;
-        background: linear-gradient(135deg, #28a745, #1e7e34);
-        color: #fff;
-    }
-
-        .mb-btn-final:hover {
-            background: linear-gradient(135deg, #1e7e34, #28a745);
-            transform: translateY(-1px);
-            box-shadow: 0 0 20px rgba(40,167,69,0.4);
+    /* ── RESPONSIVE: stack columns on small screens ── */
+    @@media (max-width: 768px) {
+        .mb-card-body {
+            flex-wrap: wrap;
         }
+
+        .mb-card-right {
+            width: 100%;
+            min-width: unset;
+            align-items: stretch;
+        }
+
+        .mb-amount {
+            text-align: center;
+        }
+
+        .mb-actions {
+            align-items: stretch;
+        }
+
+        .mb-btn-deposit,
+        .mb-btn-final,
+        .mb-btn-secondary,
+        .mb-btn-cancel,
+        .mb-btn-chat {
+            white-space: normal; /* allow text to wrap on mobile */
+            font-size: 0.65rem;
+            padding: 6px 10px;
+            min-height: 32px;
+        }
+
+        .mb-booked-wrapper {
+            margin-top: 6px;
+            padding-top: 6px;
+        }
+    }
 </style>

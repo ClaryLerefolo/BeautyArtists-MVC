@@ -21,7 +21,7 @@ function initNotificationSystem(userId) {
         loadNotifications();
         updateNotificationBell();
     });
-
+    
     notificationConnection.on("NotificationRead", () => {
         updateNotificationBell();
         loadNotifications();

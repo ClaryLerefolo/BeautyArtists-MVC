@@ -36,6 +36,8 @@
             border-radius: 15px;
             transition: 0.3s ease;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
             .appointment-card:hover {
@@ -50,6 +52,7 @@
             font-weight: 700;
             text-transform: uppercase;
             font-size: 0.75rem;
+            white-space: nowrap;
         }
 
         .bg-pending {
@@ -80,16 +83,6 @@
         .bg-rejected {
             background-color: #6c757d !important;
             color: #fff !important;
-        }
-
-        .btn-success {
-            background-color: #28a745;
-            border: none;
-        }
-
-        .btn-primary {
-            background-color: #007bff;
-            border: none;
         }
 
         .client-info-box {
@@ -140,6 +133,22 @@
                 background: #00ffcc;
                 color: #000;
             }
+
+        /* New footer styling */
+        .card-footer-actions {
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 1rem;
+            margin-top: auto;
+        }
+
+        .booked-date {
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-align: center;
+            padding-top: 0.5rem;
+            margin-top: 0.5rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
     </style>
 }
 
@@ -152,7 +161,8 @@
         @foreach (var item in Model)
         {
             <div class="col-xl-4 col-md-6 mb-4">
-                <div class="card h-100 appointment-card text-white">
+                <div class="card appointment-card text-white">
+                    <!-- CARD HEADER -->
                     <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center pt-4 px-4">
                         <div class="text-muted small">
                             <i class="far fa-clock me-1"></i> @item.AppointmentDate.ToString("MMM dd, yyyy @ HH:mm")
@@ -169,12 +179,13 @@
                         </span>
                     </div>
 
-                    <div class="card-body p-4 d-flex flex-column justify-content-between">
+                    <!-- CARD BODY -->
+                    <div class="card-body p-4 d-flex flex-column">
+                        <!-- CLIENT & SERVICE INFO -->
                         <div>
                             <div class="client-info-box mb-3">
                                 <div class="d-flex justify-content-between align-items-start mb-1">
                                     <h5 class="mb-0" style="color: #f0c808;">@item.Customer?.FirstName @item.Customer?.LastName</h5>
-
                                     @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
                                     {
                                         <span class="type-indicator type-housecall">🏠 House Call</span>
@@ -187,13 +198,12 @@
                                 <div class="small text-white-50">@item.UserService?.Service?.Name</div>
                             </div>
 
-                            @* GOOGLE MAPS FOR ARTIST *@
+                            <!-- MAPS & ADDRESS (HouseCall) -->
                             @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall && !string.IsNullOrEmpty(item.HouseCallAddress))
                             {
                                 <div class="p-3 mb-3 rounded border border-secondary" style="background: rgba(155, 89, 182, 0.05);">
                                     <small class="text-muted text-uppercase d-block mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Client Location:</small>
                                     <p class="small text-white-50 mb-2"><i class="fas fa-map-marker-alt text-danger me-1"></i> @item.HouseCallAddress</p>
-
                                     @if (!string.IsNullOrEmpty(item.Latitude) && !string.IsNullOrEmpty(item.Longitude))
                                     {
                                         <a href="https://www.google.com/maps/search/?api=1&query=@item.Latitude,@item.Longitude"
@@ -204,6 +214,7 @@
                                 </div>
                             }
 
+                            <!-- NOTES -->
                             @if (!string.IsNullOrEmpty(item.Notes))
                             {
                                 <div class="mb-3">
@@ -220,6 +231,7 @@
                                 </div>
                             }
 
+                            <!-- DURATION & BASE PRICE -->
                             <div class="row g-2 mb-3">
                                 <div class="col-6">
                                     <small class="text-muted d-block">Duration</small>
@@ -232,36 +244,38 @@
                             </div>
                         </div>
 
-                        <div>
-                            <div class="financial-row small mb-4">
-                                @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
-                                {
-                                    <div class="d-flex justify-content-between text-white-50 mb-1">
-                                        <span>Transport Costs:</span>
-                                        <span>R @item.TransportCost.ToString("N2")</span>
-                                    </div>
-                                }
-                                <div class="d-flex justify-content-between font-weight-bold border-top border-secondary pt-1">
-                                    <span style="color: #f0c808;">Total Amount:</span>
-                                    <span style="color: #f0c808; font-weight: bold;">R @item.TotalAmount.ToString("N2")</span>
+                        <!-- FINANCIAL ROW (always visible) -->
+                        <div class="financial-row small mb-3">
+                            @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
+                            {
+                                <div class="d-flex justify-content-between text-white-50 mb-1">
+                                    <span>Transport Costs:</span>
+                                    <span>R @item.TransportCost.ToString("N2")</span>
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-secondary" style="font-size: 0.7rem;">
-                                    <span class="text-muted">Deposit Status (50%):</span>
-                                    @if (item.IsDepositPaid)
-                                    {
-                                        <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> PAID</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-warning fw-bold"><i class="fas fa-hourglass-half me-1"></i> AWAITING</span>
-                                    }
-                                </div>
+                            }
+                            <div class="d-flex justify-content-between font-weight-bold border-top border-secondary pt-1">
+                                <span style="color: #f0c808;">Total Amount:</span>
+                                <span style="color: #f0c808; font-weight: bold;">R @item.TotalAmount.ToString("N2")</span>
                             </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-secondary" style="font-size: 0.7rem;">
+                                <span class="text-muted">Deposit Status (50%):</span>
+                                @if (item.IsDepositPaid)
+                                {
+                                    <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> PAID</span>
+                                }
+                                else
+                                {
+                                    <span class="text-warning fw-bold"><i class="fas fa-hourglass-half me-1"></i> AWAITING</span>
+                                }
+                            </div>
+                        </div>
 
-                            @* PENDING STATUS - ARTIST NEEDS TO ACCEPT OR REJECT *@
+                        <!-- ===== FOOTER WITH ACTION BUTTONS & BOOKED DATE ===== -->
+                        <div class="card-footer-actions">
                             @if (item.Status == BookingStatus.Pending)
                             {
-                                <div class="mt-3">
+                                <!-- PENDING: Show transport input & note -->
+                                <div class="mb-2">
                                     @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
                                     {
                                         <div class="mb-2">
@@ -273,67 +287,58 @@
                                             </div>
                                         </div>
                                     }
-
-                                    <input type="text" id="note-@item.Id" class="form-control bg-dark text-white border-secondary mb-2" placeholder="Add a note for the client..." style="font-size: 0.8rem;" />
-
-                                    <div class="d-flex gap-2">
-                                        <form asp-action="ArtistUpdateStatus" method="post" class="flex-grow-1">
-                                            <input type="hidden" name="bookingId" value="@item.Id" />
-                                            <input type="hidden" name="newStatus" value="@BookingStatus.Accepted" />
-                                            <input type="hidden" name="artistNotes" id="confirm-note-@item.Id" />
-                                            <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
-
-                                            <button type="submit" class="btn btn-success w-100 font-weight-bold"
-                                                    onclick="
-                                                                        document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
-                                                                        var tInput = document.getElementById('transport-@item.Id');
-                                                                        if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }
-                                                                    ">
-                                                ✅ ACCEPT APPOINTMENT
-                                            </button>
-                                        </form>
-
-                                        <form asp-action="ArtistUpdateStatus" method="post" class="flex-grow-1">
-                                            <input type="hidden" name="bookingId" value="@item.Id" />
-                                            <input type="hidden" name="newStatus" value="@BookingStatus.Rejected" />
-                                            <input type="hidden" name="artistNotes" id="reject-note-@item.Id" />
-
-                                            <button type="submit" class="btn btn-outline-danger w-100 font-weight-bold"
-                                                    onclick="document.getElementById('reject-note-@item.Id').value = document.getElementById('note-@item.Id').value">
-                                                ❌ REJECT
-                                            </button>
-                                        </form>
-                                    </div>
+                                    <input type="text" id="note-@item.Id" class="form-control bg-dark text-white border-secondary"
+                                           placeholder="Add a note for the client..." style="font-size: 0.8rem;" />
                                 </div>
-                            }
 
-                            @* ACCEPTED STATUS - AWAITING CLIENT DEPOSIT *@
-                            @if (item.Status == BookingStatus.Accepted)
-                            {
-                                <div class="mt-3">
-                                    <div class="alert alert-info text-center mb-3" style="background: rgba(23, 162, 184, 0.2); border: 1px solid #17a2b8; color: #17a2b8;">
-                                        <i class="fas fa-clock me-2"></i> Awaiting client's 50% deposit payment...
-                                    </div>
-                                </div>
-                            }
-
-                            @* CONFIRMED STATUS - DEPOSIT PAID, READY TO COMPLETE *@
-                            @if (item.Status == BookingStatus.Confirmed)
-                            {
-                                <div class="mt-3">
-                                    <form asp-action="ArtistUpdateStatus" method="post">
+                                <!-- Action buttons side by side -->
+                                <div class="d-flex gap-2">
+                                    <form asp-action="ArtistUpdateStatus" method="post" class="flex-fill">
                                         <input type="hidden" name="bookingId" value="@item.Id" />
-                                        <input type="hidden" name="newStatus" value="@BookingStatus.Completed" />
-
-                                        <button type="submit" class="btn btn-primary w-100 font-weight-bold shadow-sm">
-                                            <i class="fas fa-check-double me-2"></i> MARK AS COMPLETED
+                                        <input type="hidden" name="newStatus" value="@BookingStatus.Accepted" />
+                                        <input type="hidden" name="artistNotes" id="confirm-note-@item.Id" />
+                                        <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
+                                        <button type="submit" class="btn btn-success w-100 fw-bold"
+                                                onclick="document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
+                                                                 var tInput = document.getElementById('transport-@item.Id');
+                                                                 if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
+                                            <i class="fas fa-check me-1"></i> ACCEPT
                                         </button>
                                     </form>
-                                    <p class="text-center small text-white-50 mt-2" style="font-size: 0.7rem;">
-                                        Deposit has been paid. Click once service is finished.
-                                    </p>
+                                    <form asp-action="ArtistUpdateStatus" method="post" class="flex-fill">
+                                        <input type="hidden" name="bookingId" value="@item.Id" />
+                                        <input type="hidden" name="newStatus" value="@BookingStatus.Rejected" />
+                                        <input type="hidden" name="artistNotes" id="reject-note-@item.Id" />
+                                        <button type="submit" class="btn btn-outline-danger w-100 fw-bold"
+                                                onclick="document.getElementById('reject-note-@item.Id').value = document.getElementById('note-@item.Id').value">
+                                            <i class="fas fa-times me-1"></i> REJECT
+                                        </button>
+                                    </form>
                                 </div>
                             }
+                            else if (item.Status == BookingStatus.Accepted)
+                            {
+                                <!-- ACCEPTED: Waiting for deposit -->
+                                <div class="alert alert-info text-center mb-0" style="background: rgba(23, 162, 184, 0.15); border: 1px solid #17a2b8; color: #17a2b8;">
+                                    <i class="fas fa-clock me-2"></i> Awaiting client's 50% deposit...
+                                </div>
+                            }
+                            else if (item.Status == BookingStatus.Confirmed)
+                            {
+                                <!-- CONFIRMED: Mark as completed -->
+                                <form asp-action="ArtistUpdateStatus" method="post">
+                                    <input type="hidden" name="bookingId" value="@item.Id" />
+                                    <input type="hidden" name="newStatus" value="@BookingStatus.Completed" />
+                                    <button type="submit" class="btn btn-primary w-100 fw-bold">
+                                        <i class="fas fa-check-double me-2"></i> MARK COMPLETED
+                                    </button>
+                                </form>
+                            }
+
+                            <!-- BOOKED DATE (like the client view) -->
+                            <div class="booked-date">
+                                <i class="far fa-calendar-alt me-1"></i> Booked @item.BookedDate.ToString("dd MMM yyyy")
+                            </div>
                         </div>
                     </div>
                 </div>
