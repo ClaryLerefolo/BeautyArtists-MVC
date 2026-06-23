@@ -4,6 +4,7 @@ using BeautyArtists.Models;
 using BeautyArtists.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using System.Globalization;
@@ -47,6 +48,7 @@ builder.Services.AddAuthorization();
 // ??? OTHER SERVICES ???
 builder.Services.AddControllersWithViews();
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddTransient<ICommunicationService, CommunicationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();

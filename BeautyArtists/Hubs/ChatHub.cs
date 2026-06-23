@@ -40,13 +40,12 @@ namespace BeautyArtists.Hubs
             await base.OnDisconnectedAsync(exception);
         }
 
-        // ─── SEND MESSAGE WITH DETAILED ERROR HANDLING ───
         public async Task SendMessage(string receiverId, string message, int? bookingId = null)
         {
             var senderId = Context.UserIdentifier;
 
             if (string.IsNullOrEmpty(senderId))
-                throw new HubException("Sender not authenticated.");
+                throw new HubException("Sender not authenticated – your user ID is missing.");
 
             if (string.IsNullOrEmpty(receiverId))
                 throw new HubException("Receiver ID is required.");
@@ -69,37 +68,33 @@ namespace BeautyArtists.Hubs
                 _context.ChatMessages.Add(chatMessage);
                 await _context.SaveChangesAsync();
 
-                // Notify receiver
                 await Clients.User(receiverId).SendAsync("ReceiveMessage", new
                 {
                     id = chatMessage.Id,
-                    senderId = chatMessage.SenderId,
-                    message = chatMessage.Message,
+                    senderId,
+                    message,
                     sentAt = chatMessage.SentAt,
-                    isRead = chatMessage.IsRead,
-                    bookingId = chatMessage.BookingId
+                    isRead = false,
+                    bookingId
                 });
 
-                // Confirm to sender
                 await Clients.User(senderId).SendAsync("MessageSent", new
                 {
                     id = chatMessage.Id,
-                    receiverId = chatMessage.ReceiverId,
-                    message = chatMessage.Message,
+                    receiverId,
+                    message,
                     sentAt = chatMessage.SentAt,
-                    isRead = chatMessage.IsRead,
-                    bookingId = chatMessage.BookingId
+                    isRead = false,
+                    bookingId
                 });
             }
             catch (Exception ex)
             {
-                // 🔥 This sends the REAL error to the client
-                var errorMessage = ex.InnerException?.Message ?? ex.Message;
-                throw new HubException($"Database error: {errorMessage}");
+                throw new HubException($"DB error: {ex.InnerException?.Message ?? ex.Message}");
             }
         }
 
-        // ─── TYPING INDICATORS (fixes the "Method does not exist" errors) ───
+        // ─── TYPING INDICATORS ───
         public async Task Typing(string receiverId)
         {
             var senderId = Context.UserIdentifier;
@@ -113,7 +108,6 @@ namespace BeautyArtists.Hubs
             if (!string.IsNullOrEmpty(senderId))
                 await Clients.User(receiverId).SendAsync("UserStoppedTyping", senderId);
         }
-
         // ─── OTHER METHODS ───
         public async Task MarkAsRead(int messageId)
         {
