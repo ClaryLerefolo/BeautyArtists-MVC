@@ -40,6 +40,7 @@ namespace BeautyArtists.Hubs
             await base.OnDisconnectedAsync(exception);
         }
 
+        // ─── SEND MESSAGE WITH DETAILED ERROR HANDLING ───
         public async Task SendMessage(string receiverId, string message, int? bookingId = null)
         {
             var senderId = Context.UserIdentifier;
@@ -92,23 +93,39 @@ namespace BeautyArtists.Hubs
             }
             catch (Exception ex)
             {
-                // 🔥 This will send the REAL error to the client
+                // 🔥 This sends the REAL error to the client
                 var errorMessage = ex.InnerException?.Message ?? ex.Message;
-
-                throw new HubException($"Database error: {ex.InnerException?.Message ?? ex.Message}");
+                throw new HubException($"Database error: {errorMessage}");
             }
         }
 
+        // ─── TYPING INDICATORS (fixes the "Method does not exist" errors) ───
+        public async Task Typing(string receiverId)
+        {
+            var senderId = Context.UserIdentifier;
+            if (!string.IsNullOrEmpty(senderId))
+                await Clients.User(receiverId).SendAsync("UserTyping", senderId);
+        }
+
+        public async Task StopTyping(string receiverId)
+        {
+            var senderId = Context.UserIdentifier;
+            if (!string.IsNullOrEmpty(senderId))
+                await Clients.User(receiverId).SendAsync("UserStoppedTyping", senderId);
+        }
+
+        // ─── OTHER METHODS ───
         public async Task MarkAsRead(int messageId)
         {
             var userId = Context.UserIdentifier;
             var message = await _context.ChatMessages.FindAsync(messageId);
+
             if (message != null && message.ReceiverId == userId && !message.IsRead)
             {
                 message.IsRead = true;
                 message.ReadAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
-                await Clients.Group($"user_{message.SenderId}").SendAsync("MessageRead", messageId);
+                await Clients.User(message.SenderId).SendAsync("MessageRead", messageId);
             }
         }
 
@@ -118,13 +135,35 @@ namespace BeautyArtists.Hubs
             var messages = await _context.ChatMessages
                 .Where(m => m.SenderId == senderId && m.ReceiverId == userId && !m.IsRead)
                 .ToListAsync();
+
             foreach (var msg in messages)
             {
                 msg.IsRead = true;
                 msg.ReadAt = DateTime.UtcNow;
             }
+
             await _context.SaveChangesAsync();
-            await Clients.Group($"user_{senderId}").SendAsync("MessagesRead", userId);
+            await Clients.User(senderId).SendAsync("MessagesRead", userId);
+        }
+
+        public async Task GetChatHistory(string otherUserId, int? bookingId = null, int skip = 0, int take = 50)
+        {
+            var userId = Context.UserIdentifier;
+            var query = _context.ChatMessages
+                .Where(m => (m.SenderId == userId && m.ReceiverId == otherUserId) ||
+                            (m.SenderId == otherUserId && m.ReceiverId == userId));
+
+            if (bookingId.HasValue)
+                query = query.Where(m => m.BookingId == bookingId);
+
+            var messages = await query
+                .OrderByDescending(m => m.SentAt)
+                .Skip(skip)
+                .Take(take)
+                .OrderBy(m => m.SentAt)
+                .ToListAsync();
+
+            await Clients.Caller.SendAsync("ChatHistory", messages);
         }
 
         public async Task GetUnreadCount()
@@ -133,6 +172,7 @@ namespace BeautyArtists.Hubs
             var count = await _context.ChatMessages
                 .Where(m => m.ReceiverId == userId && !m.IsRead)
                 .CountAsync();
+
             await Clients.Caller.SendAsync("UnreadCount", count);
         }
     }
