@@ -47,46 +47,59 @@ namespace BeautyArtists.Hubs
         {
             var senderId = Context.UserIdentifier;
 
-            if (string.IsNullOrEmpty(senderId) || string.IsNullOrEmpty(receiverId) || string.IsNullOrEmpty(message))
-                return;
-
-            // Save message to database
-            var chatMessage = new ChatMessage
+            if (string.IsNullOrEmpty(senderId))
             {
-                SenderId = senderId,
-                ReceiverId = receiverId,
-                Message = message,
-                BookingId = bookingId,
-                SentAt = DateTime.UtcNow,
-                IsRead = false
-            };
+                throw new HubException("Sender not authenticated.");
+            }
 
-            _context.ChatMessages.Add(chatMessage);
-            await _context.SaveChangesAsync();
-
-            // Send to receiver (real-time)
-            await Clients.Group($"user_{receiverId}").SendAsync("ReceiveMessage", new
+            if (string.IsNullOrEmpty(receiverId) || string.IsNullOrEmpty(message))
             {
-                id = chatMessage.Id,
-                senderId = chatMessage.SenderId,
-                message = chatMessage.Message,
-                sentAt = chatMessage.SentAt,
-                isRead = chatMessage.IsRead,
-                bookingId = chatMessage.BookingId
-            });
+                throw new HubException("Receiver and message are required.");
+            }
 
-            // Also send back to sender for confirmation
-            await Clients.Group($"user_{senderId}").SendAsync("MessageSent", new
+            try
             {
-                id = chatMessage.Id,
-                receiverId = chatMessage.ReceiverId,
-                message = chatMessage.Message,
-                sentAt = chatMessage.SentAt,
-                isRead = chatMessage.IsRead,
-                bookingId = chatMessage.BookingId
-            });
+                var chatMessage = new ChatMessage
+                {
+                    SenderId = senderId,
+                    ReceiverId = receiverId,
+                    Message = message,
+                    BookingId = bookingId,
+                    SentAt = DateTime.UtcNow,
+                    IsRead = false
+                };
+
+                _context.ChatMessages.Add(chatMessage);
+                await _context.SaveChangesAsync();
+
+                // Send to receiver (real-time)
+                await Clients.User(receiverId).SendAsync("ReceiveMessage", new
+                {
+                    id = chatMessage.Id,
+                    senderId = chatMessage.SenderId,
+                    message = chatMessage.Message,
+                    sentAt = chatMessage.SentAt,
+                    isRead = chatMessage.IsRead,
+                    bookingId = chatMessage.BookingId
+                });
+
+                // Also send back to sender for confirmation
+                await Clients.User(senderId).SendAsync("MessageSent", new
+                {
+                    id = chatMessage.Id,
+                    receiverId = chatMessage.ReceiverId,
+                    message = chatMessage.Message,
+                    sentAt = chatMessage.SentAt,
+                    isRead = chatMessage.IsRead,
+                    bookingId = chatMessage.BookingId
+                });
+            }
+            catch (Exception ex)
+            {
+                // Log the error (you can use ILogger)
+                throw new HubException($"Failed to send message: {ex.Message}");
+            }
         }
-
         public async Task MarkAsRead(int messageId)
         {
             var userId = Context.UserIdentifier;
@@ -151,6 +164,15 @@ namespace BeautyArtists.Hubs
                 .CountAsync();
 
             await Clients.Caller.SendAsync("UnreadCount", count);
+        }
+        public async Task Typing(string receiverId)
+        {
+            await Clients.User(receiverId).SendAsync("UserTyping", Context.UserIdentifier);
+        }
+
+        public async Task StopTyping(string receiverId)
+        {
+            await Clients.User(receiverId).SendAsync("UserStoppedTyping", Context.UserIdentifier);
         }
     }
 }

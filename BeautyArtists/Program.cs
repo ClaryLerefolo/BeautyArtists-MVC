@@ -40,11 +40,14 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
+// ??? ? AUTHENTICATION & AUTHORIZATION (MOVED TO CORRECT PLACE) ???
+builder.Services.AddAuthentication();
+builder.Services.AddAuthorization();
+
+// ??? OTHER SERVICES ???
 builder.Services.AddControllersWithViews();
-builder.Services.AddSignalR();  
-// Register production email service
+builder.Services.AddSignalR();
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
-//communication pipeline service
 builder.Services.AddTransient<ICommunicationService, CommunicationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
@@ -161,6 +164,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+// ??? ? AUTHENTICATION & AUTHORIZATION (KEEP HERE) ???
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -170,4 +174,5 @@ app.MapControllerRoute(
 app.MapRazorPages();
 app.MapHub<NotificationHub>("/notificationHub");
 app.MapHub<ChatHub>("/chatHub");
+
 app.Run();
