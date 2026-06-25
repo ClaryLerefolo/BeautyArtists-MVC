@@ -159,18 +159,42 @@ namespace BeautyArtists.Controllers
         public async Task<IActionResult> MyReviews()
         {
             var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+                return Challenge();
 
+            // Load all reviews with booking and related data
             var reviews = await _context.Reviews
                 .Include(r => r.Booking)
                     .ThenInclude(b => b.UserService)
                         .ThenInclude(us => us.Service)
                 .Include(r => r.Booking)
-                    .ThenInclude(b => b.UserService.Artist)
+                    .ThenInclude(b => b.UserService)
+                        .ThenInclude(us => us.Artist)
+                            .ThenInclude(a => a.ArtistProfile)
                 .Where(r => r.CustomerId == currentUser.Id)
                 .OrderByDescending(r => r.CreatedAt)
+                .AsNoTracking()
                 .ToListAsync();
 
-            return View(reviews);
+            // Build the view model with safe null handling
+            var model = new MyReviewsViewModel
+            {
+                Reviews = reviews.Select(r => new ReviewWithDetails
+                {
+                    Review = r,
+                    ServiceName = r.Booking?.UserService?.Service?.Name ?? "Service",
+                    ArtistName = r.Booking?.UserService?.Artist?.ArtistProfile?.FullName
+                        ?? (!string.IsNullOrEmpty(r.Booking?.UserService?.Artist?.FirstName)
+                            ? $"{r.Booking.UserService.Artist.FirstName} {r.Booking.UserService.Artist.LastName}".Trim()
+                            : r.Booking?.UserService?.Artist?.UserName ?? "Artist"),
+                    ArtistProfilePicture = r.Booking?.UserService?.Artist?.ArtistProfile?.ProfilePictureUrl
+                        ?? "/images/default-profile.png",
+                    AppointmentDate = r.Booking?.AppointmentDate.ToString("dddd, dd MMM yyyy")
+                        ?? DateTime.Now.ToString("dddd, dd MMM yyyy")
+                }).ToList()
+            };
+
+            return View(model);
         }
     }
 }

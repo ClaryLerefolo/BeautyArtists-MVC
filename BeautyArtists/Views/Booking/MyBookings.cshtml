@@ -42,6 +42,15 @@
                     <span class="mb-stat-label">CONFIRMED</span>
                 </div>
             </div>
+
+            <!-- ========================================= -->
+            <!--   NEW: Reviews Link – placed below stats   -->
+            <!-- ========================================= -->
+            <div class="mb-reviews-link-row">
+                <a asp-controller="Review" asp-action="MyReviews" class="mb-reviews-link">
+                    <span class="mr-icon">⭐</span> View My Reviews
+                </a>
+            </div>
         </div>
     </div>
 
@@ -379,10 +388,10 @@
         position: relative;
         z-index: 1;
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: space-between;
         gap: 20px;
-        flex-wrap: wrap;
+        width: 100%;
     }
 
     .mb-eyebrow {
@@ -417,6 +426,9 @@
         border: 1px solid rgba(255,215,0,0.1);
         border-radius: 16px;
         padding: 16px 24px;
+        width: 100%;
+        justify-content: center;
+        flex-wrap: wrap;
     }
 
     .mb-stat {
@@ -445,6 +457,42 @@
         height: 36px;
         background: rgba(255,215,0,0.12);
     }
+
+    /* ── NEW REVIEWS LINK ROW ── */
+    .mb-reviews-link-row {
+        margin-top: 6px;
+        display: flex;
+        justify-content: center;
+        width: 100%;
+    }
+
+    .mb-reviews-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 20px;
+        background: rgba(255,215,0,0.06);
+        border: 1px solid rgba(255,215,0,0.2);
+        border-radius: 50px;
+        color: #FFD700;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.25s ease;
+        letter-spacing: 0.5px;
+    }
+
+        .mb-reviews-link:hover {
+            background: rgba(255,215,0,0.15);
+            border-color: #FFD700;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(255,215,0,0.15);
+            color: #FFD700;
+        }
+
+        .mb-reviews-link .mr-icon {
+            font-size: 1.1rem;
+        }
 
     .mb-alert-success {
         background: rgba(0,200,83,0.1);
@@ -494,6 +542,23 @@
         font-size: 0.88rem;
         margin-bottom: 24px;
     }
+
+    .mb-btn-primary {
+        display: inline-block;
+        padding: 12px 28px;
+        background: linear-gradient(135deg, #f0c808, #e50914);
+        color: #000;
+        border-radius: 50px;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+
+        .mb-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(240,200,8,0.3);
+            color: #000;
+        }
 
     .mb-card {
         display: flex;
@@ -802,6 +867,7 @@
             color: #FFD700;
         }
 
+    /* ─── MOBILE RESPONSIVE ─── */
     @@media (max-width: 768px) {
         .mb-card-body {
             flex-wrap: wrap;
@@ -836,6 +902,28 @@
         .mb-booked-wrapper {
             margin-top: 6px;
             padding-top: 6px;
+        }
+
+        .mb-stats-row {
+            gap: 12px;
+            padding: 12px 16px;
+        }
+
+        .mb-stat-div {
+            height: 28px;
+        }
+
+        .mb-reviews-link {
+            font-size: 0.75rem;
+            padding: 6px 16px;
+        }
+
+            .mb-reviews-link .mr-icon {
+                font-size: 0.95rem;
+            }
+
+        .mb-hero-inner {
+            align-items: stretch;
         }
     }
 </style>
