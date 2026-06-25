@@ -715,25 +715,44 @@ namespace BeautyArtists.Controllers
             }
         }
 
-        // ══════════════════════════════════
-        //  GET: Booking/MyBookings
-        // ══════════════════════════════════
         public async Task<IActionResult> MyBookings()
         {
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser == null) return Challenge();
 
+            // Load bookings with all needed navigation properties
             var bookings = await _context.Bookings
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Service)
-                .Include(b => b.UserService.Artist)
-                    .ThenInclude(a => a.ArtistProfile)
-                .Where(b => b.CustomerId == currentUser.Id)
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                        .ThenInclude(a => a.ArtistProfile)
+                .Where(b => b.CustomerId == currentUser.Id && b.UserService != null) // filter out invalid
                 .OrderByDescending(b => b.BookingDate)
                 .AsNoTracking()
                 .ToListAsync();
 
-            return View(bookings);
+            // Get all booking IDs
+            var bookingIds = bookings.Select(b => b.Id).ToList();
+
+            // Load all review statuses for these bookings (single query)
+            var reviewedBookingIds = await _context.Reviews
+                .Where(r => bookingIds.Contains(r.BookingId))
+                .Select(r => r.BookingId)
+                .Distinct()
+                .ToListAsync();
+
+            // Build the view model
+            var model = new MyBookingsViewModel
+            {
+                Bookings = bookings.Select(b => new BookingWithReviewStatus
+                {
+                    Booking = b,
+                    HasReviewed = reviewedBookingIds.Contains(b.Id)
+                }).ToList()
+            };
+
+            return View(model);
         }
 
         // ══════════════════════════════════

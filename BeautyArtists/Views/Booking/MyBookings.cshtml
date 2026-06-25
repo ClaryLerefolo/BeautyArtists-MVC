@@ -1,11 +1,8 @@
-﻿@using Microsoft.EntityFrameworkCore
-@using BeautyArtists.Data
-@model IEnumerable<BeautyArtists.Models.Booking>
-@inject ApplicationDbContext _context
+﻿@model BeautyArtists.Models.ViewModels.MyBookingsViewModel
 @{
     ViewData["Title"] = "My Appointments";
     Layout = "~/Views/Shared/_Layout.cshtml";
-    var bookingsList = Model.ToList();
+    var bookingsList = Model.Bookings.Select(item => item.Booking).ToList();
     var pending = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Pending);
     var accepted = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted);
     var confirmed = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed);
@@ -82,8 +79,9 @@
         }
         else
         {
-            @foreach (var booking in bookingsList)
+            @foreach (var item in Model.Bookings)
             {
+                var booking = item.Booking;
                 string statusClass = booking.Status switch
                 {
                     BeautyArtists.Models.Booking.BookingStatus.Pending => "status-pending",
@@ -212,7 +210,7 @@
                             </div>
                         </div>
 
-                        @* ── RIGHT: PRICE + ACTIONS (FIXED) ── *@
+                        @* ── RIGHT: PRICE + ACTIONS ── *@
                         <div class="mb-card-right">
                             <div class="mb-amount">
                                 <span class="mb-amount-label">Total</span>
@@ -286,7 +284,7 @@
                                 {
                                     <a asp-controller="Chat"
                                        asp-action="Conversation"
-                                       asp-route-userId="@booking.UserService.ArtistId"
+                                       asp-route-userId="@booking.UserService?.ArtistId"
                                        asp-route-bookingId="@booking.Id"
                                        class="mb-btn-chat">
                                         💬 Message Artist
@@ -296,8 +294,7 @@
                                 @* ── REVIEW BUTTON ── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Completed)
                                 {
-                                    var hasReviewed = _context.Reviews.Any(r => r.BookingId == booking.Id);
-                                    if (!hasReviewed)
+                                    if (!item.HasReviewed)
                                     {
                                         <a asp-controller="Review"
                                            asp-action="Create"
@@ -352,7 +349,7 @@
 </script>
 
 <style>
-    /* ────────── YOUR EXISTING STYLES ────────── */
+    /* ────────── YOUR EXISTING STYLES (keep as is) ────────── */
     .mb-page {
         background: #000;
         min-height: 100vh;
@@ -637,7 +634,6 @@
         margin-top: 4px;
     }
 
-    /* ────────── FIXED RIGHT COLUMN ────────── */
     .mb-card-right {
         display: flex;
         flex-direction: column;
@@ -807,42 +803,39 @@
         }
 
     @@media (max-width: 768px) {
-        .mb-card-body
+        .mb-card-body {
+            flex-wrap: wrap;
+        }
 
-    {
-        flex-wrap: wrap;
-    }
+        .mb-card-right {
+            width: 100%;
+            min-width: unset;
+            align-items: stretch;
+        }
 
-    .mb-card-right {
-        width: 100%;
-        min-width: unset;
-        align-items: stretch;
-    }
+        .mb-amount {
+            text-align: center;
+        }
 
-    .mb-amount {
-        text-align: center;
-    }
+        .mb-actions {
+            align-items: stretch;
+        }
 
-    .mb-actions {
-        align-items: stretch;
-    }
+        .mb-btn-deposit,
+        .mb-btn-final,
+        .mb-btn-secondary,
+        .mb-btn-cancel,
+        .mb-btn-chat,
+        .mb-btn-review {
+            white-space: normal;
+            font-size: 0.65rem;
+            padding: 6px 10px;
+            min-height: 32px;
+        }
 
-    .mb-btn-deposit,
-    .mb-btn-final,
-    .mb-btn-secondary,
-    .mb-btn-cancel,
-    .mb-btn-chat,
-    .mb-btn-review {
-        white-space: normal;
-        font-size: 0.65rem;
-        padding: 6px 10px;
-        min-height: 32px;
-    }
-
-    .mb-booked-wrapper {
-        margin-top: 6px;
-        padding-top: 6px;
-    }
-
+        .mb-booked-wrapper {
+            margin-top: 6px;
+            padding-top: 6px;
+        }
     }
 </style>
