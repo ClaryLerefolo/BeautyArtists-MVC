@@ -19,15 +19,19 @@ namespace BeautyArtists.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly INotificationService _notificationService;
+        private readonly ILogger<ReviewController> _logger;
+
 
         public ReviewController(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
-            INotificationService notificationService)
+            INotificationService notificationService, ILogger<ReviewController> logger)
         {
             _context = context;
             _userManager = userManager;
             _notificationService = notificationService;
+            _logger = logger;
+
         }
 
         // GET: Review/Create/5
@@ -72,23 +76,18 @@ namespace BeautyArtists.Controllers
 
             return View(model);
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ReviewViewModel model)
         {
             if (!ModelState.IsValid)
-            {
                 return View(model);
-            }
 
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser == null)
-            {
-                return Challenge(); // Should never happen with [Authorize]
-            }
+                return Challenge();
 
-            // 🔹 FIX: Include UserService AND its Service + Artist
+            // Load booking with all needed includes
             var booking = await _context.Bookings
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Service)
@@ -99,7 +98,7 @@ namespace BeautyArtists.Controllers
             if (booking == null)
                 return NotFound();
 
-            // 🔹 FIX: Explicitly validate that UserService exists
+            // Guard against missing UserService (data integrity)
             if (booking.UserService == null)
             {
                 TempData["Error"] = "This booking has missing service details. Please contact support.";
@@ -107,10 +106,7 @@ namespace BeautyArtists.Controllers
             }
 
             // Check if already reviewed
-            var existingReview = await _context.Reviews
-                .FirstOrDefaultAsync(r => r.BookingId == model.BookingId);
-
-            if (existingReview != null)
+            if (await _context.Reviews.AnyAsync(r => r.BookingId == model.BookingId))
             {
                 TempData["Error"] = "You have already reviewed this service.";
                 return RedirectToAction("MyBookings", "Booking");
@@ -122,25 +118,36 @@ namespace BeautyArtists.Controllers
                 Comment = model.Comment,
                 CustomerId = currentUser.Id,
                 BookingId = model.BookingId,
-                ServiceId = booking.UserService.ServiceId, // Now safe
+                ServiceId = booking.UserService.ServiceId,
                 CreatedAt = DateTime.UtcNow
             };
 
             _context.Reviews.Add(review);
             await _context.SaveChangesAsync();
 
-            // Notify artist about the review
-            var artistId = booking.UserService.ArtistId; // Now safe
-            if (!string.IsNullOrEmpty(artistId))
+            // ============================================================
+            // 🔥 SAFE NOTIFICATION – NEVER LET IT BREAK THE RESPONSE
+            // ============================================================
+            try
             {
-                await _notificationService.CreateNotificationAsync(
-                    artistId,
-                    "New Review Received! ⭐",
-                    $"{currentUser.FirstName} left a {model.Rating}-star review for your service.",
-                    "review",
-                    booking.Id.ToString(),
-                    Url.Action("Reviews", "Artist")
-                );
+                var artistId = booking.UserService.ArtistId;
+                if (!string.IsNullOrEmpty(artistId))
+                {
+                    await _notificationService.CreateNotificationAsync(
+                        artistId,
+                        "New Review Received! ⭐",
+                        $"{currentUser.FirstName} left a {model.Rating}-star review for your service.",
+                        "review",
+                        booking.Id.ToString(),
+                        Url.Action("Reviews", "Artist")
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the error (Azure will capture this in Log Stream)
+                _logger.LogError(ex, "Failed to send notification for review on booking {BookingId}", booking.Id);
+                // We do NOT rethrow – the review is already saved.
             }
 
             TempData["Success"] = "Thank you for your review! It helps our artists grow.";
