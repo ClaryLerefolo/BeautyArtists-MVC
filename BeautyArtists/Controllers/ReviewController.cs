@@ -73,7 +73,6 @@ namespace BeautyArtists.Controllers
             return View(model);
         }
 
-        // POST: Review/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(ReviewViewModel model)
@@ -84,13 +83,28 @@ namespace BeautyArtists.Controllers
             }
 
             var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null)
+            {
+                return Challenge(); // Should never happen with [Authorize]
+            }
 
+            // 🔹 FIX: Include UserService AND its Service + Artist
             var booking = await _context.Bookings
                 .Include(b => b.UserService)
+                    .ThenInclude(us => us.Service)
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
                 .FirstOrDefaultAsync(b => b.Id == model.BookingId && b.CustomerId == currentUser.Id);
 
             if (booking == null)
                 return NotFound();
+
+            // 🔹 FIX: Explicitly validate that UserService exists
+            if (booking.UserService == null)
+            {
+                TempData["Error"] = "This booking has missing service details. Please contact support.";
+                return RedirectToAction("MyBookings", "Booking");
+            }
 
             // Check if already reviewed
             var existingReview = await _context.Reviews
@@ -108,7 +122,7 @@ namespace BeautyArtists.Controllers
                 Comment = model.Comment,
                 CustomerId = currentUser.Id,
                 BookingId = model.BookingId,
-                ServiceId = booking.UserService.ServiceId,
+                ServiceId = booking.UserService.ServiceId, // Now safe
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -116,7 +130,7 @@ namespace BeautyArtists.Controllers
             await _context.SaveChangesAsync();
 
             // Notify artist about the review
-            var artistId = booking.UserService.ArtistId;
+            var artistId = booking.UserService.ArtistId; // Now safe
             if (!string.IsNullOrEmpty(artistId))
             {
                 await _notificationService.CreateNotificationAsync(
