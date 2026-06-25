@@ -1,0 +1,148 @@
+﻿@model BeautyArtists.Models.ViewModels.ReviewViewModel
+@{
+    ViewData["Title"] = "Write a Review";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .review-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 30px 20px;
+    }
+    .review-card {
+        background: #0d0d0d;
+        border: 1px solid rgba(255, 215, 0, 0.15);
+        border-radius: 16px;
+        padding: 30px;
+    }
+    .review-card h2 {
+        color: #f0c808;
+        font-weight: 800;
+        margin-bottom: 20px;
+    }
+    .service-info {
+        background: #1a1a1a;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+    }
+    .service-info p {
+        margin: 5px 0;
+        color: #ccc;
+    }
+    .service-info strong {
+        color: #f0c808;
+    }
+    .star-rating {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: flex-end;
+        gap: 5px;
+        margin: 15px 0 25px 0;
+    }
+    .star-rating input {
+        display: none;
+    }
+    .star-rating label {
+        font-size: 2.5rem;
+        color: #444;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+    .star-rating label:hover,
+    .star-rating label:hover ~ label,
+    .star-rating input:checked ~ label {
+        color: #f0c808;
+        text-shadow: 0 0 15px rgba(240, 200, 8, 0.3);
+    }
+    .review-comment textarea {
+        width: 100%;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 10px;
+        color: #fff;
+        padding: 12px 16px;
+        font-size: 0.9rem;
+        resize: vertical;
+        min-height: 120px;
+        outline: none;
+    }
+    .review-comment textarea:focus {
+        border-color: #f0c808;
+    }
+    .btn-submit-review {
+        width: 100%;
+        padding: 14px;
+        background: linear-gradient(135deg, #f0c808, #e50914);
+        border: none;
+        border-radius: 10px;
+        color: #000;
+        font-weight: 800;
+        font-size: 1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: 0.3s;
+        margin-top: 20px;
+    }
+    .btn-submit-review:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 25px rgba(240, 200, 8, 0.3);
+    }
+    .rating-label {
+        color: #888;
+        font-size: 0.85rem;
+        margin-bottom: 5px;
+        display: block;
+    }
+</style>
+
+<div class="review-container">
+    <div class="review-card">
+        <h2>⭐ Write a Review</h2>
+
+        <div class="service-info">
+            <p><strong>Service:</strong> @Model.ServiceName</p>
+            <p><strong>Artist:</strong> @Model.ArtistName</p>
+            <p><strong>Date:</strong> @Model.AppointmentDate.ToString("MMMM dd, yyyy")</p>
+        </div>
+
+        <form asp-action="Create" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="BookingId" />
+            <input type="hidden" asp-for="ServiceName" />
+            <input type="hidden" asp-for="ArtistName" />
+            <input type="hidden" asp-for="AppointmentDate" />
+
+            <div class="form-group">
+                <label class="rating-label">How would you rate this service?</label>
+                <div class="star-rating">
+                    <input type="radio" id="star5" name="Rating" value="5" />
+                    <label for="star5" title="5 stars">★</label>
+                    <input type="radio" id="star4" name="Rating" value="4" />
+                    <label for="star4" title="4 stars">★</label>
+                    <input type="radio" id="star3" name="Rating" value="3" />
+                    <label for="star3" title="3 stars">★</label>
+                    <input type="radio" id="star2" name="Rating" value="2" />
+                    <label for="star2" title="2 stars">★</label>
+                    <input type="radio" id="star1" name="Rating" value="1" />
+                    <label for="star1" title="1 star">★</label>
+                </div>
+                <span asp-validation-for="Rating" class="text-danger"></span>
+            </div>
+
+            <div class="review-comment">
+                <label class="rating-label">Your Feedback</label>
+                <textarea asp-for="Comment" placeholder="Share your experience... What did you like? What could be improved?" rows="4"></textarea>
+                <span asp-validation-for="Comment" class="text-danger"></span>
+            </div>
+
+            <button type="submit" class="btn-submit-review">Submit Review</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

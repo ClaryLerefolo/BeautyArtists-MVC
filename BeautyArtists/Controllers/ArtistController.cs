@@ -648,5 +648,35 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
             return RedirectToAction(nameof(MyAppointments));
         }
+        // ═══════════════════════════════════════════════════════════
+        // REVIEWS
+        // ═══════════════════════════════════════════════════════════
+        public async Task<IActionResult> Reviews()
+        {
+            var artistId = _userManager.GetUserId(User);
+
+            var reviews = await _context.Reviews
+                .Include(r => r.Customer)
+                .Include(r => r.Booking)
+                    .ThenInclude(b => b.UserService)
+                        .ThenInclude(us => us.Service)
+                .Where(r => r.Booking.UserService.ArtistId == artistId)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync();
+
+            var stats = new
+            {
+                Total = reviews.Count,
+                Average = reviews.Any() ? reviews.Average(r => r.Rating) : 0,
+                FiveStar = reviews.Count(r => r.Rating == 5),
+                FourStar = reviews.Count(r => r.Rating == 4),
+                ThreeStar = reviews.Count(r => r.Rating == 3),
+                TwoStar = reviews.Count(r => r.Rating == 2),
+                OneStar = reviews.Count(r => r.Rating == 1)
+            };
+
+            ViewBag.Stats = stats;
+            return View(reviews);
+        }
     }
 }

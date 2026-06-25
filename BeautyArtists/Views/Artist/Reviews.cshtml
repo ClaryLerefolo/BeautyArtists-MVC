@@ -1,0 +1,133 @@
+﻿@model List<BeautyArtists.Models.Review>
+@{
+    ViewData["Title"] = "Reviews";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+    var stats = ViewBag.Stats;
+}
+
+<style>
+    .reviews-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: #0d0d0d;
+        border: 1px solid rgba(255, 215, 0, 0.1);
+        border-radius: 12px;
+        padding: 15px;
+        text-align: center;
+    }
+
+        .stat-card .num {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #f0c808;
+        }
+
+        .stat-card .label {
+            font-size: 0.7rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+    .review-item {
+        background: #0d0d0d;
+        border: 1px solid #1a1a1a;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 15px;
+    }
+
+        .review-item .stars {
+            color: #f0c808;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+        }
+
+        .review-item .client-name {
+            color: #f0c808;
+            font-weight: 700;
+        }
+
+        .review-item .review-date {
+            color: #666;
+            font-size: 0.75rem;
+        }
+
+        .review-item .comment {
+            color: #bbb;
+            margin-top: 8px;
+            line-height: 1.5;
+        }
+
+    .empty-reviews {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+    }
+
+        .empty-reviews .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+</style>
+
+<div class="reviews-container">
+    <h2 style="color: #f0c808; font-weight: 800; margin-bottom: 25px;">⭐ Client Reviews</h2>
+
+    @if (!Model.Any())
+    {
+        <div class="empty-reviews">
+            <div class="icon">📝</div>
+            <p>No reviews yet.</p>
+            <p style="color: #444; font-size: 0.9rem;">Once clients leave reviews, they'll appear here.</p>
+        </div>
+    }
+    else
+    {
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="num">@stats.Total</div>
+                <div class="label">Total Reviews</div>
+            </div>
+            <div class="stat-card">
+                <div class="num">@stats.Average.ToString("F1")</div>
+                <div class="label">Average Rating</div>
+            </div>
+            <div class="stat-card">
+                <div class="num">⭐ @stats.FiveStar</div>
+                <div class="label">5 Star</div>
+            </div>
+            <div class="stat-card">
+                <div class="num">⭐ @stats.FourStar</div>
+                <div class="label">4 Star</div>
+            </div>
+        </div>
+
+        @foreach (var review in Model)
+        {
+            <div class="review-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="client-name">@(review.Customer?.FirstName ?? "Client")</span>
+                        <span class="review-date ms-2">@review.CreatedAt.ToString("MMM dd, yyyy")</span>
+                    </div>
+                    <div class="stars">@(new string('⭐', review.Rating))</div>
+                </div>
+                <div class="comment">@review.Comment</div>
+                <div class="mt-2">
+                    <small class="text-muted">Service: @review.Booking?.UserService?.Service?.Name</small>
+                </div>
+            </div>
+        }
+    }
+</div>

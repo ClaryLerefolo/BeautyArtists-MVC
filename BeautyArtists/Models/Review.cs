@@ -20,6 +20,10 @@ namespace BeautyArtists.Models
 
         public int ServiceId { get; set; }
         public Service Service { get; set; }
+
+        // Link to booking
+        public int BookingId { get; set; }
+        public Booking Booking { get; set; }
     }
 
 }

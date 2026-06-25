@@ -1,4 +1,7 @@
-﻿@model IEnumerable<BeautyArtists.Models.Booking>
+﻿@using Microsoft.EntityFrameworkCore
+@using BeautyArtists.Data
+@model IEnumerable<BeautyArtists.Models.Booking>
+@inject ApplicationDbContext _context
 @{
     ViewData["Title"] = "My Appointments";
     Layout = "~/Views/Shared/_Layout.cshtml";
@@ -276,6 +279,7 @@
                                         <button type="submit" class="mb-btn-cancel">Cancel</button>
                                     </form>
                                 }
+
                                 @* ── MESSAGE ARTIST ── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted ||
                                                         booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
@@ -288,9 +292,28 @@
                                         💬 Message Artist
                                     </a>
                                 }
+
+                                @* ── REVIEW BUTTON ── *@
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Completed)
+                                {
+                                    var hasReviewed = _context.Reviews.Any(r => r.BookingId == booking.Id);
+                                    if (!hasReviewed)
+                                    {
+                                        <a asp-controller="Review"
+                                           asp-action="Create"
+                                           asp-route-bookingId="@booking.Id"
+                                           class="mb-btn-review">
+                                            ⭐ Leave a Review
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small" style="text-align:center; display:block; padding:4px 0; color:rgba(255,255,255,0.4);">✅ Review submitted</span>
+                                    }
+                                }
                             </div>
 
-                            @* ── BOOKED DATE ── moved outside actions, now has its own wrapper *@
+                            @* ── BOOKED DATE ── *@
                             <div class="mb-booked-wrapper">
                                 <span class="mb-booked-on">
                                     Booked @booking.BookingDate.ToString("dd MMM yyyy")
@@ -329,7 +352,7 @@
 </script>
 
 <style>
-    /* ────────── YOUR EXISTING STYLES (kept) ────────── */
+    /* ────────── YOUR EXISTING STYLES ────────── */
     .mb-page {
         background: #000;
         min-height: 100vh;
@@ -618,11 +641,11 @@
     .mb-card-right {
         display: flex;
         flex-direction: column;
-        align-items: stretch; /* all children stretch to full width */
-        gap: 12px; /* consistent spacing */
+        align-items: stretch;
+        gap: 12px;
         min-width: 160px;
         flex-shrink: 0;
-        width: 180px; /* fixed width for predictability */
+        width: 180px;
     }
 
     .mb-amount {
@@ -656,12 +679,12 @@
         width: 100%;
     }
 
-    /* ── BUTTONS: full width, centered text ── */
     .mb-btn-deposit,
     .mb-btn-final,
     .mb-btn-secondary,
     .mb-btn-cancel,
-    .mb-btn-chat {
+    .mb-btn-chat,
+    .mb-btn-review {
         display: flex;
         align-items: center;
         justify-content: center;
@@ -738,7 +761,16 @@
             box-shadow: 0 0 20px rgba(240,200,8,0.3);
         }
 
-    /* ── BOOKED DATE WRAPPER ── */
+    .mb-btn-review {
+        background: linear-gradient(135deg, #f0c808, #ff8c00);
+        color: #000;
+    }
+
+        .mb-btn-review:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(240, 200, 8, 0.3);
+        }
+
     .mb-booked-wrapper {
         width: 100%;
         text-align: center;
@@ -753,7 +785,6 @@
         display: block;
     }
 
-    /* ── FOOTER ── */
     .mb-footer-link {
         margin-top: 32px;
         padding-top: 24px;
@@ -775,40 +806,43 @@
             color: #FFD700;
         }
 
-    /* ── RESPONSIVE: stack columns on small screens ── */
     @@media (max-width: 768px) {
-        .mb-card-body {
-            flex-wrap: wrap;
-        }
+        .mb-card-body
 
-        .mb-card-right {
-            width: 100%;
-            min-width: unset;
-            align-items: stretch;
-        }
+    {
+        flex-wrap: wrap;
+    }
 
-        .mb-amount {
-            text-align: center;
-        }
+    .mb-card-right {
+        width: 100%;
+        min-width: unset;
+        align-items: stretch;
+    }
 
-        .mb-actions {
-            align-items: stretch;
-        }
+    .mb-amount {
+        text-align: center;
+    }
 
-        .mb-btn-deposit,
-        .mb-btn-final,
-        .mb-btn-secondary,
-        .mb-btn-cancel,
-        .mb-btn-chat {
-            white-space: normal; /* allow text to wrap on mobile */
-            font-size: 0.65rem;
-            padding: 6px 10px;
-            min-height: 32px;
-        }
+    .mb-actions {
+        align-items: stretch;
+    }
 
-        .mb-booked-wrapper {
-            margin-top: 6px;
-            padding-top: 6px;
-        }
+    .mb-btn-deposit,
+    .mb-btn-final,
+    .mb-btn-secondary,
+    .mb-btn-cancel,
+    .mb-btn-chat,
+    .mb-btn-review {
+        white-space: normal;
+        font-size: 0.65rem;
+        padding: 6px 10px;
+        min-height: 32px;
+    }
+
+    .mb-booked-wrapper {
+        margin-top: 6px;
+        padding-top: 6px;
+    }
+
     }
 </style>

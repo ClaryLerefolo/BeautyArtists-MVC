@@ -1,5 +1,6 @@
 ﻿using BeautyArtists.Data;
 using BeautyArtists.Models;
+using BeautyArtists.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +13,13 @@ namespace BeautyArtists.Hubs
     public class ChatHub : Hub
     {
         private readonly ApplicationDbContext _context;
+        private readonly IChatService _chatService;
 
-        public ChatHub(ApplicationDbContext context)
+
+        public ChatHub(ApplicationDbContext context, IChatService chatService)
         {
             _context = context;
+            _chatService = chatService;
         }
 
         public override async Task OnConnectedAsync()
@@ -42,7 +46,9 @@ namespace BeautyArtists.Hubs
 
         public async Task SendMessage(string receiverId, string message, int? bookingId = null)
         {
+
             var senderId = Context.UserIdentifier;
+
 
             if (string.IsNullOrEmpty(senderId))
                 throw new HubException("Sender not authenticated – your user ID is missing.");
