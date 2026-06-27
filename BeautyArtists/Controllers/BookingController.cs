@@ -1045,7 +1045,7 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                // Calculate remaining balance (50% of total)
+                // Calculate remaining balance
                 decimal remainingBalance = booking.TotalAmount / 2;
 
                 if (remainingBalance <= 0)
@@ -1054,10 +1054,22 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
+                // ── 🔥 NEW LOGIC ──
                 double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
-                if (daysUntilAppointment < 2)
+                bool isLastMinute = daysUntilAppointment < 2;
+
+                // If last minute, force full payment (remaining balance = total - deposit)
+                if (isLastMinute)
                 {
-                    TempData["Error"] = "Final payment must be cleared at least 2 days before the appointment.";
+                    remainingBalance = booking.TotalAmount - booking.DepositPaid;
+                    // If deposit was already paid, this is just the final 50%.
+                    // If deposit wasn't paid (shouldn't happen if confirmed), they pay full.
+                }
+
+                // If no remaining balance, they're already fully paid
+                if (remainingBalance <= 0)
+                {
+                    TempData["Error"] = "This booking has already been fully paid.";
                     return RedirectToAction("MyBookings");
                 }
 
