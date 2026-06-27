@@ -1078,5 +1078,40 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings");
             }
         }
+        [HttpGet]
+        public async Task<IActionResult> MyBookings()
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null) return Challenge();
+
+            var bookings = await _context.Bookings
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Service)
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                        .ThenInclude(a => a.ArtistProfile)
+                .Where(b => b.CustomerId == currentUser.Id && b.UserService != null)
+                .OrderByDescending(b => b.BookingDate)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var bookingIds = bookings.Select(b => b.Id).ToList();
+            var reviewedBookingIds = await _context.Reviews
+                .Where(r => bookingIds.Contains(r.BookingId))
+                .Select(r => r.BookingId)
+                .Distinct()
+                .ToListAsync();
+
+            var model = new MyBookingsViewModel
+            {
+                Bookings = bookings.Select(b => new BookingWithReviewStatus
+                {
+                    Booking = b,
+                    HasReviewed = reviewedBookingIds.Contains(b.Id)
+                }).ToList()
+            };
+
+            return View(model);
+        }
     }
 }
