@@ -260,44 +260,22 @@
                                     <span class="mb-amount-label" style="font-size: 0.5rem;">(includes transport)</span>
                                 }
                             </div>
-
                             <div class="mb-actions">
-                                @* ── PAYMENT BUTTON FOR ACCEPTED STATUS ── *@
+                                @* PAY DEPOSIT BUTTON - FOR ACCEPTED STATUS *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted && !booking.IsDepositPaid)
                                 {
-                                    if (isLastMinute)
-                                    {
-                                        // Last‑minute: must pay FULL amount NOW
-                                        <a asp-controller="Booking"
-                                           asp-action="CheckoutDeposit"
-                                           asp-route-id="@booking.Id"
-                                           class="mb-btn-deposit" style="background: linear-gradient(135deg, #f0c808, #e50914); color: #000;">
-                                            ⚠️ Pay Full Amount – R @booking.TotalAmount.ToString("N0")
-                                        </a>
-                                        <span class="text-muted small" style="font-size:0.65rem; text-align:center; display:block; color:#ff6b6b;">
-                                            ⚠️ Appointment within 2 days – full amount required
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        // Normal: pay 50% deposit
-                                        <a asp-controller="Booking"
-                                           asp-action="CheckoutDeposit"
-                                           asp-route-id="@booking.Id"
-                                           class="mb-btn-deposit">
-                                            💰 PAY 50% DEPOSIT – R @((booking.TotalAmount / 2).ToString("N0"))
-                                        </a>
-                                    }
+                                    <a asp-controller="Booking"
+                                       asp-action="CheckoutDeposit"
+                                       asp-route-id="@booking.Id"
+                                       class="mb-btn-deposit">
+                                        💰 PAY 50% DEPOSIT
+                                    </a>
                                 }
 
                                 @* ── PAYMENT BUTTONS FOR CONFIRMED STATUS ── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
                                 {
-                                    // ── Calculate remaining balance ──
-                                    decimal remainingBalance = booking.TotalAmount - booking.DepositPaid;
-                                    if (remainingBalance < 0) remainingBalance = 0;
-
-                                    if (remainingBalance <= 0)
+                                    if (isFullyPaid)
                                     {
                                         <span class="text-muted small" style="text-align:center; display:block; padding:4px 0; color:#28a745; font-weight:600;">
                                             ✅ Fully Paid – No action needed
@@ -305,9 +283,13 @@
                                     }
                                     else
                                     {
+                                        // Calculate remaining balance (if needed)
+                                        decimal remainingBalance = booking.TotalAmount - booking.DepositPaid;
+                                        if (remainingBalance < 0) remainingBalance = 0;
+
                                         if (isLastMinute)
                                         {
-                                            // Last‑minute: must pay the FULL remaining amount NOW
+                                            // Last‑minute – must pay the full remaining amount NOW
                                             <a asp-controller="Booking"
                                                asp-action="CheckoutFinalPayment"
                                                asp-route-id="@booking.Id"
@@ -320,7 +302,7 @@
                                         }
                                         else
                                         {
-                                            // Normal: pay remaining balance
+                                            // Normal final payment (2+ days away)
                                             <a asp-controller="Booking"
                                                asp-action="CheckoutFinalPayment"
                                                asp-route-id="@booking.Id"
@@ -330,6 +312,8 @@
                                         }
                                     }
                                 }
+
+                            </div>
 
                                 @* RESCHEDULE BUTTON - ONLY FOR CONFIRMED BOOKINGS *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed && !booking.HasRescheduled)
