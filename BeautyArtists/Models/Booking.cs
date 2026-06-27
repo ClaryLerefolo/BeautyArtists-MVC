@@ -44,6 +44,12 @@ namespace BeautyArtists.Models
 
         public int? AvailabilitySlotId { get; set; }
         public virtual ArtistAvailability? AvailabilitySlot { get; set; } // Fixed to match its nullable foreign key
+        public decimal DepositPaid { get; set; } = 0m;
+        public decimal FinalPaymentPaid { get; set; } = 0m;
+        public decimal TotalPaid => DepositPaid + FinalPaymentPaid;
+        public bool IsFullyPaid => TotalPaid >= TotalAmount;
+        public DateTime? DepositPaidDate { get; set; }
+        public DateTime? FinalPaidDate { get; set; }
 
         // Enum to represent different booking statuses
         public BookingStatus Status { get; set; }

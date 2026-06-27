@@ -6,7 +6,6 @@ using BeautyArtists.Data;
 using BeautyArtists.Models;
 using BeautyArtists.Models.ViewModels;
 using System.Text;
-using System.Globalization;
 
 namespace BeautyArtists.Controllers
 {
@@ -40,7 +39,6 @@ namespace BeautyArtists.Controllers
             if (toDate.HasValue)
                 bookingsQuery = bookingsQuery.Where(b => b.AppointmentDate < toDate.Value.AddDays(1));
 
-            // FIX: Parse string to Enum first so EF can translate it to SQL
             if (!string.IsNullOrEmpty(statusFilter))
             {
                 if (Enum.TryParse<Booking.BookingStatus>(statusFilter, out var statusEnum))
@@ -69,31 +67,59 @@ namespace BeautyArtists.Controllers
             var now = DateTime.Now;
             var completedBookings = bookings.Where(b => b.Status == Booking.BookingStatus.Completed).ToList();
 
-            var totalLifetimeEarnings = completedBookings.Sum(b => b.TotalAmount * (1 - _commissionRate));
+            // ============================================================
+            // 🔥 NEW: Use actual paid amounts (DepositPaid + FinalPaymentPaid)
+            // ============================================================
+            // Helper to get total paid for a booking (safe)
+            decimal GetTotalPaid(Booking b) => b.DepositPaid + b.FinalPaymentPaid;
+
+            // Lifetime earnings from completed bookings (artist cut)
+            var totalLifetimeEarnings = completedBookings
+                .Sum(b => GetTotalPaid(b) * (1 - _commissionRate));
+
+            // Earnings this month from completed bookings
             var thisMonthEarnings = completedBookings
                 .Where(b => b.AppointmentDate.Month == now.Month && b.AppointmentDate.Year == now.Year)
-                .Sum(b => b.TotalAmount * (1 - _commissionRate));
+                .Sum(b => GetTotalPaid(b) * (1 - _commissionRate));
+
+            // Pending earnings: money already paid (deposit + any partial final) on non‑completed, non‑cancelled bookings
             var pendingEarnings = bookings
                 .Where(b => b.Status != Booking.BookingStatus.Completed && b.Status != Booking.BookingStatus.Cancelled)
-                .Sum(b => b.TotalAmount * (1 - _commissionRate));
+                .Sum(b => GetTotalPaid(b) * (1 - _commissionRate));
 
             var completedCount = completedBookings.Count;
             var avgJobValue = completedCount > 0 ? totalLifetimeEarnings / completedCount : 0;
+
             var uniqueClients = completedBookings.Select(b => b.CustomerId).Distinct().Count();
             var repeatClientRate = uniqueClients > 0 ? Math.Max(0, (completedCount - uniqueClients) * 1.0 / completedCount) : 0;
             var utilizationRate = CalculateUtilization(bookings);
 
+            // Top services based on actual paid amounts (completed only)
             var topServices = completedBookings
                 .GroupBy(b => b.UserService.Service.Name)
                 .Select(g => new KeyValuePair<string, EarningsServiceSummary>(
                     g.Key,
                     new EarningsServiceSummary
                     {
-                        TotalEarnings = g.Sum(b => b.TotalAmount * (1 - _commissionRate)),
+                        TotalEarnings = g.Sum(b => GetTotalPaid(b) * (1 - _commissionRate)),
                         JobCount = g.Count()
                     }))
                 .OrderByDescending(x => x.Value.TotalEarnings)
                 .ToList();
+
+            // Build history with correct earnings
+            var history = bookings.Select(b => new EarningsHistoryItem
+            {
+                BookingId = b.Id,
+                Date = b.AppointmentDate,
+                ClientName = $"{b.Customer?.FirstName} {b.Customer?.LastName}",
+                ServiceName = b.UserService?.Service?.Name ?? "Service",
+                OriginalPrice = b.TotalAmount,                 // keep the original total for reference
+                YourEarnings = GetTotalPaid(b) * (1 - _commissionRate),
+                PlatformFee = GetTotalPaid(b) * _commissionRate,
+                TipAmount = 0m,                                // you can later add tip tracking
+                Status = b.Status.ToString()
+            }).ToList();
 
             var model = new ArtistEarningsViewModel
             {
@@ -105,18 +131,7 @@ namespace BeautyArtists.Controllers
                 RepeatClientRate = repeatClientRate,
                 UtilizationRate = utilizationRate,
                 TopServices = topServices,
-                History = bookings.Select(b => new EarningsHistoryItem
-                {
-                    BookingId = b.Id,
-                    Date = b.AppointmentDate,
-                    ClientName = $"{b.Customer?.FirstName} {b.Customer?.LastName}",
-                    ServiceName = b.UserService?.Service?.Name ?? "Service",
-                    OriginalPrice = b.TotalAmount,
-                    YourEarnings = b.TotalAmount * (1 - _commissionRate),
-                    PlatformFee = b.TotalAmount * _commissionRate,
-                    TipAmount = 0m,
-                    Status = b.Status.ToString() // This is fine here, as it's after the database query
-                }).ToList()
+                History = history
             };
 
             return View(model);
@@ -148,8 +163,11 @@ namespace BeautyArtists.Controllers
             {
                 var clientName = $"{b.Customer?.FirstName} {b.Customer?.LastName}".Replace("\"", "\"\"");
                 var serviceName = (b.UserService?.Service?.Name ?? "Service").Replace("\"", "\"\"");
+                decimal totalPaid = b.DepositPaid + b.FinalPaymentPaid; // actual money received
+                decimal yourCut = totalPaid * (1 - _commissionRate);
+                decimal platformFee = totalPaid * _commissionRate;
 
-                csv.AppendLine($"\"{b.AppointmentDate:dd/MM/yyyy}\",\"{clientName}\",\"{serviceName}\",\"R{b.TotalAmount:N2}\",\"R{(b.TotalAmount * 0.85m):N2}\",\"R{(b.TotalAmount * 0.15m):N2}\",\"R0.00\",\"{b.Status}\"");
+                csv.AppendLine($"\"{b.AppointmentDate:dd/MM/yyyy}\",\"{clientName}\",\"{serviceName}\",\"R{b.TotalAmount:N2}\",\"R{yourCut:N2}\",\"R{platformFee:N2}\",\"R0.00\",\"{b.Status}\"");
             }
 
             var csvBytes = Encoding.UTF8.GetBytes("\uFEFF" + csv.ToString());

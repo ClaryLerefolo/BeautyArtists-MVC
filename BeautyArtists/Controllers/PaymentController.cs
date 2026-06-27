@@ -147,7 +147,6 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("CheckoutFinalPayment", "Booking", new { id = bookingId });
             }
         }
-
         [HttpGet]
         public async Task<IActionResult> PaymentCallback(string reference, string trxref)
         {
@@ -162,24 +161,13 @@ namespace BeautyArtists.Controllers
             {
                 var result = await _paymentService.VerifyPayment(refToVerify);
 
-                if (!result.success)
+                if (!result.success || result.data?.status != "success")
                 {
-                    TempData["Error"] = $"Payment verification failed: {result.message}";
+                    TempData["Error"] = $"Payment verification failed: {result.message ?? "Unknown error"}";
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                if (result.data == null)
-                {
-                    TempData["Error"] = "Payment verification returned no data.";
-                    return RedirectToAction("MyBookings", "Booking");
-                }
-
-                if (result.data.status != "success")
-                {
-                    TempData["Error"] = $"Payment was not successful. Status: {result.data.status}";
-                    return RedirectToAction("MyBookings", "Booking");
-                }
-
+                // Load payment record with all needed includes
                 var payment = await _context.Payments
                     .Include(p => p.Booking)
                         .ThenInclude(b => b.UserService)
@@ -194,70 +182,72 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ============================================================
-                // ✅ HANDLE DUPLICATE CALLBACK (payment already success)
-                // ============================================================
+                var booking = payment.Booking;
+                if (booking == null)
+                {
+                    TempData["Error"] = "Booking not found.";
+                    return RedirectToAction("MyBookings", "Booking");
+                }
+
+                // If payment already marked success, handle gracefully
                 if (payment.Status == "success")
                 {
-                    var existingBooking = payment.Booking;
-                    if (existingBooking != null)
+                    // Check if booking already has the payment recorded
+                    if (!booking.IsDepositPaid && booking.DepositPaid == 0 && payment.Amount == booking.TotalAmount / 2)
                     {
-                        // If deposit wasn't paid, confirm it
-                        if (!existingBooking.IsDepositPaid)
-                        {
-                            existingBooking.IsDepositPaid = true;
-                            existingBooking.Status = BookingStatus.Confirmed;
-                            await _context.SaveChangesAsync();
+                        // Deposit not yet recorded – record it now
+                        booking.DepositPaid = payment.Amount;
+                        booking.DepositPaidDate = DateTime.UtcNow;
+                        booking.IsDepositPaid = true;
+                        booking.Status = BookingStatus.Confirmed;
+                        await _context.SaveChangesAsync();
 
-                            // Send deposit emails (both artist & client)
-                            await SendDepositEmails(existingBooking, payment.Amount);
-
-                            TempData["Success"] = "Payment successful! Your appointment is now confirmed.";
-                            return RedirectToAction("MyBookings", "Booking");
-                        }
-
-                        // If this is a final payment and TotalAmount > 0, mark as fully paid
-                        if (existingBooking.TotalAmount > 0)
-                        {
-                            decimal remainingBalance = existingBooking.TotalAmount / 2;
-                            existingBooking.TotalAmount = 0;
-                            await _context.SaveChangesAsync();
-
-                            // Send final payment emails (both artist & client)
-                            await SendFinalPaymentEmails(existingBooking, remainingBalance);
-
-                            TempData["Success"] = "Final payment successful! Your appointment is now fully paid.";
-                            return RedirectToAction("MyBookings", "Booking");
-                        }
+                        await SendDepositEmails(booking, payment.Amount);
+                        TempData["Success"] = "Payment successful! Your appointment is now confirmed.";
+                        return RedirectToAction("MyBookings", "Booking");
                     }
 
-                    TempData["Success"] = "Payment already verified.";
+                    if (booking.TotalAmount > 0 && payment.Amount > 0)
+                    {
+                        // Likely a final payment – record it
+                        decimal remainingBalance = payment.Amount;
+                        booking.FinalPaymentPaid = remainingBalance;
+                        booking.FinalPaidDate = DateTime.UtcNow;
+                        // Keep TotalAmount unchanged
+                        await _context.SaveChangesAsync();
+
+                        await SendFinalPaymentEmails(booking, remainingBalance);
+                        TempData["Success"] = "Final payment successful! Your appointment is now fully paid.";
+                        return RedirectToAction("MyBookings", "Booking");
+                    }
+
+                    TempData["Success"] = "Payment already processed.";
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
                 // ============================================================
-                // ✅ FRESH PAYMENT
+                // ✅ FRESH PAYMENT – RECORD DEPOSIT OR FINAL
                 // ============================================================
+
                 payment.Status = "success";
                 payment.PaidAt = DateTime.UtcNow;
                 payment.PaymentMethod = result.data.channel;
 
-                var booking = payment.Booking;
                 bool isDeposit = !booking.IsDepositPaid;
 
                 if (isDeposit)
                 {
+                    // ── Deposit ──
+                    booking.DepositPaid = payment.Amount;
+                    booking.DepositPaidDate = DateTime.UtcNow;
                     booking.IsDepositPaid = true;
                     booking.Status = BookingStatus.Confirmed;
                     await _context.SaveChangesAsync();
 
-                    // Send deposit emails
                     await SendDepositEmails(booking, payment.Amount);
 
-                    // In-app notifications
+                    // In-app notifications (optional, keep yours)
                     var currentUser = await _userManager.FindByIdAsync(booking.CustomerId);
-                    var artist = await _userManager.FindByIdAsync(booking.UserService.ArtistId);
-
                     if (currentUser != null)
                     {
                         await _notificationService.CreateNotificationAsync(
@@ -269,6 +259,7 @@ namespace BeautyArtists.Controllers
                             Url.Action("MyBookings", "Booking")
                         );
                     }
+                    var artist = await _userManager.FindByIdAsync(booking.UserService.ArtistId);
                     if (artist != null)
                     {
                         await _notificationService.CreateNotificationAsync(
@@ -285,12 +276,13 @@ namespace BeautyArtists.Controllers
                 }
                 else
                 {
-                    // Final payment
-                    decimal remainingBalance = booking.TotalAmount / 2;
-                    booking.TotalAmount = 0;
+                    // ── Final Payment ──
+                    decimal remainingBalance = payment.Amount; // should be TotalAmount / 2 (minus any already paid)
+                    booking.FinalPaymentPaid = remainingBalance;
+                    booking.FinalPaidDate = DateTime.UtcNow;
+                    // DO NOT set TotalAmount = 0
                     await _context.SaveChangesAsync();
 
-                    // Send final payment emails
                     await SendFinalPaymentEmails(booking, remainingBalance);
 
                     // In-app notification to artist
@@ -313,13 +305,15 @@ namespace BeautyArtists.Controllers
                 Console.WriteLine($"PaymentCallback error: {ex.Message}");
                 Console.WriteLine($"Stack: {ex.StackTrace}");
 
+                // Try to recover – check if payment was already recorded
                 var existingPayment = await _context.Payments
                     .Include(p => p.Booking)
                     .FirstOrDefaultAsync(p => p.Reference == refToVerify);
 
-                if (existingPayment?.Booking?.IsDepositPaid == true)
+                if (existingPayment?.Booking?.IsDepositPaid == true ||
+                    existingPayment?.Booking?.FinalPaymentPaid > 0)
                 {
-                    TempData["Success"] = "Payment successful! Your appointment is confirmed.";
+                    TempData["Success"] = "Payment successful! Your booking is updated.";
                 }
                 else
                 {
@@ -329,7 +323,6 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings", "Booking");
             }
         }
-
         // ============================================================
         // 📧 UNIFIED EMAIL HELPERS (BOTH ARTIST & CLIENT)
         // ============================================================
