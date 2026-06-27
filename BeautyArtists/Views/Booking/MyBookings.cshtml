@@ -43,9 +43,7 @@
                 </div>
             </div>
 
-            <!-- ========================================= -->
-            <!--   NEW: Reviews Link – placed below stats   -->
-            <!-- ========================================= -->
+            <!-- Reviews Link -->
             <div class="mb-reviews-link-row">
                 <a asp-controller="Review" asp-action="MyReviews" class="mb-reviews-link">
                     <span class="mr-icon">⭐</span> View My Reviews
@@ -120,6 +118,16 @@
                 ? $"{booking.UserService.Artist.FirstName} {booking.UserService.Artist.LastName}".Trim()
                 : booking.UserService?.Artist?.UserName ?? "Pro Artist");
 
+                // ── Payment status ──
+                bool isFullyPaid = booking.DepositPaid >= booking.TotalAmount;
+                bool hasDeposit = booking.DepositPaid > 0;
+                string paymentStatusText = isFullyPaid ? "Fully Paid" : (hasDeposit ? "Deposit Paid" : "Unpaid");
+                string paymentStatusColor = isFullyPaid ? "#28a745" : (hasDeposit ? "#ffc107" : "#6c757d");
+
+                // ── Days until appointment ──
+                double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
+                bool isLastMinute = daysUntilAppointment < 2;
+
                 <div class="mb-card @(booking.Status == BeautyArtists.Models.Booking.BookingStatus.Cancelled ? "mb-card-cancelled" : "")">
 
                     @* Status strip *@
@@ -166,6 +174,29 @@
                                         <polyline points="12,6 12,12 16,14" />
                                     </svg>
                                     @booking.AppointmentDate.ToString("HH:mm")
+                                </div>
+
+                                @* ── PAYMENT STATUS (new) ── *@
+                                <div class="mb-meta-item" style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
+                                    <span style="color: @paymentStatusColor; font-weight: 700;">
+                                        @paymentStatusText
+                                    </span>
+                                    @if (isFullyPaid)
+                                    {
+                                        <span style="color: #28a745;">✅</span>
+                                    }
+                                    else if (hasDeposit)
+                                    {
+                                        <span style="color: #ffc107;">💰</span>
+                                    }
+                                    else
+                                    {
+                                        <span style="color: #6c757d;">⏳</span>
+                                    }
+                                    @if (isLastMinute && !isFullyPaid)
+                                    {
+                                        <span style="color: #ff6b6b; font-size: 0.7rem; margin-left: 6px;">(⚠️ Last Minute)</span>
+                                    }
                                 </div>
 
                                 @* Show Transport Cost if House Call *@
@@ -241,24 +272,45 @@
                                         💰 PAY 50% DEPOSIT
                                     </a>
                                 }
-                                @* PAY REMAINING BALANCE BUTTON *@
-                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed && booking.TotalAmount > 0)
+
+                                @* ── PAYMENT BUTTONS FOR CONFIRMED STATUS ── *@
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
                                 {
-                                    var daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
-                                    if (daysUntilAppointment >= 2)
+                                    if (isFullyPaid)
                                     {
-                                        <a asp-controller="Booking"
-                                           asp-action="CheckoutFinalPayment"
-                                           asp-route-id="@booking.Id"
-                                           class="mb-btn-final">
-                                            💳 Pay Remaining R @((booking.TotalAmount / 2).ToString("N0"))
-                                        </a>
+                                        <span class="text-muted small" style="text-align:center; display:block; padding:4px 0; color:#28a745; font-weight:600;">
+                                            ✅ Fully Paid – No action needed
+                                        </span>
                                     }
                                     else
                                     {
-                                        <span class="text-muted small" style="font-size:0.65rem; text-align:center; display:block; color:rgba(255,255,255,0.3);">
-                                            Final payment must be made 2 days before appointment
-                                        </span>
+                                        // Calculate remaining balance (if needed)
+                                        decimal remainingBalance = booking.TotalAmount - booking.DepositPaid;
+                                        if (remainingBalance < 0) remainingBalance = 0;
+
+                                        if (isLastMinute)
+                                        {
+                                            // Last‑minute – must pay the full remaining amount NOW
+                                            <a asp-controller="Booking"
+                                               asp-action="CheckoutFinalPayment"
+                                               asp-route-id="@booking.Id"
+                                               class="mb-btn-final" style="background: linear-gradient(135deg, #f0c808, #e50914); color: #000;">
+                                                ⚠️ Pay Now – R @remainingBalance.ToString("N0")
+                                            </a>
+                                            <span class="text-muted small" style="font-size:0.65rem; text-align:center; display:block; color:#ff6b6b;">
+                                                ⚠️ Appointment within 2 days – full amount required
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            // Normal final payment (2+ days away)
+                                            <a asp-controller="Booking"
+                                               asp-action="CheckoutFinalPayment"
+                                               asp-route-id="@booking.Id"
+                                               class="mb-btn-final">
+                                                💳 Pay Remaining R @remainingBalance.ToString("N0")
+                                            </a>
+                                        }
                                     }
                                 }
 
