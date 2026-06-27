@@ -134,7 +134,16 @@
                 color: #000;
             }
 
-        /* New footer styling */
+        .address-detail {
+            font-size: 0.8rem;
+            padding: 4px 0;
+            color: rgba(255,255,255,0.7);
+        }
+
+            .address-detail strong {
+                color: #FFD700;
+            }
+
         .card-footer-actions {
             border-top: 1px solid rgba(255,255,255,0.08);
             padding-top: 1rem;
@@ -149,6 +158,45 @@
             margin-top: 0.5rem;
             border-top: 1px solid rgba(255,255,255,0.05);
         }
+
+        /* ─── ADDRESS BOX STYLES ─── */
+        .address-box {
+            background: rgba(155, 89, 182, 0.08);
+            border: 1px solid rgba(155, 89, 182, 0.3);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 14px;
+        }
+
+            .address-box .label {
+                font-size: 0.6rem;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                color: rgba(255,255,255,0.3);
+                display: block;
+                margin-bottom: 6px;
+            }
+
+            .address-box .address-line {
+                font-size: 0.85rem;
+                color: #fff;
+                padding: 3px 0;
+                border-bottom: 1px solid rgba(255,255,255,0.05);
+            }
+
+                .address-box .address-line:last-child {
+                    border-bottom: none;
+                }
+
+                .address-box .address-line strong {
+                    color: #FFD700;
+                    min-width: 100px;
+                    display: inline-block;
+                }
+
+                .address-box .address-line .value {
+                    color: #eee;
+                }
     </style>
 }
 
@@ -198,18 +246,69 @@
                                 <div class="small text-white-50">@item.UserService?.Service?.Name</div>
                             </div>
 
-                            <!-- MAPS & ADDRESS (HouseCall) -->
-                            @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall && !string.IsNullOrEmpty(item.HouseCallAddress))
+                            <!-- ─── FIXED: HOUSE CALL ADDRESS WITH STRUCTURED FIELDS ─── -->
+                            @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
                             {
-                                <div class="p-3 mb-3 rounded border border-secondary" style="background: rgba(155, 89, 182, 0.05);">
-                                    <small class="text-muted text-uppercase d-block mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Client Location:</small>
-                                    <p class="small text-white-50 mb-2"><i class="fas fa-map-marker-alt text-danger me-1"></i> @item.HouseCallAddress</p>
+                                <div class="address-box">
+                                    <span class="label">📍 Client Location Details</span>
+
+                                    @if (!string.IsNullOrEmpty(item.HouseNumber) || !string.IsNullOrEmpty(item.StreetAddress) || !string.IsNullOrEmpty(item.AreaCode))
+                                    {
+                                        <!-- NEW: Structured fields -->
+                                        @if (!string.IsNullOrEmpty(item.HouseNumber))
+                                        {
+                                            <div class="address-line">
+                                                <strong>House/Unit:</strong>
+                                                <span class="value">@item.HouseNumber</span>
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(item.StreetAddress))
+                                        {
+                                            <div class="address-line">
+                                                <strong>Street:</strong>
+                                                <span class="value">@item.StreetAddress</span>
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(item.AreaCode))
+                                        {
+                                            <div class="address-line">
+                                                <strong>Area/Postal:</strong>
+                                                <span class="value">@item.AreaCode</span>
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(item.HouseCallAddress) && (string.IsNullOrEmpty(item.HouseNumber) && string.IsNullOrEmpty(item.StreetAddress)))
+                                        {
+                                            <!-- Fallback: show the full address if structured fields are empty -->
+                                            <div class="address-line">
+                                                <strong>Full Address:</strong>
+                                                <span class="value">@item.HouseCallAddress</span>
+                                            </div>
+                                        }
+                                    }
+                                    else if (!string.IsNullOrEmpty(item.HouseCallAddress))
+                                    {
+                                        <!-- Fallback: show the full address if structured fields are empty -->
+                                        <div class="address-line">
+                                            <strong>Full Address:</strong>
+                                            <span class="value">@item.HouseCallAddress</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="address-line" style="color: #ff6666;">
+                                            <em>No address provided</em>
+                                        </div>
+                                    }
+
+                                    <!-- MAPS BUTTON -->
                                     @if (!string.IsNullOrEmpty(item.Latitude) && !string.IsNullOrEmpty(item.Longitude))
                                     {
-                                        <a href="https://www.google.com/maps/search/?api=1&query=@item.Latitude,@item.Longitude"
-                                           target="_blank" class="btn btn-sm map-btn w-100 fw-bold rounded-2 shadow-sm text-center">
-                                            <i class="fas fa-route me-1"></i> OPEN IN GOOGLE MAPS
-                                        </a>
+                                        <div class="mt-2">
+                                            <a href="https://www.google.com/maps/search/?api=1&query=@item.Latitude,@item.Longitude"
+                                               target="_blank" class="btn btn-sm map-btn w-100 fw-bold rounded-2 shadow-sm text-center">
+                                                <i class="fas fa-route me-1"></i> OPEN IN GOOGLE MAPS
+                                            </a>
+                                        </div>
                                     }
                                 </div>
                             }
@@ -300,8 +399,8 @@
                                         <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
                                         <button type="submit" class="btn btn-success w-100 fw-bold"
                                                 onclick="document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
-                                                                 var tInput = document.getElementById('transport-@item.Id');
-                                                                 if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
+                                                                         var tInput = document.getElementById('transport-@item.Id');
+                                                                         if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
                                             <i class="fas fa-check me-1"></i> ACCEPT
                                         </button>
                                     </form>
