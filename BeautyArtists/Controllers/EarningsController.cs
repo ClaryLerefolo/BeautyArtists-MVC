@@ -121,7 +121,7 @@ namespace BeautyArtists.Controllers
                 YourEarnings = GetTotalPaid(b) * (1 - _commissionRate),
                 PlatformFee = GetTotalPaid(b) * _commissionRate,
                 TipAmount = 0m,                                // you can later add tip tracking
-                Status = b.Status.ToString()
+                Status = b.Status.ToString(),
                 DepositPaid = b.DepositPaid,
                 FinalPaymentPaid = b.FinalPaymentPaid,
                 IsFullyPaid = (b.DepositPaid + b.FinalPaymentPaid) >= b.TotalAmount
