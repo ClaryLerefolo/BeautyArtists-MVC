@@ -19,7 +19,6 @@
             font-family: 'Segoe UI', sans-serif;
         }
 
-        /* ── HEADER ── */
         .dashboard-header {
             background: linear-gradient(90deg, var(--red), var(--gold));
             padding: 24px 30px;
@@ -45,7 +44,6 @@
                 font-size: 0.85rem;
             }
 
-        /* ── FILTER CONTAINER ── */
         .filter-container {
             background: var(--glass);
             backdrop-filter: blur(10px);
@@ -53,7 +51,7 @@
             border-radius: 15px;
             padding: 20px;
             margin-bottom: 24px;
-            overflow: hidden; /* Prevent container overflow */
+            overflow: hidden;
         }
 
         .filter-title {
@@ -70,38 +68,32 @@
             padding-bottom: 10px;
         }
 
-        /* ── FIXED FILTER GRID ── */
         .filter-grid {
             display: grid;
-            /* Using auto-fit to handle different screen sizes gracefully */
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 16px;
             align-items: end;
         }
 
-        /* Extra wide for the Quick Pills and Actions */
         .field-wide {
             grid-column: span 2;
         }
 
         @@media (max-width: 1200px) {
-            .field-wide
+            .field-wide {
+                grid-column: span 1;
+            }
 
-        {
-            grid-column: span 1;
-        }
-
-        .filter-grid {
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        }
-
+            .filter-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
         }
 
         .filter-field {
             display: flex;
             flex-direction: column;
             gap: 5px;
-            min-width: 0; /* Prevents flex items from overflowing */
+            min-width: 0;
         }
 
         .filter-label {
@@ -123,19 +115,17 @@
             width: 100%;
         }
 
-        /* ── QUICK FILTER PILLS ── */
         .quick-pills {
             display: flex;
             gap: 6px;
-            overflow-x: auto; /* Scrollable if too many pills */
+            overflow-x: auto;
             padding-bottom: 4px;
-            scrollbar-width: none; /* Hide scrollbar Firefox */
+            scrollbar-width: none;
         }
 
             .quick-pills::-webkit-scrollbar {
                 display: none;
             }
-        /* Hide scrollbar Chrome/Safari */
 
         .quick-pill {
             padding: 7px 12px;
@@ -158,11 +148,10 @@
                 border-color: var(--gold);
             }
 
-        /* ── ACTION BUTTONS ── */
         .filter-actions {
             display: flex;
             gap: 8px;
-            flex-wrap: nowrap; /* Keep them together */
+            flex-wrap: nowrap;
         }
 
         .btn-apply, .btn-reset {
@@ -204,7 +193,7 @@
                 border-color: #ff6666;
             }
 
-        /* ── STAT CARDS ── */
+        /* ── STAT CARDS (ONLY 4) ── */
         .stat-card {
             background: var(--dark-card);
             border-left: 4px solid var(--red);
@@ -221,7 +210,7 @@
 
         .stat-value {
             color: var(--gold);
-            font-size: 1.8rem; /* Slightly smaller to prevent overflow */
+            font-size: 1.8rem;
             font-weight: 800;
             display: block;
             word-break: break-all;
@@ -234,6 +223,54 @@
             font-weight: 700;
         }
 
+        .stat-sub {
+            color: rgba(255,255,255,0.2);
+            font-size: 0.7rem;
+            margin-top: 4px;
+        }
+
+        /* ── PAYMENT BREAKDOWN BAR ── */
+        .payment-breakdown {
+            background: var(--dark-card);
+            border-radius: 14px;
+            padding: 16px 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .breakdown-item {
+            text-align: center;
+        }
+
+            .breakdown-item .label {
+                font-size: 0.6rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+                color: rgba(255,255,255,0.3);
+                display: block;
+            }
+
+            .breakdown-item .value {
+                font-size: 1.4rem;
+                font-weight: 800;
+            }
+
+                .breakdown-item .value.gold {
+                    color: var(--gold);
+                }
+
+                .breakdown-item .value.info {
+                    color: #17a2b8;
+                }
+
+                .breakdown-item .value.success {
+                    color: #28a745;
+                }
+
+                .breakdown-item .value.warning {
+                    color: #ffc107;
+                }
+
         .section-box {
             background: var(--dark-card);
             border-radius: 18px;
@@ -241,26 +278,6 @@
             border: 1px solid #1e1e1e;
         }
 
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 50px;
-            font-size: 0.68rem;
-            font-weight: 800;
-            white-space: nowrap;
-        }
-
-        .status-Completed {
-            background: rgba(0,255,127,0.1);
-            color: #00ff7f;
-            border: 1px solid #00ff7f;
-        }
-
-        .status-Pending {
-            background: rgba(240,200,8,0.1);
-            color: var(--gold);
-            border: 1px solid var(--gold);
-        }
-        /* Update these in your <style> block */
         .status-badge {
             padding: 5px 12px;
             border-radius: 50px;
@@ -270,33 +287,30 @@
             display: inline-block;
         }
 
-        /* Green for Completed */
         .status-Completed {
-            background: rgba(0, 255, 127, 0.1) !important;
+            background: rgba(0,255,127,0.1) !important;
             color: #00ff7f !important;
             border: 1px solid #00ff7f !important;
         }
 
-        /* Yellow/Gold for Pending */
         .status-Pending {
-            background: rgba(240, 200, 8, 0.1) !important;
+            background: rgba(240,200,8,0.1) !important;
             color: #f0c808 !important;
             border: 1px solid #f0c808 !important;
         }
 
-        /* Blue for Confirmed */
         .status-Confirmed {
-            background: rgba(41, 121, 255, 0.1) !important;
+            background: rgba(41,121,255,0.1) !important;
             color: #2979ff !important;
             border: 1px solid #2979ff !important;
         }
 
-        /* Red for Cancelled or Rejected */
         .status-Cancelled, .status-Rejected {
-            background: rgba(255, 85, 85, 0.1) !important;
+            background: rgba(255,85,85,0.1) !important;
             color: #ff5555 !important;
             border: 1px solid #ff5555 !important;
         }
+
         .btn-reports {
             display: inline-flex;
             align-items: center;
@@ -310,6 +324,48 @@
             background: transparent;
             cursor: pointer;
             transition: all 0.2s;
+        }
+
+        .payment-badge {
+            font-size: 0.65rem;
+            padding: 3px 10px;
+            border-radius: 50px;
+            font-weight: 700;
+        }
+
+            .payment-badge.fully-paid {
+                background: rgba(40,167,69,0.15);
+                color: #28a745;
+                border: 1px solid #28a745;
+            }
+
+            .payment-badge.deposit-only {
+                background: rgba(255,193,7,0.15);
+                color: #ffc107;
+                border: 1px solid #ffc107;
+            }
+
+            .payment-badge.unpaid {
+                background: rgba(108,117,125,0.15);
+                color: #6c757d;
+                border: 1px solid #6c757d;
+            }
+
+        .payment-breakdown .divider {
+            width: 1px;
+            background: rgba(255,255,255,0.08);
+        }
+
+        @@media (max-width: 768px) {
+            .payment-breakdown .divider {
+                width: 100%;
+                height: 1px;
+                margin: 6px 0;
+            }
+
+            .breakdown-item .value {
+                font-size: 1.1rem;
+            }
         }
     </style>
 }
@@ -327,11 +383,8 @@
         <div class="filter-title">
             <i class="fas fa-filter"></i> Filter Your Hustle
         </div>
-
         <form id="filterForm" method="get" asp-action="Earnings">
             <div class="filter-grid">
-
-                @* Quick Presets *@
                 <div class="filter-field field-wide">
                     <span class="filter-label">Quick Range</span>
                     <div class="quick-pills">
@@ -340,8 +393,6 @@
                         <button type="button" class="quick-pill" data-from="30days" data-to="">30 Days</button>
                     </div>
                 </div>
-
-                @* Status *@
                 <div class="filter-field">
                     <span class="filter-label">Status</span>
                     <select name="statusFilter" id="statusFilter" class="filter-select">
@@ -352,8 +403,6 @@
                         <option value="Cancelled" selected="@(ViewBag.SelectedStatus == "Cancelled" ? "selected" : null)">Cancelled</option>
                     </select>
                 </div>
-
-                @* Service *@
                 <div class="filter-field">
                     <span class="filter-label">Service</span>
                     <select name="serviceFilter" id="serviceFilter" class="filter-select">
@@ -362,60 +411,39 @@
                         {
                             @foreach (var service in Model.TopServices)
                             {
-                                <option value="@service.Key"
-                                        selected="@(ViewBag.SelectedService == service.Key ? "selected" : null)">
+                                <option value="@service.Key" selected="@(ViewBag.SelectedService == service.Key ? "selected" : null)">
                                     @service.Key (@service.Value.JobCount jobs)
                                 </option>
                             }
                         }
                         else
                         {
-                            @* Fallback — load all services from history *@
                             @foreach (var item in Model.History.Select(h => h.ServiceName).Distinct())
                             {
-                                <option value="@item"
-                                        selected="@(ViewBag.SelectedService == item ? "selected" : null)">
-                                    @item
-                                </option>
+                                <option value="@item" selected="@(ViewBag.SelectedService == item ? "selected" : null)">@item</option>
                             }
                         }
                     </select>
                 </div>
-
-                @* Client *@
                 <div class="filter-field">
                     <span class="filter-label">Client</span>
-                    <input type="text" name="clientFilter" id="clientFilter"
-                           value="@ViewBag.SelectedClient"
-                           placeholder="Search clients..."
-                           class="filter-input" maxlength="50" />
+                    <input type="text" name="clientFilter" id="clientFilter" value="@ViewBag.SelectedClient" placeholder="Search clients..." class="filter-input" maxlength="50" />
                 </div>
-
-                @* Date Range *@
                 <div class="filter-field">
                     <span class="filter-label">From Date</span>
-                    <input type="date" name="fromDate" id="fromDate"
-                           value="@ViewBag.FromDate" class="filter-select" />
+                    <input type="date" name="fromDate" id="fromDate" value="@ViewBag.FromDate" class="filter-select" />
                 </div>
                 <div class="filter-field">
                     <span class="filter-label">To Date</span>
-                    <input type="date" name="toDate" id="toDate"
-                           value="@ViewBag.ToDate" class="filter-select" />
+                    <input type="date" name="toDate" id="toDate" value="@ViewBag.ToDate" class="filter-select" />
                 </div>
-
-                @* Actions *@
                 <div class="filter-field field-wide">
                     <span class="filter-label">&nbsp;</span>
                     <div class="filter-actions">
-                        <button type="submit" class="btn-apply">
-                            <i class="fas fa-search"></i> Apply
-                        </button>
-                        <button type="button" class="btn-reset" id="resetBtn">
-                            <i class="fas fa-times"></i> Reset
-                        </button>
+                        <button type="submit" class="btn-apply"><i class="fas fa-search"></i> Apply</button>
+                        <button type="button" class="btn-reset" id="resetBtn"><i class="fas fa-times"></i> Reset</button>
                     </div>
                 </div>
-
             </div>
         </form>
     </div>
@@ -427,48 +455,58 @@
         </button>
     </div>
 
-    @* STAT CARDS *@
-    <div class="row g-4 mb-5">
-        <div class="col-md-6 col-lg-4">
+    @* ── STAT CARDS (ONLY 4 – CLEAN & AGGRESSIVE) ── *@
+    <div class="row g-4 mb-4">
+        <div class="col-6 col-lg-3">
             <div class="stat-card">
-                <span class="stat-label">Net Cleared (Lifetime)</span>
+                <span class="stat-label">Net Cleared</span>
                 <span class="stat-value">R @Model.TotalLifetimeEarnings.ToString("N2")</span>
-                <div class="stat-sub">All time after fees</div>
+                <div class="stat-sub">Lifetime after fees</div>
             </div>
         </div>
-        <div class="col-md-6 col-lg-4">
+        <div class="col-6 col-lg-3">
             <div class="stat-card" style="border-left-color:var(--gold)">
-                <span class="stat-label">Completed Jobs</span>
+                <span class="stat-label">Completed</span>
                 <span class="stat-value">@Model.CompletedBookingsCount</span>
-                <div class="stat-sub">R @Model.AvgJobValue.ToString("N0") avg per job</div>
+                <div class="stat-sub">Avg R @Model.AvgJobValue.ToString("N0")</div>
             </div>
         </div>
-        <div class="col-md-6 col-lg-4">
-            <div class="stat-card">
+        <div class="col-6 col-lg-3">
+            <div class="stat-card" style="border-left-color:#00c853">
                 <span class="stat-label">Month Revenue</span>
                 <span class="stat-value">R @Model.ThisMonthEarnings.ToString("N2")</span>
-                <div class="stat-sub">Current month cleared</div>
+                <div class="stat-sub">This month cleared</div>
             </div>
         </div>
-        <div class="col-md-6 col-lg-4">
-            <div class="stat-card" style="border-left-color:#00ff7f">
-                <span class="stat-label">Repeat Clients</span>
-                <span class="stat-value">@Model.RepeatClientRate.ToString("P0")</span>
-                <div class="stat-sub">Loyalty rate</div>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-4">
-            <div class="stat-card" style="border-left-color:#555">
-                <span class="stat-label">Utilization</span>
-                <span class="stat-value">@Model.UtilizationRate.ToString("P0")</span>
-                <div class="stat-sub">Booked time %</div>
-            </div>
-        </div>
-        <div class="col-md-6 col-lg-4">
+        <div class="col-6 col-lg-3">
             <div class="stat-card" style="border-left-color:var(--red)">
-                <span class="stat-label">Pending Payout</span>
-                <span class="stat-value" style="color:#666">R @Model.PendingEarnings.ToString("N2")</span>
+                <span class="stat-label">Pending</span>
+                <span class="stat-value" style="color:#888;">R @Model.PendingEarnings.ToString("N2")</span>
                 <div class="stat-sub">Awaiting clearance</div>
+            </div>
+        </div>
+    </div>
+
+    @* ── PAYMENT BREAKDOWN BAR (COMPACT – 3 ITEMS) ── *@
+    <div class="payment-breakdown mb-4">
+        <div class="row align-items-center g-2">
+            <div class="col-4">
+                <div class="breakdown-item">
+                    <span class="label">Total Deposits</span>
+                    <span class="value info">R @Model.TotalDeposits.ToString("N2")</span>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="breakdown-item">
+                    <span class="label">Total Final</span>
+                    <span class="value success">R @Model.TotalFinalPayments.ToString("N2")</span>
+                </div>
+            </div>
+            <div class="col-4">
+                <div class="breakdown-item">
+                    <span class="label">Fully Paid</span>
+                    <span class="value warning">@Model.History.Count(h => h.IsFullyPaid)</span>
+                </div>
             </div>
         </div>
     </div>
@@ -495,7 +533,7 @@
         </div>
     }
 
-    @* TRANSACTION HISTORY *@
+    @* ── TRANSACTION HISTORY ── *@
     <div class="section-box">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h5 class="text-white fw-bold mb-0" style="font-size:0.85rem;letter-spacing:2px;text-transform:uppercase;">
@@ -523,8 +561,9 @@
                             <th>Client</th>
                             <th>Service</th>
                             <th class="text-end">Price</th>
+                            <th class="text-end">Deposit</th>
+                            <th class="text-end">Final</th>
                             <th class="text-end">Your Cut</th>
-                            <th class="text-end">Platform Fee</th>
                             <th class="text-center">Status</th>
                         </tr>
                     </thead>
@@ -536,21 +575,33 @@
                                 <td style="color:#fff;font-weight:600">@item.ClientName</td>
                                 <td style="color:rgba(255,255,255,0.6)">@item.ServiceName</td>
                                 <td class="text-end fw-bold">R @item.OriginalPrice.ToString("N2")</td>
+                                <td class="text-end" style="color:#17a2b8;">R @item.DepositPaid.ToString("N2")</td>
+                                <td class="text-end" style="color:#28a745;">R @item.FinalPaymentPaid.ToString("N2")</td>
                                 <td class="text-end fw-bold" style="color:var(--gold)">R @item.YourEarnings.ToString("N2")</td>
-                                <td class="text-end" style="color:rgba(255,85,85,0.7)">R @item.PlatformFee.ToString("N2")</td>
                                 <td class="text-center">
-                                    <span class="status-badge status-@item.Status">@item.Status</span>
+                                    @if (item.IsFullyPaid)
+                                    {
+                                        <span class="payment-badge fully-paid">✅ Fully Paid</span>
+                                    }
+                                    else if (item.DepositPaid > 0)
+                                    {
+                                        <span class="payment-badge deposit-only">💰 Deposit</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="payment-badge unpaid">⏳ Unpaid</span>
+                                    }
                                 </td>
                             </tr>
                         }
                     </tbody>
                     <tfoot>
                         <tr style="border-top:1px solid rgba(240,200,8,0.15)">
-                            <td colspan="4" style="padding:12px;font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.3)">Total</td>
+                            <td colspan="6" style="padding:12px;font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.3)">Total</td>
                             <td class="text-end" style="color:var(--gold);font-size:0.9rem;font-weight:900;padding:12px;">
                                 R @Model.History.Sum(h => h.YourEarnings).ToString("N2")
                             </td>
-                            <td colspan="2"></td>
+                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -592,8 +643,6 @@
 @section Scripts {
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-
-            // Quick filter pills
             document.querySelectorAll('.quick-pill').forEach(btn => {
                 btn.addEventListener('click', function () {
                     document.querySelectorAll('.quick-pill').forEach(b => b.classList.remove('active'));
@@ -616,7 +665,6 @@
                 });
             });
 
-            // Reset button
             document.getElementById('resetBtn').addEventListener('click', function () {
                 document.getElementById('fromDate').value = '';
                 document.getElementById('toDate').value = '';
@@ -626,7 +674,6 @@
                 document.querySelectorAll('.quick-pill').forEach(b => b.classList.remove('active'));
                 document.getElementById('filterForm').submit();
             });
-
         });
     </script>
 }

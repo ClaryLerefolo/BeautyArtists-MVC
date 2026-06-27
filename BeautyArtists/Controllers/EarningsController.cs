@@ -93,6 +93,9 @@ namespace BeautyArtists.Controllers
             var uniqueClients = completedBookings.Select(b => b.CustomerId).Distinct().Count();
             var repeatClientRate = uniqueClients > 0 ? Math.Max(0, (completedCount - uniqueClients) * 1.0 / completedCount) : 0;
             var utilizationRate = CalculateUtilization(bookings);
+           
+            var totalDeposits = bookings.Sum(b => b.DepositPaid);
+            var totalFinalPayments = bookings.Sum(b => b.FinalPaymentPaid);
 
             // Top services based on actual paid amounts (completed only)
             var topServices = completedBookings
@@ -119,6 +122,9 @@ namespace BeautyArtists.Controllers
                 PlatformFee = GetTotalPaid(b) * _commissionRate,
                 TipAmount = 0m,                                // you can later add tip tracking
                 Status = b.Status.ToString()
+                DepositPaid = b.DepositPaid,
+                FinalPaymentPaid = b.FinalPaymentPaid,
+                IsFullyPaid = (b.DepositPaid + b.FinalPaymentPaid) >= b.TotalAmount
             }).ToList();
 
             var model = new ArtistEarningsViewModel
@@ -131,7 +137,10 @@ namespace BeautyArtists.Controllers
                 RepeatClientRate = repeatClientRate,
                 UtilizationRate = utilizationRate,
                 TopServices = topServices,
+                TotalDeposits = totalDeposits,
+                TotalFinalPayments = totalFinalPayments,
                 History = history
+
             };
 
             return View(model);

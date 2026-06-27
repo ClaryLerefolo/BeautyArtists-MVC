@@ -14,8 +14,10 @@ namespace BeautyArtists.Models.ViewModels
         public double RepeatClientRate { get; set; } // 0.0-1.0 → displays as 35%
         public double UtilizationRate { get; set; } // 0.0-1.0
         public List<KeyValuePair<string, EarningsServiceSummary>> TopServices { get; set; } = new();
+        public decimal TotalDeposits { get; set; }
+        public decimal TotalFinalPayments { get; set; }
 
-       
+
     }
     public class EarningsServiceSummary
     {
@@ -37,6 +39,10 @@ namespace BeautyArtists.Models.ViewModels
         public decimal OriginalPrice { get; set; }
         public decimal PlatformFee { get; set; }
         public decimal TipAmount { get; set; }
+        // Inside EarningsHistoryItem
+        public decimal DepositPaid { get; set; }
+        public decimal FinalPaymentPaid { get; set; }
+        public bool IsFullyPaid { get; set; }
 
     }
 }
