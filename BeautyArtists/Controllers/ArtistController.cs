@@ -553,19 +553,19 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                     var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
                     string subject = "✅ Your Appointment Has Been Accepted!";
                     string emailBody = $@"
-            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
-                <p>Dear {clientName},</p>
-                <p>Great news! The artist has ACCEPTED your appointment request.</p>
-                <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
-                <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
-                <p><strong>Total Amount:</strong> R {booking.TotalAmount:N2}</p>
-                <p><strong>Deposit Required (50%):</strong> R {(booking.TotalAmount / 2):N2}</p>
-                <div style='text-align: center; margin: 20px 0;'>
-                    <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR 50% DEPOSIT NOW</a>
-                </div>
-                <p>Thank you for choosing Beauty Artists Hub!</p>
-            </div>";
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
+    <p>Dear {clientName},</p>
+    <p>Great news! The artist has ACCEPTED your appointment request.</p>
+    <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
+    <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
+    <p><strong>Total Amount:</strong> R {booking.TotalAmount:N2}</p>
+    <p><strong>Deposit Required (50%):</strong> R {(booking.TotalAmount / 2):N2}</p>
+    <div style='text-align: center; margin: 20px 0;'>
+        <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR 50% DEPOSIT NOW</a>
+    </div>
+    <p>Thank you for choosing Beauty Artists Hub!</p>
+</div>";
 
                     await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
                 }
@@ -610,10 +610,11 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             }
             else if (newStatus == BookingStatus.Completed)
             {
-                // 🔥 CRITICAL: Check if client has paid the remaining balance
-                if (booking.TotalAmount > 0)
+                // 🔥 FIXED: Check if fully paid using DepositPaid + FinalPaymentPaid
+                decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
+                if (totalPaid < booking.TotalAmount)
                 {
-                    TempData["Error"] = "Client must pay the remaining balance before you can mark this as completed.";
+                    TempData["Error"] = "Client must pay the full amount before you can mark this as completed.";
                     return RedirectToAction(nameof(MyAppointments));
                 }
 
