@@ -20,6 +20,20 @@ namespace BeautyArtists.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<Booking>(entity =>
+            {
+                entity.Property(b => b.DepositPaid)
+                      .HasPrecision(18, 2)
+                      .HasDefaultValue(0);
+
+                entity.Property(b => b.FinalPaymentPaid)
+                      .HasPrecision(18, 2)
+                      .HasDefaultValue(0);
+
+                // Optionally set default for TotalAmount if not already
+                entity.Property(b => b.TotalAmount)
+                      .HasPrecision(18, 2);
+            });
 
             modelBuilder.Entity<Booking>()
                .HasOne(b => b.UserService)
