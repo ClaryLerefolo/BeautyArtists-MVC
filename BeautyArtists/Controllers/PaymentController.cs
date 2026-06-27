@@ -147,6 +147,7 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("CheckoutFinalPayment", "Booking", new { id = bookingId });
             }
         }
+
         [HttpGet]
         public async Task<IActionResult> PaymentCallback(string reference, string trxref)
         {
@@ -189,7 +190,7 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // If payment already marked success, handle gracefully
+                // ── If payment already marked success, handle gracefully ──
                 if (payment.Status == "success")
                 {
                     // Check if booking already has the payment recorded
@@ -207,13 +208,27 @@ namespace BeautyArtists.Controllers
                         return RedirectToAction("MyBookings", "Booking");
                     }
 
+                    // Check for full payment (amount equals total)
+                    if (!booking.IsDepositPaid && payment.Amount == booking.TotalAmount)
+                    {
+                        booking.DepositPaid = payment.Amount;
+                        booking.DepositPaidDate = DateTime.UtcNow;
+                        booking.IsDepositPaid = true;
+                        booking.FinalPaymentPaid = 0;
+                        booking.Status = BookingStatus.Confirmed;
+                        await _context.SaveChangesAsync();
+
+                        await SendFullPaymentEmails(booking, payment.Amount);
+                        TempData["Success"] = "Full payment successful! Your appointment is now confirmed and fully paid.";
+                        return RedirectToAction("MyBookings", "Booking");
+                    }
+
                     if (booking.TotalAmount > 0 && payment.Amount > 0)
                     {
                         // Likely a final payment – record it
                         decimal remainingBalance = payment.Amount;
                         booking.FinalPaymentPaid = remainingBalance;
                         booking.FinalPaidDate = DateTime.UtcNow;
-                        // Keep TotalAmount unchanged
                         await _context.SaveChangesAsync();
 
                         await SendFinalPaymentEmails(booking, remainingBalance);
@@ -225,10 +240,7 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ============================================================
-                // ✅ FRESH PAYMENT – RECORD DEPOSIT OR FINAL
-                // ============================================================
-
+                // ── FRESH PAYMENT ──
                 payment.Status = "success";
                 payment.PaidAt = DateTime.UtcNow;
                 payment.PaymentMethod = result.data.channel;
@@ -237,23 +249,47 @@ namespace BeautyArtists.Controllers
 
                 if (isDeposit)
                 {
-                    // ── Deposit ──
-                    booking.DepositPaid = payment.Amount;
-                    booking.DepositPaidDate = DateTime.UtcNow;
-                    booking.IsDepositPaid = true;
-                    booking.Status = BookingStatus.Confirmed;
-                    await _context.SaveChangesAsync();
+                    // Check if this is a full payment (last‑minute)
+                    bool isFullPayment = payment.Amount >= booking.TotalAmount; // with decimal tolerance
 
-                    await SendDepositEmails(booking, payment.Amount);
+                    if (isFullPayment)
+                    {
+                        // Full payment – record as deposit (full amount)
+                        booking.DepositPaid = payment.Amount;
+                        booking.DepositPaidDate = DateTime.UtcNow;
+                        booking.IsDepositPaid = true;
+                        booking.FinalPaymentPaid = 0; // no separate final
+                        booking.Status = BookingStatus.Confirmed;
+                        await _context.SaveChangesAsync();
 
-                    // In-app notifications (optional, keep yours)
+                        await SendFullPaymentEmails(booking, payment.Amount);
+                        TempData["Success"] = "Full payment successful! Your appointment is now confirmed and fully paid.";
+                    }
+                    else
+                    {
+                        // Normal deposit (50%)
+                        booking.DepositPaid = payment.Amount;
+                        booking.DepositPaidDate = DateTime.UtcNow;
+                        booking.IsDepositPaid = true;
+                        booking.Status = BookingStatus.Confirmed;
+                        await _context.SaveChangesAsync();
+
+                        await SendDepositEmails(booking, payment.Amount);
+                        TempData["Success"] = "Deposit successful! Your appointment is now confirmed.";
+                    }
+
+                    // In-app notifications (both deposit and full payment)
                     var currentUser = await _userManager.FindByIdAsync(booking.CustomerId);
                     if (currentUser != null)
                     {
+                        string notifTitle = isFullPayment ? "Full Payment Received! 💰" : "Deposit Received! 💰";
+                        string notifMsg = isFullPayment
+                            ? $"Your full payment of R{payment.Amount:N2} has been received. Appointment CONFIRMED!"
+                            : $"Your deposit of R{payment.Amount:N2} has been received. Appointment CONFIRMED!";
                         await _notificationService.CreateNotificationAsync(
                             booking.CustomerId,
-                            "Payment Received! 💰",
-                            $"Your deposit of R{payment.Amount:N2} has been received. Appointment CONFIRMED!",
+                            notifTitle,
+                            notifMsg,
                             "payment_received",
                             booking.Id.ToString(),
                             Url.Action("MyBookings", "Booking")
@@ -262,25 +298,26 @@ namespace BeautyArtists.Controllers
                     var artist = await _userManager.FindByIdAsync(booking.UserService.ArtistId);
                     if (artist != null)
                     {
+                        string notifTitle = isFullPayment ? "Full Payment Received! 🎉" : "Deposit Paid! 🎉";
+                        string notifMsg = isFullPayment
+                            ? $"{currentUser?.FirstName} paid the full amount. Appointment confirmed."
+                            : $"{currentUser?.FirstName} paid the deposit. Appointment confirmed.";
                         await _notificationService.CreateNotificationAsync(
                             artist.Id,
-                            "Deposit Paid! 🎉",
-                            $"{currentUser?.FirstName} paid the deposit. Appointment confirmed.",
+                            notifTitle,
+                            notifMsg,
                             "payment_received",
                             booking.Id.ToString(),
                             Url.Action("MyAppointments", "Artist")
                         );
                     }
-
-                    TempData["Success"] = "Deposit successful! Your appointment is now confirmed.";
                 }
                 else
                 {
                     // ── Final Payment ──
-                    decimal remainingBalance = payment.Amount; // should be TotalAmount / 2 (minus any already paid)
+                    decimal remainingBalance = payment.Amount; // should be TotalAmount / 2
                     booking.FinalPaymentPaid = remainingBalance;
                     booking.FinalPaidDate = DateTime.UtcNow;
-                    // DO NOT set TotalAmount = 0
                     await _context.SaveChangesAsync();
 
                     await SendFinalPaymentEmails(booking, remainingBalance);
@@ -323,8 +360,9 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings", "Booking");
             }
         }
+
         // ============================================================
-        // 📧 UNIFIED EMAIL HELPERS (BOTH ARTIST & CLIENT)
+        // 📧 EMAIL HELPERS
         // ============================================================
 
         private async Task SendDepositEmails(Booking booking, decimal depositAmount)
@@ -350,7 +388,7 @@ namespace BeautyArtists.Controllers
                     return;
                 }
 
-                // 📧 To Artist
+                // To Artist
                 string artistSubject = "💰 Deposit Payment Received – Appointment Confirmed!";
                 string artistBody = $@"
                 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
@@ -369,7 +407,7 @@ namespace BeautyArtists.Controllers
                     <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
                 </div>";
 
-                // 📧 To Client
+                // To Client
                 string clientSubject = "✅ Deposit Paid – Appointment Confirmed!";
                 string clientBody = $@"
                 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
@@ -417,7 +455,7 @@ namespace BeautyArtists.Controllers
                     return;
                 }
 
-                // 📧 To Artist
+                // To Artist
                 string artistSubject = "💰 Final Payment Received – Appointment Fully Paid!";
                 string artistBody = $@"
                 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
@@ -435,7 +473,7 @@ namespace BeautyArtists.Controllers
                     <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
                 </div>";
 
-                // 📧 To Client
+                // To Client
                 string clientSubject = "✅ Final Payment Confirmed!";
                 string clientBody = $@"
                 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
@@ -456,6 +494,71 @@ namespace BeautyArtists.Controllers
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ SendFinalPaymentEmails error: {ex.Message}");
+            }
+        }
+
+        // ── New: Full Payment Emails ──
+        private async Task SendFullPaymentEmails(Booking booking, decimal fullAmount)
+        {
+            try
+            {
+                var artist = booking.UserService?.Artist;
+                var client = booking.Customer;
+                var serviceName = booking.UserService?.Service?.Name ?? "your service";
+
+                if (artist == null || client == null)
+                {
+                    Console.WriteLine($"❌ Full payment emails: Artist or client is null. ArtistId: {artist?.Id}, ClientId: {client?.Id}");
+                    return;
+                }
+
+                string artistEmail = artist.Email;
+                string clientEmail = client.Email;
+
+                if (string.IsNullOrEmpty(artistEmail) || string.IsNullOrEmpty(clientEmail))
+                {
+                    Console.WriteLine($"❌ Full payment emails: Missing email. ArtistEmail={artistEmail}, ClientEmail={clientEmail}");
+                    return;
+                }
+
+                // To Artist
+                string artistSubject = "💰 Full Payment Received – Appointment Confirmed!";
+                string artistBody = $@"
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+                    <h2 style='color: #f0c808; text-align: center;'>Full Payment Received! ✅</h2>
+                    <p>Dear {artist.FirstName},</p>
+                    <p>The client <strong>{client.FirstName} {client.LastName}</strong> has paid the full amount of <strong>R{fullAmount:N2}</strong> for:</p>
+                    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                        <p><strong>Service:</strong> {serviceName}</p>
+                        <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
+                        <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
+                    </div>
+                    <p>This appointment is now <strong>CONFIRMED</strong> and <strong>FULLY PAID</strong>. You can mark it as completed after the service.</p>
+                    <hr>
+                    <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+                </div>";
+
+                // To Client
+                string clientSubject = "✅ Full Payment Confirmed – Appointment Confirmed!";
+                string clientBody = $@"
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+                    <h2 style='color: #28a745; text-align: center;'>Full Payment Confirmed! 🎉</h2>
+                    <p>Dear {client.FirstName},</p>
+                    <p>Your full payment of <strong>R{fullAmount:N2}</strong> has been received.</p>
+                    <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>CONFIRMED</strong> and <strong>FULLY PAID</strong>.</p>
+                    <p>Thank you for choosing Beauty Artists Hub!</p>
+                    <hr>
+                    <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+                </div>";
+
+                await _emailService.SendEmailAsync(artistEmail, artistSubject, artistBody);
+                await _emailService.SendEmailAsync(clientEmail, clientSubject, clientBody);
+
+                Console.WriteLine($"✅ Full payment emails sent to artist: {artistEmail} and client: {clientEmail}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ SendFullPaymentEmails error: {ex.Message}");
             }
         }
     }

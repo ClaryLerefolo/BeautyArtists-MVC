@@ -1,28 +1,45 @@
 ﻿@model BeautyArtists.Models.ViewModels.CheckoutViewModel
 @{
-    ViewData["Title"] = "Complete Your Deposit";
+    ViewData["Title"] = Model.IsLastMinute ? "Pay Full Amount" : "Complete Your Deposit";
     Layout = "~/Views/Shared/_Layout.cshtml";
+    var buttonText = Model.IsLastMinute ? "💳 Pay Full Amount" : "💳 Pay 50% Deposit";
+    var headerColor = Model.IsLastMinute ? "#f0c808" : "#FFD700";
+    var buttonGradient = Model.IsLastMinute ? "linear-gradient(135deg, #f0c808, #e50914)" : "linear-gradient(135deg, #f0c808, #e50914)";
 }
 
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-6">
-            <div class="card" style="background: #0b0b0b; border: 1px solid rgba(255,215,0,0.2);">
-                <div class="card-header text-center" style="border-bottom-color: rgba(255,215,0,0.1);">
-                    <h3 style="color: #FFD700;">Complete Your Deposit</h3>
+            <div class="card" style="background: #0b0b0b; border: 1px solid rgba(240, 200, 8, 0.3);">
+                <div class="card-header text-center" style="border-bottom-color: rgba(240,200,8,0.1);">
+                    <h3 style="color: @headerColor;">@ViewData["Title"]</h3>
                     <p style="color: #fff;">Booking #@Model.Booking.Id</p>
+                    @if (Model.IsLastMinute)
+                    {
+                        <p style="color: #ffc107; font-size: 0.9rem;">
+                            <i class="fas fa-clock me-1"></i> Appointment is within 2 days – full payment required.
+                        </p>
+                    }
                 </div>
                 <div class="card-body">
                     <div class="booking-summary mb-4">
-                        <h4 style="color: #FFD700;">Booking Summary</h4>
-                        <hr style="border-color: rgba(255,215,0,0.2);">
+                        <h4 style="color: @headerColor;">Booking Summary</h4>
+                        <hr style="border-color: rgba(240,200,8,0.2);">
                         <p><strong>Service:</strong> @Model.Booking.UserService?.Service?.Name</p>
                         <p><strong>Artist:</strong> @Model.Booking.UserService?.Artist?.FirstName @Model.Booking.UserService?.Artist?.LastName</p>
                         <p><strong>Date:</strong> @Model.Booking.AppointmentDate.ToString("MMMM dd, yyyy")</p>
                         <p><strong>Time:</strong> @Model.Booking.AppointmentDate.ToString("hh:mm tt")</p>
+                        <hr style="border-color: rgba(240,200,8,0.2);">
                         <p><strong>Total Amount:</strong> <span style="color: #FFD700;">R @Model.Booking.TotalAmount.ToString("N2")</span></p>
-                        <hr style="border-color: rgba(255,215,0,0.2);">
-                        <p><strong>Deposit Required (50%):</strong> <span style="color: #ff6600;">R @Model.DepositAmount.ToString("N2")</span></p>
+                        <p><strong>Amount Due:</strong> <span style="color: #ff6600; font-size: 1.5rem;">R @Model.DepositAmount.ToString("N2")</span></p>
+                        @if (Model.IsLastMinute)
+                        {
+                            <p class="text-warning small mt-2"><i class="fas fa-info-circle me-1"></i> This is the full amount – no further payment required.</p>
+                        }
+                        else
+                        {
+                            <p class="text-muted small mt-2"><i class="fas fa-info-circle me-1"></i> Remaining 50% to be paid 2 days before appointment.</p>
+                        }
                     </div>
 
                     <form method="post" asp-action="InitiatePayment" asp-controller="Payment">
@@ -31,8 +48,8 @@
                         <input type="hidden" name="email" value="@Model.UserEmail" />
                         <input type="hidden" name="amount" value="@Model.DepositAmount" />
 
-                        <button type="submit" class="btn btn-warning w-100 py-3" style="background: linear-gradient(135deg, #f0c808, #e50914); color: #000; font-weight: 800;">
-                            💳 Pay R @Model.DepositAmount.ToString("N2") Deposit
+                        <button type="submit" class="btn w-100 py-3" style="background: @buttonGradient; color: #000; font-weight: 800; border-radius: 999px; border: none;">
+                            @buttonText – R @Model.DepositAmount.ToString("N2")
                         </button>
                     </form>
                 </div>
