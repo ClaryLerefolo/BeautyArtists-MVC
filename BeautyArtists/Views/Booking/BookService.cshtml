@@ -146,7 +146,7 @@
                 </div>
                 <span asp-validation-for="SelectedLocationType" class="text-danger small"></span>
 
-                <!-- 🔥 CORRECTED ENHANCED HOUSE CALL SECTION 🔥 -->
+                <!-- ─── ENHANCED HOUSE CALL SECTION WITH 3 ADDRESS FIELDS ─── -->
                 <div id="houseCallWrapper" class="housecall-container" style="display:none; margin-top:20px;">
                     <div class="map-instruction">
                         📍 Tap directly on the map to drop your pin, or search below:
@@ -159,7 +159,7 @@
 
                     <div id="leafletMap" class="map-frame"></div>
 
-                    <!-- ENHANCED ADDRESS SECTION - NOW VISIBLE! -->
+                    <!-- ─── NEW 3‑FIELD ADDRESS SECTION ─── -->
                     <div class="address-highlight-wrapper">
                         <div class="address-warning-badge">
                             ⚠️ REQUIRED FOR HOUSE CALLS ⚠️
@@ -188,9 +188,38 @@
                                     </ul>
                                 </div>
 
-                                <textarea asp-for="HouseCallAddress" id="textAddress"
-                                          class="address-textarea" rows="4"
-                                          placeholder="EXAMPLE:&#10;Unit 42, Serengeti Estates&#10;2255 Mosime Street&#10;Klerksdorp, 2571"></textarea>
+                                <!-- ─── 3 STRUCTURED FIELDS ─── -->
+                                <div class="address-fields-grid">
+                                    <div class="address-field-group">
+                                        <label class="field-label">House/Unit Number <span class="required-star">*</span></label>
+                                        <input asp-for="HouseNumber"
+                                               class="address-input-field"
+                                               placeholder="e.g., 42, Flat 3B, Unit 5A"
+                                               id="houseNumberInput"
+                                               autocomplete="off" />
+                                    </div>
+
+                                    <div class="address-field-group">
+                                        <label class="field-label">Street Address <span class="required-star">*</span></label>
+                                        <input asp-for="StreetAddress"
+                                               class="address-input-field"
+                                               placeholder="e.g., 2255 Mosime Street, Klerksdorp"
+                                               id="streetAddressInput"
+                                               autocomplete="off" />
+                                    </div>
+
+                                    <div class="address-field-group">
+                                        <label class="field-label">Area / Postal Code <span class="required-star">*</span></label>
+                                        <input asp-for="AreaCode"
+                                               class="address-input-field"
+                                               placeholder="e.g., 2571, Sandton"
+                                               id="areaCodeInput"
+                                               autocomplete="off" />
+                                    </div>
+                                </div>
+
+                                <!-- ─── COMBINED ADDRESS (Hidden, for backward compatibility) ─── -->
+                                <input type="hidden" asp-for="HouseCallAddress" id="textAddress" />
 
                                 <div class="address-warning-message">
                                     ⚡ Your artist will use this EXACT address to find you on their map!
@@ -233,6 +262,57 @@
 </div>
 
 <style>
+    /* ── NEW ADDRESS FIELDS GRID ── */
+    .address-fields-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin: 15px 0;
+    }
+    @@media (max-width: 600px) {
+        .address-fields-grid
+
+    {
+        grid-template-columns: 1fr;
+    }
+
+    }
+
+    .address-field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .field-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: rgba(255,255,255,0.5);
+    }
+
+    .address-input-field {
+        width: 100%;
+        background: #1a1a00;
+        border: 1.5px solid rgba(255,215,0,0.3);
+        border-radius: 10px;
+        color: #fff;
+        padding: 10px 14px;
+        font-size: 0.9rem;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+        .address-input-field:focus {
+            border-color: #FFD700;
+            background: #2a2a00;
+            box-shadow: 0 0 12px rgba(255,215,0,0.2);
+        }
+
+        .address-input-field::placeholder {
+            color: rgba(255,255,255,0.25);
+        }
     /* BASE STYLES */
     .book-page {
         background: #000;
@@ -1036,6 +1116,35 @@
                 } catch (error) {}
             }
 
+                    async function reverseGeocode(lat, lng) {
+            try {
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+                const data = await response.json();
+
+                if (data && data.address) {
+                    const addr = data.address;
+
+                    // ── Parse South African address components ──
+                    const houseNumber = addr.house_number || addr.building || '';
+                    const road = addr.road || addr.street || '';
+                    const suburb = addr.suburb || addr.neighbourhood || addr.city_district || '';
+                    const city = addr.city || addr.town || addr.village || '';
+                    const postcode = addr.postcode || '';
+
+                    // ── Fill the 3 fields ──
+                    document.getElementById('houseNumberInput').value = houseNumber;
+                    document.getElementById('streetAddressInput').value = `${road}${road && suburb ? ', ' : ''}${suburb}${suburb && city ? ', ' : ''}${city}`;
+                    document.getElementById('areaCodeInput').value = postcode;
+
+                    // ── Also build the full address for the hidden field ──
+                    const fullAddress = `${houseNumber} ${road}, ${suburb}, ${city} ${postcode}`.trim();
+                    document.getElementById('textAddress').value = fullAddress;
+                }
+            } catch (error) {
+                console.log('Reverse geocode error:', error);
+            }
+        }
+            
             function setupSearchListeners() {
                 const searchBtn = document.getElementById('searchAddressBtn');
                 const searchInput = document.getElementById('mapSearchInput');
@@ -1240,7 +1349,7 @@
         if (nextBtn) nextBtn.onclick = nextMonth;
 
         // Form validation
-        bookingForm.onsubmit = function(e) {
+              bookingForm.onsubmit = function(e) {
             let valid = true;
             slotError.style.display = "none";
             mapValidationError.style.display = "none";
@@ -1252,11 +1361,32 @@
             }
 
             if (radHouseCall && radHouseCall.checked) {
-                if (!latOutput.value || !lngOutput.value || !textAddress.value.trim()) {
+                // ── Check all 3 fields ──
+                const houseNum = document.getElementById('houseNumberInput').value.trim();
+                const streetAddr = document.getElementById('streetAddressInput').value.trim();
+                const areaCode = document.getElementById('areaCodeInput').value.trim();
+
+                if (!houseNum || !streetAddr || !areaCode) {
                     mapValidationError.style.display = "block";
                     mapValidationError.scrollIntoView({ behavior: 'smooth' });
                     valid = false;
                 }
+
+                // ── Also check map coordinates ──
+                if (!latOutput.value || !lngOutput.value) {
+                    mapValidationError.style.display = "block";
+                    mapValidationError.scrollIntoView({ behavior: 'smooth' });
+                    valid = false;
+                }
+            }
+
+            // ── Combine fields into HouseCallAddress before submit ──
+            if (radHouseCall && radHouseCall.checked) {
+                const houseNum = document.getElementById('houseNumberInput').value.trim();
+                const streetAddr = document.getElementById('streetAddressInput').value.trim();
+                const areaCode = document.getElementById('areaCodeInput').value.trim();
+                const fullAddress = `${houseNum} ${streetAddr}, ${areaCode}`.trim();
+                document.getElementById('textAddress').value = fullAddress;
             }
 
             if (!valid) e.preventDefault();

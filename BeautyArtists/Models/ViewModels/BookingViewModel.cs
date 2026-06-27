@@ -29,5 +29,8 @@ namespace BeautyArtists.Models.ViewModels
         public string? HouseCallAddress { get; set; }
         public string? Latitude { get; set; }
         public string? Longitude { get; set; }
+        public string? HouseNumber { get; set; }
+        public string? StreetAddress { get; set; }
+        public string? AreaCode { get; set; }
     }
 }

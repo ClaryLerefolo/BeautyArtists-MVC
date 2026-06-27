@@ -30,6 +30,9 @@ namespace BeautyArtists.Models
         public LocationType SelectedLocationType { get; set; } // WalkIn or HouseCall
 
         public string? HouseCallAddress { get; set; } // The descriptive text address
+        public string? HouseNumber { get; set; }
+        public string? StreetAddress { get; set; }
+        public string? AreaCode { get; set; }
         public string? Latitude { get; set; }         // Lat coordinate for the map pin
         public string? Longitude { get; set; }        // Lng coordinate for the pin.
         public string? Notes { get; set; }
