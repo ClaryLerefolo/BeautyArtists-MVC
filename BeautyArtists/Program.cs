@@ -49,8 +49,8 @@ builder.Services.AddAuthorization();
 // ??? SignalR with Azure Service (REMOVED the duplicate) ???
 builder.Services.AddSignalR().AddAzureSignalR(options =>
 {
-    options.ConnectionString = builder.Configuration["Azure:SignalR:ConnectionString"];
-}); 
+    options.ConnectionString = builder.Configuration["AzureSignalRConnectionString"];
+});
 builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 
 // ??? OTHER SERVICES ???
