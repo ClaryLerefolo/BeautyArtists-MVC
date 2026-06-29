@@ -12,8 +12,8 @@ namespace BeautyArtists.Services
             string title,
             string message,
             string type,
-            string referenceId = null,
-            string actionUrl = null);
+            string? referenceId = null,
+            string? actionUrl = null);
 
         // Mark a single notification as read
         Task MarkAsReadAsync(int notificationId, string userId);
@@ -37,7 +37,7 @@ namespace BeautyArtists.Services
         Task<Notification> GetNotificationByIdAsync(int notificationId);
 
         // Send bulk notifications to multiple users
-        Task SendBulkNotificationsAsync(List<string> userIds, string title, string message, string type, string referenceId = null);
+        Task SendBulkNotificationsAsync(List<string> userIds, string title, string message, string type, string? referenceId = null);
 
         // Send notification to all artists
         Task NotifyAllArtistsAsync(string title, string message, string type, string referenceId = null);

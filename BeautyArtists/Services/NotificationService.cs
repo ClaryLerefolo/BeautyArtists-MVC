@@ -32,8 +32,8 @@ namespace BeautyArtists.Services
             string title,
             string message,
             string type,
-            string referenceId = null,
-            string actionUrl = null)
+            string? referenceId = null,
+            string? actionUrl = null)
         {
             var notification = new Notification
             {
@@ -147,7 +147,7 @@ namespace BeautyArtists.Services
                 .FirstOrDefaultAsync(n => n.Id == notificationId);
         }
 
-        public async Task SendBulkNotificationsAsync(List<string> userIds, string title, string message, string type, string referenceId = null)
+        public async Task SendBulkNotificationsAsync(List<string> userIds, string title, string message, string type, string? referenceId = null)
         {
             var notifications = new List<Notification>();
             var now = DateTime.UtcNow;
