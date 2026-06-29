@@ -46,9 +46,11 @@ builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 
 // ??? OTHER SERVICES ???
-builder.Services.AddControllersWithViews();
-builder.Services.AddSignalR();
+// ??? SignalR with Azure Service (REMOVED the duplicate) ???
+builder.Services.AddSignalR().AddAzureSignalR();
 builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
+
+// ??? OTHER SERVICES ???
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddTransient<ICommunicationService, CommunicationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
