@@ -159,11 +159,18 @@ namespace BeautyArtists.Controllers
                 var currentUser = await _userManager.GetUserAsync(User);
                 if (currentUser == null) return Challenge();
 
-                // ── HOUSE CALL VALIDATION ──
+                // ── HOUSE CALL VALIDATION (FIXED) ──
                 if (model.SelectedLocationType == LocationType.HouseCall)
                 {
-                    if (string.IsNullOrWhiteSpace(model.HouseCallAddress))
-                        ModelState.AddModelError("HouseCallAddress", "An address is required for house calls.");
+                    // 🔥 Check the 3 separate fields, NOT HouseCallAddress
+                    if (string.IsNullOrWhiteSpace(model.HouseNumber))
+                        ModelState.AddModelError("HouseNumber", "House/Unit number is required for house calls.");
+
+                    if (string.IsNullOrWhiteSpace(model.StreetAddress))
+                        ModelState.AddModelError("StreetAddress", "Street address is required for house calls.");
+
+                    if (string.IsNullOrWhiteSpace(model.AreaCode))
+                        ModelState.AddModelError("AreaCode", "Area/Postal code is required for house calls.");
 
                     if (string.IsNullOrEmpty(model.Latitude) || string.IsNullOrEmpty(model.Longitude))
                         ModelState.AddModelError(string.Empty, "Please pin your exact location on the map.");
@@ -226,6 +233,17 @@ namespace BeautyArtists.Controllers
 
                 var appointmentDate = slot.AvailableDate.Add(slot.StartTime);
 
+                // ── BUILD THE COMBINED ADDRESS (ONLY ONCE) ──
+                string fullAddress = string.Empty;
+                if (model.SelectedLocationType == LocationType.HouseCall)
+                {
+                    var parts = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(model.HouseNumber)) parts.Add(model.HouseNumber);
+                    if (!string.IsNullOrWhiteSpace(model.StreetAddress)) parts.Add(model.StreetAddress);
+                    if (!string.IsNullOrWhiteSpace(model.AreaCode)) parts.Add(model.AreaCode);
+                    fullAddress = string.Join(", ", parts);
+                }
+
                 // ── CREATE BOOKING ──
                 var booking = new Booking
                 {
@@ -240,15 +258,20 @@ namespace BeautyArtists.Controllers
                     TransportCost = 0,
                     TotalAmount = model.Price,
                     IsDepositPaid = false,
-                    AvailabilitySlotId = slot.Id
-                };
+                    AvailabilitySlotId = slot.Id,
 
-                if (model.SelectedLocationType == LocationType.HouseCall)
-                {
-                    booking.HouseCallAddress = model.HouseCallAddress ?? "";
-                    booking.Latitude = model.Latitude ?? "";
-                    booking.Longitude = model.Longitude ?? "";
-                }
+                    // ─── ADDRESS FIELDS (SEPARATE) ───
+                    HouseNumber = model.HouseNumber ?? "",
+                    StreetAddress = model.StreetAddress ?? "",
+                    AreaCode = model.AreaCode ?? "",
+
+                    // ─── COMBINED ADDRESS (ONLY SET ONCE) ───
+                    HouseCallAddress = fullAddress,
+
+                    // ─── MAP COORDINATES ───
+                    Latitude = model.Latitude ?? "",
+                    Longitude = model.Longitude ?? "",
+                };
 
                 // ✅ SAVE BOOKING
                 _context.Bookings.Add(booking);
@@ -266,7 +289,6 @@ namespace BeautyArtists.Controllers
                         .Select(s => s.Name)
                         .FirstOrDefaultAsync() ?? "your service";
 
-                    // 🔔 In-app notification to artist
                     await _notificationService.CreateNotificationAsync(
                         slot.ArtistId,
                         "New Booking Request! 📅",
@@ -276,7 +298,6 @@ namespace BeautyArtists.Controllers
                         Url.Action("MyAppointments", "Artist")
                     );
 
-                    // 🔔 In-app notification to client
                     await _notificationService.CreateNotificationAsync(
                         currentUser.Id,
                         "Booking Request Sent! 📤",
@@ -286,14 +307,9 @@ namespace BeautyArtists.Controllers
                         Url.Action("MyBookings", "Booking")
                     );
 
-                    // =============================================
-                    // 📧 EMAIL TO ARTIST (FIXED)
-                    // =============================================
                     if (!string.IsNullOrEmpty(slot.ArtistId))
                     {
-                        // Get the artist user to check email
                         var artist = await _userManager.FindByIdAsync(slot.ArtistId);
-
                         if (artist != null && !string.IsNullOrEmpty(artist.Email))
                         {
                             Console.WriteLine($"✅ Sending booking email to artist: {artist.Email}");
@@ -305,7 +321,6 @@ namespace BeautyArtists.Controllers
                         }
                     }
 
-                    // 📧 EMAIL TO CLIENT
                     if (!string.IsNullOrEmpty(currentUser.Email))
                     {
                         try
