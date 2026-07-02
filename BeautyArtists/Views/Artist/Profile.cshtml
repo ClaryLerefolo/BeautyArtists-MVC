@@ -383,7 +383,13 @@
                 }
             </div>
 
-            <button class="btn-edit" onclick="openEditModal()">✎ Edit Profile</button>
+            @* ── BUTTONS ── *@
+            <div style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;">
+                <button class="btn-edit" onclick="openEditModal()">✎ Edit Profile</button>
+                <a href="@Url.Action("Banking", "Artist")" class="btn-edit" style="background: linear-gradient(135deg, #f0c808, #e50914); text-decoration: none; text-align: center;">
+                    💳 Banking Details
+                </a>
+            </div>
         </div>
 
     </div>
