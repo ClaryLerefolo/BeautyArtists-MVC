@@ -22,14 +22,16 @@ namespace BeautyArtists.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly ICommunicationService _commService;
         private readonly INotificationService _notificationService;
+        private readonly IPaystackService _paystackService;
 
-        public ArtistController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, ICommunicationService communicationService, INotificationService notificationService)
+        public ArtistController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, ICommunicationService communicationService, INotificationService notificationService, IPaystackService paystackService)
         {
             _context = context;
             _userManager = userManager;
             _env = env;
             _commService = communicationService;
             _notificationService = notificationService;
+            _paystackService = paystackService;
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -478,6 +480,105 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
             TempData["Success"] = $"Transport cost of R{transportCost:N2} added successfully!";
             return RedirectToAction("MyAppointments");
+        }
+        // ─── GET: Artist/Banking ───
+        [HttpGet]
+        public async Task<IActionResult> Banking()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+
+            if (profile == null)
+                return NotFound();
+
+            var banks = await _paystackService.GetBanksAsync();
+
+            var model = new BankingViewModel
+            {
+                BankName = profile.BankName ?? "",
+                AccountHolderName = profile.AccountHolderName ?? "",
+                IsBankAccountVerified = profile.IsBankAccountVerified,
+                SubaccountCode = profile.SubaccountCode ?? "",
+                Banks = banks.Select(b => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
+                {
+                    Value = b.Code,
+                    Text = b.Name
+                }).ToList()
+            };
+
+            return View(model);
+        }
+
+        // ─── POST: Artist/Banking ───
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Banking(BankingViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                var banks = await _paystackService.GetBanksAsync();
+                model.Banks = banks.Select(b => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
+                {
+                    Value = b.Code,
+                    Text = b.Name
+                }).ToList();
+                return View(model);
+            }
+
+            var user = await _userManager.GetUserAsync(User);
+            var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+
+            if (profile == null)
+                return NotFound();
+
+            // ─── STEP 1: VALIDATE BANK ACCOUNT (R3 FEE) ───
+            var validationResult = await _paystackService.ValidateBankAccountAsync(model.BankCode, model.AccountNumber);
+
+            if (!validationResult.Success)
+            {
+                ModelState.AddModelError("AccountNumber", validationResult.Message);
+                var banks = await _paystackService.GetBanksAsync();
+                model.Banks = banks.Select(b => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
+                {
+                    Value = b.Code,
+                    Text = b.Name
+                }).ToList();
+                return View(model);
+            }
+
+            // ─── STEP 2: CREATE SUBACCOUNT ───
+            var businessName = $"{profile.FullName}";
+            var subaccountResult = await _paystackService.CreateSubaccountAsync(
+                email: user.Email,
+                bankCode: model.BankCode,
+                accountNumber: model.AccountNumber,
+                businessName: businessName,
+                percentageCharge: 15m // Your platform commission
+            );
+
+            if (!subaccountResult.Success)
+            {
+                ModelState.AddModelError("", subaccountResult.Message);
+                var banks = await _paystackService.GetBanksAsync();
+                model.Banks = banks.Select(b => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
+                {
+                    Value = b.Code,
+                    Text = b.Name
+                }).ToList();
+                return View(model);
+            }
+
+            // ─── STEP 3: STORE SUBACCOUNT CODE ───
+            profile.BankName = model.BankName;
+            profile.AccountHolderName = validationResult.AccountHolderName;
+            profile.SubaccountCode = subaccountResult.SubaccountCode;
+            profile.IsBankAccountVerified = true;
+            profile.BankAccountVerifiedDate = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"✅ Bank account verified! Subaccount created: {subaccountResult.SubaccountCode}";
+            return RedirectToAction(nameof(Banking));
         }
         // ═══════════════════════════════════════════════════════════
         // ARTIST UPDATE STATUS - FIXED WITH NOTIFICATIONS & CHECKS

@@ -44,6 +44,8 @@ namespace BeautyArtists.Controllers
             try
             {
                 var booking = await _context.Bookings
+                    .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
                     .FirstOrDefaultAsync(b => b.Id == bookingId && b.CustomerId == _userManager.GetUserId(User));
 
                 if (booking == null)
@@ -58,7 +60,21 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                var result = await _paymentService.InitializePayment(email, amount, bookingId);
+                // ─── 🔥 GET ARTIST'S SUBACCOUNT CODE ───
+                string subaccount = null;
+                if (booking.UserService?.Artist != null)
+                {
+                    var artistProfile = await _context.ArtistProfiles
+                        .FirstOrDefaultAsync(p => p.UserId == booking.UserService.ArtistId);
+
+                    if (artistProfile != null && !string.IsNullOrEmpty(artistProfile.SubaccountCode))
+                    {
+                        subaccount = artistProfile.SubaccountCode;
+                    }
+                }
+
+                // ─── INITIALIZE PAYMENT WITH SUBACCOUNT ───
+                var result = await _paymentService.InitializePayment(email, amount, bookingId, subaccount);
 
                 if (!result.success)
                 {
@@ -90,6 +106,8 @@ namespace BeautyArtists.Controllers
             try
             {
                 var booking = await _context.Bookings
+                    .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
                     .FirstOrDefaultAsync(b => b.Id == bookingId && b.CustomerId == _userManager.GetUserId(User));
 
                 if (booking == null)
@@ -124,7 +142,21 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                var result = await _paymentService.InitializePayment(email, remainingBalance, bookingId);
+                // ─── 🔥 GET ARTIST'S SUBACCOUNT CODE ───
+                string subaccount = null;
+                if (booking.UserService?.Artist != null)
+                {
+                    var artistProfile = await _context.ArtistProfiles
+                        .FirstOrDefaultAsync(p => p.UserId == booking.UserService.ArtistId);
+
+                    if (artistProfile != null && !string.IsNullOrEmpty(artistProfile.SubaccountCode))
+                    {
+                        subaccount = artistProfile.SubaccountCode;
+                    }
+                }
+
+                // ─── INITIALIZE PAYMENT WITH SUBACCOUNT ───
+                var result = await _paymentService.InitializePayment(email, remainingBalance, bookingId, subaccount);
 
                 if (!result.success)
                 {

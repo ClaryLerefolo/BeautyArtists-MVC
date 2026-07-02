@@ -11,7 +11,7 @@ namespace BeautyArtists.Services
 {
     public interface IPaymentService
     {
-        Task<(bool success, string message, string authorizationUrl, string reference)> InitializePayment(string email, decimal amount, int bookingId);
+        Task<(bool success, string message, string authorizationUrl, string reference)> InitializePayment(string email, decimal amount, int bookingId, string subaccount = null);
         Task<(bool success, string message, PaystackVerifyData data)> VerifyPayment(string reference);
     }
 
@@ -29,7 +29,12 @@ namespace BeautyArtists.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _config["Paystack:SecretKey"]);
         }
 
-        public async Task<(bool success, string message, string authorizationUrl, string reference)> InitializePayment(string email, decimal amount, int bookingId)
+        // ─── 🔥 UPDATED: Added subaccount parameter ───
+        public async Task<(bool success, string message, string authorizationUrl, string reference)> InitializePayment(
+            string email,
+            decimal amount,
+            int bookingId,
+            string subaccount = null)
         {
             try
             {
@@ -42,7 +47,9 @@ namespace BeautyArtists.Services
                     amount = amountInCents,
                     currency = "ZAR",
                     reference = reference,
-                    callback_url = _config["Paystack:CallbackUrl"]
+                    callback_url = _config["Paystack:CallbackUrl"],
+                    subaccount = subaccount, // ─── 🔥 THIS IS THE KEY ───
+                    transaction_charge = 0    // Let Paystack handle the split
                 };
 
                 var json = JsonConvert.SerializeObject(request);
@@ -66,8 +73,8 @@ namespace BeautyArtists.Services
                         Reference = reference,
                         Status = "pending",
                         IsDeposit = true,
-                        PaymentMethod = "pending",   // will be set in callback
-                        PhoneNumber = ""      // optional
+                        PaymentMethod = "pending",
+                        PhoneNumber = ""
                     };
                     _context.Payments.Add(payment);
                     await _context.SaveChangesAsync();
@@ -123,5 +130,69 @@ namespace BeautyArtists.Services
         {
             return $"BEAUTY_{DateTime.Now:yyyyMMddHHmmss}_{Guid.NewGuid().ToString().Substring(0, 8).ToUpper()}";
         }
+    }
+
+    // ─── REQUEST MODELS ───
+    public class PaystackInitRequest
+    {
+        public string email { get; set; }
+        public int amount { get; set; }
+        public string currency { get; set; }
+        public string reference { get; set; }
+        public string callback_url { get; set; }
+        public string subaccount { get; set; }        // ─── 🔥 NEW ───
+        public int transaction_charge { get; set; }   // ─── 🔥 NEW ───
+    }
+
+    public class PaystackInitResponse
+    {
+        public bool status { get; set; }
+        public string message { get; set; }
+        public PaystackInitData data { get; set; }
+    }
+
+    public class PaystackInitData
+    {
+        public string authorization_url { get; set; }
+        public string access_code { get; set; }
+        public string reference { get; set; }
+    }
+
+    public class PaystackVerifyResponse
+    {
+        public bool status { get; set; }
+        public string message { get; set; }
+        public PaystackVerifyData data { get; set; }
+    }
+
+    public class PaystackVerifyData
+    {
+        public int amount { get; set; }
+        public string currency { get; set; }
+        public string status { get; set; }
+        public string reference { get; set; }
+        public string channel { get; set; }
+        public string paid_at { get; set; }
+        public PaystackCustomer customer { get; set; }
+        public PaystackAuthorization authorization { get; set; }
+    }
+
+    public class PaystackCustomer
+    {
+        public int id { get; set; }
+        public string first_name { get; set; }
+        public string last_name { get; set; }
+        public string email { get; set; }
+    }
+
+    public class PaystackAuthorization
+    {
+        public string authorization_code { get; set; }
+        public string card_type { get; set; }
+        public string last4 { get; set; }
+        public string exp_month { get; set; }
+        public string exp_year { get; set; }
+        public string bank { get; set; }
+        public string channel { get; set; }
     }
 }

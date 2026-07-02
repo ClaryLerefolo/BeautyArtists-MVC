@@ -60,6 +60,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddHttpClient<IPaystackService, PaystackService>();
 builder.Services.AddHttpClient();
 builder.Services.AddRazorPages()
     .AddRazorPagesOptions(options =>

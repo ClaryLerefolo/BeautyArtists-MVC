@@ -1,0 +1,109 @@
+﻿@model BeautyArtists.Models.ViewModels.BankingViewModel
+@{
+    ViewData["Title"] = "Banking Details";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+}
+
+<div class="container py-4">
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+
+            <div class="card bg-dark text-white border-warning">
+                <div class="card-header border-bottom border-warning">
+                    <h3 class="text-warning mb-0">
+                        <i class="fas fa-university me-2"></i>Banking Details
+                    </h3>
+                    <p class="text-muted small mt-1 mb-0">
+                        Your banking info is used to receive payouts via Paystack.
+                    </p>
+                </div>
+
+                <div class="card-body">
+
+                    @if (TempData["Success"] != null)
+                    {
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i> @TempData["Success"]
+                        </div>
+                    }
+
+                    @if (Model.IsBankAccountVerified && !string.IsNullOrEmpty(Model.SubaccountCode))
+                    {
+                        <div class="alert alert-info">
+                            <div class="d-flex align-items-center">
+                                <div style="font-size:2rem; margin-right:15px;">✅</div>
+                                <div>
+                                    <strong>Bank Account Verified!</strong><br />
+                                    <span class="text-white-50">Subaccount: @Model.SubaccountCode</span><br />
+                                    <span class="text-white-50">Account Holder: @Model.AccountHolderName</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <form method="post" asp-action="Banking">
+                        @Html.AntiForgeryToken()
+
+                        <div class="mb-3">
+                            <label class="form-label text-warning">Bank <span class="text-danger">*</span></label>
+                            <select asp-for="BankCode" class="form-select bg-dark text-white border-secondary">
+                                <option value="">Select your bank...</option>
+                                @foreach (var bank in Model.Banks)
+                                {
+                                    <option value="@bank.Value">@bank.Text</option>
+                                }
+                            </select>
+                            <span asp-validation-for="BankCode" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-warning">Account Number <span class="text-danger">*</span></label>
+                            <input asp-for="AccountNumber" class="form-control bg-dark text-white border-secondary"
+                                   placeholder="e.g., 1234567890" maxlength="10" />
+                            <div class="form-text text-muted">10-digit South African bank account number.</div>
+                            <span asp-validation-for="AccountNumber" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label text-warning">Account Holder Name</label>
+                            <input asp-for="AccountHolderName" class="form-control bg-dark text-white border-secondary"
+                                   placeholder="Full name on the bank account" readonly />
+                            <div class="form-text text-muted">This will be auto-filled after validation.</div>
+                        </div>
+
+                        <div class="alert alert-warning small">
+                            <i class="fas fa-info-circle me-2"></i>
+                            A <strong>R3.00 fee</strong> (plus VAT) will be charged to verify your bank account details.
+                            This is a one-time fee.
+                        </div>
+
+                        <button type="submit" class="btn btn-warning w-100 py-2 fw-bold">
+                            <i class="fas fa-check-circle me-2"></i>
+                            @if (Model.IsBankAccountVerified)
+                            {
+                                @:Update Banking Details
+                            }
+                            else
+                            {
+                                @:Verify & Save Banking Details
+                            }
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="mt-3 text-center text-muted small">
+                <p class="mb-0">
+                    <i class="fas fa-lock me-1"></i> Your banking details are securely processed by Paystack.
+                    We only store your subaccount reference.
+                </p>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
