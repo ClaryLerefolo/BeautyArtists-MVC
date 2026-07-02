@@ -508,6 +508,25 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
             return View(model);
         }
+        private List<Bank> GetFallbackBanks()
+        {
+            return new List<Bank>
+    {
+        new Bank { Name = "ABSA", Code = "585001" },
+        new Bank { Name = "Capitec", Code = "585010" },
+        new Bank { Name = "FNB", Code = "585012" },
+        new Bank { Name = "Nedbank", Code = "585013" },
+        new Bank { Name = "Standard Bank", Code = "585014" },
+        new Bank { Name = "African Bank", Code = "585016" },
+        new Bank { Name = "Bank Zero", Code = "585021" },
+        new Bank { Name = "Bidvest Bank", Code = "585022" },
+        new Bank { Name = "Discovery Bank", Code = "585030" },
+        new Bank { Name = "TymeBank", Code = "585032" },
+        new Bank { Name = "Investec", Code = "585033" },
+        new Bank { Name = "Sasfin Bank", Code = "585034" },
+        new Bank { Name = "Old Mutual Bank", Code = "585035" }
+    };
+        }
 
         // ─── POST: Artist/Banking ───
         [HttpPost]

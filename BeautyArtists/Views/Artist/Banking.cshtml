@@ -49,9 +49,16 @@
                             <label class="form-label text-warning">Bank <span class="text-danger">*</span></label>
                             <select asp-for="BankCode" class="form-select bg-dark text-white border-secondary">
                                 <option value="">Select your bank...</option>
-                                @foreach (var bank in Model.Banks)
+                                @if (Model.Banks != null && Model.Banks.Any())
                                 {
-                                    <option value="@bank.Value">@bank.Text</option>
+                                    @foreach (var bank in Model.Banks)
+                                    {
+                                        <option value="@bank.Value">@bank.Text</option>
+                                    }
+                                }
+                                else
+                                {
+                                    <option value="" disabled>Loading banks... or no banks available</option>
                                 }
                             </select>
                             <span asp-validation-for="BankCode" class="text-danger small"></span>
