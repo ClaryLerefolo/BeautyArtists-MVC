@@ -491,26 +491,8 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             if (profile == null)
                 return NotFound();
 
-            var banks = await _paystackService.GetBanksAsync();
-
-            var model = new BankingViewModel
-            {
-                BankName = profile.BankName ?? "",
-                AccountHolderName = profile.AccountHolderName ?? "",
-                IsBankAccountVerified = profile.IsBankAccountVerified,
-                SubaccountCode = profile.SubaccountCode ?? "",
-                Banks = banks.Select(b => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
-                {
-                    Value = b.Code,
-                    Text = b.Name
-                }).ToList()
-            };
-
-            return View(model);
-        }
-        private List<Bank> GetFallbackBanks()
-        {
-            return new List<Bank>
+            // ─── TEMPORARY: HARDCODE BANKS ───
+            var banks = new List<Bank>
     {
         new Bank { Name = "ABSA", Code = "585001" },
         new Bank { Name = "Capitec", Code = "585010" },
@@ -526,6 +508,21 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
         new Bank { Name = "Sasfin Bank", Code = "585034" },
         new Bank { Name = "Old Mutual Bank", Code = "585035" }
     };
+
+            var model = new BankingViewModel
+            {
+                BankName = profile.BankName ?? "",
+                AccountHolderName = profile.AccountHolderName ?? "",
+                IsBankAccountVerified = profile.IsBankAccountVerified,
+                SubaccountCode = profile.SubaccountCode ?? "",
+                Banks = banks.Select(b => new SelectListItem
+                {
+                    Value = b.Code,
+                    Text = b.Name
+                }).ToList()
+            };
+
+            return View(model);
         }
 
         // ─── POST: Artist/Banking ───
