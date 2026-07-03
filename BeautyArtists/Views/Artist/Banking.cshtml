@@ -45,6 +45,9 @@
                     <form method="post" asp-action="Banking">
                         @Html.AntiForgeryToken()
 
+                        <!-- ─── VALIDATION SUMMARY ─── -->
+                        <div asp-validation-summary="All" class="alert alert-danger" style="display: none;"></div>
+
                         <div class="mb-3">
                             <label class="form-label text-warning">Bank <span class="text-danger">*</span></label>
                             <select asp-for="BankCode" class="form-select bg-dark text-white border-secondary">

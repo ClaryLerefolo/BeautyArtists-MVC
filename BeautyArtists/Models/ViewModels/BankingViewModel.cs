@@ -11,7 +11,6 @@ namespace BeautyArtists.Models.ViewModels
         public string BankName { get; set; }
 
         [Required(ErrorMessage = "Account number is required.")]
-        [StringLength(10, MinimumLength = 10, ErrorMessage = "Account number must be exactly 10 digits.")]
         [RegularExpression(@"^[0-9]+$", ErrorMessage = "Account number must contain only digits.")]
         public string AccountNumber { get; set; }
 
