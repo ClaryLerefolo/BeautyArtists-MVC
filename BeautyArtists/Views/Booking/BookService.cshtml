@@ -149,7 +149,7 @@
                 <!-- ─── HOUSE CALL SECTION – SEARCH BAR AT TOP ─── -->
                 <div id="houseCallWrapper" class="housecall-container" style="display:none; margin-top:20px;">
 
-                    <!-- ─── 🔥 SEARCH BAR – NOW AT THE VERY TOP ─── -->
+                    <!-- ─── SEARCH BAR – AT THE VERY TOP ─── -->
                     <div class="map-search-wrapper">
                         <input type="text" id="mapSearchInput" class="map-search-input" placeholder="🔍 Search for an address, suburb, or landmark..." />
                         <button type="button" id="searchAddressBtn" class="map-search-btn">Go</button>
@@ -222,6 +222,16 @@
 
                                 <div class="address-warning-message">
                                     ⚡ Your artist will use this EXACT address to find you on their map!
+                                </div>
+
+                                <!-- ─── GOOGLE MAPS LINK (FREE FOR YOU) ─── -->
+                                <div id="googleMapsLinkContainer" style="display:none; margin-top: 12px; text-align: center;">
+                                    <a id="googleMapsLink" href="#" target="_blank" class="btn btn-success w-100" style="background: #4285F4; color: white; padding: 10px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: 600;">
+                                        📍 Open in Google Maps
+                                    </a>
+                                    <p style="font-size: 0.7rem; color: rgba(255,255,255,0.3); margin-top: 4px;">
+                                        Artists will see your EXACT pin when you submit
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -1066,8 +1076,18 @@
             const timeSlotsGrid = document.getElementById("timeSlotsGrid");
             const bookSummary = document.getElementById("bookSummary");
             const summarySlot = document.getElementById("summarySlot");
+            const googleMapsLinkContainer = document.getElementById("googleMapsLinkContainer");
+            const googleMapsLink = document.getElementById("googleMapsLink");
 
             let map, marker;
+
+            // ─── UPDATE GOOGLE MAPS LINK ───
+            function updateGoogleMapsLink(lat, lng) {
+                if (lat && lng && googleMapsLink) {
+                    googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+                    googleMapsLinkContainer.style.display = 'block';
+                }
+            }
 
             // ─── MAP FUNCTIONS ───
             function initMap() {
@@ -1076,13 +1096,19 @@
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
                 marker = L.marker([-26.2041, 28.0473], { draggable: true }).addTo(map);
                 marker.on('dragend', function(e) {
-                    updateCoordinates(marker.getLatLng().lat, marker.getLatLng().lng);
-                    reverseGeocode(marker.getLatLng().lat, marker.getLatLng().lng, false);
+                    const lat = marker.getLatLng().lat;
+                    const lng = marker.getLatLng().lng;
+                    updateCoordinates(lat, lng);
+                    reverseGeocode(lat, lng, false);
+                    updateGoogleMapsLink(lat, lng);
                 });
                 map.on('click', function(e) {
+                    const lat = e.latlng.lat;
+                    const lng = e.latlng.lng;
                     marker.setLatLng(e.latlng);
-                    updateCoordinates(e.latlng.lat, e.latlng.lng);
-                    reverseGeocode(e.latlng.lat, e.latlng.lng, false);
+                    updateCoordinates(lat, lng);
+                    reverseGeocode(lat, lng, false);
+                    updateGoogleMapsLink(lat, lng);
                 });
             }
 
@@ -1090,9 +1116,10 @@
             function updateCoordinates(lat, lng) {
                 latOutput.value = lat;
                 lngOutput.value = lng;
+                updateGoogleMapsLink(lat, lng);
             }
 
-            // ─── 🔥 FIXED: REVERSE GEOCODE (preserves manual input) ───
+            // ─── REVERSE GEOCODE – PRESERVES MANUAL INPUT ───
             async function reverseGeocode(lat, lng, preserveManual = true) {
                 try {
                     const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
@@ -1126,8 +1153,8 @@
                             // If user typed something, KEEP IT – DO NOT OVERWRITE
                         } else {
                             // ─── FORCE UPDATE ALL FIELDS ───
-                            houseNumInput.value = houseNumber;
-                            areaInput.value = postcode;
+                            if (houseNumber) houseNumInput.value = houseNumber;
+                            if (postcode) areaInput.value = postcode;
                         }
 
                         // Build full address for hidden field
@@ -1139,7 +1166,7 @@
                 }
             }
 
-            // ─── SEARCH ADDRESS (PRESERVES HOUSE NUMBER & AREA CODE) ───
+            // ─── SEARCH ADDRESS (PRESERVES MANUAL INPUT) ───
             function searchAddress() {
                 const houseNum = document.getElementById('houseNumberInput')?.value?.trim() || '';
                 const streetAddr = document.getElementById('streetAddressInput')?.value?.trim() || '';
@@ -1174,14 +1201,15 @@
                         if (data && data.length > 0) {
                             const lat = parseFloat(data[0].lat);
                             const lon = parseFloat(data[0].lon);
-                            map.setView([lat, lon], 18);
+                            map.setView([lat, lon], 19);
                             marker.setLatLng([lat, lon]);
                             updateCoordinates(lat, lon);
-                            // ─── 🔥 PRESERVE MANUAL INPUT ───
+                            // ─── PRESERVE MANUAL INPUT ───
                             reverseGeocode(lat, lon, true);
                             if (data[0].display_name) {
                                 document.getElementById('mapSearchInput').value = data[0].display_name;
                             }
+                            updateGoogleMapsLink(lat, lon);
                         } else {
                             alert('Address not found. Please check the house number and street.');
                         }
@@ -1193,7 +1221,7 @@
                     });
             }
 
-            // ─── FIND EXACT LOCATION (FORCES ALL FIELDS) ───
+            // ─── FIND EXACT LOCATION (PRESERVES MANUAL INPUT) ───
             function findExactAddress() {
                 const houseNum = document.getElementById('houseNumberInput')?.value?.trim();
                 const streetAddr = document.getElementById('streetAddressInput')?.value?.trim();
@@ -1227,11 +1255,12 @@
                             map.setView([lat, lon], 19);
                             marker.setLatLng([lat, lon]);
                             updateCoordinates(lat, lon);
-                            // ─── 🔥 FORCE UPDATE ALL FIELDS ───
-                            reverseGeocode(lat, lon, false);
+                            // ─── PRESERVE MANUAL INPUT ───
+                            reverseGeocode(lat, lon, true);
                             if (data[0].display_name) {
                                 document.getElementById('mapSearchInput').value = data[0].display_name;
                             }
+                            updateGoogleMapsLink(lat, lon);
                             const wrapper = document.querySelector('.address-highlight-wrapper');
                             if (wrapper) {
                                 wrapper.style.borderColor = '#00ff88';
@@ -1258,7 +1287,6 @@
                 if (searchBtn) searchBtn.onclick = (e) => { e.preventDefault(); searchAddress(); };
                 if (searchInput) searchInput.onkeypress = (e) => { if (e.key === 'Enter') { e.preventDefault(); searchAddress(); } };
 
-                // "Find Exact Location" button is already in the HTML
                 const findBtn = document.getElementById('findExactBtn');
                 if (findBtn) {
                     findBtn.onclick = (e) => { e.preventDefault(); findExactAddress(); };
@@ -1289,7 +1317,7 @@
             cardHouseCall.onclick = () => selectLocationCard("HouseCall");
             if (radWalkIn && radWalkIn.checked) selectLocationCard("WalkIn");
 
-            // ─── CALENDAR FUNCTIONS (unchanged) ───
+            // ─── CALENDAR FUNCTIONS ───
             function showTimeSlots(dateString, slots) {
                 timeSlotsGrid.innerHTML = "";
                 selectedDateLabel.innerText = new Date(dateString).toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric' });
