@@ -491,12 +491,28 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             if (profile == null)
                 return NotFound();
 
-            // ─── USE THE HARDCODED BANKS (already in your code) ───
-            var banks = GetHardcodedBanks();
+            // ─── USE THE SAME HARDCODED BANKS ───
+            var banks = new List<Bank>
+    {
+        new Bank { Name = "ABSA", Code = "585001" },
+        new Bank { Name = "Capitec", Code = "585010" },
+        new Bank { Name = "FNB", Code = "585012" },
+        new Bank { Name = "Nedbank", Code = "585013" },
+        new Bank { Name = "Standard Bank", Code = "585014" },
+        new Bank { Name = "African Bank", Code = "585016" },
+        new Bank { Name = "Bank Zero", Code = "585021" },
+        new Bank { Name = "Bidvest Bank", Code = "585022" },
+        new Bank { Name = "Discovery Bank", Code = "585030" },
+        new Bank { Name = "TymeBank", Code = "585032" },
+        new Bank { Name = "Investec", Code = "585033" },
+        new Bank { Name = "Sasfin Bank", Code = "585034" },
+        new Bank { Name = "Old Mutual Bank", Code = "585035" }
+    };
 
             var model = new BankingViewModel
             {
                 BankName = profile.BankName ?? "",
+                BankCode = profile.SubaccountCode != null ? profile.BankCode : "", // 🔥 FIXED
                 AccountHolderName = profile.AccountHolderName ?? "",
                 IsBankAccountVerified = profile.IsBankAccountVerified,
                 SubaccountCode = profile.SubaccountCode ?? "",
@@ -534,7 +550,7 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Banking(BankingViewModel model)
         {
-            // ─── 🔥 FIX: ALWAYS have banks available ───
+            // ─── ALWAYS HAVE BANKS AVAILABLE ───
             var banks = GetHardcodedBanks();
             model.Banks = banks.Select(b => new SelectListItem
             {
@@ -559,11 +575,10 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             if (!validationResult.Success)
             {
                 ModelState.AddModelError("AccountNumber", validationResult.Message);
-                // 🔥 KEEP the banks list (already set)
                 return View(model);
             }
 
-            // ─── 🔥 SET THE NAME IN THE VIEW MODEL ───
+            // ─── SET THE NAME ───
             model.AccountHolderName = validationResult.AccountHolderName;
 
             // ─── STEP 2: CREATE SUBACCOUNT ───
@@ -579,12 +594,15 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             if (!subaccountResult.Success)
             {
                 ModelState.AddModelError("", subaccountResult.Message);
-                // 🔥 KEEP the banks list (already set)
                 return View(model);
             }
 
+            // ─── 🔥 FIX: GET BANK NAME FROM THE BANK CODE ───
+            var bankName = banks.FirstOrDefault(b => b.Code == model.BankCode)?.Name ?? "";
+
             // ─── STEP 3: STORE SUBACCOUNT CODE ───
-            profile.BankName = model.BankName;
+            profile.BankName = bankName; // ✅ NOW CORRECT
+            profile.BankCode = model.BankCode; // ✅ SAVE THE CODE TOO
             profile.AccountHolderName = validationResult.AccountHolderName;
             profile.SubaccountCode = subaccountResult.SubaccountCode;
             profile.IsBankAccountVerified = true;

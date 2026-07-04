@@ -51,7 +51,9 @@ namespace BeautyArtists.Models
         public ICollection<Service> Services { get; set; }
 
         // ─── 🔥 NEW: BANKING & PAYSTACK FIELDS ───
-        public string? BankName { get; set; }              // e.g., "Capitec", "FNB"
+        public string? BankName { get; set; }     // e.g., "Capitec", "FNB"
+
+        public string? BankCode { get; set; }
         public string? AccountHolderName { get; set; }     // e.g., "Clary"
         public string? SubaccountCode { get; set; }        // e.g., "ACCT_xxxxxxxxxx" (from Paystack)
         public bool IsBankAccountVerified { get; set; }    // true = verified & subaccount created
