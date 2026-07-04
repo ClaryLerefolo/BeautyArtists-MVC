@@ -491,23 +491,8 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             if (profile == null)
                 return NotFound();
 
-            // ─── TEMPORARY: HARDCODE BANKS ───
-            var banks = new List<Bank>
-    {
-        new Bank { Name = "ABSA", Code = "585001" },
-        new Bank { Name = "Capitec", Code = "585010" },
-        new Bank { Name = "FNB", Code = "585012" },
-        new Bank { Name = "Nedbank", Code = "585013" },
-        new Bank { Name = "Standard Bank", Code = "585014" },
-        new Bank { Name = "African Bank", Code = "585016" },
-        new Bank { Name = "Bank Zero", Code = "585021" },
-        new Bank { Name = "Bidvest Bank", Code = "585022" },
-        new Bank { Name = "Discovery Bank", Code = "585030" },
-        new Bank { Name = "TymeBank", Code = "585032" },
-        new Bank { Name = "Investec", Code = "585033" },
-        new Bank { Name = "Sasfin Bank", Code = "585034" },
-        new Bank { Name = "Old Mutual Bank", Code = "585035" }
-    };
+            // ─── USE THE HARDCODED BANKS (already in your code) ───
+            var banks = GetHardcodedBanks();
 
             var model = new BankingViewModel
             {
@@ -525,19 +510,40 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             return View(model);
         }
 
-        // ─── POST: Artist/Banking ───
+        private List<Bank> GetHardcodedBanks()
+        {
+            return new List<Bank>
+    {
+        new Bank { Name = "ABSA", Code = "585001" },
+        new Bank { Name = "Capitec", Code = "585010" },
+        new Bank { Name = "FNB", Code = "585012" },
+        new Bank { Name = "Nedbank", Code = "585013" },
+        new Bank { Name = "Standard Bank", Code = "585014" },
+        new Bank { Name = "African Bank", Code = "585016" },
+        new Bank { Name = "Bank Zero", Code = "585021" },
+        new Bank { Name = "Bidvest Bank", Code = "585022" },
+        new Bank { Name = "Discovery Bank", Code = "585030" },
+        new Bank { Name = "TymeBank", Code = "585032" },
+        new Bank { Name = "Investec", Code = "585033" },
+        new Bank { Name = "Sasfin Bank", Code = "585034" },
+        new Bank { Name = "Old Mutual Bank", Code = "585035" }
+    };
+        }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Banking(BankingViewModel model)
         {
+            // ─── 🔥 FIX: ALWAYS have banks available ───
+            var banks = GetHardcodedBanks();
+            model.Banks = banks.Select(b => new SelectListItem
+            {
+                Value = b.Code,
+                Text = b.Name
+            }).ToList();
+
             if (!ModelState.IsValid)
             {
-                var banks = await _paystackService.GetBanksAsync();
-                model.Banks = banks.Select(b => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
-                {
-                    Value = b.Code,
-                    Text = b.Name
-                }).ToList();
                 return View(model);
             }
 
@@ -553,14 +559,12 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             if (!validationResult.Success)
             {
                 ModelState.AddModelError("AccountNumber", validationResult.Message);
-                var banks = await _paystackService.GetBanksAsync();
-                model.Banks = banks.Select(b => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
-                {
-                    Value = b.Code,
-                    Text = b.Name
-                }).ToList();
+                // 🔥 KEEP the banks list (already set)
                 return View(model);
             }
+
+            // ─── 🔥 SET THE NAME IN THE VIEW MODEL ───
+            model.AccountHolderName = validationResult.AccountHolderName;
 
             // ─── STEP 2: CREATE SUBACCOUNT ───
             var businessName = $"{profile.FullName}";
@@ -569,18 +573,13 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 bankCode: model.BankCode,
                 accountNumber: model.AccountNumber,
                 businessName: businessName,
-                percentageCharge: 15m // Your platform commission
+                percentageCharge: 15m
             );
 
             if (!subaccountResult.Success)
             {
                 ModelState.AddModelError("", subaccountResult.Message);
-                var banks = await _paystackService.GetBanksAsync();
-                model.Banks = banks.Select(b => new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem
-                {
-                    Value = b.Code,
-                    Text = b.Name
-                }).ToList();
+                // 🔥 KEEP the banks list (already set)
                 return View(model);
             }
 
