@@ -28,6 +28,7 @@
                         </div>
                     }
 
+                    <!-- ─── CURRENT SAVED DETAILS (READ‑ONLY) ─── -->
                     @if (Model.IsBankAccountVerified && !string.IsNullOrEmpty(Model.SubaccountCode))
                     {
                         <div class="alert alert-info">
@@ -35,17 +36,25 @@
                                 <div style="font-size:2rem; margin-right:15px;">✅</div>
                                 <div>
                                     <strong>Bank Account Verified!</strong><br />
-                                    <span class="text-white-50">Subaccount: @Model.SubaccountCode</span><br />
-                                    <span class="text-white-50">Account Holder: @Model.AccountHolderName</span>
+                                    <span class="text-white-50"><strong>Bank:</strong> @Model.BankName</span><br />
+                                    <span class="text-white-50"><strong>Account Holder:</strong> @Model.AccountHolderName</span><br />
+                                    <span class="text-white-50"><strong>Subaccount:</strong> @Model.SubaccountCode</span>
                                 </div>
                             </div>
                         </div>
                     }
+                    else
+                    {
+                        <div class="alert alert-secondary">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No banking details saved yet. Please complete the form below.
+                        </div>
+                    }
 
+                    <!-- ─── EDIT FORM ─── -->
                     <form method="post" asp-action="Banking" id="bankingForm">
                         @Html.AntiForgeryToken()
 
-                        <!-- ─── VALIDATION SUMMARY ─── -->
                         <div asp-validation-summary="All" class="alert alert-danger" style="display: none;"></div>
 
                         <div class="mb-3">

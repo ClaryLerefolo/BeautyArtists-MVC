@@ -23,8 +23,10 @@ namespace BeautyArtists.Controllers
         private readonly ICommunicationService _commService;
         private readonly INotificationService _notificationService;
         private readonly IPaystackService _paystackService;
+        private readonly IConfiguration _configuration;       
 
-        public ArtistController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, ICommunicationService communicationService, INotificationService notificationService, IPaystackService paystackService)
+
+        public ArtistController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, ICommunicationService communicationService, INotificationService notificationService, IPaystackService paystackService, IConfiguration configuration)
         {
             _context = context;
             _userManager = userManager;
@@ -32,6 +34,7 @@ namespace BeautyArtists.Controllers
             _commService = communicationService;
             _notificationService = notificationService;
             _paystackService = paystackService;
+            _configuration = configuration;
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -537,8 +540,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
         public async Task<IActionResult> Banking(BankingViewModel model)
         {
             var banks = GetTestBanks();
-
-            // Always repopulate dropdown before any return
             model.Banks = banks.Select(b => new SelectListItem
             {
                 Value = b.Code,
@@ -564,10 +565,31 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 return View(model);
             }
 
-            // ── SET THE NAME ──
             model.AccountHolderName = validationResult.AccountHolderName;
 
-            // ── STEP 2: CREATE SUBACCOUNT ──
+            // ── STEP 2: GET BANK NAME ──
+            var bankName = banks.FirstOrDefault(b => b.Code == model.BankCode)?.Name ?? "";
+
+            // ── STEP 3: UPDATE PROFILE ──
+            profile.BankName = bankName;
+            profile.BankCode = model.BankCode;
+            profile.AccountHolderName = validationResult.AccountHolderName;
+            profile.IsBankAccountVerified = true;
+            profile.BankAccountVerifiedDate = DateTime.UtcNow;
+
+            // ── STEP 4: TEST MODE – SKIP SUBACCOUNT CREATION ──
+            bool isTestMode = _configuration["Paystack:Mode"]?.ToLower() != "live";
+
+            if (isTestMode)
+            {
+                profile.SubaccountCode = "TEST_SUBACCOUNT_" + Guid.NewGuid().ToString().Substring(0, 8);
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = $"✅ Test mode: Bank account verified! (Subaccount not created in test mode)";
+                return RedirectToAction(nameof(Banking));
+            }
+
+            // ── LIVE MODE: CREATE SUBACCOUNT ──
             var businessName = profile.FullName ?? user.Email ?? "Artist";
             var subaccountResult = await _paystackService.CreateSubaccountAsync(
                 email: user.Email,
@@ -584,26 +606,14 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 return View(model);
             }
 
-            // ── STEP 3: GET BANK NAME FROM CODE ──
-            var bankName = banks.FirstOrDefault(b => b.Code == model.BankCode)?.Name ?? "";
-
-            // ── STEP 4: PERSIST ──
-            profile.BankName = bankName;
-            profile.BankCode = model.BankCode;
-            profile.AccountHolderName = validationResult.AccountHolderName;
             profile.SubaccountCode = subaccountResult.SubaccountCode;
-            profile.IsBankAccountVerified = true;
-            profile.BankAccountVerifiedDate = DateTime.UtcNow;
-
             await _context.SaveChangesAsync();
 
-            TempData["Success"] =
-                $"✅ Bank account verified! Welcome aboard, {validationResult.AccountHolderName}. " +
+            TempData["Success"] = $"✅ Bank account verified! Welcome aboard, {validationResult.AccountHolderName}. " +
                 $"Subaccount: {subaccountResult.SubaccountCode}";
 
             return RedirectToAction(nameof(Banking));
         }
-
         // ── AJAX VALIDATION ENDPOINT ──
         [HttpGet]
         public async Task<IActionResult> ValidateAccount(string bankCode, string accountNumber)
