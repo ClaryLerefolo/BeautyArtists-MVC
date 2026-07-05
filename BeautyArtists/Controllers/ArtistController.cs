@@ -612,7 +612,7 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             TempData["Success"] = $"✅ Bank account verified! Welcome aboard, {validationResult.AccountHolderName}. " +
                 $"Subaccount: {subaccountResult.SubaccountCode}";
 
-            return RedirectToAction(nameof(Banking));
+            return RedirectToAction("Profile", "Artist");
         }
         // ── AJAX VALIDATION ENDPOINT ──
         [HttpGet]

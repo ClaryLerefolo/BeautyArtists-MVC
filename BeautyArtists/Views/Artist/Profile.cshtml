@@ -23,14 +23,11 @@
     }
 
     @@media (min-width: 768px) {
-        .profile-card
-
-    {
-        flex-direction: row;
-        align-items: flex-start;
-        padding: 40px;
-    }
-
+        .profile-card {
+            flex-direction: row;
+            align-items: flex-start;
+            padding: 40px;
+        }
     }
 
     .profile-pic-section {
@@ -79,12 +76,9 @@
     }
 
     @@media (min-width: 768px) {
-        .profile-name
-
-    {
-        text-align: left;
-    }
-
+        .profile-name {
+            text-align: left;
+        }
     }
 
     .info-grid {
@@ -102,19 +96,16 @@
     }
 
     @@media (min-width: 768px) {
-        .info-row
+        .info-row {
+            flex-direction: row;
+        }
 
-    {
-        flex-direction: row;
-    }
-
-    .info-label {
-        width: 120px;
-        flex-shrink: 0;
-        font-weight: 700;
-        color: #fff;
-    }
-
+        .info-label {
+            width: 120px;
+            flex-shrink: 0;
+            font-weight: 700;
+            color: #fff;
+        }
     }
 
     .info-label {
@@ -136,6 +127,29 @@
                 color: #f0c808;
                 text-decoration: underline;
             }
+
+    /* ── BANKING STATUS BADGE ── */
+    .banking-verified {
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    .banking-unverified {
+        color: #ff6b6b;
+        font-weight: 600;
+    }
+
+    .banking-link {
+        color: #FFD700;
+        margin-left: 8px;
+        text-decoration: none;
+        font-weight: 600;
+    }
+
+        .banking-link:hover {
+            color: #fff;
+            text-decoration: underline;
+        }
 
     /* ── SOCIAL MEDIA ICONS ── */
     .social-links {
@@ -330,21 +344,51 @@
             <h1 class="profile-name">@Model.FullName</h1>
 
             <div class="info-grid">
+
                 <div class="info-row">
                     <span class="info-label">Bio:</span>
                     <span class="info-value">@Model.Bio</span>
                 </div>
+
                 <div class="info-row">
                     <span class="info-label">Experience:</span>
                     <span class="info-value">@Model.YearsExperience years</span>
                 </div>
+
                 <div class="info-row">
                     <span class="info-label">Location:</span>
                     <span class="info-value">@Model.City, @Model.Province</span>
                 </div>
+
                 <div class="info-row">
                     <span class="info-label">Contact:</span>
                     <span class="info-value">@Model.ContactInfo</span>
+                </div>
+
+                <!-- ─── 🔥 BANKING STATUS ─── -->
+                <div class="info-row">
+                    <span class="info-label">Banking:</span>
+                    @if (Model.IsBankAccountVerified && !string.IsNullOrEmpty(Model.SubaccountCode))
+                    {
+                        <span class="info-value">
+                            <span class="banking-verified">✅ Verified</span>
+                            <small style="color: rgba(255,255,255,0.3);">
+                                (@Model.BankName)
+                            </small>
+                            <a asp-controller="Artist" asp-action="Banking" class="banking-link" style="color: #FFD700; margin-left: 8px; font-size: 0.8rem;">
+                                Update →
+                            </a>
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="info-value">
+                            <span class="banking-unverified">⚠️ Not Verified</span>
+                            <a asp-controller="Artist" asp-action="Banking" class="banking-link">
+                                Add Banking Details →
+                            </a>
+                        </span>
+                    }
                 </div>
 
                 @* ── SOCIAL MEDIA (Instagram, Facebook, Twitter/X, TikTok) ── *@

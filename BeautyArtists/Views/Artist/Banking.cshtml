@@ -28,94 +28,167 @@
                         </div>
                     }
 
-                    <!-- ─── CURRENT SAVED DETAILS (READ‑ONLY) ─── -->
+                    <!-- ─── 🔥 VERIFIED STATE ─── -->
                     @if (Model.IsBankAccountVerified && !string.IsNullOrEmpty(Model.SubaccountCode))
                     {
-                        <div class="alert alert-info">
-                            <div class="d-flex align-items-center">
-                                <div style="font-size:2rem; margin-right:15px;">✅</div>
+                        <div class="alert alert-success" style="border-left: 4px solid #28a745; background: rgba(40,167,69,0.08);">
+                            <div class="d-flex align-items-start">
+                                <div style="font-size:2.5rem; margin-right:15px;">✅</div>
                                 <div>
-                                    <strong>Bank Account Verified!</strong><br />
-                                    <span class="text-white-50"><strong>Bank:</strong> @Model.BankName</span><br />
-                                    <span class="text-white-50"><strong>Account Holder:</strong> @Model.AccountHolderName</span><br />
-                                    <span class="text-white-50"><strong>Subaccount:</strong> @Model.SubaccountCode</span>
+                                    <h4 style="color: #28a745; margin: 0 0 8px 0;">Bank Account Verified</h4>
+                                    <p style="margin: 0 0 4px 0;">
+                                        <strong style="color: #FFD700;">Bank:</strong>
+                                        <span style="color: #fff;">@Model.BankName</span>
+                                    </p>
+                                    <p style="margin: 0 0 4px 0;">
+                                        <strong style="color: #FFD700;">Account Holder:</strong>
+                                        <span style="color: #fff;">@Model.AccountHolderName</span>
+                                    </p>
+                                    @if (!string.IsNullOrEmpty(Model.SubaccountCode) && !Model.SubaccountCode.StartsWith("TEST"))
+                                    {
+                                        <p style="margin: 0 0 4px 0;">
+                                            <strong style="color: #FFD700;">Subaccount:</strong>
+                                            <code style="background: #1a1a1a; padding: 2px 8px; border-radius: 4px; color: #FFD700;">@Model.SubaccountCode</code>
+                                        </p>
+                                    }
+                                    <div class="mt-3 d-flex gap-2 flex-wrap">
+                                        <a href="@Url.Action("Profile", "Artist")" class="btn btn-success" style="background: #28a745; color: #fff; padding: 8px 20px; border-radius: 8px; text-decoration: none;">
+                                            ← Back to Profile
+                                        </a>
+                                        <button type="button" class="btn btn-outline-warning" style="padding: 8px 20px; border: 1px solid #FFD700; color: #FFD700; background: transparent; border-radius: 8px; cursor: pointer;" onclick="toggleEditForm()">
+                                            Update Banking Details
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- ─── HIDDEN EDIT FORM (shown on button click) ─── -->
+                        <div id="editForm" style="display: none; border-top: 1px solid rgba(255,215,0,0.1); padding-top: 20px; margin-top: 20px;">
+                            <h4 style="color: #FFD700;">Update Banking Details</h4>
+                            <p class="text-muted small">Changing your bank details requires re‑verification.</p>
+                            <!-- Reuse the same form fields (will work with the same POST action) -->
+                            <form method="post" asp-action="Banking" id="bankingForm">
+                                @Html.AntiForgeryToken()
+                                <div asp-validation-summary="All" class="alert alert-danger" style="display: none;"></div>
+
+                                <div class="mb-3">
+                                    <label class="form-label text-warning">Bank <span class="text-danger">*</span></label>
+                                    <select asp-for="BankCode" class="form-select bg-dark text-white border-secondary" id="editBankCode">
+                                        <option value="">Select your bank...</option>
+                                        @if (Model.Banks != null && Model.Banks.Any())
+                                        {
+                                            @foreach (var bank in Model.Banks)
+                                            {
+                                                <option value="@bank.Value">@bank.Text</option>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <option value="" disabled>Loading banks...</option>
+                                        }
+                                    </select>
+                                    <span asp-validation-for="BankCode" class="text-danger small"></span>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label text-warning">Account Number <span class="text-danger">*</span></label>
+                                    <input asp-for="AccountNumber"
+                                           class="form-control bg-dark text-white border-secondary"
+                                           placeholder="Enter your account number"
+                                           maxlength="24"
+                                           id="editAccountNumber" />
+                                    <div class="form-text text-muted">South African bank account number (8-13 digits).</div>
+                                    <span asp-validation-for="AccountNumber" class="text-danger small"></span>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label text-warning">Account Holder Name</label>
+                                    <input asp-for="AccountHolderName" class="form-control bg-dark text-white border-secondary"
+                                           placeholder="Will auto-fill after validation" readonly id="editAccountHolderName" />
+                                    <div class="form-text text-muted">This will be auto-filled after validation.</div>
+                                </div>
+
+                                <div class="alert alert-info small">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Your bank account will be verified with Paystack to ensure accurate payouts.
+                                    <strong>This is a one-time process.</strong>
+                                    <br /><strong>Test Mode:</strong> Use account number <strong>0000000000</strong>
+                                </div>
+
+                                <button type="submit" class="btn btn-warning w-100 py-2 fw-bold">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    Update & Verify
+                                </button>
+                            </form>
                         </div>
                     }
                     else
                     {
+                        <!-- ─── FIRST‑TIME SETUP (full form) ─── -->
                         <div class="alert alert-secondary">
                             <i class="fas fa-info-circle me-2"></i>
                             No banking details saved yet. Please complete the form below.
                         </div>
+
+                        <form method="post" asp-action="Banking" id="bankingForm">
+                            @Html.AntiForgeryToken()
+                            <div asp-validation-summary="All" class="alert alert-danger" style="display: none;"></div>
+
+                            <div class="mb-3">
+                                <label class="form-label text-warning">Bank <span class="text-danger">*</span></label>
+                                <select asp-for="BankCode" class="form-select bg-dark text-white border-secondary" id="BankCode">
+                                    <option value="">Select your bank...</option>
+                                    @if (Model.Banks != null && Model.Banks.Any())
+                                    {
+                                        @foreach (var bank in Model.Banks)
+                                        {
+                                            <option value="@bank.Value">@bank.Text</option>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <option value="" disabled>Loading banks...</option>
+                                    }
+                                </select>
+                                <span asp-validation-for="BankCode" class="text-danger small"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label text-warning">Account Number <span class="text-danger">*</span></label>
+                                <input asp-for="AccountNumber"
+                                       class="form-control bg-dark text-white border-secondary"
+                                       placeholder="Enter your account number"
+                                       maxlength="24"
+                                       id="AccountNumber" />
+                                <div class="form-text text-muted">South African bank account number (8-13 digits).</div>
+                                <span asp-validation-for="AccountNumber" class="text-danger small"></span>
+
+                                <!-- ─── VALIDATION STATUS ─── -->
+                                <div id="validationStatus" class="mt-2"></div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label text-warning">Account Holder Name</label>
+                                <input asp-for="AccountHolderName" class="form-control bg-dark text-white border-secondary"
+                                       placeholder="Will auto-fill after validation" readonly id="AccountHolderName" />
+                                <div class="form-text text-muted">This will be auto-filled after validation.</div>
+                            </div>
+
+                            <div class="alert alert-info small">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Your bank account will be verified with Paystack to ensure accurate payouts.
+                                <strong>This is a one-time process.</strong>
+                                <br /><strong>Test Mode:</strong> Use account number <strong>0000000000</strong>
+                            </div>
+
+                            <button type="submit" class="btn btn-warning w-100 py-2 fw-bold">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Verify & Save Banking Details
+                            </button>
+                        </form>
                     }
 
-                    <!-- ─── EDIT FORM ─── -->
-                    <form method="post" asp-action="Banking" id="bankingForm">
-                        @Html.AntiForgeryToken()
-
-                        <div asp-validation-summary="All" class="alert alert-danger" style="display: none;"></div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-warning">Bank <span class="text-danger">*</span></label>
-                            <select asp-for="BankCode" class="form-select bg-dark text-white border-secondary" id="BankCode">
-                                <option value="">Select your bank...</option>
-                                @if (Model.Banks != null && Model.Banks.Any())
-                                {
-                                    @foreach (var bank in Model.Banks)
-                                    {
-                                        <option value="@bank.Value">@bank.Text</option>
-                                    }
-                                }
-                                else
-                                {
-                                    <option value="" disabled>Loading banks... or no banks available</option>
-                                }
-                            </select>
-                            <span asp-validation-for="BankCode" class="text-danger small"></span>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-warning">Account Number <span class="text-danger">*</span></label>
-                            <input asp-for="AccountNumber"
-                                   class="form-control bg-dark text-white border-secondary"
-                                   placeholder="Enter your account number"
-                                   maxlength="24"
-                                   id="AccountNumber" />
-                            <div class="form-text text-muted">South African bank account number (8-13 digits).</div>
-                            <span asp-validation-for="AccountNumber" class="text-danger small"></span>
-
-                            <!-- ─── VALIDATION STATUS ─── -->
-                            <div id="validationStatus" class="mt-2"></div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label text-warning">Account Holder Name</label>
-                            <input asp-for="AccountHolderName" class="form-control bg-dark text-white border-secondary"
-                                   placeholder="Will auto-fill after validation" readonly id="AccountHolderName" />
-                            <div class="form-text text-muted">This will be auto-filled after validation.</div>
-                        </div>
-
-                        <div class="alert alert-info small">
-                            <i class="fas fa-info-circle me-2"></i>
-                            Your bank account will be verified with Paystack to ensure accurate payouts.
-                            <strong>This is a one-time process.</strong>
-                            <br /><strong>Test Mode:</strong> Use account number <strong>0000000000</strong>
-                        </div>
-
-                        <button type="submit" class="btn btn-warning w-100 py-2 fw-bold">
-                            <i class="fas fa-check-circle me-2"></i>
-                            @if (Model.IsBankAccountVerified)
-                            {
-                                @:Update Banking Details
-                            }
-                            else
-                            {
-                                @:Verify & Save Banking Details
-                            }
-                        </button>
-                    </form>
                 </div>
             </div>
 
@@ -134,52 +207,114 @@
     <partial name="_ValidationScriptsPartial" />
 
     <script>
+        // ─── TOGGLE EDIT FORM ───
+        function toggleEditForm() {
+            var editForm = document.getElementById('editForm');
+            if (editForm.style.display === 'none') {
+                editForm.style.display = 'block';
+            } else {
+                editForm.style.display = 'none';
+            }
+        }
+
+        // ─── VALIDATION FOR THE MAIN FORM (first time) ───
         $(document).ready(function() {
-            $('#AccountNumber').on('blur', function() {
-                var bankCode = $('#BankCode').val();
-                var accountNumber = $(this).val();
+            var isVerified = @(Model.IsBankAccountVerified ? "true" : "false");
 
-                if (bankCode && accountNumber && accountNumber.length >= 8) {
-                    validateAccount(bankCode, accountNumber);
-                } else {
-                    $('#validationStatus').html('');
+            // Only attach validation if this is the first-time form (not the edit form)
+            if (!isVerified) {
+                $('#AccountNumber').on('blur', function() {
+                    var bankCode = $('#BankCode').val();
+                    var accountNumber = $(this).val();
+
+                    if (bankCode && accountNumber && accountNumber.length >= 8) {
+                        validateAccount(bankCode, accountNumber);
+                    } else {
+                        $('#validationStatus').html('');
+                    }
+                });
+
+                $('#BankCode').on('change', function() {
+                    var bankCode = $(this).val();
+                    var accountNumber = $('#AccountNumber').val();
+
+                    if (bankCode && accountNumber && accountNumber.length >= 8) {
+                        validateAccount(bankCode, accountNumber);
+                    } else {
+                        $('#validationStatus').html('');
+                    }
+                });
+            }
+
+            // If the edit form exists (verified state), attach validation to its fields
+            if (isVerified) {
+                $('#editAccountNumber').on('blur', function() {
+                    var bankCode = $('#editBankCode').val();
+                    var accountNumber = $(this).val();
+
+                    if (bankCode && accountNumber && accountNumber.length >= 8) {
+                        validateAccount(bankCode, accountNumber, 'edit');
+                    } else {
+                        $('#validationStatus').html('');
+                    }
+                });
+
+                $('#editBankCode').on('change', function() {
+                    var bankCode = $(this).val();
+                    var accountNumber = $('#editAccountNumber').val();
+
+                    if (bankCode && accountNumber && accountNumber.length >= 8) {
+                        validateAccount(bankCode, accountNumber, 'edit');
+                    } else {
+                        $('#validationStatus').html('');
+                    }
+                });
+            }
+
+            function validateAccount(bankCode, accountNumber, prefix) {
+                // The AJAX call uses the same endpoint; we can target the validation status div by a specific id.
+                // For simplicity, we'll reuse the same #validationStatus div.
+                // If the edit form is shown, the status should be shown inside the edit form.
+                // Better to use a single status div, but we'll show it in the main container.
+                var statusDiv = $('#validationStatus');
+                if (prefix === 'edit') {
+                    statusDiv = $('#editForm #validationStatus');
+                    // If it doesn't exist, create one for the edit form.
+                    if (statusDiv.length === 0) {
+                        $('#editForm .alert-info').before('<div id="editValidationStatus" class="mt-2"></div>');
+                        statusDiv = $('#editValidationStatus');
+                    }
                 }
-            });
-
-            $('#BankCode').on('change', function() {
-                var bankCode = $(this).val();
-                var accountNumber = $('#AccountNumber').val();
-
-                if (bankCode && accountNumber && accountNumber.length >= 8) {
-                    validateAccount(bankCode, accountNumber);
-                } else {
-                    $('#validationStatus').html('');
-                }
-            });
-
-            function validateAccount(bankCode, accountNumber) {
                 $.ajax({
                     url: '/Artist/ValidateAccount',
                     type: 'GET',
                     data: { bankCode: bankCode, accountNumber: accountNumber },
                     beforeSend: function() {
-                        $('#validationStatus').html('<span class="text-warning">⏳ Validating...</span>');
+                        statusDiv.html('<span class="text-warning">⏳ Validating...</span>');
                     },
                     success: function(response) {
                         if (response.success) {
-                            $('#validationStatus').html(
+                            statusDiv.html(
                                 '<span class="text-success">✅ Account verified: ' + response.accountHolderName + '</span>'
                             );
-                            $('#AccountHolderName').val(response.accountHolderName);
+                            if (prefix === 'edit') {
+                                $('#editAccountHolderName').val(response.accountHolderName);
+                            } else {
+                                $('#AccountHolderName').val(response.accountHolderName);
+                            }
                         } else {
-                            $('#validationStatus').html(
+                            statusDiv.html(
                                 '<span class="text-danger">❌ ' + response.message + '</span>'
                             );
-                            $('#AccountHolderName').val('');
+                            if (prefix === 'edit') {
+                                $('#editAccountHolderName').val('');
+                            } else {
+                                $('#AccountHolderName').val('');
+                            }
                         }
                     },
                     error: function() {
-                        $('#validationStatus').html('<span class="text-danger">❌ Validation error</span>');
+                        statusDiv.html('<span class="text-danger">❌ Validation error</span>');
                     }
                 });
             }
