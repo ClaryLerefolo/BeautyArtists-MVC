@@ -45,13 +45,8 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 
-// ??? OTHER SERVICES ???
-// ??? SignalR with Azure Service (REMOVED the duplicate) ???
-builder.Services.AddSignalR().AddAzureSignalR(options =>
-{
-    options.ConnectionString = builder.Configuration["AzureSignalRConnectionString"];
-});
-builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
+
+//builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 
 // ??? OTHER SERVICES ???
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
