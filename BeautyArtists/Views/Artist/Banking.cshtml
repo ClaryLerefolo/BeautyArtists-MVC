@@ -42,7 +42,7 @@
                         </div>
                     }
 
-                    <form method="post" asp-action="Banking">
+                    <form method="post" asp-action="Banking" id="bankingForm">
                         @Html.AntiForgeryToken()
 
                         <!-- ─── VALIDATION SUMMARY ─── -->
@@ -50,7 +50,7 @@
 
                         <div class="mb-3">
                             <label class="form-label text-warning">Bank <span class="text-danger">*</span></label>
-                            <select asp-for="BankCode" class="form-select bg-dark text-white border-secondary">
+                            <select asp-for="BankCode" class="form-select bg-dark text-white border-secondary" id="BankCode">
                                 <option value="">Select your bank...</option>
                                 @if (Model.Banks != null && Model.Banks.Any())
                                 {
@@ -72,15 +72,19 @@
                             <input asp-for="AccountNumber"
                                    class="form-control bg-dark text-white border-secondary"
                                    placeholder="Enter your account number"
-                                   maxlength="24" /> <!-- 🔥 FIXED: Removed 10-digit restriction -->
-                            <div class="form-text text-muted">South African bank account number (8-13 digits).</div> <!-- 🔥 FIXED: Updated helper text -->
+                                   maxlength="24"
+                                   id="AccountNumber" />
+                            <div class="form-text text-muted">South African bank account number (8-13 digits).</div>
                             <span asp-validation-for="AccountNumber" class="text-danger small"></span>
+
+                            <!-- ─── 🔥 VALIDATION STATUS (AJAX) ─── -->
+                            <div id="validationStatus" class="mt-2"></div>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label text-warning">Account Holder Name</label>
                             <input asp-for="AccountHolderName" class="form-control bg-dark text-white border-secondary"
-                                   placeholder="Full name on the bank account" readonly />
+                                   placeholder="Full name on the bank account" readonly id="AccountHolderName" />
                             <div class="form-text text-muted">This will be auto-filled after validation.</div>
                         </div>
 
@@ -118,4 +122,58 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+
+    <script>
+        $(document).ready(function() {
+            // ─── REAL-TIME VALIDATION ON ACCOUNT NUMBER CHANGE ───
+            $('#AccountNumber').on('blur', function() {
+                var bankCode = $('#BankCode').val();
+                var accountNumber = $(this).val();
+
+                if (bankCode && accountNumber && accountNumber.length >= 8) {
+                    validateAccount(bankCode, accountNumber);
+                } else {
+                    $('#validationStatus').html('');
+                }
+            });
+
+            $('#BankCode').on('change', function() {
+                var bankCode = $(this).val();
+                var accountNumber = $('#AccountNumber').val();
+
+                if (bankCode && accountNumber && accountNumber.length >= 8) {
+                    validateAccount(bankCode, accountNumber);
+                } else {
+                    $('#validationStatus').html('');
+                }
+            });
+
+            function validateAccount(bankCode, accountNumber) {
+                $.ajax({
+                    url: '/Artist/ValidateAccount',
+                    type: 'GET',
+                    data: { bankCode: bankCode, accountNumber: accountNumber },
+                    beforeSend: function() {
+                        $('#validationStatus').html('<span class="text-warning">⏳ Validating...</span>');
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            $('#validationStatus').html(
+                                '<span class="text-success">✅ Account verified: ' + response.accountHolderName + '</span>'
+                            );
+                            $('#AccountHolderName').val(response.accountHolderName);
+                        } else {
+                            $('#validationStatus').html(
+                                '<span class="text-danger">❌ ' + response.message + '</span>'
+                            );
+                            $('#AccountHolderName').val('');
+                        }
+                    },
+                    error: function() {
+                        $('#validationStatus').html('<span class="text-danger">❌ Validation error</span>');
+                    }
+                });
+            }
+        });
+    </script>
 }

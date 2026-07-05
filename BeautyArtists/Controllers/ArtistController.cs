@@ -502,37 +502,23 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             return RedirectToAction("MyAppointments");
         }
         // ─── GET: Artist/Banking ───
+     
+
         [HttpGet]
         public async Task<IActionResult> Banking()
         {
             var user = await _userManager.GetUserAsync(User);
-            var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+            var profile = await _context.ArtistProfiles
+                .FirstOrDefaultAsync(p => p.UserId == user.Id);
 
-            if (profile == null)
-                return NotFound();
+            if (profile == null) return NotFound();
 
-            // ─── USE THE SAME HARDCODED BANKS ───
-            var banks = new List<Bank>
-    {
-        new Bank { Name = "ABSA", Code = "585001" },
-        new Bank { Name = "Capitec", Code = "585010" },
-        new Bank { Name = "FNB", Code = "585012" },
-        new Bank { Name = "Nedbank", Code = "585013" },
-        new Bank { Name = "Standard Bank", Code = "585014" },
-        new Bank { Name = "African Bank", Code = "585016" },
-        new Bank { Name = "Bank Zero", Code = "585021" },
-        new Bank { Name = "Bidvest Bank", Code = "585022" },
-        new Bank { Name = "Discovery Bank", Code = "585030" },
-        new Bank { Name = "TymeBank", Code = "585032" },
-        new Bank { Name = "Investec", Code = "585033" },
-        new Bank { Name = "Sasfin Bank", Code = "585034" },
-        new Bank { Name = "Old Mutual Bank", Code = "585035" }
-    };
+            var banks = GetHardcodedBanks();
 
             var model = new BankingViewModel
             {
                 BankName = profile.BankName ?? "",
-                BankCode = profile.SubaccountCode != null ? profile.BankCode : "", // 🔥 FIXED
+                BankCode = profile.BankCode ?? "",
                 AccountHolderName = profile.AccountHolderName ?? "",
                 IsBankAccountVerified = profile.IsBankAccountVerified,
                 SubaccountCode = profile.SubaccountCode ?? "",
@@ -546,32 +532,13 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             return View(model);
         }
 
-        private List<Bank> GetHardcodedBanks()
-        {
-            return new List<Bank>
-    {
-        new Bank { Name = "ABSA", Code = "585001" },
-        new Bank { Name = "Capitec", Code = "585010" },
-        new Bank { Name = "FNB", Code = "585012" },
-        new Bank { Name = "Nedbank", Code = "585013" },
-        new Bank { Name = "Standard Bank", Code = "585014" },
-        new Bank { Name = "African Bank", Code = "585016" },
-        new Bank { Name = "Bank Zero", Code = "585021" },
-        new Bank { Name = "Bidvest Bank", Code = "585022" },
-        new Bank { Name = "Discovery Bank", Code = "585030" },
-        new Bank { Name = "TymeBank", Code = "585032" },
-        new Bank { Name = "Investec", Code = "585033" },
-        new Bank { Name = "Sasfin Bank", Code = "585034" },
-        new Bank { Name = "Old Mutual Bank", Code = "585035" }
-    };
-        }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Banking(BankingViewModel model)
         {
-            // ─── ALWAYS HAVE BANKS AVAILABLE ───
             var banks = GetHardcodedBanks();
+
+            // Always repopulate the dropdown list before any return
             model.Banks = banks.Select(b => new SelectListItem
             {
                 Value = b.Code,
@@ -579,18 +546,17 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             }).ToList();
 
             if (!ModelState.IsValid)
-            {
                 return View(model);
-            }
 
             var user = await _userManager.GetUserAsync(User);
-            var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+            var profile = await _context.ArtistProfiles
+                .FirstOrDefaultAsync(p => p.UserId == user.Id);
 
-            if (profile == null)
-                return NotFound();
+            if (profile == null) return NotFound();
 
-            // ─── STEP 1: VALIDATE BANK ACCOUNT (R3 FEE) ───
-            var validationResult = await _paystackService.ValidateBankAccountAsync(model.BankCode, model.AccountNumber);
+            // ── STEP 1: VALIDATE BANK ACCOUNT WITH PAYSTACK ──
+            var validationResult = await _paystackService.ValidateBankAccountAsync(
+                model.BankCode, model.AccountNumber);
 
             if (!validationResult.Success)
             {
@@ -598,11 +564,13 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 return View(model);
             }
 
-            // ─── SET THE NAME ───
+            // FIX: Set the name on the model so the view can show it immediately
+            //      (the view now shows it in a read-only field AND in a hidden input
+            //       so it survives the POST cycle)
             model.AccountHolderName = validationResult.AccountHolderName;
 
-            // ─── STEP 2: CREATE SUBACCOUNT ───
-            var businessName = $"{profile.FullName}";
+            // ── STEP 2: CREATE SUBACCOUNT ──
+            var businessName = profile.FullName ?? user.Email ?? "Artist";
             var subaccountResult = await _paystackService.CreateSubaccountAsync(
                 email: user.Email,
                 bankCode: model.BankCode,
@@ -614,15 +582,18 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             if (!subaccountResult.Success)
             {
                 ModelState.AddModelError("", subaccountResult.Message);
+
+                // Still show the validated name even if subaccount creation fails
+                model.AccountHolderName = validationResult.AccountHolderName;
                 return View(model);
             }
 
-            // ─── 🔥 FIX: GET BANK NAME FROM THE BANK CODE ───
+            // ── STEP 3: GET BANK NAME FROM CODE ──
             var bankName = banks.FirstOrDefault(b => b.Code == model.BankCode)?.Name ?? "";
 
-            // ─── STEP 3: STORE SUBACCOUNT CODE ───
-            profile.BankName = bankName; // ✅ NOW CORRECT
-            profile.BankCode = model.BankCode; // ✅ SAVE THE CODE TOO
+            // ── STEP 4: PERSIST TO PROFILE ──
+            profile.BankName = bankName;
+            profile.BankCode = model.BankCode;
             profile.AccountHolderName = validationResult.AccountHolderName;
             profile.SubaccountCode = subaccountResult.SubaccountCode;
             profile.IsBankAccountVerified = true;
@@ -630,8 +601,49 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = $"✅ Bank account verified! Subaccount created: {subaccountResult.SubaccountCode}";
+            TempData["Success"] =
+                $"Bank account verified! Welcome aboard, {validationResult.AccountHolderName}. " +
+                $"Subaccount: {subaccountResult.SubaccountCode}";
+
             return RedirectToAction(nameof(Banking));
+        }
+
+        // ── HELPER: VALIDATE ACCOUNT NUMBER VIA AJAX ──
+        // Call this from JS: GET /Artist/ValidateAccount?bankCode=xxx&accountNumber=yyy
+        [HttpGet]
+        public async Task<IActionResult> ValidateAccount(string bankCode, string accountNumber)
+        {
+            if (string.IsNullOrEmpty(bankCode) || string.IsNullOrEmpty(accountNumber))
+                return Json(new { success = false, message = "Bank and account number are required." });
+
+            var result = await _paystackService.ValidateBankAccountAsync(bankCode, accountNumber);
+
+            return Json(new
+            {
+                success = result.Success,
+                message = result.Message,
+                accountHolderName = result.AccountHolderName
+            });
+        }
+
+        private List<Bank> GetHardcodedBanks()
+        {
+            return new List<Bank>
+    {
+        new Bank { Name = "ABSA",             Code = "585001" },
+        new Bank { Name = "Capitec",          Code = "585010" },
+        new Bank { Name = "FNB",              Code = "585012" },
+        new Bank { Name = "Nedbank",          Code = "585013" },
+        new Bank { Name = "Standard Bank",    Code = "585014" },
+        new Bank { Name = "African Bank",     Code = "585016" },
+        new Bank { Name = "Bank Zero",        Code = "585021" },
+        new Bank { Name = "Bidvest Bank",     Code = "585022" },
+        new Bank { Name = "Discovery Bank",   Code = "585030" },
+        new Bank { Name = "TymeBank",         Code = "585032" },
+        new Bank { Name = "Investec",         Code = "585033" },
+        new Bank { Name = "Sasfin Bank",      Code = "585034" },
+        new Bank { Name = "Old Mutual Bank",  Code = "585035" }
+    };
         }
         // ═══════════════════════════════════════════════════════════
         // ARTIST UPDATE STATUS - FIXED WITH NOTIFICATIONS & CHECKS
