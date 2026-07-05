@@ -40,13 +40,27 @@ namespace BeautyArtists.Controllers
         public async Task<IActionResult> Dashboard()
         {
             var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Challenge();
+
             var artistId = user.Id;
 
-            var artistName = !string.IsNullOrEmpty(user.FullName) ? user.FullName : $"{user.FirstName} {user.LastName}";
-            if (string.IsNullOrWhiteSpace(artistName)) { artistName = user.Email ?? "Artist"; }
+            // ─── SAFE NAME HANDLING ───
+            var artistName = user.FullName;
+            if (string.IsNullOrWhiteSpace(artistName))
+            {
+                artistName = $"{user.FirstName ?? ""} {user.LastName ?? ""}".Trim();
+                if (string.IsNullOrWhiteSpace(artistName))
+                {
+                    artistName = user.Email ?? "Artist";
+                }
+            }
 
-            var portfolioCount = await _context.PortfolioItems.CountAsync(p => p.ArtistId == artistId);
-            var servicesCount = await _context.UserServices.CountAsync(us => us.ArtistId == artistId);
+            // ─── DATABASE QUERIES WITH ERROR HANDLING ───
+            var portfolioCount = await _context.PortfolioItems
+                .CountAsync(p => p.ArtistId == artistId);
+
+            var servicesCount = await _context.UserServices
+                .CountAsync(us => us.ArtistId == artistId);
 
             var upcomingAppointmentsCount = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId
@@ -61,6 +75,7 @@ namespace BeautyArtists.Controllers
                     && b.Status == Booking.BookingStatus.Confirmed)
                 .SumAsync(b => (decimal?)b.UserService.Price) ?? 0;
 
+            // ─── CHART DATA ───
             var chartData = new List<decimal>();
             var chartLabels = new List<string>();
 
@@ -78,16 +93,21 @@ namespace BeautyArtists.Controllers
                 chartLabels.Add(monthDate.ToString("MMM"));
             }
 
+            // ─── RECENT APPOINTMENTS WITH NULL CHECKS ───
             var recentAppointments = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId)
                 .OrderByDescending(b => b.AppointmentDate)
                 .Take(4)
                 .Select(b => new AppointmentSummary
                 {
-                    ClientName = !string.IsNullOrEmpty(b.Customer.FirstName)
-                                 ? $"{b.Customer.FirstName} {b.Customer.LastName}"
-                                 : b.Customer.Email,
-                    ServiceName = b.UserService.Service.Name,
+                    ClientName = b.Customer != null
+                        ? (!string.IsNullOrEmpty(b.Customer.FirstName)
+                            ? $"{b.Customer.FirstName} {b.Customer.LastName}"
+                            : b.Customer.Email ?? "Unknown Client")
+                        : "Unknown Client",
+                    ServiceName = b.UserService != null && b.UserService.Service != null
+                        ? b.UserService.Service.Name
+                        : "Unknown Service",
                     AppointmentDate = b.AppointmentDate,
                     Status = b.Status.ToString()
                 })
