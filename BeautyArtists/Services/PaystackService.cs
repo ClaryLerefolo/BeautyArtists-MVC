@@ -17,10 +17,12 @@ namespace BeautyArtists.Services
         {
             _httpClient = httpClient;
             _secretKey = configuration["Paystack:SecretKey"] ?? throw new Exception("Paystack Secret Key is missing");
-            _isTestMode = configuration["Paystack:Mode"]?.ToLower() != "live"; // Default to test
+            _isTestMode = configuration["Paystack:Mode"]?.ToLower() != "live";
             _logger = logger;
             _httpClient.BaseAddress = new Uri("https://api.paystack.co/");
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_secretKey}");
+
+            Console.WriteLine($"🔍 Paystack Mode: {(_isTestMode ? "TEST" : "LIVE")}");
         }
 
         // ─── GET BANKS ───
@@ -28,13 +30,9 @@ namespace BeautyArtists.Services
         {
             try
             {
-                // ─── TIMEOUT HANDLING ───
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-
                 var response = await _httpClient.GetAsync("bank?country=south-africa", cts.Token);
                 var json = await response.Content.ReadAsStringAsync();
-
-                _logger.LogInformation($"Paystack Banks Response: {json}");
 
                 var result = JsonSerializer.Deserialize<PaystackBankResponse>(json);
 
@@ -47,7 +45,6 @@ namespace BeautyArtists.Services
                     }).ToList();
                 }
 
-                // ─── FALLBACK: Return hardcoded banks if API fails ───
                 _logger.LogWarning("Banks API returned no data, using fallback list.");
                 return GetFallbackBanks();
             }
@@ -60,35 +57,53 @@ namespace BeautyArtists.Services
 
         private List<Bank> GetFallbackBanks()
         {
+            if (_isTestMode)
+            {
+                return new List<Bank>
+                {
+                    new Bank { Name = "ABSA (Test)", Code = "000003" },
+                    new Bank { Name = "Capitec (Test)", Code = "000002" },
+                    new Bank { Name = "FNB (Test)", Code = "000001" },
+                    new Bank { Name = "Standard Bank (Test)", Code = "000004" }
+                };
+            }
+
             return new List<Bank>
-    {
-        new Bank { Name = "ABSA", Code = "585001" },
-        new Bank { Name = "Capitec", Code = "585010" },
-        new Bank { Name = "FNB", Code = "585012" },
-        new Bank { Name = "Nedbank", Code = "585013" },
-        new Bank { Name = "Standard Bank", Code = "585014" },
-        new Bank { Name = "African Bank", Code = "585016" },
-        new Bank { Name = "Bank Zero", Code = "585021" },
-        new Bank { Name = "Bidvest Bank", Code = "585022" },
-        new Bank { Name = "Discovery Bank", Code = "585030" },
-        new Bank { Name = "TymeBank", Code = "585032" },
-        new Bank { Name = "Investec", Code = "585033" },
-        new Bank { Name = "Sasfin Bank", Code = "585034" },
-        new Bank { Name = "Old Mutual Bank", Code = "585035" }
-    };
+            {
+                new Bank { Name = "ABSA", Code = "585001" },
+                new Bank { Name = "Capitec", Code = "585010" },
+                new Bank { Name = "FNB", Code = "585012" },
+                new Bank { Name = "Nedbank", Code = "585013" },
+                new Bank { Name = "Standard Bank", Code = "585014" }
+            };
         }
 
-        // ─── VALIDATE BANK ACCOUNT (R3 FEE) ───
+        // ─── VALIDATE BANK ACCOUNT ───
         public async Task<BankValidationResult> ValidateBankAccountAsync(string bankCode, string accountNumber)
         {
+            // ─── 🔥 TEST MODE: ALWAYS SUCCEED ───
+            if (_isTestMode)
+            {
+                Console.WriteLine($"🔍 TEST MODE: Bypassing validation for {bankCode}/{accountNumber}");
+                return new BankValidationResult
+                {
+                    Success = true,
+                    Message = "Test mode validation bypassed",
+                    AccountHolderName = "Test Artist (Test Mode)"
+                };
+            }
+
+            // ─── LIVE MODE: REAL VALIDATION ───
             try
             {
                 var url = $"bank/resolve?account_number={accountNumber}&bank_code={bankCode}";
+                Console.WriteLine($"🔍 LIVE MODE: Validating {url}");
+
                 var response = await _httpClient.GetAsync(url);
                 var json = await response.Content.ReadAsStringAsync();
-                var result = JsonSerializer.Deserialize<PaystackApiResponse>(json);
+                Console.WriteLine($"🔍 Paystack Response: {json}");
 
-                _logger.LogInformation($"Bank validation response: {json}");
+                var result = JsonSerializer.Deserialize<PaystackApiResponse>(json);
 
                 if (result?.status == true && result.data != null)
                 {
@@ -139,9 +154,9 @@ namespace BeautyArtists.Services
                 var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
                 var response = await _httpClient.PostAsync("subaccount", content);
                 var json = await response.Content.ReadAsStringAsync();
-                var result = JsonSerializer.Deserialize<PaystackApiResponse>(json);
+                Console.WriteLine($"🔍 Subaccount Response: {json}");
 
-                _logger.LogInformation($"Subaccount creation response: {json}");
+                var result = JsonSerializer.Deserialize<PaystackApiResponse>(json);
 
                 if (result?.status == true && result.data != null)
                 {
