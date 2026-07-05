@@ -77,14 +77,14 @@
                             <div class="form-text text-muted">South African bank account number (8-13 digits).</div>
                             <span asp-validation-for="AccountNumber" class="text-danger small"></span>
 
-                            <!-- ─── 🔥 VALIDATION STATUS (AJAX) ─── -->
+                            <!-- ─── VALIDATION STATUS ─── -->
                             <div id="validationStatus" class="mt-2"></div>
                         </div>
 
                         <div class="mb-3">
                             <label class="form-label text-warning">Account Holder Name</label>
                             <input asp-for="AccountHolderName" class="form-control bg-dark text-white border-secondary"
-                                   placeholder="Full name on the bank account" readonly id="AccountHolderName" />
+                                   placeholder="Will auto-fill after validation" readonly id="AccountHolderName" />
                             <div class="form-text text-muted">This will be auto-filled after validation.</div>
                         </div>
 
@@ -92,6 +92,7 @@
                             <i class="fas fa-info-circle me-2"></i>
                             Your bank account will be verified with Paystack to ensure accurate payouts.
                             <strong>This is a one-time process.</strong>
+                            <br /><strong>Test Mode:</strong> Use account number <strong>0000000000</strong>
                         </div>
 
                         <button type="submit" class="btn btn-warning w-100 py-2 fw-bold">
@@ -125,7 +126,6 @@
 
     <script>
         $(document).ready(function() {
-            // ─── REAL-TIME VALIDATION ON ACCOUNT NUMBER CHANGE ───
             $('#AccountNumber').on('blur', function() {
                 var bankCode = $('#BankCode').val();
                 var accountNumber = $(this).val();
