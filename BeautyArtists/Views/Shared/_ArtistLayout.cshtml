@@ -1,13 +1,26 @@
-﻿@using Microsoft.AspNetCore.Identity
+﻿@using BeautyArtists.Data                    
+@using Microsoft.EntityFrameworkCore       
+@using Microsoft.AspNetCore.Identity
 @inject UserManager<ApplicationUser> UserManager
+@inject ApplicationDbContext DbContext
 @{
     var user = await UserManager.GetUserAsync(User);
     var displayName = user != null && !string.IsNullOrEmpty(user.FirstName)
         ? $"{user.FirstName} {user.LastName}".Trim()
         : "Artist";
 
-    // Get profile picture URL (if available)
-    var profilePictureUrl = user?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
+    // ─── LOAD PROFILE PICTURE ───
+    string profilePictureUrl = "/images/default-profile.png";
+    if (user != null)
+    {
+        var profile = await DbContext.ArtistProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.UserId == user.Id);
+        if (profile != null && !string.IsNullOrEmpty(profile.ProfilePictureUrl))
+        {
+            profilePictureUrl = profile.ProfilePictureUrl;
+        }
+    }
 }
 
 <!DOCTYPE html>
@@ -20,9 +33,10 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     @await RenderSectionAsync("Styles", required: false)
+
     <style>
         :root {
-            --gold: #C9A84C; /* matching client layout */
+            --gold: #C9A84C;
             --ruby: #8B0000;
             --sidebar-width: 260px;
             --sidebar-collapsed: 70px;
@@ -625,7 +639,7 @@
             </h1>
 
             <div class="top-bar-right">
-                <!-- ── PROFILE AVATAR (clickable to Profile) ── -->
+                <!-- ─── PROFILE AVATAR (clickable to Profile) ─── -->
                 <a asp-controller="Artist" asp-action="Profile" class="top-bar-avatar-link" title="Edit Profile">
                     <img src="@profilePictureUrl"
                          class="top-bar-avatar"
@@ -654,7 +668,6 @@
             const isMobile = () => window.innerWidth <= 768;
             const isTablet = () => window.innerWidth > 768 && window.innerWidth <= 1024;
 
-            // ── DESKTOP: restore saved state ──
             if (!isMobile() && !isTablet()) {
                 const wasCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
                 if (wasCollapsed) {
@@ -665,7 +678,6 @@
                 }
             }
 
-            // ── DESKTOP: collapse toggle ──
             toggleBtn.addEventListener('click', function() {
                 if (isMobile() || isTablet()) return;
                 const collapsed = sidebar.classList.toggle('collapsed');
@@ -680,7 +692,6 @@
                 localStorage.setItem('sidebarCollapsed', collapsed);
             });
 
-            // ── MOBILE: open ──
             if (hamburgerBtn) {
                 hamburgerBtn.addEventListener('click', function() {
                     sidebar.classList.add('mobile-open');
@@ -689,7 +700,6 @@
                 });
             }
 
-            // ── MOBILE: close ──
             function closeMobile() {
                 sidebar.classList.remove('mobile-open');
                 backdrop.classList.remove('show');
@@ -700,14 +710,12 @@
                 backdrop.addEventListener('click', closeMobile);
             }
 
-            // Close sidebar when a nav link is tapped on mobile
             document.querySelectorAll('.sidebar-nav .nav-link').forEach(function(link) {
                 link.addEventListener('click', function() {
                     if (isMobile()) closeMobile();
                 });
             });
 
-            // ── ACTIVE LINK ──
             const currentPath = window.location.pathname.toLowerCase();
             document.querySelectorAll('.sidebar-nav .nav-link').forEach(function(link) {
                 const href = link.getAttribute('href')?.toLowerCase();
@@ -719,7 +727,6 @@
                 }
             });
 
-            // ── RESIZE: close mobile sidebar if screen grows ──
             window.addEventListener('resize', function() {
                 if (!isMobile()) closeMobile();
             });
