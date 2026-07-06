@@ -68,7 +68,11 @@ namespace BeautyArtists.Controllers
 
                     if (artistProfile != null && !string.IsNullOrEmpty(artistProfile.SubaccountCode))
                     {
-                        subaccount = artistProfile.SubaccountCode;
+                        // ─── 🔥 SKIP DUMMY TEST SUBACCOUNT ───
+                        if (!artistProfile.SubaccountCode.StartsWith("TEST_SUBACCOUNT_"))
+                        {
+                            subaccount = artistProfile.SubaccountCode;
+                        }
                     }
                 }
 

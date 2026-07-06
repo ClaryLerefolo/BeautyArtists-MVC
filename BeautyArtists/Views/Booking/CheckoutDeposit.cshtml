@@ -22,6 +22,13 @@
                     }
                 </div>
                 <div class="card-body">
+
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i> @TempData["Error"]
+                        </div>
+                    }
                     <div class="booking-summary mb-4">
                         <h4 style="color: @headerColor;">Booking Summary</h4>
                         <hr style="border-color: rgba(240,200,8,0.2);">
