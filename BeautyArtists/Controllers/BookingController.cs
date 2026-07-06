@@ -845,6 +845,7 @@ namespace BeautyArtists.Controllers
         // ══════════════════════════════════
         [Authorize]
         [HttpPost]
+        [Route("Booking/Cancel/{id}")] 
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Cancel(int id, string? clientNotes)
         {

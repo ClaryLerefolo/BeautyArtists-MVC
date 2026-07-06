@@ -190,8 +190,8 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                 return RedirectToAction("CheckoutFinalPayment", "Booking", new { id = bookingId });
             }
         }
-
         [HttpGet]
+        [Route("Payment/PaymentCallback")]
         public async Task<IActionResult> PaymentCallback(string reference, string trxref)
         {
             string refToVerify = reference ?? trxref;
@@ -236,10 +236,9 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                 // ── If payment already marked success, handle gracefully ──
                 if (payment.Status == "success")
                 {
-                    // Check if booking already has the payment recorded
+                    // Check if deposit was not recorded yet
                     if (!booking.IsDepositPaid && booking.DepositPaid == 0 && payment.Amount == booking.TotalAmount / 2)
                     {
-                        // Deposit not yet recorded – record it now
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -266,9 +265,9 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                         return RedirectToAction("MyBookings", "Booking");
                     }
 
-                    if (booking.TotalAmount > 0 && payment.Amount > 0)
+                    // Check for final payment (if deposit already paid and amount > 0)
+                    if (booking.IsDepositPaid && booking.FinalPaymentPaid == 0 && payment.Amount > 0)
                     {
-                        // Likely a final payment – record it
                         decimal remainingBalance = payment.Amount;
                         booking.FinalPaymentPaid = remainingBalance;
                         booking.FinalPaidDate = DateTime.UtcNow;
@@ -279,6 +278,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                         return RedirectToAction("MyBookings", "Booking");
                     }
 
+                    // If already fully paid
                     TempData["Success"] = "Payment already processed.";
                     return RedirectToAction("MyBookings", "Booking");
                 }
@@ -293,15 +293,14 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                 if (isDeposit)
                 {
                     // Check if this is a full payment (last‑minute)
-                    bool isFullPayment = payment.Amount >= booking.TotalAmount; // with decimal tolerance
+                    bool isFullPayment = payment.Amount >= booking.TotalAmount;
 
                     if (isFullPayment)
                     {
-                        // Full payment – record as deposit (full amount)
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
-                        booking.FinalPaymentPaid = 0; // no separate final
+                        booking.FinalPaymentPaid = 0;
                         booking.Status = BookingStatus.Confirmed;
                         await _context.SaveChangesAsync();
 
@@ -310,7 +309,6 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     }
                     else
                     {
-                        // Normal deposit (50%)
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -321,7 +319,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                         TempData["Success"] = "Deposit successful! Your appointment is now confirmed.";
                     }
 
-                    // In-app notifications (both deposit and full payment)
+                    // In-app notifications
                     var currentUser = await _userManager.FindByIdAsync(booking.CustomerId);
                     if (currentUser != null)
                     {
@@ -358,14 +356,13 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                 else
                 {
                     // ── Final Payment ──
-                    decimal remainingBalance = payment.Amount; // should be TotalAmount / 2
+                    decimal remainingBalance = payment.Amount;
                     booking.FinalPaymentPaid = remainingBalance;
                     booking.FinalPaidDate = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
 
                     await SendFinalPaymentEmails(booking, remainingBalance);
 
-                    // In-app notification to artist
                     await _notificationService.CreateNotificationAsync(
                         booking.UserService.ArtistId,
                         "Final Payment Received! 💵",
@@ -385,7 +382,6 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                 Console.WriteLine($"PaymentCallback error: {ex.Message}");
                 Console.WriteLine($"Stack: {ex.StackTrace}");
 
-                // Try to recover – check if payment was already recorded
                 var existingPayment = await _context.Payments
                     .Include(p => p.Booking)
                     .FirstOrDefaultAsync(p => p.Reference == refToVerify);
