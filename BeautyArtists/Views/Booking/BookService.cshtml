@@ -277,9 +277,13 @@
                 </div>
 
                 <!-- ─── MAP ─── -->
-                <div id="modalMapValidationError" class="book-field-error" style="display:none; margin-top: 12px;">
-                    ⚠ Please pinpoint your location on the map AND enter a complete address above.
+                <div class="map-section-wrapper">
+                    <div class="map-instruction">
+                        📍 Tap directly on the map to drop your pin, or search above:
+                    </div>
+                    <div id="leafletMap" class="map-frame"></div>
                 </div>
+
             </div>
             <div class="modal-footer" style="border-top: 1px solid rgba(255,215,0,0.15);">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
