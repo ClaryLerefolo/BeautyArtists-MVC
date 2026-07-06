@@ -355,18 +355,7 @@
                                     </form>
                                 }
 
-                                @* ── MESSAGE ARTIST ── *@
-                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted ||
-                                                        booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
-                                {
-                                    <a asp-controller="Chat"
-                                       asp-action="Conversation"
-                                       asp-route-userId="@booking.UserService?.ArtistId"
-                                       asp-route-bookingId="@booking.Id"
-                                       class="mb-btn-chat">
-                                        💬 Message Artist
-                                    </a>
-                                }
+                              
 
                                 @* ── REVIEW BUTTON ── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Completed)

@@ -5,6 +5,9 @@
     var displayName = user != null && !string.IsNullOrEmpty(user.FirstName)
         ? $"{user.FirstName} {user.LastName}".Trim()
         : "Artist";
+
+    // Get profile picture URL (if available)
+    var profilePictureUrl = user?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
 }
 
 <!DOCTYPE html>
@@ -19,7 +22,8 @@
     @await RenderSectionAsync("Styles", required: false)
     <style>
         :root {
-            --gold: #FFD700;
+            --gold: #C9A84C; /* matching client layout */
+            --ruby: #8B0000;
             --sidebar-width: 260px;
             --sidebar-collapsed: 70px;
         }
@@ -38,7 +42,7 @@
             width: var(--sidebar-width);
             background: #000;
             height: 100vh;
-            border-right: 1px solid rgba(255,215,0,0.1);
+            border-right: 1px solid rgba(201,168,76,0.2);
             position: fixed;
             top: 0;
             left: 0;
@@ -58,7 +62,7 @@
             align-items: center;
             gap: 12px;
             padding: 20px 18px;
-            border-bottom: 1px solid rgba(255,215,0,0.08);
+            border-bottom: 1px solid rgba(201,168,76,0.15);
             min-height: 80px;
             flex-shrink: 0;
         }
@@ -68,28 +72,48 @@
             height: 36px;
             border-radius: 8px;
             object-fit: contain;
-            border: 1px solid rgba(255,215,0,0.25);
+            border: 1px solid rgba(201,168,76,0.35);
             padding: 2px;
             flex-shrink: 0;
-            filter: drop-shadow(0 0 6px rgba(255,215,0,0.5));
+            filter: drop-shadow(0 0 6px rgba(201,168,76,0.5));
         }
 
-        .sidebar-brand-text {
-            color: var(--gold);
+        .sidebar-brand {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.1;
+        }
+
+        .sidebar-brand-wordmark {
+            display: flex;
+            align-items: baseline;
+            gap: 0;
+            font-size: 1.1rem;
             font-weight: 900;
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            line-height: 1.3;
-            white-space: nowrap;
-            overflow: hidden;
-            opacity: 1;
-            transition: opacity 0.2s;
+            font-style: italic;
         }
 
-        .sidebar.collapsed .sidebar-brand-text {
-            opacity: 0;
-            width: 0;
+        .brand-rubi {
+            color: #8B0000;
+            text-shadow: 0 0 10px rgba(139,0,0,0.4);
+        }
+
+        .brand-or {
+            color: #C9A84C;
+            text-shadow: 0 0 10px rgba(201,168,76,0.5);
+        }
+
+        .sidebar-brand-tagline {
+            font-size: 0.48rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(201,168,76,0.4);
+            margin-top: 2px;
+        }
+
+        .sidebar.collapsed .sidebar-brand {
+            display: none;
         }
 
         .sidebar-toggle {
@@ -99,7 +123,7 @@
             width: 32px;
             height: 32px;
             background: #000;
-            border: 1px solid rgba(255,215,0,0.2);
+            border: 1px solid rgba(201,168,76,0.2);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -107,13 +131,13 @@
             cursor: pointer;
             z-index: 1001;
             transition: left 0.3s cubic-bezier(0.4,0,0.2,1), background 0.2s;
-            color: rgba(255,215,0,0.6);
+            color: rgba(201,168,76,0.6);
         }
 
             .sidebar-toggle:hover {
-                background: rgba(255,215,0,0.1);
+                background: rgba(201,168,76,0.1);
                 color: var(--gold);
-                border-color: rgba(255,215,0,0.4);
+                border-color: rgba(201,168,76,0.4);
             }
 
         .toggle-icon {
@@ -133,7 +157,7 @@
             }
 
             .sidebar-nav::-webkit-scrollbar-thumb {
-                background: rgba(255,215,0,0.1);
+                background: rgba(201,168,76,0.1);
                 border-radius: 2px;
             }
 
@@ -146,7 +170,6 @@
             gap: 14px !important;
             text-decoration: none !important;
             border-radius: 10px !important;
-            border-left: none !important;
             transition: all 0.2s !important;
             white-space: nowrap;
             overflow: hidden;
@@ -154,15 +177,15 @@
         }
 
             .nav-link:hover {
-                background: rgba(255,215,0,0.08) !important;
+                background: rgba(201,168,76,0.08) !important;
                 color: var(--gold) !important;
                 font-weight: 600 !important;
             }
 
             .nav-link.active {
-                background: linear-gradient(135deg, rgba(179,0,0,0.3), rgba(255,215,0,0.1)) !important;
+                background: linear-gradient(135deg, rgba(139,0,0,0.3), rgba(201,168,76,0.1)) !important;
                 color: var(--gold) !important;
-                border: 1px solid rgba(255,215,0,0.15) !important;
+                border: 1px solid rgba(201,168,76,0.2) !important;
             }
 
             .nav-link i {
@@ -200,7 +223,7 @@
                 left: calc(var(--sidebar-collapsed) + 4px);
                 background: #111;
                 color: var(--gold);
-                border: 1px solid rgba(255,215,0,0.2);
+                border: 1px solid rgba(201,168,76,0.2);
                 border-radius: 8px;
                 padding: 6px 12px;
                 font-size: 0.75rem;
@@ -219,7 +242,7 @@
         .sidebar-footer {
             padding: 12px 10px 20px;
             flex-shrink: 0;
-            border-top: 1px solid rgba(255,215,0,0.06);
+            border-top: 1px solid rgba(201,168,76,0.1);
         }
 
         .logout-btn {
@@ -281,7 +304,7 @@
         .top-branding-bar {
             padding: 18px 0 14px;
             margin-bottom: 24px;
-            border-bottom: 1px solid rgba(255,215,0,0.08);
+            border-bottom: 1px solid rgba(201,168,76,0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -297,223 +320,41 @@
 
         .gold-name {
             color: var(--gold);
-            text-shadow: 0 0 12px rgba(255,215,0,0.25);
+            text-shadow: 0 0 12px rgba(201,168,76,0.25);
         }
 
         .top-bar-right {
             display: flex;
             align-items: center;
             gap: 14px;
-            position: relative;
         }
 
-        .notification-bell {
-            position: relative;
-        }
-
-            .notification-bell .dropdown-toggle::after {
-                display: none;
-            }
-
-            .notification-bell .dropdown-toggle {
-                text-decoration: none;
-                padding: 5px;
-                display: flex;
-                align-items: center;
-            }
-
-            .notification-bell .badge {
-                position: absolute;
-                top: -8px;
-                right: -8px;
-                background: #e50914;
-                color: white;
-                border-radius: 50%;
-                font-size: 10px;
-                padding: 3px 6px;
-                min-width: 18px;
-                text-align: center;
-            }
-
-        .notification-menu {
-            width: 350px;
-            max-height: 450px;
-            background: #121212;
-            border: 1px solid rgba(240, 200, 8, 0.2);
-            border-radius: 12px;
-            padding: 0;
-            overflow: hidden;
-            margin-top: 10px !important;
-            position: absolute;
-            right: 0;
-            left: auto !important;
-        }
-
-        .notification-header {
-            padding: 12px 15px;
-            border-bottom: 1px solid rgba(240, 200, 8, 0.1);
-            color: #FFD700;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .notification-list {
-            max-height: 350px;
-            overflow-y: auto;
-        }
-
-        .notification-item {
-            display: flex;
-            gap: 12px;
-            padding: 12px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            transition: background 0.2s;
-        }
-
-            .notification-item:hover {
-                background: rgba(240, 200, 8, 0.05);
-            }
-
-            .notification-item.unread {
-                background: rgba(240, 200, 8, 0.08);
-            }
-
-        .notification-icon {
-            font-size: 20px;
-            flex-shrink: 0;
-        }
-
-        .notification-content {
-            flex: 1;
-        }
-
-        .notification-title {
-            font-weight: 600;
-            color: #FFD700;
-            font-size: 0.85rem;
-            margin-bottom: 4px;
-        }
-
-        .notification-message {
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.6);
-            word-wrap: break-word;
-        }
-
-        .notification-time {
-            font-size: 0.65rem;
-            color: rgba(255, 255, 255, 0.3);
-            margin-top: 4px;
-        }
-
-        .notification-empty {
-            text-align: center;
-            padding: 40px;
-            color: rgba(255, 255, 255, 0.4);
-        }
-
-        .notification-footer {
-            padding: 10px;
-            text-align: center;
-            border-top: 1px solid rgba(240, 200, 8, 0.1);
-        }
-
-        .btn-mark-all {
-            background: none;
-            border: none;
-            color: #FFD700;
-            font-size: 0.7rem;
-            cursor: pointer;
-        }
-
-            .btn-mark-all:hover {
-                text-decoration: underline;
-            }
-
-        #toastContainer {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .live-toast {
+        .top-bar-avatar-link {
             display: flex;
             align-items: center;
-            gap: 12px;
-            background: #1a1a1a;
-            border-left: 4px solid #f0c808;
-            border-radius: 8px;
-            padding: 12px 15px;
-            min-width: 280px;
-            max-width: 350px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            animation: slideInRight 0.3s ease;
+            text-decoration: none;
+            transition: opacity 0.2s;
         }
 
-        @@keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .toast-icon {
-            font-size: 24px;
-        }
-
-        .toast-content {
-            flex: 1;
-        }
-
-        .toast-title {
-            font-weight: bold;
-            color: #f0c808;
-            font-size: 0.85rem;
-            margin-bottom: 4px;
-        }
-
-        .toast-message {
-            font-size: 0.75rem;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .toast-close {
-            background: none;
-            border: none;
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 18px;
-            cursor: pointer;
-            padding: 0 5px;
-        }
-
-            .toast-close:hover {
-                color: #fff;
+            .top-bar-avatar-link:hover {
+                opacity: 0.8;
             }
 
         .top-bar-avatar {
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #b30000, #FFD700);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 0.85rem;
-            color: #000;
+            overflow: hidden;
+            border: 2px solid rgba(201,168,76,0.3);
+            object-fit: cover;
             cursor: pointer;
         }
+
+            .top-bar-avatar img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
 
         .hamburger-btn {
             display: none;
@@ -529,7 +370,7 @@
         }
 
             .hamburger-btn:hover {
-                background: rgba(255,215,0,0.1);
+                background: rgba(201,168,76,0.1);
             }
 
         .sidebar-backdrop {
@@ -545,14 +386,14 @@
                 display: block;
             }
 
+        /* ─── RESPONSIVE ─── */
         @@media (min-width: 769px) and (max-width: 1024px) {
             .sidebar {
                 width: var(--sidebar-collapsed) !important;
             }
 
-                .sidebar .sidebar-brand-text {
-                    opacity: 0 !important;
-                    width: 0 !important;
+                .sidebar .sidebar-brand {
+                    display: none !important;
                 }
 
                 .sidebar .nav-link-text {
@@ -574,7 +415,7 @@
                         left: calc(var(--sidebar-collapsed) + 4px);
                         background: #111;
                         color: var(--gold);
-                        border: 1px solid rgba(255,215,0,0.2);
+                        border: 1px solid rgba(201,168,76,0.2);
                         border-radius: 8px;
                         padding: 6px 12px;
                         font-size: 0.75rem;
@@ -640,9 +481,8 @@
                         transform: translateX(0) !important;
                     }
 
-                    .sidebar.collapsed .sidebar-brand-text {
-                        opacity: 1 !important;
-                        width: auto !important;
+                    .sidebar.collapsed .sidebar-brand {
+                        display: flex !important;
                     }
 
                     .sidebar.collapsed .nav-link-text {
@@ -693,10 +533,15 @@
     @* ── SIDEBAR ── *@
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <img src="~/images/Beauty in Red and Gold 2.jpg"
-                 class="sidebar-logo" alt="Logo"
-                 onerror="this.style.display='none'">
-            <span class="sidebar-brand-text">BEAUTY IN<br>RED AND GOLD</span>
+            <img src="~/images/RUBIOR LOGO.jpg"
+                 class="sidebar-logo" alt="RubiOr"
+                 onerror="this.style.display='none'" />
+            <div class="sidebar-brand">
+                <div class="sidebar-brand-wordmark">
+                    <span class="brand-rubi">Rubi</span><span class="brand-or">Or</span>
+                </div>
+                <span class="sidebar-brand-tagline">Beauty in Red &amp; Gold</span>
+            </div>
         </div>
 
         <nav class="sidebar-nav">
@@ -734,11 +579,6 @@
                asp-controller="Earnings" asp-action="Earnings">
                 <i class="bi bi-graph-up-arrow"></i>
                 <span class="nav-link-text">Earnings</span>
-            </a>
-            <a class="nav-link" data-label="Messages" asp-controller="Chat" asp-action="Index">
-                <i class="bi bi-chat-dots"></i>
-                <span class="nav-link-text">Messages</span>
-                <span id="chatUnreadBadge" class="badge" style="display:none; background:#e50914; color:#fff; border-radius:50%; padding:1px 6px; font-size:0.6rem; margin-left:auto;"></span>
             </a>
             <a class="nav-link" data-label="Reviews" asp-controller="Artist" asp-action="Reviews">
                 <i class="bi bi-star-fill"></i>
@@ -785,26 +625,13 @@
             </h1>
 
             <div class="top-bar-right">
-                <!-- 🔔 NOTIFICATION BELL DROPDOWN 🔔 -->
-                <div class="dropdown notification-bell">
-                    <a class="dropdown-toggle" href="#" id="notificationDropdown" role="button"
-                       data-bs-toggle="dropdown" aria-expanded="false" style="text-decoration: none;">
-                        <i class="bi bi-bell-fill" style="color:var(--gold);cursor:pointer;font-size:1.2rem"></i>
-                        <span id="notificationBadge" class="badge" style="display:none;">0</span>
-                    </a>
-                    <div class="dropdown-menu dropdown-menu-end notification-menu" aria-labelledby="notificationDropdown">
-                        <div class="notification-header">
-                            <h6>Notifications</h6>
-                            <span id="loadingNotifications" class="small">loading...</span>
-                        </div>
-                        <div id="notificationContent">
-                            <!-- Notifications load here -->
-                        </div>
-                    </div>
-                </div>
-                <div class="top-bar-avatar">
-                    @(displayName.Length > 0 ? displayName[0].ToString().ToUpper() : "A")
-                </div>
+                <!-- ── PROFILE AVATAR (clickable to Profile) ── -->
+                <a asp-controller="Artist" asp-action="Profile" class="top-bar-avatar-link" title="Edit Profile">
+                    <img src="@profilePictureUrl"
+                         class="top-bar-avatar"
+                         alt="Profile"
+                         onerror="this.src='/images/default-profile.png'" />
+                </a>
             </div>
         </div>
 
@@ -813,10 +640,6 @@
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- 🔥 REMOVED SignalR references – we're not using SignalR anymore -->
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script> -->
-    <!-- <script src="~/js/notifications.js"></script> -->
 
     <script>
         // ─── SIDEBAR LOGIC ───
@@ -901,35 +724,6 @@
                 if (!isMobile()) closeMobile();
             });
         })();
-
-        // ─── 🔥 REMOVED SignalR INITIALIZATION ───
-        // SignalR is no longer used. Notifications will work via email only.
-
-        // ── CHAT UNREAD BADGE (works without SignalR, polls endpoint) ──
-        function updateChatBadge(count) {
-            var badge = document.getElementById('chatUnreadBadge');
-            if (badge) {
-                if (count > 0) {
-                    badge.textContent = count;
-                    badge.style.display = 'inline-block';
-                } else {
-                    badge.style.display = 'none';
-                }
-            }
-        }
-
-        // Fetch initial unread count (falls back to 0 if fails)
-        fetch('/Chat/GetUnreadCount')
-            .then(function(res) {
-                if (res.ok) return res.json();
-                throw new Error('Failed to fetch');
-            })
-            .then(function(data) {
-                updateChatBadge(data.count || 0);
-            })
-            .catch(function() {
-                updateChatBadge(0);
-            });
     </script>
 
     @await RenderSectionAsync("Scripts", required: false)
