@@ -45,7 +45,7 @@ namespace BeautyArtists.Controllers
             {
                 var booking = await _context.Bookings
                     .Include(b => b.UserService)
-                    .ThenInclude(us => us.Artist)
+                        .ThenInclude(us => us.Artist)
                     .FirstOrDefaultAsync(b => b.Id == bookingId && b.CustomerId == _userManager.GetUserId(User));
 
                 if (booking == null)
@@ -60,7 +60,6 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ─── 🔥 GET ARTIST'S SUBACCOUNT CODE ───
                 string subaccount = null;
                 if (booking.UserService?.Artist != null)
                 {
@@ -73,7 +72,6 @@ namespace BeautyArtists.Controllers
                     }
                 }
 
-                // ─── INITIALIZE PAYMENT WITH SUBACCOUNT ───
                 var result = await _paymentService.InitializePayment(email, amount, bookingId, subaccount);
 
                 if (!result.success)

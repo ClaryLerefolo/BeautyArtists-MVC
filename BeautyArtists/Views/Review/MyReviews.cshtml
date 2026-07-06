@@ -134,10 +134,7 @@
                                      onerror="this.src='/images/default-profile.png'" />
                             </div>
                             <div class="mr-artist-name">@item.ArtistName</div>
-                            <a asp-controller="Artist"
-                               asp-action="Details"
-                               asp-route-id="@review.Booking?.UserService?.ArtistId"
-                               class="mr-btn-profile">
+                            <a asp-controller="Home" asp-action="BrowseArtists" asp-route-id="@review.Booking?.UserService?.ArtistId" class="mr-btn-profile">
                                 View Artist Profile
                             </a>
                         </div>
