@@ -176,6 +176,30 @@
                                 <h5 class="text-gold fw-bold">@service.ServiceName</h5>
                                 <p class="small text-white-50 flex-grow-1">@service.Description</p>
 
+                                <!-- ─── 🔥 STAR RATING & REVIEW COUNT 🔥 ─── -->
+                                <div class="mb-2">
+                                    <span style="color: #FFD700;">
+                                        @for (int i = 1; i <= 5; i++)
+                                        {
+                                            @if (i <= Math.Round(service.AverageRating))
+                                            {
+                                                <span>★</span>
+                                            }
+                                            else if (i - 0.5 <= service.AverageRating)
+                                            {
+                                                <span>☆</span>
+                                            }
+                                            else
+                                            {
+                                                <span>☆</span>
+                                            }
+                                        }
+                                    </span>
+                                    <span style="color: rgba(255,255,255,0.3); font-size: 0.75rem; margin-left: 4px;">
+                                        (@service.ReviewCount)
+                                    </span>
+                                </div>
+
                                 <div class="mb-2">
                                     <span class="badge rounded-pill border border-gold text-gold px-3">
                                         @service.Category
@@ -215,15 +239,6 @@
                                            class="btn btn-service-tertiary" style="flex: 1;">
                                             View Catalogue
                                         </a>
-                                        @if (User.Identity!.IsAuthenticated)
-                                        {
-                                            <a asp-controller="Chat"
-                                               asp-action="Conversation"
-                                               asp-route-userId="@service.ArtistId"
-                                               class="btn btn-outline-gold" style="flex: 0 0 auto; padding: 10px 16px; border-radius: 30px;">
-                                                💬 Message
-                                            </a>
-                                        }
                                     </div>
                                 </div>
                                 <small class="mt-3 text-muted">Artist: @service.ArtistName</small>
@@ -272,6 +287,7 @@
             transform: translateY(-2px);
             box-shadow: 0 0 20px rgba(255,215,0,0.3);
         }
+
     .sl-topbar {
         background: #000;
         border-bottom: 1px solid rgba(255,215,0,0.08);
@@ -706,5 +722,3 @@
         }
     </script>
 }
-
-

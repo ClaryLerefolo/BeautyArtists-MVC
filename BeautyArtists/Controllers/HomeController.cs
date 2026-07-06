@@ -39,12 +39,42 @@ namespace BeautyArtists.Controllers
                 .Take(6)
                 .ToListAsync();
 
+            // ?? TOP RATED SERVICES (min 3 reviews, ordered by rating)
+            // ?? TOP RATED SERVICES (via Bookings)
+            var topRatedServices = await _context.UserServices
+                .Include(us => us.Service)
+                .Include(us => us.Artist)
+                .Where(us => us.IsActive)
+                .Select(us => new
+                {
+                    Service = us,
+                    AverageRating = _context.Reviews
+                        .Where(r => r.Booking.UserServiceId == us.Id)
+                        .Average(r => (double?)r.Rating) ?? 0,
+                    ReviewCount = _context.Reviews
+                        .Where(r => r.Booking.UserServiceId == us.Id)
+                        .Count()
+                })
+                .Where(x => x.ReviewCount >= 3)
+                .OrderByDescending(x => x.AverageRating)
+                .ThenByDescending(x => x.ReviewCount)
+                .Take(6)
+                .Select(x => new TopRatedService
+                {
+                    Service = x.Service,
+                    AverageRating = x.AverageRating,
+                    ReviewCount = x.ReviewCount
+                })
+                .ToListAsync();
+
             var model = new HomeViewModel
             {
                 Banners = banners,
                 Categories = categories,
                 FeaturedServices = featuredServices,
-                Testimonials = testimonials
+                Testimonials = testimonials,
+                TopRatedServices = topRatedServices
+
             };
             return View(model);
         }
@@ -109,7 +139,61 @@ namespace BeautyArtists.Controllers
 
             return View("ServiceList", model);
         }
+        // Controllers/HomeController.cs
 
+        public async Task<IActionResult> TopRated()
+        {
+            var topRatedServices = await _context.UserServices
+                .Include(us => us.Service)
+                    .ThenInclude(s => s.ServiceCategory)
+                .Include(us => us.Artist)
+                    .ThenInclude(a => a.ArtistProfile)
+                .Where(us => us.IsActive)
+                .Select(us => new
+                {
+                    Service = us,
+                    AverageRating = _context.Reviews
+                        .Where(r => r.Booking.UserServiceId == us.Id)
+                        .Average(r => (double?)r.Rating) ?? 0,
+                    ReviewCount = _context.Reviews
+                        .Where(r => r.Booking.UserServiceId == us.Id)
+                        .Count()
+                })
+                .Where(x => x.ReviewCount >= 3)
+                .OrderByDescending(x => x.AverageRating)
+                .ThenByDescending(x => x.ReviewCount)
+                .Select(x => x.Service)
+                .ToListAsync();
+
+            var model = new ServiceListViewModel
+            {
+                Title = "? Top Rated Services",
+                Services = topRatedServices.Select(us => new ServiceListViewModel.ServiceItem
+                {
+                    UserServiceId = us.Id,
+                    ServiceName = us.Service?.Name ?? "Unnamed",
+                    Description = us.CustomDescription ?? us.Service?.Description ?? "",
+                    Category = us.Service?.ServiceCategory?.Name ?? "Uncategorized",
+                    CategoryId = us.Service?.CategoryId ?? 0,
+                    Price = us.Price,
+                    ImagePath = us.ImagePath ?? us.Service?.ImagePath,
+                    ArtistName = !string.IsNullOrEmpty(us.Artist?.FirstName)
+                        ? $"{us.Artist.FirstName} {us.Artist.LastName}".Trim()
+                        : us.Artist?.UserName ?? "Pro Artist",
+                    ArtistId = us.ArtistId,
+                    City = us.Artist?.ArtistProfile?.City ?? "Unknown",
+                    Province = us.Artist?.ArtistProfile?.Province ?? "",
+                    AverageRating = _context.Reviews
+                        .Where(r => r.Booking.UserServiceId == us.Id)
+                        .Average(r => (double?)r.Rating) ?? 0,
+                    ReviewCount = _context.Reviews
+                        .Where(r => r.Booking.UserServiceId == us.Id)
+                        .Count()
+                }).ToList()
+            };
+
+            return View("ServiceList", model);
+        }
         public async Task<IActionResult> AllServices()
         {
             var services = await _context.UserServices

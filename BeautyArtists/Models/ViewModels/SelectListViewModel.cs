@@ -27,6 +27,8 @@
             public string? ArtistId { get; set; }
             public string? Province {get; set;} 
             public string? City { get; set; }
+            public double AverageRating { get; set; }
+            public int ReviewCount { get; set; }
         }
     }
 }
