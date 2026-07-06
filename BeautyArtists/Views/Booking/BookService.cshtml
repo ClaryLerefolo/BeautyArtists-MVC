@@ -1,4 +1,4 @@
-﻿@using BeautyArtists.Models
+﻿HEY MOVE THE MAP @using BeautyArtists.Models
 @model BeautyArtists.Models.ViewModels.BookingViewModel
 @{
     ViewData["Title"] = "Book Service";
@@ -206,17 +206,21 @@
                     </button>
                 </div>
 
-                <!-- ─── ADDRESS FIELDS ─── -->
-                <div class="address-highlight-wrapper">
-                    <div class="address-warning-badge">
-                        ⚠️ REQUIRED FOR HOUSE CALLS ⚠️
+                <!-- ─── MAP (MOVED RIGHT UNDER SEARCH) ─── -->
+                <div class="map-section-wrapper">
+                    <div class="map-instruction">
+                        📍 Tap directly on the map to drop your pin, or search above:
                     </div>
+                    <div id="leafletMap" class="map-frame"></div>
+                </div>
 
+                <!-- ─── ADDRESS FIELDS (WARNING BADGE REMOVED) ─── -->
+                <div class="address-highlight-wrapper" style="margin-top: 16px;">
                     <div class="address-input-container">
                         <div class="address-icon">📍📝</div>
                         <div class="address-field-content">
                             <label class="address-label">
-                                ENTER HOUSE CALL ADDRESS MANUALLY
+                                ENTER HOUSE CALL ADDRESS
                                 <span class="required-star">*</span>
                             </label>
 
@@ -227,18 +231,16 @@
                             <div class="address-format-example">
                                 <div class="example-title">📋 Include ALL of the following:</div>
                                 <ul class="example-list">
-                                    <li><strong>House/Flat/Apartment Number</strong> <span class="example">(e.g., 42, Flat 3B)</span></li>
-                                    <li><strong>Street Name & Number</strong> <span class="example">(e.g., 2255 Mosime Street)</span></li>
-                                    <li><strong>Suburb or Area</strong> <span class="example">(e.g., Klerksdorp, 2571)</span></li>
-                                    <li><strong>Complex/Building Name</strong> <span class="example">(e.g., Serengeti Estates)</span></li>
-                                    <li><strong>Landmarks or Directions</strong> <span class="example">(e.g., Near the mall)</span></li>
+                                    <li><strong>House/Apartment Number/ Unit Number</strong> <span class="example">(e.g., 42, Apartment 3B)</span></li>
+                                    <li><strong>Street Address</strong> <span class="example">(e.g., 2255 Mosime Street)</span></li>
+                                    <li><strong>Area / Postal Code</strong> <span class="example">(e.g., Klerksdorp)</span></li>
                                 </ul>
                             </div>
 
                             <!-- ─── 3 STRUCTURED FIELDS ─── -->
                             <div class="address-fields-grid">
                                 <div class="address-field-group">
-                                    <label class="field-label">House/Unit Number <span class="required-star">*</span></label>
+                                    <label class="field-label">House/Apartment Number/Unit Number <span class="required-star">*</span></label>
                                     <input id="modalHouseNumber" class="address-input-field"
                                            placeholder="e.g., 42, Flat 3B, Unit 5A"
                                            value="@Model.HouseNumber" />
@@ -274,14 +276,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- ─── MAP ─── -->
-                <div class="map-section-wrapper">
-                    <div class="map-instruction">
-                        📍 Tap directly on the map to drop your pin, or search above:
-                    </div>
-                    <div id="leafletMap" class="map-frame"></div>
                 </div>
 
             </div>
@@ -350,7 +344,7 @@
     .map-search-wrapper {
         display: flex;
         gap: 10px;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
         width: 100%;
         flex-wrap: wrap;
     }
@@ -390,24 +384,13 @@
             box-shadow: 0 0 12px rgba(255,215,0,0.3);
         }
 
-    /* ─── ADDRESS HIGHLIGHT WRAPPER (static, no blink/pulse) ─── */
+    /* ─── ADDRESS HIGHLIGHT WRAPPER (no badge) ─── */
     .address-highlight-wrapper {
-        border: 3px solid #FFD700;
+        border: 2px solid rgba(255,215,0,0.25);
         border-radius: 16px;
-        background: linear-gradient(135deg, #1a0f00 0%, #0d0800 100%);
+        background: linear-gradient(135deg, #0f0a00 0%, #080500 100%);
         overflow: hidden;
-        margin-bottom: 20px;
-        box-shadow: 0 0 15px rgba(255,215,0,0.15);
-    }
-
-    .address-warning-badge {
-        background: linear-gradient(135deg, #FF0000, #FF4500);
-        color: white;
-        text-align: center;
-        padding: 10px;
-        font-weight: 900;
-        font-size: 0.85rem;
-        letter-spacing: 2px;
+        box-shadow: 0 0 20px rgba(255,215,0,0.08);
     }
 
     .address-input-container {
@@ -428,7 +411,7 @@
         font-size: 2.5rem;
         text-align: center;
         flex-shrink: 0;
-        background: rgba(255, 215, 0, 0.1);
+        background: rgba(255, 215, 0, 0.08);
         border-radius: 12px;
         padding: 10px;
         height: fit-content;
@@ -448,7 +431,7 @@
     .address-label {
         display: block;
         color: #FFD700;
-        font-size: 1.1rem;
+        font-size: 1rem;
         font-weight: 800;
         margin-bottom: 8px;
         text-transform: uppercase;
@@ -462,7 +445,7 @@
     }
 
     .address-help-text {
-        background: rgba(255, 100, 0, 0.2);
+        background: rgba(255, 100, 0, 0.15);
         border-left: 4px solid #FF6600;
         padding: 10px;
         margin-bottom: 12px;
@@ -473,7 +456,7 @@
 
     .address-format-example {
         background: #0a0a0a;
-        border: 1px solid rgba(255, 215, 0, 0.3);
+        border: 1px solid rgba(255, 215, 0, 0.2);
         border-radius: 10px;
         padding: 12px;
         margin-bottom: 15px;
@@ -505,8 +488,8 @@
         }
 
     .address-warning-message {
-        background: rgba(255, 50, 50, 0.15);
-        border: 1px solid #FF4444;
+        background: rgba(255, 50, 50, 0.12);
+        border: 1px solid rgba(255, 68, 68, 0.3);
         border-radius: 8px;
         padding: 10px;
         margin-top: 12px;
@@ -517,16 +500,16 @@
     }
 
     .map-section-wrapper {
-        margin-top: 10px;
+        margin-top: 0;
     }
 
     .map-instruction {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
         color: #FFD700;
-        background: rgba(255, 215, 0, 0.1);
-        padding: 10px;
+        background: rgba(255, 215, 0, 0.08);
+        padding: 8px 12px;
         border-radius: 8px;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
         text-align: center;
         font-weight: 600;
     }
@@ -537,7 +520,7 @@
         background: #151515;
         border-radius: 12px;
         border: 1px solid rgba(255,215,0,0.2);
-        margin-bottom: 10px;
+        margin-bottom: 6px;
         position: relative;
         z-index: 1;
     }
@@ -1188,8 +1171,8 @@
                                 wrapper.style.borderColor = '#00ff88';
                                 wrapper.style.boxShadow = '0 0 30px rgba(0,255,136,0.3)';
                                 setTimeout(() => {
-                                    wrapper.style.borderColor = '#FFD700';
-                                    wrapper.style.boxShadow = '0 0 20px rgba(255,215,0,0.3)';
+                                    wrapper.style.borderColor = 'rgba(255,215,0,0.25)';
+                                    wrapper.style.boxShadow = '0 0 20px rgba(255,215,0,0.08)';
                                 }, 2000);
                             }
                         } else { alert('Could not pinpoint the exact address. Please check the house number and street.'); }
