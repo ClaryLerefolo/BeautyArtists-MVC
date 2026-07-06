@@ -36,30 +36,31 @@ namespace BeautyArtists.Controllers
             _emailService = emailService;
         }
 
-        [Authorize]
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> InitiatePayment(int bookingId, string email, decimal amount)
+      [Authorize]
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> InitiatePayment(int bookingId, string email, decimal amount)
+{
+    try
+    {
+        var booking = await _context.Bookings
+            .Include(b => b.UserService)
+                .ThenInclude(us => us.Artist)
+            .FirstOrDefaultAsync(b => b.Id == bookingId && b.CustomerId == _userManager.GetUserId(User));
+
+        if (booking == null)
         {
-            try
-            {
-                var booking = await _context.Bookings
-                    .Include(b => b.UserService)
-                        .ThenInclude(us => us.Artist)
-                    .FirstOrDefaultAsync(b => b.Id == bookingId && b.CustomerId == _userManager.GetUserId(User));
+            TempData["Error"] = "Booking not found.";
+            return RedirectToAction("MyBookings", "Booking");
+        }
 
-                if (booking == null)
-                {
-                    TempData["Error"] = "Booking not found.";
-                    return RedirectToAction("MyBookings", "Booking");
-                }
+        if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
+        {
+            TempData["Error"] = "This booking is already confirmed or paid.";
+            return RedirectToAction("MyBookings", "Booking");
+        }
 
-                if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
-                {
-                    TempData["Error"] = "This booking is already confirmed or paid.";
-                    return RedirectToAction("MyBookings", "Booking");
-                }
-
+                // ─── GET ARTIST'S SUBACCOUNT CODE ───
                 string subaccount = null;
                 if (booking.UserService?.Artist != null)
                 {
@@ -68,8 +69,12 @@ namespace BeautyArtists.Controllers
 
                     if (artistProfile != null && !string.IsNullOrEmpty(artistProfile.SubaccountCode))
                     {
-                        // ─── 🔥 SKIP DUMMY TEST SUBACCOUNT ───
-                        if (!artistProfile.SubaccountCode.StartsWith("TEST_SUBACCOUNT_"))
+                        // In test mode, skip dummy subaccount
+                        if (artistProfile.SubaccountCode.StartsWith("TEST_SUBACCOUNT_"))
+                        {
+                            subaccount = null;
+                        }
+                        else
                         {
                             subaccount = artistProfile.SubaccountCode;
                         }
@@ -78,27 +83,27 @@ namespace BeautyArtists.Controllers
 
                 var result = await _paymentService.InitializePayment(email, amount, bookingId, subaccount);
 
-                if (!result.success)
-                {
-                    TempData["Error"] = $"Payment initialization failed: {result.message}";
-                    return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
-                }
-
-                if (string.IsNullOrEmpty(result.authorizationUrl))
-                {
-                    TempData["Error"] = "Payment gateway returned an invalid response. Please try again.";
-                    return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
-                }
-
-                return Redirect(result.authorizationUrl);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"InitiatePayment Exception: {ex.Message}");
-                TempData["Error"] = $"An error occurred: {ex.Message}";
-                return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
-            }
+        if (!result.success)
+        {
+            TempData["Error"] = $"Payment initialization failed: {result.message}";
+            return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
         }
+
+        if (string.IsNullOrEmpty(result.authorizationUrl))
+        {
+            TempData["Error"] = "Payment gateway returned an invalid response. Please try again.";
+            return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
+        }
+
+        return Redirect(result.authorizationUrl);
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"InitiatePayment Exception: {ex.Message}");
+        TempData["Error"] = $"An error occurred: {ex.Message}";
+        return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
+    }
+}
 
         [Authorize]
         [HttpPost]
@@ -144,7 +149,7 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ─── 🔥 GET ARTIST'S SUBACCOUNT CODE ───
+                // ─── 🔥 FIX: GET SUBACCOUNT (SKIP DUMMY IN TEST MODE) ───
                 string subaccount = null;
                 if (booking.UserService?.Artist != null)
                 {
@@ -153,7 +158,11 @@ namespace BeautyArtists.Controllers
 
                     if (artistProfile != null && !string.IsNullOrEmpty(artistProfile.SubaccountCode))
                     {
-                        subaccount = artistProfile.SubaccountCode;
+                        // ─── SKIP DUMMY TEST SUBACCOUNT ───
+                        if (!artistProfile.SubaccountCode.StartsWith("TEST_SUBACCOUNT_"))
+                        {
+                            subaccount = artistProfile.SubaccountCode;
+                        }
                     }
                 }
 
