@@ -119,11 +119,10 @@
                 : booking.UserService?.Artist?.UserName ?? "Pro Artist");
 
                 // ── Payment status ──
-                bool isFullyPaid = booking.DepositPaid >= booking.TotalAmount;
+                bool isFullyPaid = (booking.DepositPaid + booking.FinalPaymentPaid) >= booking.TotalAmount;
                 bool hasDeposit = booking.DepositPaid > 0;
                 string paymentStatusText = isFullyPaid ? "Fully Paid" : (hasDeposit ? "Deposit Paid" : "Unpaid");
                 string paymentStatusColor = isFullyPaid ? "#28a745" : (hasDeposit ? "#ffc107" : "#6c757d");
-
                 // ── Days until appointment ──
                 double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
                 bool isLastMinute = daysUntilAppointment < 2;
