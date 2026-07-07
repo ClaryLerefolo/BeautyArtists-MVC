@@ -78,6 +78,14 @@ namespace BeautyArtists.Controllers
             };
             return View(model);
         }
+        public async Task<IActionResult> Categories()
+        {
+            var categories = await _context.ServiceCategories
+                .OrderBy(c => c.Name)
+                .ToListAsync();
+            return View(categories);
+        }
+
         public async Task<IActionResult> ViewService(string artistId)
         {
 
@@ -139,7 +147,7 @@ namespace BeautyArtists.Controllers
 
             return View("ServiceList", model);
         }
-        // Controllers/HomeController.cs
+       
 
         public async Task<IActionResult> TopRated()
         {

@@ -1,0 +1,97 @@
+﻿@model IEnumerable<BeautyArtists.Models.ServiceCategory>
+@{
+    ViewData["Title"] = "Categories";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<section class="py-5 bg-black">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="text-gold fw-normal" style="letter-spacing: 2px; font-size: 2.2rem;">
+                All Categories
+            </h2>
+            <p class="text-white-50">Explore our services by category</p>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+            @foreach (var cat in Model)
+            {
+                <div class="col-lg-3 col-md-4 col-sm-6">
+                    <a asp-controller="Home" asp-action="CategoryServices" asp-route-categoryid="@cat.Id" class="category-link">
+                        <div class="category-card position-relative overflow-hidden rounded border border-gold shadow">
+                            <img src="@cat.CoverImagePath" class="category-img" alt="@cat.Name" />
+                            <div class="category-overlay">
+                                <h4 class="category-title text-gold m-0 px-2">@cat.Name</h4>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<style>
+    .bg-black {
+        background-color: #000 !important;
+    }
+
+    .text-gold {
+        color: #f0c808 !important;
+    }
+
+    .border-gold {
+        border: 1.2px solid #f0c808 !important;
+    }
+
+    .category-card {
+        height: 190px;
+        transition: all 0.3s ease;
+    }
+
+    .category-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+
+    .category-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s ease;
+    }
+
+    .category-title {
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.2px;
+        font-size: 1.1rem;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+        z-index: 2;
+    }
+
+    .category-link:hover .category-card {
+        transform: translateY(-3px);
+        box-shadow: 0 0 15px rgba(240, 200, 8, 0.3);
+    }
+
+    .category-link:hover .category-overlay {
+        background: rgba(0, 0, 0, 0.25);
+    }
+
+    .category-link:hover .category-img {
+        transform: scale(1.08);
+    }
+
+    .category-link {
+        text-decoration: none !important;
+    }
+</style>
