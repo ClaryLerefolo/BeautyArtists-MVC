@@ -1,4 +1,4 @@
-﻿HEY MOVE THE MAP @using BeautyArtists.Models
+﻿@using BeautyArtists.Models
 @model BeautyArtists.Models.ViewModels.BookingViewModel
 @{
     ViewData["Title"] = "Book Service";
@@ -208,9 +208,7 @@
 
                 <!-- ─── MAP (MOVED RIGHT UNDER SEARCH) ─── -->
                 <div class="map-section-wrapper">
-                    <div class="map-instruction">
-                        📍 Tap directly on the map to drop your pin, or search above:
-                    </div>
+                  
                     <div id="leafletMap" class="map-frame"></div>
                 </div>
 
@@ -221,7 +219,6 @@
                         <div class="address-field-content">
                             <label class="address-label">
                                 ENTER HOUSE CALL ADDRESS
-                                <span class="required-star">*</span>
                             </label>
 
                             <div class="address-help-text">
@@ -236,6 +233,9 @@
                                     <li><strong>Area / Postal Code</strong> <span class="example">(e.g., 2571)</span></li>
                                 </ul>
                             </div>
+
+                            <!-- ─── VALIDATION ERROR (restored) ─── -->
+                            <div id="modalMapValidationError" class="text-danger small" style="display:none; margin-top:10px;"></div>
 
                             <!-- ─── 3 STRUCTURED FIELDS ─── -->
                             <div class="address-fields-grid">
