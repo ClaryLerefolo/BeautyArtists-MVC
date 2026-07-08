@@ -119,24 +119,48 @@ namespace BeautyArtists.Controllers
         // POST: CreatePortfolioItem (Upload Logic)
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RequestSizeLimit(100_000_000)] // 100 MB max
         public async Task<IActionResult> CreatePortfolioItem(PortfolioItemViewModel vm)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (vm.MediaFile == null) return RedirectToAction(nameof(ManagePortfolio));
+            if (string.IsNullOrEmpty(userId))
+                return RedirectToPage("/Account/Login", new { area = "Identity" });
 
-            // Save the file
+            // 1. Validate file
+            if (vm.MediaFile == null || vm.MediaFile.Length == 0)
+            {
+                TempData["Error"] = "Please select a file to upload.";
+                return RedirectToAction(nameof(ManagePortfolio));
+            }
+
+            // 2. Check file extension
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".mov", ".avi", ".webm" };
+            var extension = Path.GetExtension(vm.MediaFile.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                TempData["Error"] = "Unsupported file type. Allowed: JPG, PNG, GIF, MP4, MOV, AVI, WEBM.";
+                return RedirectToAction(nameof(ManagePortfolio));
+            }
+
+            // 3. Auto-detect MediaType from extension
+            var mediaType = (extension == ".mp4" || extension == ".mov" || extension == ".avi" || extension == ".webm")
+                ? "Video"
+                : "Image";
+
+            // 4. Save the file
             string mediaUrl = await SaveFile(vm.MediaFile, "media");
 
+            // 5. Create item
             var item = new PortfolioItem
             {
-                Title = vm.Title,
+                Title = vm.Title ?? "Untitled",
                 Description = vm.Description,
                 Province = vm.Province,
                 City = vm.City,
-                MediaType = vm.MediaType,
+                MediaType = mediaType, // use auto-detected value
                 MediaUrl = mediaUrl,
                 PortfolioId = vm.PortfolioId,
-                CategoryId = vm.CategoryId,
+                CategoryId = vm.CategoryId > 0 ? vm.CategoryId : null,
                 ArtistId = userId,
                 UploadedAt = DateTime.UtcNow,
                 IsFeatured = vm.IsFeatured,
@@ -148,6 +172,7 @@ namespace BeautyArtists.Controllers
             _context.PortfolioItems.Add(item);
             await _context.SaveChangesAsync();
 
+            TempData["Success"] = "Item uploaded successfully!";
             return RedirectToAction(nameof(ManagePortfolio));
         }
 

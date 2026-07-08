@@ -2,6 +2,7 @@ using BeautyArtists.Data;
 using BeautyArtists.Hubs;
 using BeautyArtists.Models;
 using BeautyArtists.Services;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.SignalR;
@@ -64,7 +65,12 @@ builder.Services.AddRazorPages()
         options.Conventions.AddAreaPageRoute("Identity", "/Account/RegisterClient", "/Identity/Account/RegisterClient");
         options.Conventions.AddAreaPageRoute("Identity", "/Account/RegisterArtist", "/Identity/Account/RegisterArtist");
     });
-
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.ValueLengthLimit = int.MaxValue;
+    options.MultipartBodyLengthLimit = int.MaxValue;
+    options.MultipartHeadersLengthLimit = int.MaxValue;
+});
 var app = builder.Build();
 
 // Seed Roles and Demo Users On Startup

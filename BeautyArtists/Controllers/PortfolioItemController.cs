@@ -67,7 +67,6 @@ namespace BeautyArtists.Controllers
             return View(await items.ToListAsync());
         }
 
-
         // --------------------------------------------------------------------
         // CREATE  (GET)
         // --------------------------------------------------------------------
@@ -87,62 +86,78 @@ namespace BeautyArtists.Controllers
         }
 
         // --------------------------------------------------------------------
-        // CREATE  (POST)
+        // CREATE  (POST) - FIXED
         // --------------------------------------------------------------------
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [RequestSizeLimit(100_000_000)] // 100 MB max
         public async Task<IActionResult> CreatePortfolioItem(PortfolioItemViewModel vm)
         {
             var artistId = _userManager.GetUserId(User);
-
-            if (!ModelState.IsValid)
+            if (string.IsNullOrEmpty(artistId))
             {
-                // If it's an AJAX call from the modal, return JSON errors so the modal stays open
-                var errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage);
-                return Json(new { success = false, errors = errors });
+                TempData["Error"] = "Session expired. Please log in again.";
+                return RedirectToAction("ManagePortfolio", "Portfolio");
             }
 
-            // Logic to save files
-            string mediaUrl = await SaveFile(vm.MediaFile, "media");
-            string? thumbnailUrl = vm.ThumbnailFile != null ? await SaveFile(vm.ThumbnailFile, "thumb") : null;
+            // 1. Validate file exists
+            if (vm.MediaFile == null || vm.MediaFile.Length == 0)
+            {
+                TempData["Error"] = "Please select a file to upload.";
+                return RedirectToAction("ManagePortfolio", "Portfolio");
+            }
 
+            // 2. Check file extension
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".mp4", ".mov", ".avi", ".webm", ".mkv" };
+            var extension = Path.GetExtension(vm.MediaFile.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                TempData["Error"] = $"Unsupported file type '{extension}'. Allowed: JPG, PNG, GIF, MP4, MOV, AVI, WEBM.";
+                return RedirectToAction("ManagePortfolio", "Portfolio");
+            }
+
+            // 3. Auto-detect MediaType from extension
+            var videoExtensions = new[] { ".mp4", ".mov", ".avi", ".webm", ".mkv" };
+            var mediaType = videoExtensions.Contains(extension) ? "Video" : "Image";
+
+            // 4. Save file
+            string mediaUrl;
+            try
+            {
+                mediaUrl = await SaveFile(vm.MediaFile, "media");
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Failed to save file: {ex.Message}";
+                return RedirectToAction("ManagePortfolio", "Portfolio");
+            }
+
+            // 5. Create the item
             var item = new PortfolioItem
             {
-                Title = vm.Title,
+                Title = string.IsNullOrWhiteSpace(vm.Title) ? "Untitled" : vm.Title,
                 Description = vm.Description,
                 Province = vm.Province,
                 City = vm.City,
                 DisplayOrder = vm.DisplayOrder,
-                MediaType = vm.MediaType,
+                MediaType = mediaType, // AUTO-DETECTED
                 MediaUrl = mediaUrl,
-                ThumbnailUrl = thumbnailUrl,
+                ThumbnailUrl = null, // You can generate one later
                 IsFeatured = vm.IsFeatured,
-                PortfolioId = vm.PortfolioId,
-                CategoryId = vm.CategoryId,
+                PortfolioId = vm.PortfolioId > 0 ? vm.PortfolioId : null,
+                CategoryId = vm.CategoryId > 0 ? vm.CategoryId : null,
                 ArtistId = artistId,
-                UploadedAt = DateTime.UtcNow
+                UploadedAt = DateTime.UtcNow,
+                ClientName = vm.ClientName,
+                MusicTrack = vm.MusicTrack
             };
 
             _context.PortfolioItems.Add(item);
             await _context.SaveChangesAsync();
 
-            // REDIRECT BACK TO MANAGEPORTFOLIO (Portfolio Controller), NOT ManagePortfolioItem
+            TempData["Success"] = $"'{item.Title}' uploaded successfully!";
             return RedirectToAction("ManagePortfolio", "Portfolio");
         }
-
-        // FIX FOR THE CRASHING SELECT:
-        //   public async Task<IActionResult> ManagePortfolioItem(int? portfolioId)
-        //   {
-        //          var artistId = _userManager.GetUserId(User);
-        //
-        // var items = await _context.PortfolioItems
-        //      .Include(p => p.Portfolio)
-        //       .Include(p => p.Category) // FIX: Use Navigation Property, NOT CategoryId
-        //     .Where(p => p.ArtistId == artistId)
-        //    .ToListAsync();
-        //
-        // return View(items);
-        //  }
 
         // --------------------------------------------------------------------
         // EDIT   (GET)
@@ -169,7 +184,7 @@ namespace BeautyArtists.Controllers
             };
 
             await LoadDropdowns(vm);
-            return View(vm); // This will now render a full page view
+            return View(vm);
         }
 
         // --------------------------------------------------------------------
@@ -187,23 +202,38 @@ namespace BeautyArtists.Controllers
             var item = await _context.PortfolioItems.FindAsync(id);
             if (item == null) return NotFound();
 
-            if (vm.MediaFile != null) item.MediaUrl = await SaveFile(vm.MediaFile, "media");
-            if (vm.ThumbnailFile != null) item.ThumbnailUrl = await SaveFile(vm.ThumbnailFile, "thumb");
+            if (vm.MediaFile != null)
+            {
+                // Delete old file if exists
+                if (!string.IsNullOrEmpty(item.MediaUrl))
+                {
+                    var oldPath = Path.Combine(_env.WebRootPath, item.MediaUrl.TrimStart('/'));
+                    if (System.IO.File.Exists(oldPath))
+                        System.IO.File.Delete(oldPath);
+                }
+                item.MediaUrl = await SaveFile(vm.MediaFile, "media");
+
+                // Auto-detect media type for new file
+                var extension = Path.GetExtension(vm.MediaFile.FileName).ToLowerInvariant();
+                var videoExtensions = new[] { ".mp4", ".mov", ".avi", ".webm", ".mkv" };
+                item.MediaType = videoExtensions.Contains(extension) ? "Video" : "Image";
+            }
+
+            if (vm.ThumbnailFile != null)
+                item.ThumbnailUrl = await SaveFile(vm.ThumbnailFile, "thumb");
 
             item.Title = vm.Title;
             item.Description = vm.Description;
             item.Province = vm.Province;
             item.City = vm.City;
             item.DisplayOrder = vm.DisplayOrder;
-            item.MediaType = vm.MediaType;
             item.IsFeatured = vm.IsFeatured;
-
-            // Correctly handle the potential 0 values from dropdowns
             item.PortfolioId = vm.PortfolioId > 0 ? vm.PortfolioId : null;
             item.CategoryId = vm.CategoryId > 0 ? vm.CategoryId : null;
 
             await _context.SaveChangesAsync();
 
+            TempData["Success"] = $"'{item.Title}' updated successfully!";
             return RedirectToAction("ManagePortfolio", "Portfolio");
         }
 
@@ -223,12 +253,11 @@ namespace BeautyArtists.Controllers
         // --------------------------------------------------------------------
         // DELETE (GET)
         // --------------------------------------------------------------------
-        // GET: PortfolioItem/DeletePortfolioItem/5
         public async Task<IActionResult> DeletePortfolioItem(int id)
         {
             var item = await _context.PortfolioItems
                 .Include(p => p.Portfolio)
-                .Include(p => p.Category) // FIXED: CategoryId was a bug
+                .Include(p => p.Category)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             return item is null ? NotFound() : View(item);
@@ -242,16 +271,25 @@ namespace BeautyArtists.Controllers
             var item = await _context.PortfolioItems.FindAsync(id);
             if (item == null) return Json(new { success = false, message = "Item not found" });
 
+            // Delete the file
+            if (!string.IsNullOrEmpty(item.MediaUrl))
+            {
+                var filePath = Path.Combine(_env.WebRootPath, item.MediaUrl.TrimStart('/'));
+                if (System.IO.File.Exists(filePath))
+                    System.IO.File.Delete(filePath);
+            }
+            if (!string.IsNullOrEmpty(item.ThumbnailUrl))
+            {
+                var thumbPath = Path.Combine(_env.WebRootPath, item.ThumbnailUrl.TrimStart('/'));
+                if (System.IO.File.Exists(thumbPath))
+                    System.IO.File.Delete(thumbPath);
+            }
+
             _context.PortfolioItems.Remove(item);
             await _context.SaveChangesAsync();
 
-            // This success response is what the JavaScript below waits for
             return Json(new { success = true });
         }
-
-        // --------------------------------------------------------------------
-        // DELETE (POST)
-        // --------------------------------------------------------------------
 
         // --------------------------------------------------------------------
         // HELPERS
@@ -270,7 +308,8 @@ namespace BeautyArtists.Controllers
         private async Task<string> SaveFile(IFormFile file, string prefix)
         {
             var uploadsDir = Path.Combine(_env.WebRootPath, "uploads", "portfolioitems");
-            Directory.CreateDirectory(uploadsDir);
+            if (!Directory.Exists(uploadsDir))
+                Directory.CreateDirectory(uploadsDir);
 
             var ext = Path.GetExtension(file.FileName);
             var fileName = $"{prefix}_{Guid.NewGuid():N}{ext}";
