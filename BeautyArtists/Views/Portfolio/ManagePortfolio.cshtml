@@ -189,7 +189,11 @@
             @if (portfolio.Items != null && portfolio.Items.Any())
             {
                 var latestItem = portfolio.Items.OrderByDescending(i => i.UploadedAt).First();
-                <img src="@latestItem.MediaUrl" class="img-fluid rounded mb-3" style="height: 180px; width: 100%; object-fit: cover; border: 1px solid rgba(240,200,8,0.2);" />
+                var isVideo = !string.IsNullOrEmpty(latestItem.MediaType) && latestItem.MediaType.Equals("Video", StringComparison.OrdinalIgnoreCase);
+                var imgSrc = isVideo
+                ? (!string.IsNullOrEmpty(latestItem.ThumbnailUrl) ? latestItem.ThumbnailUrl : "/images/video-placeholder.jpg")
+                : latestItem.MediaUrl;
+                <img src="@imgSrc" class="img-fluid rounded mb-3" style="height: 180px; width: 100%; object-fit: cover; border: 1px solid rgba(240,200,8,0.2);" />
             }
             else
             {
@@ -315,11 +319,15 @@
                         <div class="row g-3">
                             @if (portfolio.Items != null)
                             {
-                                foreach (var item in portfolio.Items)
+                                @foreach (var item in portfolio.Items)
                                 {
+                                    var isVideo = !string.IsNullOrEmpty(item.MediaType) && item.MediaType.Equals("Video", StringComparison.OrdinalIgnoreCase);
+                                    var imgSrc = isVideo
+                                    ? (!string.IsNullOrEmpty(item.ThumbnailUrl) ? item.ThumbnailUrl : "/images/video-placeholder.jpg")
+                                    : item.MediaUrl;
                                     <div class="col-md-3">
                                         <div class="card bg-black border-secondary h-100">
-                                            <img src="@item.MediaUrl" class="card-img-top" style="height: 150px; object-fit: cover;">
+                                            <img src="@imgSrc" class="card-img-top" style="height: 150px; object-fit: cover;">
                                             <div class="card-body p-2 text-center">
                                                 <p class="small text-truncate mb-2">@item.Title</p>
                                                 <div class="d-flex gap-1">

@@ -15,13 +15,14 @@
                      style="width:100px;height:100px;object-fit:cover;border:3px solid #FFD700;" />
             </div>
             <div class="col-md-8">
-                <h1 class="text-gold fw-bold" style="font-size:2.2rem;">
-                    @Model.ServiceName <span style="font-size:1rem; color:rgba(255,215,0,0.7);">(R @Model.ServicePrice.ToString("N0"))</span>
-                </h1>                <p class="text-white-50 fs-6">by <span class="text-gold">@Model.ArtistName</span></p>
+                <h1 class="text-gold fw-bold" style="font-size:2.2rem;">@Model.ServiceName</h1>
+                <p class="text-white-50 fs-6">by <span class="text-gold">@Model.ArtistName</span></p>
                 <p class="text-light" style="font-size:0.9rem;">@Model.ServiceDescription</p>
                 <div class="d-flex align-items-center gap-3 mt-2 flex-wrap">
+                    @* ── PRICE BADGE (small, like in picture) ── *@
+                    <span class="price-badge">R @Model.ServicePrice.ToString("N0")</span>
 
-                    @* ── BOOK NOW BUTTON ── *@
+                    @* ── BOOK NOW BUTTON (same size as price badge) ── *@
                     <a asp-controller="Booking" asp-action="BookService"
                        asp-route-userServiceId="@Model.UserServiceId"
                        class="booknow-small">
