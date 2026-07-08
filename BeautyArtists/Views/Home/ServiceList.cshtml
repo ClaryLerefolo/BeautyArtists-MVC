@@ -225,13 +225,12 @@
                                 </p>
 
                                 <div class="d-grid gap-2">
-                                    <button type="button" class="btn btn-gradient"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#artistPortfolioModal"
-                                            data-artist-id="@service.ArtistId"
-                                            data-service-id="@service.UserServiceId">
+                                    <a asp-controller="Portfolio" asp-action="ArtistServicePortfolio"
+                                       asp-route-artistId="@service.ArtistId"
+                                       asp-route-serviceId="@service.UserServiceId"
+                                       class="btn btn-gradient">
                                         View Portfolio
-                                    </button>
+                                    </a>
                                     <div style="display: flex; gap: 8px;">
                                         <a asp-controller="Home" asp-action="Catalogue"
                                            asp-route-artistId="@service.ArtistId"
@@ -258,20 +257,6 @@
     </div>
 </section>
 
-@* ── PORTFOLIO MODAL ── *@
-<div class="modal fade" id="artistPortfolioModal" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content bg-black text-white" style="border:1px solid #FFD700;border-radius:20px;">
-            <div class="modal-header border-0">
-                <h5 class="modal-title text-gold">Artist Portfolio</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body" id="artistPortfolioContent">
-                <div class="text-center py-5"><div class="spinner-border text-warning"></div></div>
-            </div>
-        </div>
-    </div>
-</div>
 
 <style>
     .btn-outline-gold {

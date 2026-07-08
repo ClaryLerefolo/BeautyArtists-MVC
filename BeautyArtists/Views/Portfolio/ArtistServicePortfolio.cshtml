@@ -1,0 +1,522 @@
+﻿@model BeautyArtists.Models.ViewModels.ArtistServicePortfolioViewModel
+
+@{
+    ViewData["Title"] = $"{Model.ArtistName} — {Model.ServiceName} Portfolio";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<section class="py-5 bg-black" style="min-height:100vh;">
+    <div class="container">
+
+        @* ── Artist & Service Info ── *@
+        <div class="row align-items-center mb-5">
+            <div class="col-md-2 text-center">
+                <img src="@Model.ArtistProfilePicture" class="rounded-circle"
+                     style="width:100px;height:100px;object-fit:cover;border:3px solid #FFD700;" />
+            </div>
+            <div class="col-md-8">
+                <h1 class="text-gold fw-bold" style="font-size:2.2rem;">
+                    @Model.ServiceName <span style="font-size:1rem; color:rgba(255,215,0,0.7);">(R @Model.ServicePrice.ToString("N0"))</span>
+                </h1>                <p class="text-white-50 fs-6">by <span class="text-gold">@Model.ArtistName</span></p>
+                <p class="text-light" style="font-size:0.9rem;">@Model.ServiceDescription</p>
+                <div class="d-flex align-items-center gap-3 mt-2 flex-wrap">
+
+                    @* ── BOOK NOW BUTTON ── *@
+                    <a asp-controller="Booking" asp-action="BookService"
+                       asp-route-userServiceId="@Model.UserServiceId"
+                       class="booknow-small">
+                        Book Now
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-2 text-end">
+                <a href="javascript:history.back()" class="back-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15,18 9,12 15,6" />
+                    </svg>
+                    Back
+                </a>
+            </div>
+        </div>
+
+        @* ── Portfolio Gallery ── *@
+        @if (Model.Portfolios != null && Model.Portfolios.Any())
+        {
+            var allItems = Model.Portfolios.SelectMany(p => p.Items).ToList();
+            var images = allItems.Where(i => i.MediaType == "Image" || string.IsNullOrEmpty(i.MediaType)).ToList();
+            var videos = allItems.Where(i => i.MediaType == "Video").ToList();
+
+            @* ---- IMAGES SECTION ---- *@
+            if (images.Any())
+            {
+                <h4 class="text-gold mb-3" style="letter-spacing:1.5px; font-size:1.1rem;">
+                    <i class="bi bi-images me-2"></i> Photos
+                </h4>
+                <div class="row g-3 mb-4">
+                    @foreach (var item in images)
+                    {
+                        <div class="col-lg-3 col-md-4 col-sm-6">
+                            <div class="portfolio-thumbnail"
+                                 data-mediaurl="@item.MediaUrl"
+                                 data-title="@item.Title"
+                                 data-description="@item.Description"
+                                 data-mediatype="image"
+                                 onclick="openLightbox(this)">
+                                <img src="@Url.Content(item.MediaUrl ?? "/images/placeholder.jpg")"
+                                     class="img-fluid w-100"
+                                     style="height:180px;object-fit:cover;border-radius:10px;cursor:pointer;"
+                                     alt="@item.Title" />
+                                @if (!string.IsNullOrEmpty(item.Title))
+                                {
+                                    <div class="mt-1">
+                                        <small class="text-white-50" style="font-size:0.7rem;">@item.Title</small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            @* ---- VIDEOS SECTION ---- *@
+            if (videos.Any())
+            {
+                <h4 class="text-gold mb-3" style="letter-spacing:1.5px; font-size:1.1rem;">
+                    <i class="bi bi-play-circle me-2"></i> Videos
+                </h4>
+                <div class="row g-3">
+                    @foreach (var item in videos)
+                    {
+                        <div class="col-lg-3 col-md-4 col-sm-6">
+                            <div class="portfolio-thumbnail position-relative"
+                                 data-mediaurl="@item.MediaUrl"
+                                 data-title="@item.Title"
+                                 data-description="@item.Description"
+                                 data-mediatype="video"
+                                 onclick="openLightbox(this)">
+                                <img src="@Url.Content(item.ThumbnailUrl ?? "/images/video-placeholder.jpg")"
+                                     class="img-fluid w-100"
+                                     style="height:180px;object-fit:cover;border-radius:10px;cursor:pointer;"
+                                     alt="@item.Title" />
+                                <div class="play-overlay">
+                                    <i class="bi bi-play-circle-fill" style="font-size:2.5rem;color:#FFD700;opacity:0.8;"></i>
+                                </div>
+                                @if (!string.IsNullOrEmpty(item.Title))
+                                {
+                                    <div class="mt-1">
+                                        <small class="text-white-50" style="font-size:0.7rem;">@item.Title</small>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (!images.Any() && !videos.Any())
+            {
+                <div class="text-center py-5">
+                    <h4 class="text-white-50">No portfolio items for this service yet.</h4>
+                </div>
+            }
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <h4 class="text-white-50">No portfolio items for this service yet.</h4>
+            </div>
+        }
+    </div>
+</section>
+
+@* ── LIGHTBOX OVERLAY ── *@
+<div id="lightbox" class="lightbox-overlay" onclick="closeLightbox(event)">
+    <div class="lightbox-container">
+        <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+        <button class="lightbox-prev" onclick="navigateLightbox(-1)">&#10094;</button>
+        <button class="lightbox-next" onclick="navigateLightbox(1)">&#10095;</button>
+        <div class="lightbox-content">
+            <div class="lightbox-counter" id="lightboxCounter"></div>
+            <div id="lightboxMediaContainer" class="lightbox-media-container">
+                <img id="lightboxImage" src="" alt="" style="display:none;max-width:90%;max-height:80vh;object-fit:contain;" />
+                <video id="lightboxVideo" controls style="display:none;max-width:90%;max-height:80vh;" controlsList="nodownload">
+                    <source id="videoSource" src="" type="video/mp4" />
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="lightbox-caption" id="lightboxCaption"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-black {
+        background-color: #000 !important;
+    }
+
+    .text-gold {
+        color: #FFD700 !important;
+    }
+
+    /* ── PRICE BADGE (compact, like in the picture) ── */
+    .price-badge {
+        display: inline-block;
+        background: rgba(0,0,0,0.75);
+        border: 1.5px solid #FFD700;
+        color: #FFD700;
+        font-size: 0.85rem;
+        font-weight: 800;
+        padding: 4px 14px;
+        border-radius: 20px;
+        letter-spacing: 0.5px;
+    }
+
+    /* ── BOOK NOW BUTTON (same size & style as price badge) ── */
+    .booknow-small {
+        display: inline-block;
+        background: linear-gradient(180deg, #FFD700 0%, #FF8C00 100%);
+        color: #000 !important;
+        font-size: 0.85rem;
+        font-weight: 800;
+        padding: 4px 18px;
+        border-radius: 20px;
+        border: none;
+        text-decoration: none;
+        letter-spacing: 0.5px;
+        transition: all 0.25s ease;
+        box-shadow: 0 2px 8px rgba(255, 140, 0, 0.25);
+    }
+
+        .booknow-small:hover {
+            background: linear-gradient(180deg, #FFE44D 0%, #FFA500 100%);
+            box-shadow: 0 4px 15px rgba(255, 140, 0, 0.4);
+            transform: translateY(-2px);
+            color: #000 !important;
+        }
+
+    /* ── BACK LINK ── */
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: rgba(255,215,0,0.6);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        letter-spacing: 1px;
+        transition: color 0.2s;
+    }
+
+        .back-link:hover {
+            color: #FFD700;
+        }
+
+    /* ── THUMBNAIL STYLES ── */
+    .portfolio-thumbnail {
+        position: relative;
+        border-radius: 10px;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        cursor: pointer;
+    }
+
+        .portfolio-thumbnail:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(255,215,0,0.2);
+        }
+
+    .play-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.3);
+        transition: background 0.3s ease;
+    }
+
+    .portfolio-thumbnail:hover .play-overlay {
+        background: rgba(0,0,0,0.15);
+    }
+
+    /* ── LIGHTBOX STYLES ── */
+    .lightbox-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.92);
+        z-index: 9999;
+        overflow: hidden;
+        animation: fadeIn 0.3s ease;
+    }
+
+        .lightbox-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    @@keyframes fadeIn {
+        from
+
+    {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+
+    }
+
+    .lightbox-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .lightbox-close {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 2.5rem;
+        cursor: pointer;
+        z-index: 100;
+        transition: color 0.3s;
+    }
+
+        .lightbox-close:hover {
+            color: #FFD700;
+        }
+
+    .lightbox-prev,
+    .lightbox-next {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255,255,255,0.08);
+        border: none;
+        color: #fff;
+        font-size: 3rem;
+        padding: 20px 12px;
+        cursor: pointer;
+        z-index: 100;
+        transition: background 0.3s;
+        border-radius: 4px;
+        user-select: none;
+    }
+
+    .lightbox-prev {
+        left: 20px;
+    }
+
+    .lightbox-next {
+        right: 20px;
+    }
+
+        .lightbox-prev:hover,
+        .lightbox-next:hover {
+            background: rgba(255,215,0,0.2);
+            color: #FFD700;
+        }
+
+    .lightbox-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        padding: 60px;
+    }
+
+    .lightbox-counter {
+        color: rgba(255,255,255,0.5);
+        font-size: 0.9rem;
+        margin-bottom: 16px;
+        font-weight: 300;
+        letter-spacing: 1px;
+    }
+
+    .lightbox-media-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        max-height: 85vh;
+        overflow: hidden;
+    }
+
+    #lightboxImage {
+        max-width: 90%;
+        max-height: 85vh;
+        object-fit: contain;
+        cursor: zoom-in;
+        transition: transform 0.3s ease;
+    }
+
+        #lightboxImage.zoomed {
+            transform: scale(2);
+            cursor: zoom-out;
+        }
+
+    #lightboxVideo {
+        max-width: 90%;
+        max-height: 85vh;
+        border-radius: 8px;
+        background: #000;
+    }
+
+    .lightbox-caption {
+        color: rgba(255,255,255,0.6);
+        font-size: 0.9rem;
+        margin-top: 16px;
+        text-align: center;
+        max-width: 70%;
+        line-height: 1.4;
+    }
+    @@media (max-width: 768px) {
+        .lightbox-prev, .lightbox-next
+
+    {
+        font-size: 1.8rem;
+        padding: 10px 8px;
+    }
+
+    .lightbox-prev {
+        left: 8px;
+    }
+
+    .lightbox-next {
+        right: 8px;
+    }
+
+    .lightbox-content {
+        padding: 40px 20px;
+    }
+
+    .lightbox-caption {
+        max-width: 90%;
+        font-size: 0.8rem;
+    }
+
+    .price-badge,
+    .booknow-small {
+        font-size: 0.75rem;
+        padding: 3px 12px;
+    }
+
+    }
+</style>
+
+<script>
+    (function() {
+        let mediaItems = [];
+        let currentIndex = 0;
+        let isZoomed = false;
+
+        function initializeLightbox() {
+            const thumbnails = document.querySelectorAll('.portfolio-thumbnail');
+            mediaItems = [];
+            thumbnails.forEach(el => {
+                const mediaUrl = el.getAttribute('data-mediaurl');
+                const title = el.getAttribute('data-title') || '';
+                const description = el.getAttribute('data-description') || '';
+                const mediaType = el.getAttribute('data-mediatype') || 'image';
+                if (mediaUrl) {
+                    mediaItems.push({ url: mediaUrl, title: title, description: description, type: mediaType });
+                }
+            });
+        }
+
+        window.openLightbox = function(element) {
+            const index = Array.from(document.querySelectorAll('.portfolio-thumbnail')).indexOf(element);
+            if (index === -1) return;
+            initializeLightbox();
+            currentIndex = index;
+            showMedia(currentIndex);
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+            isZoomed = false;
+        };
+
+        function showMedia(index) {
+            const item = mediaItems[index];
+            if (!item) return;
+            const imageEl = document.getElementById('lightboxImage');
+            const videoEl = document.getElementById('lightboxVideo');
+            const videoSource = document.getElementById('videoSource');
+            const captionEl = document.getElementById('lightboxCaption');
+            const counterEl = document.getElementById('lightboxCounter');
+            imageEl.classList.remove('zoomed');
+            isZoomed = false;
+            counterEl.textContent = `${index + 1} / ${mediaItems.length}`;
+            let captionText = item.title;
+            if (item.description && item.description !== item.title) {
+                captionText += item.description ? ` — ${item.description}` : '';
+            }
+            captionEl.textContent = captionText;
+            if (item.type === 'video') {
+                imageEl.style.display = 'none';
+                videoEl.style.display = 'block';
+                videoSource.src = item.url;
+                videoEl.load();
+                videoEl.play().catch(() => {});
+            } else {
+                videoEl.style.display = 'none';
+                videoEl.pause();
+                imageEl.style.display = 'block';
+                imageEl.src = item.url;
+                imageEl.alt = item.title || 'Portfolio image';
+            }
+        }
+
+        window.navigateLightbox = function(direction) {
+            currentIndex = (currentIndex + direction + mediaItems.length) % mediaItems.length;
+            showMedia(currentIndex);
+        };
+
+        window.closeLightbox = function(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = '';
+            const video = document.getElementById('lightboxVideo');
+            video.pause();
+            isZoomed = false;
+        };
+
+        document.getElementById('lightboxImage').addEventListener('click', function() {
+            isZoomed = !isZoomed;
+            this.classList.toggle('zoomed');
+        });
+
+        document.addEventListener('keydown', function(e) {
+            const lightbox = document.getElementById('lightbox');
+            if (!lightbox.classList.contains('active')) return;
+            if (e.key === 'Escape') {
+                closeLightbox();
+            } else if (e.key === 'ArrowLeft') {
+                navigateLightbox(-1);
+                e.preventDefault();
+            } else if (e.key === 'ArrowRight') {
+                navigateLightbox(1);
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', initializeLightbox);
+    })();
+</script>

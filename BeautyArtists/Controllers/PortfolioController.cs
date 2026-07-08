@@ -296,6 +296,49 @@ public async Task<IActionResult> DetailsPortfolio(int id)
         {
             return _context.Portfolios.Any(e => e.Id == id);
         }
+
+        [AllowAnonymous]
+        public async Task<IActionResult> ArtistServicePortfolio(string artistId, int serviceId)
+        {
+            if (string.IsNullOrEmpty(artistId) || serviceId == 0)
+                return NotFound();
+
+            // Get the service and artist details
+            var userService = await _context.UserServices
+                .Include(us => us.Service)
+                .Include(us => us.Artist)
+                    .ThenInclude(a => a.ArtistProfile)
+                .FirstOrDefaultAsync(us => us.Id == serviceId && us.ArtistId == artistId);
+            if (userService == null)
+                return NotFound();
+
+            var categoryId = userService.Service?.CategoryId ?? 0;
+
+            // Get portfolios that have items in this category for this artist
+            var portfolios = await _context.Portfolios
+                .Include(p => p.Items.Where(i => i.CategoryId == categoryId))
+                .Include(p => p.Artist)
+                .Where(p => p.ArtistId == artistId
+                         && p.Items.Any(i => i.CategoryId == categoryId))
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+            var vm = new ArtistServicePortfolioViewModel
+            {
+                ArtistId = artistId,
+                ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
+                    ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
+                    : userService.Artist?.UserName ?? "Pro Artist",
+                ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
+                ServiceName = userService.Service?.Name ?? "Service",
+                ServiceDescription = userService.CustomDescription ?? userService.Service?.Description ?? "",
+                ServicePrice = userService.Price,
+                UserServiceId = userService.Id,
+                Portfolios = portfolios
+            };
+
+            return View(vm);
+        }
         [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> ArtistPortfolioModal(string artistId, int serviceId)
