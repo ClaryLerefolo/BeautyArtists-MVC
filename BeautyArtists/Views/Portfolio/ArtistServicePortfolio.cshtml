@@ -15,14 +15,13 @@
                      style="width:100px;height:100px;object-fit:cover;border:3px solid #FFD700;" />
             </div>
             <div class="col-md-8">
-                <h1 class="text-gold fw-bold" style="font-size:2.2rem;">@Model.ServiceName</h1>
+                <h1 class="text-gold fw-bold" style="font-size:2.2rem;">
+                    @Model.ServiceName
+                    <span style="font-size:1rem; color:rgba(255,215,0,0.7);">(R @Model.ServicePrice.ToString("N0"))</span>
+                </h1>
                 <p class="text-white-50 fs-6">by <span class="text-gold">@Model.ArtistName</span></p>
                 <p class="text-light" style="font-size:0.9rem;">@Model.ServiceDescription</p>
                 <div class="d-flex align-items-center gap-3 mt-2 flex-wrap">
-                    @* ── PRICE BADGE (small, like in picture) ── *@
-                    <span class="price-badge">R @Model.ServicePrice.ToString("N0")</span>
-
-                    @* ── BOOK NOW BUTTON (same size as price badge) ── *@
                     <a asp-controller="Booking" asp-action="BookService"
                        asp-route-userServiceId="@Model.UserServiceId"
                        class="booknow-small">
@@ -88,6 +87,7 @@
                 <div class="row g-3">
                     @foreach (var item in videos)
                     {
+                        var thumbnail = !string.IsNullOrEmpty(item.ThumbnailUrl) ? item.ThumbnailUrl : "/images/video-placeholder.jpg";
                         <div class="col-lg-3 col-md-4 col-sm-6">
                             <div class="portfolio-thumbnail position-relative"
                                  data-mediaurl="@item.MediaUrl"
@@ -95,10 +95,20 @@
                                  data-description="@item.Description"
                                  data-mediatype="video"
                                  onclick="openLightbox(this)">
-                                <img src="@Url.Content(item.ThumbnailUrl ?? "/images/video-placeholder.jpg")"
-                                     class="img-fluid w-100"
-                                     style="height:180px;object-fit:cover;border-radius:10px;cursor:pointer;"
-                                     alt="@item.Title" />
+                                @if (string.IsNullOrEmpty(item.ThumbnailUrl))
+                                {
+                                    <div style="height:180px;background:#111;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid rgba(255,215,0,0.15);">
+                                        <span style="font-size:3rem;">&#x25B6;&#xFE0F;</span>
+                                        <span style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:6px;letter-spacing:1px;text-transform:uppercase;">Video</span>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <img src="@Url.Content(thumbnail)"
+                                         class="img-fluid w-100"
+                                         style="height:180px;object-fit:cover;border-radius:10px;cursor:pointer;"
+                                         alt="@item.Title" />
+                                }
                                 <div class="play-overlay">
                                     <i class="bi bi-play-circle-fill" style="font-size:2.5rem;color:#FFD700;opacity:0.8;"></i>
                                 </div>
@@ -159,20 +169,6 @@
         color: #FFD700 !important;
     }
 
-    /* ── PRICE BADGE (compact, like in the picture) ── */
-    .price-badge {
-        display: inline-block;
-        background: rgba(0,0,0,0.75);
-        border: 1.5px solid #FFD700;
-        color: #FFD700;
-        font-size: 0.85rem;
-        font-weight: 800;
-        padding: 4px 14px;
-        border-radius: 20px;
-        letter-spacing: 0.5px;
-    }
-
-    /* ── BOOK NOW BUTTON (same size & style as price badge) ── */
     .booknow-small {
         display: inline-block;
         background: linear-gradient(180deg, #FFD700 0%, #FF8C00 100%);
@@ -195,7 +191,6 @@
             color: #000 !important;
         }
 
-    /* ── BACK LINK ── */
     .back-link {
         display: inline-flex;
         align-items: center;
@@ -212,7 +207,6 @@
             color: #FFD700;
         }
 
-    /* ── THUMBNAIL STYLES ── */
     .portfolio-thumbnail {
         position: relative;
         border-radius: 10px;
@@ -237,13 +231,14 @@
         justify-content: center;
         background: rgba(0,0,0,0.3);
         transition: background 0.3s ease;
+        pointer-events: none;
     }
 
     .portfolio-thumbnail:hover .play-overlay {
         background: rgba(0,0,0,0.15);
     }
 
-    /* ── LIGHTBOX STYLES ── */
+    /* ── Lightbox Styles ── */
     .lightbox-overlay {
         display: none;
         position: fixed;
@@ -262,17 +257,15 @@
             align-items: center;
             justify-content: center;
         }
+
     @@keyframes fadeIn {
-        from
+        from {
+            opacity: 0;
+        }
 
-    {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
-
+        to {
+            opacity: 1;
+        }
     }
 
     .lightbox-container {
@@ -301,8 +294,7 @@
             color: #FFD700;
         }
 
-    .lightbox-prev,
-    .lightbox-next {
+    .lightbox-prev, .lightbox-next {
         position: absolute;
         top: 50%;
         transform: translateY(-50%);
@@ -326,8 +318,7 @@
         right: 20px;
     }
 
-        .lightbox-prev:hover,
-        .lightbox-next:hover {
+        .lightbox-prev:hover, .lightbox-next:hover {
             background: rgba(255,215,0,0.2);
             color: #FFD700;
         }
@@ -389,37 +380,34 @@
         max-width: 70%;
         line-height: 1.4;
     }
+
     @@media (max-width: 768px) {
-        .lightbox-prev, .lightbox-next
+        .lightbox-prev, .lightbox-next {
+            font-size: 1.8rem;
+            padding: 10px 8px;
+        }
 
-    {
-        font-size: 1.8rem;
-        padding: 10px 8px;
-    }
+        .lightbox-prev {
+            left: 8px;
+        }
 
-    .lightbox-prev {
-        left: 8px;
-    }
+        .lightbox-next {
+            right: 8px;
+        }
 
-    .lightbox-next {
-        right: 8px;
-    }
+        .lightbox-content {
+            padding: 40px 20px;
+        }
 
-    .lightbox-content {
-        padding: 40px 20px;
-    }
+        .lightbox-caption {
+            max-width: 90%;
+            font-size: 0.8rem;
+        }
 
-    .lightbox-caption {
-        max-width: 90%;
-        font-size: 0.8rem;
-    }
-
-    .price-badge,
-    .booknow-small {
-        font-size: 0.75rem;
-        padding: 3px 12px;
-    }
-
+        .booknow-small {
+            font-size: 0.75rem;
+            padding: 3px 12px;
+        }
     }
 </style>
 

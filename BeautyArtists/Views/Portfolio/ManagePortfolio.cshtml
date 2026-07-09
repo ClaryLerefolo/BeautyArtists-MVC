@@ -168,12 +168,188 @@
             .btn-gold-action:hover {
                 background: linear-gradient(to right, #ff9900, #ffcc00);
             }
+
+        /* ── Lightbox Styles ── */
+        .lightbox-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.92);
+            z-index: 9999;
+            overflow: hidden;
+            animation: fadeIn 0.3s ease;
+        }
+
+            .lightbox-overlay.active {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+        @@keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .lightbox-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 2.5rem;
+            cursor: pointer;
+            z-index: 100;
+            transition: color 0.3s;
+        }
+
+            .lightbox-close:hover {
+                color: #FFD700;
+            }
+
+        .lightbox-prev, .lightbox-next {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.08);
+            border: none;
+            color: #fff;
+            font-size: 3rem;
+            padding: 20px 12px;
+            cursor: pointer;
+            z-index: 100;
+            transition: background 0.3s;
+            border-radius: 4px;
+            user-select: none;
+        }
+
+        .lightbox-prev {
+            left: 20px;
+        }
+
+        .lightbox-next {
+            right: 20px;
+        }
+
+            .lightbox-prev:hover, .lightbox-next:hover {
+                background: rgba(255,215,0,0.2);
+                color: #FFD700;
+            }
+
+        .lightbox-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 60px;
+        }
+
+        .lightbox-counter {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .lightbox-media-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            max-height: 85vh;
+            overflow: hidden;
+        }
+
+        #lightboxImage {
+            max-width: 90%;
+            max-height: 85vh;
+            object-fit: contain;
+            cursor: zoom-in;
+            transition: transform 0.3s ease;
+        }
+
+            #lightboxImage.zoomed {
+                transform: scale(2);
+                cursor: zoom-out;
+            }
+
+        #lightboxVideo {
+            max-width: 90%;
+            max-height: 85vh;
+            border-radius: 8px;
+            background: #000;
+        }
+
+        .lightbox-caption {
+            color: rgba(255,255,255,0.6);
+            font-size: 0.9rem;
+            margin-top: 16px;
+            text-align: center;
+            max-width: 70%;
+            line-height: 1.4;
+        }
+
+        @@media (max-width: 768px) {
+            .lightbox-prev, .lightbox-next {
+                font-size: 1.8rem;
+                padding: 10px 8px;
+            }
+
+            .lightbox-prev {
+                left: 8px;
+            }
+
+            .lightbox-next {
+                right: 8px;
+            }
+
+            .lightbox-content {
+                padding: 40px 20px;
+            }
+
+            .lightbox-caption {
+                max-width: 90%;
+                font-size: 0.8rem;
+            }
+        }
     </style>
 }
 
 <div class="dashboard-header">
     <h2>Manage Your Portfolios</h2>
 </div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger text-center mx-4">@TempData["Error"]</div>
+}
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success text-center mx-4">@TempData["Success"]</div>
+}
 
 <div class="d-flex justify-content-end mb-4 px-4">
     <button class="btn rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#createPortfolioModal"
@@ -190,20 +366,24 @@
             {
                 var latestItem = portfolio.Items.OrderByDescending(i => i.UploadedAt).First();
                 var isVideo = !string.IsNullOrEmpty(latestItem.MediaType) && latestItem.MediaType.Equals("Video", StringComparison.OrdinalIgnoreCase);
-                @if (isVideo && string.IsNullOrEmpty(latestItem.ThumbnailUrl))
-                {
-                    <div style="height:180px;width:100%;border-radius:8px;background:#111;border:1px solid rgba(255,215,0,0.15);display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:12px;">
-                        <span style="font-size:2.5rem;">&#x25B6;&#xFE0F;</span>
-                        <span style="font-size:0.72rem;color:rgba(255,255,255,0.3);margin-top:6px;letter-spacing:1px;text-transform:uppercase;">Video</span>
-                    </div>
-                }
-                else
-                {
-                    <img src="@(isVideo? latestItem.ThumbnailUrl: latestItem.MediaUrl)"
-                         class="img-fluid rounded mb-3"
-                         style="height:180px;width:100%;object-fit:cover;border:1px solid rgba(255,215,0,0.1);"
-                         onerror="this.style.display='none'" />
-                }
+                var thumbnailUrl = isVideo ? (latestItem.ThumbnailUrl ?? "/images/video-placeholder.jpg") : latestItem.MediaUrl;
+
+                <div class="portfolio-thumbnail" data-mediaurl="@latestItem.MediaUrl" data-title="@latestItem.Title" data-description="@latestItem.Description" data-mediatype="@(isVideo ? "video" : "image")" onclick="openLightbox(this)">
+                    @if (isVideo && string.IsNullOrEmpty(latestItem.ThumbnailUrl))
+                    {
+                        <div style="height:180px;width:100%;border-radius:8px;background:#111;border:1px solid rgba(255,215,0,0.15);display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:12px;cursor:pointer;position:relative;">
+                            <span style="font-size:2.5rem;">&#x25B6;&#xFE0F;</span>
+                            <span style="font-size:0.72rem;color:rgba(255,255,255,0.3);margin-top:6px;letter-spacing:1px;text-transform:uppercase;">Video</span>
+                        </div>
+                    }
+                    else
+                    {
+                        <img src="@thumbnailUrl"
+                             class="img-fluid rounded mb-3"
+                             style="height:180px;width:100%;object-fit:cover;border:1px solid rgba(255,215,0,0.1);cursor:pointer;"
+                             onerror="this.style.display='none'" />
+                    }
+                </div>
             }
             else
             {
@@ -216,15 +396,14 @@
             <div class="portfolio-header mb-1">@portfolio.Name</div>
             <p class="portfolio-desc small mb-2">@portfolio.Description</p>
             <div class="small text-muted mb-3">
-                <span>Crea<span>@(portfolio.Items?.Count(i => !string.IsNullOrEmpty(i.MediaUrl)) ?? 0) Items</span>ted: @portfolio.CreatedAt.ToString("yyyy/MM/dd")</span> | <span>@portfolio.Items?.Count Items</span>
+                <span>Created: @portfolio.CreatedAt.ToString("yyyy/MM/dd")</span> | <span>@portfolio.Items?.Count Items</span>
             </div>
 
             <div class="action-row">
                 <button class="btn-action" data-bs-toggle="modal" data-bs-target="#viewItemsModal-@portfolio.Id">
                     <i class="fas fa-eye"></i> View
                 </button>
-                <button type="button" class="btn-action"
-                        onclick="openEditModal('@portfolio.Id', '@portfolio.Name', '@portfolio.Description')">
+                <button type="button" class="btn-action" onclick="openEditModal('@portfolio.Id', '@portfolio.Name', '@portfolio.Description')">
                     <i class="fas fa-edit"></i> EDIT
                 </button>
                 <button class="btn-action" data-bs-toggle="modal" data-bs-target="#addItemModal-@portfolio.Id">
@@ -237,6 +416,7 @@
             </div>
         </div>
 
+        <!-- Add Item Modal -->
         <div class="modal fade" id="addItemModal-@portfolio.Id" tabindex="-1">
             <div class="modal-dialog modal-xl modal-dialog-centered">
                 <div class="modal-content">
@@ -272,13 +452,7 @@
                                             }
                                         </select>
                                     </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Media Type</label>
-                                        <select name="MediaType" class="form-select" required>
-                                            <option value="Image">Image</option>
-                                            <option value="Video">Video</option>
-                                        </select>
-                                    </div>
+                                    <!-- Media Type dropdown removed – auto-detected on server -->
                                 </div>
                                 <div class="col-lg-7">
                                     <div class="row g-3">
@@ -318,6 +492,7 @@
             </div>
         </div>
 
+        <!-- View Items Modal with Lightbox -->
         <div class="modal fade" id="viewItemsModal-@portfolio.Id" tabindex="-1">
             <div class="modal-dialog modal-xl modal-dialog-centered">
                 <div class="modal-content">
@@ -332,27 +507,22 @@
                                 @foreach (var item in portfolio.Items)
                                 {
                                     var isVideo = !string.IsNullOrEmpty(item.MediaType) && item.MediaType.Equals("Video", StringComparison.OrdinalIgnoreCase);
+                                    var thumbnailUrl = isVideo ? (item.ThumbnailUrl ?? "/images/video-placeholder.jpg") : item.MediaUrl;
                                     <div class="col-md-3">
                                         <div class="card bg-black border-secondary h-100">
-                                            @if (isVideo && string.IsNullOrEmpty(item.ThumbnailUrl))
-                                            {
-                                                <div style="height:150px;background:#111;display:flex;flex-direction:column;
-                                        align-items:center;justify-content:center;
-                                        border-bottom:1px solid rgba(255,215,0,0.1);">
-                                                    <span style="font-size:2rem;">&#x25B6;&#xFE0F;</span>
-                                                    <span style="font-size:0.65rem;color:rgba(255,255,255,0.3);
-                                             margin-top:4px;letter-spacing:1px;text-transform:uppercase;">
-                                                        Video
-                                                    </span>
-                                                </div>
-                                            }
-                                            else
-                                            {
-                                                <img src="@(isVideo? item.ThumbnailUrl: item.MediaUrl)"
-                                                     class="card-img-top"
-                                                     style="height:150px;object-fit:cover;"
-                                                     onerror="this.style.display='none'" />
-                                            }
+                                            <div class="portfolio-thumbnail" data-mediaurl="@item.MediaUrl" data-title="@item.Title" data-description="@item.Description" data-mediatype="@(isVideo ? "video" : "image")" onclick="openLightbox(this)">
+                                                @if (isVideo && string.IsNullOrEmpty(item.ThumbnailUrl))
+                                                {
+                                                    <div style="height:150px;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;border-bottom:1px solid rgba(255,215,0,0.1);cursor:pointer;">
+                                                        <span style="font-size:2rem;">&#x25B6;&#xFE0F;</span>
+                                                        <span style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:4px;letter-spacing:1px;text-transform:uppercase;">Video</span>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <img src="@thumbnailUrl" class="card-img-top" style="height:150px;object-fit:cover;cursor:pointer;" onerror="this.style.display='none'" />
+                                                }
+                                            </div>
                                             <div class="card-body p-2 text-center">
                                                 <p class="small text-truncate mb-2">@item.Title</p>
                                                 <div class="d-flex gap-1">
@@ -376,6 +546,7 @@
     }
 </div>
 
+<!-- Create Portfolio Modal -->
 <div class="modal fade" id="createPortfolioModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -401,7 +572,7 @@
     </div>
 </div>
 
-
+<!-- Edit Portfolio Modal -->
 <div class="modal fade" id="editPortfolioModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -428,10 +599,30 @@
     </div>
 </div>
 
+<!-- Lightbox Overlay -->
+<div id="lightbox" class="lightbox-overlay" onclick="closeLightbox(event)">
+    <div class="lightbox-container">
+        <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+        <button class="lightbox-prev" onclick="navigateLightbox(-1)">&#10094;</button>
+        <button class="lightbox-next" onclick="navigateLightbox(1)">&#10095;</button>
+        <div class="lightbox-content">
+            <div class="lightbox-counter" id="lightboxCounter"></div>
+            <div id="lightboxMediaContainer" class="lightbox-media-container">
+                <img id="lightboxImage" src="" alt="" style="display:none;max-width:90%;max-height:80vh;object-fit:contain;" />
+                <video id="lightboxVideo" controls style="display:none;max-width:90%;max-height:80vh;" controlsList="nodownload">
+                    <source id="videoSource" src="" type="video/mp4" />
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="lightbox-caption" id="lightboxCaption"></div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
-        // 1. DATA AND GLOBALS
+        // ── Location data ──
         const locationData = {
             "Gauteng": ["Johannesburg", "Pretoria", "Sandton", "Soweto", "Centurion"],
             "Western Cape": ["Cape Town", "Stellenbosch", "Paarl", "George", "Knysna"],
@@ -444,34 +635,22 @@
             "Northern Cape": ["Kimberley", "Upington", "Kuruman"]
         };
 
-        let editModal; // Only declare this ONCE at the top
-
-        // 2. MODAL OPENER FUNCTION
+        let editModal;
         function openEditModal(id, name, description) {
-            console.log("Opening Modal for ID:", id);
-
-            // Set the values in the form fields
             document.getElementById('editPortfolioId').value = id;
             document.getElementById('editPortfolioName').value = name;
             document.getElementById('editPortfolioDescription').value = description;
-
-            // Initialize or show the modal
-            if (!editModal) {
-                editModal = new bootstrap.Modal(document.getElementById('editPortfolioModal'));
-            }
+            if (!editModal) editModal = new bootstrap.Modal(document.getElementById('editPortfolioModal'));
             editModal.show();
         }
 
-        // 3. UI HELPERS
         function populateCities(provinceSelect) {
             const targetId = provinceSelect.getAttribute('data-target');
             const citySelect = document.getElementById(targetId);
             const province = provinceSelect.value;
             citySelect.innerHTML = '<option value="">Select City</option>';
             if (province && locationData[province]) {
-                locationData[province].forEach(city => {
-                    citySelect.add(new Option(city, city));
-                });
+                locationData[province].forEach(city => citySelect.add(new Option(city, city)));
             }
         }
 
@@ -489,106 +668,164 @@
             }
         }
 
-        // 4. MAIN INITIALIZATION
-        document.addEventListener('DOMContentLoaded', () => {
+        // ── Lightbox (shared with client side) ──
+        let mediaItems = [];
+        let currentIndex = 0;
+        let isZoomed = false;
 
-            // Setup Provinces for "Add Item" modals
+        function initializeLightbox() {
+            const thumbnails = document.querySelectorAll('.portfolio-thumbnail');
+            mediaItems = [];
+            thumbnails.forEach(el => {
+                const mediaUrl = el.getAttribute('data-mediaurl');
+                const title = el.getAttribute('data-title') || '';
+                const description = el.getAttribute('data-description') || '';
+                const mediaType = el.getAttribute('data-mediatype') || 'image';
+                if (mediaUrl) {
+                    mediaItems.push({ url: mediaUrl, title: title, description: description, type: mediaType });
+                }
+            });
+        }
+
+        window.openLightbox = function(element) {
+            const thumbnails = document.querySelectorAll('.portfolio-thumbnail');
+            const index = Array.from(thumbnails).indexOf(element);
+            if (index === -1) return;
+            initializeLightbox();
+            currentIndex = index;
+            showMedia(currentIndex);
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+            isZoomed = false;
+        };
+
+        function showMedia(index) {
+            const item = mediaItems[index];
+            if (!item) return;
+            const imageEl = document.getElementById('lightboxImage');
+            const videoEl = document.getElementById('lightboxVideo');
+            const videoSource = document.getElementById('videoSource');
+            const captionEl = document.getElementById('lightboxCaption');
+            const counterEl = document.getElementById('lightboxCounter');
+            imageEl.classList.remove('zoomed');
+            isZoomed = false;
+            counterEl.textContent = `${index + 1} / ${mediaItems.length}`;
+            let captionText = item.title;
+            if (item.description && item.description !== item.title) {
+                captionText += item.description ? ` — ${item.description}` : '';
+            }
+            captionEl.textContent = captionText;
+            if (item.type === 'video') {
+                imageEl.style.display = 'none';
+                videoEl.style.display = 'block';
+                videoSource.src = item.url;
+                videoEl.load();
+                videoEl.play().catch(() => {});
+            } else {
+                videoEl.style.display = 'none';
+                videoEl.pause();
+                imageEl.style.display = 'block';
+                imageEl.src = item.url;
+                imageEl.alt = item.title || 'Portfolio image';
+            }
+        }
+
+        window.navigateLightbox = function(direction) {
+            currentIndex = (currentIndex + direction + mediaItems.length) % mediaItems.length;
+            showMedia(currentIndex);
+        };
+
+        window.closeLightbox = function(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = '';
+            const video = document.getElementById('lightboxVideo');
+            video.pause();
+            isZoomed = false;
+        };
+
+        document.getElementById('lightboxImage').addEventListener('click', function() {
+            isZoomed = !isZoomed;
+            this.classList.toggle('zoomed');
+        });
+
+        document.addEventListener('keydown', function(e) {
+            const lightbox = document.getElementById('lightbox');
+            if (!lightbox.classList.contains('active')) return;
+            if (e.key === 'Escape') closeLightbox();
+            else if (e.key === 'ArrowLeft') { navigateLightbox(-1); e.preventDefault(); }
+            else if (e.key === 'ArrowRight') { navigateLightbox(1); e.preventDefault(); }
+        });
+
+        // ── DOM ready ──
+        document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.province-select').forEach(sel => {
                 Object.keys(locationData).forEach(p => sel.add(new Option(p, p)));
                 sel.addEventListener('change', function() { populateCities(this); });
             });
 
-            // AJAX Create Portfolio Logic
-            const createForm = document.getElementById('createPortfolioForm');
-            if(createForm) {
-                createForm.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    const formData = new FormData(this);
-                    try {
-                        const response = await fetch('@Url.Action("CreatePortfolio", "Portfolio")', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        const result = await response.json();
-                        if (result.success) { location.reload(); }
-                        else { Swal.fire('Error', result.message || 'Check inputs', 'error'); }
-                    } catch (err) { Swal.fire('Error', 'Connection failed', 'error'); }
-                });
-            }
+            // Create Portfolio
+            document.getElementById('createPortfolioForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                try {
+                    const response = await fetch('@Url.Action("CreatePortfolio", "Portfolio")', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (result.success) location.reload();
+                    else Swal.fire('Error', result.message || 'Check inputs', 'error');
+                } catch (err) { Swal.fire('Error', 'Connection failed', 'error'); }
+            });
 
-            // AJAX Edit Portfolio Logic
-            const editForm = document.getElementById('editPortfolioForm');
-            if (editForm) {
-                editForm.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-
-                    const portfolioId = document.getElementById('editPortfolioId').value;
-                    const formData = new FormData(this);
-                    const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-
-                    try {
-                        const response = await fetch(`/Portfolio/EditPortfolio/${portfolioId}`, {
-                            method: 'POST',
-                            body: formData,
-                            headers: {
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'RequestVerificationToken': token
-                            }
-                        });
-
-                        const result = await response.json();
-                        if (result.success) {
-                            Swal.fire({
-                                title: 'Success!',
-                                icon: 'success',
-                                timer: 1000,
-                                showConfirmButton: false
-                            }).then(() => location.reload());
-                        } else {
-                            Swal.fire('Error', result.message || 'Update failed', 'error');
-                        }
-                    } catch (err) {
-                        console.error("Fetch error:", err);
-                        Swal.fire('Error', 'Update failed. Check Console (F12).', 'error');
+            // Edit Portfolio
+            document.getElementById('editPortfolioForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const portfolioId = document.getElementById('editPortfolioId').value;
+                const formData = new FormData(this);
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                try {
+                    const response = await fetch(`/Portfolio/EditPortfolio/${portfolioId}`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'X-Requested-With': 'XMLHttpRequest', 'RequestVerificationToken': token }
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        Swal.fire({ title: 'Success!', icon: 'success', timer: 1000, showConfirmButton: false })
+                            .then(() => location.reload());
+                    } else {
+                        Swal.fire('Error', result.message || 'Update failed', 'error');
                     }
-                });
-            }
+                } catch (err) {
+                    console.error("Fetch error:", err);
+                    Swal.fire('Error', 'Update failed. Check Console (F12).', 'error');
+                }
+            });
         });
 
-                 // 5. DELETE PORTFOLIO ITEM AJAX
+        // Delete Item
         $(document).on('click', '.delete-item-btn', function () {
             const btn = $(this);
             const id = btn.data('id');
-            const card = btn.closest('.col-md-3');
             const token = $('input[name="__RequestVerificationToken"]').val();
-
             if (confirm("Delete this item for real?")) {
                 $.ajax({
-                    // TARGETS PortfolioItemController -> DeleteItem method
                     url: '/PortfolioItem/DeleteItem/' + id,
                     type: 'POST',
-                    data: {
-                        "__RequestVerificationToken": token
-                    },
+                    data: { "__RequestVerificationToken": token },
                     success: function (response) {
                         if (response.success) {
-                            // SweetAlert for better UX since you already have it loaded
-                            Swal.fire({
-                                title: 'Deleted!',
-                                icon: 'success',
-                                timer: 1000,
-                                showConfirmButton: false
-                            }).then(() => {
-                                // REFRESH is required to update the "3 Items" count on the dashboard
-                                location.reload();
-                            });
+                            Swal.fire({ title: 'Deleted!', icon: 'success', timer: 1000, showConfirmButton: false })
+                                .then(() => location.reload());
                         } else {
                             Swal.fire('Error', response.message || 'Server refused to delete', 'error');
                         }
                     },
                     error: function(err) {
                         console.error("Delete Error:", err);
-                        Swal.fire('Error', 'Could not reach the server. Check if URL /PortfolioItem/DeleteItem is correct.', 'error');
+                        Swal.fire('Error', 'Could not reach the server.', 'error');
                     }
                 });
             }
