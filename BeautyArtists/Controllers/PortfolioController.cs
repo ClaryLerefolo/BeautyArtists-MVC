@@ -143,7 +143,7 @@ namespace BeautyArtists.Controllers
             }
 
             // 3. Auto-detect MediaType from extension
-            var mediaType = (extension == ".mp4" || extension == ".mov" || extension == ".avi" || extension == ".webm")
+            var mediaType = (extension == ".mp4" || extension == ".mov" || extension == ".avi" || extension == ".webm" || extension ==".mkv" || extension == ".heic")
                 ? "Video"
                 : "Image";
 
