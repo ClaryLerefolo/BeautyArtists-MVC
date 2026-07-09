@@ -124,9 +124,12 @@ namespace BeautyArtists.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId))
-                return RedirectToPage("/Account/Login", new { area = "Identity" });
+            {
+                TempData["Error"] = "Session expired. Please log in again.";
+                return RedirectToAction(nameof(ManagePortfolio));
+            }
 
-            // 1. Validate file
+            // 1. Validate file exists
             if (vm.MediaFile == null || vm.MediaFile.Length == 0)
             {
                 TempData["Error"] = "Please select a file to upload.";
@@ -134,45 +137,56 @@ namespace BeautyArtists.Controllers
             }
 
             // 2. Check file extension
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".mov", ".avi", ".webm", ".mkv", ".heic" };
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".mp4", ".mov", ".avi", ".webm", ".mkv" };
             var extension = Path.GetExtension(vm.MediaFile.FileName).ToLowerInvariant();
             if (!allowedExtensions.Contains(extension))
             {
-                TempData["Error"] = "Unsupported file type. Allowed: JPG, PNG, GIF, MP4, MOV, AVI, WEBM, MKV, HEIC.";
+                TempData["Error"] = $"Unsupported file type '{extension}'. Allowed: JPG, PNG, GIF, MP4, MOV, AVI, WEBM.";
                 return RedirectToAction(nameof(ManagePortfolio));
             }
 
             // 3. Auto-detect MediaType from extension
-            var mediaType = (extension == ".mp4" || extension == ".mov" || extension == ".avi" || extension == ".webm" || extension ==".mkv" || extension == ".heic")
-                ? "Video"
-                : "Image";
+            var videoExtensions = new[] { ".mp4", ".mov", ".avi", ".webm", ".mkv" };
+            var mediaType = videoExtensions.Contains(extension) ? "Video" : "Image";
 
             // 4. Save the file
-            string mediaUrl = await SaveFile(vm.MediaFile, "media");
+            string mediaUrl;
+            try
+            {
+                mediaUrl = await SaveFile(vm.MediaFile, "media");
+            }
+            catch (Exception ex)
+            {
+                TempData["Error"] = $"Failed to save file: {ex.Message}";
+                return RedirectToAction(nameof(ManagePortfolio));
+            }
 
-            // 5. Create item
+            // 5. Create the item with MediaType set correctly
             var item = new PortfolioItem
             {
-                Title = vm.Title ?? "Untitled",
-                Description = vm.Description,
-                Province = vm.Province,
-                City = vm.City,
-                MediaType = mediaType, // use auto-detected value
+                Title = string.IsNullOrWhiteSpace(vm.Title) ? "Untitled" : vm.Title,
+                Description = vm.Description ?? "",
+                Province = vm.Province ?? "",
+                City = vm.City ?? "",
+                DisplayOrder = vm.DisplayOrder,
+                MediaType = mediaType, // CRITICAL: "Video" or "Image"
                 MediaUrl = mediaUrl,
-                PortfolioId = vm.PortfolioId,
+                ThumbnailUrl = null,
+                IsFeatured = vm.IsFeatured,
+                PortfolioId = vm.PortfolioId > 0 ? vm.PortfolioId : null,
                 CategoryId = vm.CategoryId > 0 ? vm.CategoryId : null,
                 ArtistId = userId,
                 UploadedAt = DateTime.UtcNow,
-                IsFeatured = vm.IsFeatured,
                 ClientName = vm.ClientName,
-                MusicTrack = vm.MusicTrack,
-                DisplayOrder = vm.DisplayOrder
+                MusicTrack = vm.MusicTrack
             };
 
             _context.PortfolioItems.Add(item);
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Item uploaded successfully!";
+            // Verify the item was saved correctly
+            var savedItem = await _context.PortfolioItems.FindAsync(item.Id);
+            TempData["Success"] = $"'{item.Title}' uploaded successfully! MediaType: {savedItem?.MediaType}";
             return RedirectToAction(nameof(ManagePortfolio));
         }
 
