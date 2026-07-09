@@ -160,8 +160,7 @@
             font-weight: bold;
             text-transform: uppercase;
             border: none;
-            width: 100%;
-            padding: 10px;
+            padding: 10px 30px;
             border-radius: 5px;
         }
 
@@ -381,7 +380,8 @@
                                muted
                                playsinline
                                preload="metadata">
-                            <source src="@latestItem.MediaUrl" type="video/mp4" />
+                            <source src="@Url.Content(latestItem.MediaUrl)" type="video/mp4" />
+                            Your browser does not support the video tag.
                         </video>
                         <div class="play-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.2);pointer-events:none;">
                             <i class="bi bi-play-circle-fill" style="font-size:3rem;color:#FFD700;opacity:0.9;text-shadow:0 0 20px rgba(0,0,0,0.9);"></i>
@@ -389,9 +389,9 @@
                     }
                     else
                     {
-                        <img src="@latestItem.MediaUrl"
+                        <img src="@Url.Content(latestItem.MediaUrl)"
                              style="width:100%;height:100%;object-fit:cover;"
-                             onerror="this.style.display='none'" />
+                             onerror="this.src='/images/placeholder.jpg';" />
                     }
                 </div>
             }
@@ -426,31 +426,33 @@
             </div>
         </div>
 
-        <!-- Add Item Modal -->
+        <!-- Add Item Modal (fixed layout) -->
         <div class="modal fade" id="addItemModal-@portfolio.Id" tabindex="-1">
-            <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
                 <div class="modal-content">
                     <form asp-controller="Portfolio" asp-action="CreatePortfolioItem" method="post" enctype="multipart/form-data">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="PortfolioId" value="@portfolio.Id" />
                         <div class="modal-header border-0">
-                            <h5 class="modal-title">Upload Work to "@portfolio.Name"</h5>
+                            <h5 class="modal-title text-gold">Upload Work to "@portfolio.Name"</h5>
                             <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
-                            <div class="row g-4">
-                                <div class="col-lg-5 border-end border-secondary border-opacity-25">
-                                    <label class="form-label">Media File</label>
-                                    <div class="drop-area mb-3" onclick="document.getElementById('file-@portfolio.Id').click()">
-                                        <div id="prompt-@portfolio.Id">
-                                            <i class="fas fa-cloud-upload-alt fa-2x text-warning"></i>
-                                            <p class="mt-2 small">Click to upload image/video</p>
+                            <div class="row g-3">
+                                <div class="col-md-5">
+                                    <div class="mb-3">
+                                        <label class="form-label">Media File <span class="text-danger">*</span></label>
+                                        <div class="drop-area" onclick="document.getElementById('file-@portfolio.Id').click()">
+                                            <div id="prompt-@portfolio.Id">
+                                                <i class="fas fa-cloud-upload-alt fa-2x text-warning"></i>
+                                                <p class="mt-2 small">Click to upload image/video</p>
+                                            </div>
+                                            <input type="file" name="MediaFile" id="file-@portfolio.Id" class="d-none" onchange="previewFile(this, 'prev-@portfolio.Id', 'prompt-@portfolio.Id')" required />
+                                            <img id="prev-@portfolio.Id" class="preview-img" />
                                         </div>
-                                        <input type="file" name="MediaFile" id="file-@portfolio.Id" class="d-none" onchange="previewFile(this, 'prev-@portfolio.Id', 'prompt-@portfolio.Id')" required />
-                                        <img id="prev-@portfolio.Id" class="preview-img" />
                                     </div>
                                     <div class="mb-3">
-                                        <label class="form-label">Service Category</label>
+                                        <label class="form-label">Service Category <span class="text-danger">*</span></label>
                                         <select name="CategoryId" class="form-select" required>
                                             <option value="">-- Select Category --</option>
                                             @if (ViewBag.Categories != null)
@@ -462,12 +464,11 @@
                                             }
                                         </select>
                                     </div>
-                                    <!-- Media Type dropdown removed – auto-detected on server -->
                                 </div>
-                                <div class="col-lg-7">
-                                    <div class="row g-3">
+                                <div class="col-md-7">
+                                    <div class="row g-2">
                                         <div class="col-md-8">
-                                            <label class="form-label">Title</label>
+                                            <label class="form-label">Title <span class="text-danger">*</span></label>
                                             <input name="Title" class="form-control" required />
                                         </div>
                                         <div class="col-md-4">
@@ -475,26 +476,27 @@
                                             <input type="number" name="DisplayOrder" class="form-control" value="0" />
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label">Province</label>
+                                            <label class="form-label">Province <span class="text-danger">*</span></label>
                                             <select name="Province" class="form-select province-select" data-target="cSel-@portfolio.Id" required>
                                                 <option value="">Select Province</option>
                                             </select>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label">City</label>
+                                            <label class="form-label">City <span class="text-danger">*</span></label>
                                             <select name="City" id="cSel-@portfolio.Id" class="form-select city-select" required>
                                                 <option value="">Select City</option>
                                             </select>
                                         </div>
                                         <div class="col-12">
                                             <label class="form-label">Description</label>
-                                            <textarea name="Description" class="form-control" rows="4"></textarea>
+                                            <textarea name="Description" class="form-control" rows="3"></textarea>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div class="modal-footer border-0">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                             <button type="submit" class="btn-gold-action">SAVE ITEM</button>
                         </div>
                     </form>
@@ -502,12 +504,12 @@
             </div>
         </div>
 
-        <!-- View Items Modal with Lightbox -->
+        <!-- View Items Modal -->
         <div class="modal fade" id="viewItemsModal-@portfolio.Id" tabindex="-1">
             <div class="modal-dialog modal-xl modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header border-0">
-                        <h5 class="modal-title">Gallery: @portfolio.Name</h5>
+                        <h5 class="modal-title text-gold">Gallery: @portfolio.Name</h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body overflow-auto" style="max-height: 70vh;">
@@ -533,7 +535,8 @@
                                                            muted
                                                            playsinline
                                                            preload="metadata">
-                                                        <source src="@item.MediaUrl" type="video/mp4" />
+                                                        <source src="@Url.Content(item.MediaUrl)" type="video/mp4" />
+                                                        Your browser does not support the video tag.
                                                     </video>
                                                     <div class="play-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.2);pointer-events:none;">
                                                         <i class="bi bi-play-circle-fill" style="font-size:2.5rem;color:#FFD700;opacity:0.9;text-shadow:0 0 20px rgba(0,0,0,0.9);"></i>
@@ -541,7 +544,7 @@
                                                 }
                                                 else
                                                 {
-                                                    <img src="@item.MediaUrl" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />
+                                                    <img src="@Url.Content(item.MediaUrl)" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='/images/placeholder.jpg';" />
                                                 }
                                             </div>
                                             <div class="card-body p-2 text-center">
@@ -574,19 +577,19 @@
             <form id="createPortfolioForm">
                 @Html.AntiForgeryToken()
                 <div class="modal-header border-0">
-                    <h5 class="modal-title">New Collection</h5>
+                    <h5 class="modal-title text-gold">New Collection</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Portfolio Name</label>
+                        <label class="form-label">Portfolio Name <span class="text-danger">*</span></label>
                         <input name="Name" type="text" class="form-control" required placeholder="e.g. Bridal Portfolio">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Short Description</label>
                         <textarea name="Description" class="form-control" rows="4"></textarea>
                     </div>
-                    <button type="submit" class="btn-gold-action">CREATE PORTFOLIO</button>
+                    <button type="submit" class="btn-gold-action" style="width:100%;">CREATE PORTFOLIO</button>
                 </div>
             </form>
         </div>
@@ -601,19 +604,19 @@
                 @Html.AntiForgeryToken()
                 <input type="hidden" id="editPortfolioId" name="Id" />
                 <div class="modal-header border-0">
-                    <h5 class="modal-title">Edit Collection</h5>
+                    <h5 class="modal-title text-gold">Edit Collection</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Portfolio Name</label>
+                        <label class="form-label">Portfolio Name <span class="text-danger">*</span></label>
                         <input id="editPortfolioName" name="Name" type="text" class="form-control" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Description</label>
                         <textarea id="editPortfolioDescription" name="Description" class="form-control" rows="4"></textarea>
                     </div>
-                    <button type="submit" class="btn-gold-action">SAVE CHANGES</button>
+                    <button type="submit" class="btn-gold-action" style="width:100%;">SAVE CHANGES</button>
                 </div>
             </form>
         </div>
