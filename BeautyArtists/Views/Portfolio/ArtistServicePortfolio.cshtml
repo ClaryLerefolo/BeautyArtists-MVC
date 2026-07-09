@@ -15,13 +15,11 @@
                      style="width:100px;height:100px;object-fit:cover;border:3px solid #FFD700;" />
             </div>
             <div class="col-md-8">
-                <h1 class="text-gold fw-bold" style="font-size:2.2rem;">
-                    @Model.ServiceName
-                    <span style="font-size:1rem; color:rgba(255,215,0,0.7);">(R @Model.ServicePrice.ToString("N0"))</span>
-                </h1>
+                <h1 class="text-gold fw-bold" style="font-size:2.2rem;">@Model.ServiceName</h1>
                 <p class="text-white-50 fs-6">by <span class="text-gold">@Model.ArtistName</span></p>
                 <p class="text-light" style="font-size:0.9rem;">@Model.ServiceDescription</p>
                 <div class="d-flex align-items-center gap-3 mt-2 flex-wrap">
+                    <span class="price-badge">R @Model.ServicePrice.ToString("N0")</span>
                     <a asp-controller="Booking" asp-action="BookService"
                        asp-route-userServiceId="@Model.UserServiceId"
                        class="booknow-small">
@@ -78,7 +76,7 @@
                 </div>
             }
 
-            @* ---- VIDEOS SECTION ---- *@
+            @* ---- VIDEOS SECTION (FIXED) ---- *@
             if (videos.Any())
             {
                 <h4 class="text-gold mb-3" style="letter-spacing:1.5px; font-size:1.1rem;">
@@ -87,35 +85,32 @@
                 <div class="row g-3">
                     @foreach (var item in videos)
                     {
-                        var thumbnail = !string.IsNullOrEmpty(item.ThumbnailUrl) ? item.ThumbnailUrl : "/images/video-placeholder.jpg";
                         <div class="col-lg-3 col-md-4 col-sm-6">
                             <div class="portfolio-thumbnail position-relative"
                                  data-mediaurl="@item.MediaUrl"
                                  data-title="@item.Title"
                                  data-description="@item.Description"
                                  data-mediatype="video"
-                                 onclick="openLightbox(this)">
-                                @if (string.IsNullOrEmpty(item.ThumbnailUrl))
-                                {
-                                    <div style="height:180px;background:#111;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid rgba(255,215,0,0.15);">
-                                        <span style="font-size:3rem;">&#x25B6;&#xFE0F;</span>
-                                        <span style="font-size:0.7rem;color:rgba(255,255,255,0.3);margin-top:6px;letter-spacing:1px;text-transform:uppercase;">Video</span>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <img src="@Url.Content(thumbnail)"
-                                         class="img-fluid w-100"
-                                         style="height:180px;object-fit:cover;border-radius:10px;cursor:pointer;"
-                                         alt="@item.Title" />
-                                }
-                                <div class="play-overlay">
-                                    <i class="bi bi-play-circle-fill" style="font-size:2.5rem;color:#FFD700;opacity:0.8;"></i>
+                                 onclick="openLightbox(this)"
+                                 style="cursor:pointer;border-radius:10px;overflow:hidden;height:180px;background:#000;">
+
+                                <!-- Video thumbnail (shows first frame) -->
+                                <video style="width:100%;height:100%;object-fit:cover;"
+                                       muted
+                                       playsinline
+                                       preload="metadata">
+                                    <source src="@item.MediaUrl" type="video/mp4" />
+                                </video>
+
+                                <!-- Gold play overlay -->
+                                <div class="play-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.2);pointer-events:none;">
+                                    <i class="bi bi-play-circle-fill" style="font-size:3rem;color:#FFD700;opacity:0.9;text-shadow:0 0 20px rgba(0,0,0,0.9);"></i>
                                 </div>
+
                                 @if (!string.IsNullOrEmpty(item.Title))
                                 {
-                                    <div class="mt-1">
-                                        <small class="text-white-50" style="font-size:0.7rem;">@item.Title</small>
+                                    <div style="position:absolute;bottom:6px;left:10px;right:10px;">
+                                        <small class="text-white" style="font-size:0.7rem;text-shadow:0 0 8px rgba(0,0,0,0.9);">@item.Title</small>
                                     </div>
                                 }
                             </div>
@@ -167,6 +162,19 @@
 
     .text-gold {
         color: #FFD700 !important;
+    }
+
+    /* ── PRICE BADGE ── */
+    .price-badge {
+        display: inline-block;
+        background: rgba(0,0,0,0.75);
+        border: 1.5px solid #FFD700;
+        color: #FFD700;
+        font-size: 0.85rem;
+        font-weight: 800;
+        padding: 4px 14px;
+        border-radius: 20px;
+        letter-spacing: 0.5px;
     }
 
     .booknow-small {
@@ -229,13 +237,13 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(0,0,0,0.3);
+        background: rgba(0,0,0,0.2);
         transition: background 0.3s ease;
         pointer-events: none;
     }
 
     .portfolio-thumbnail:hover .play-overlay {
-        background: rgba(0,0,0,0.15);
+        background: rgba(0,0,0,0.1);
     }
 
     /* ── Lightbox Styles ── */
@@ -404,7 +412,7 @@
             font-size: 0.8rem;
         }
 
-        .booknow-small {
+        .price-badge, .booknow-small {
             font-size: 0.75rem;
             padding: 3px 12px;
         }
