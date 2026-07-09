@@ -366,21 +366,31 @@
             {
                 var latestItem = portfolio.Items.OrderByDescending(i => i.UploadedAt).First();
                 var isVideo = !string.IsNullOrEmpty(latestItem.MediaType) && latestItem.MediaType.Equals("Video", StringComparison.OrdinalIgnoreCase);
-                var thumbnailUrl = isVideo ? (latestItem.ThumbnailUrl ?? "/images/video-placeholder.jpg") : latestItem.MediaUrl;
 
-                <div class="portfolio-thumbnail" data-mediaurl="@latestItem.MediaUrl" data-title="@latestItem.Title" data-description="@latestItem.Description" data-mediatype="@(isVideo ? "video" : "image")" onclick="openLightbox(this)">
-                    @if (isVideo && string.IsNullOrEmpty(latestItem.ThumbnailUrl))
+                <div class="portfolio-thumbnail position-relative"
+                     data-mediaurl="@latestItem.MediaUrl"
+                     data-title="@latestItem.Title"
+                     data-description="@latestItem.Description"
+                     data-mediatype="@(isVideo ? "video" : "image")"
+                     onclick="openLightbox(this)"
+                     style="cursor:pointer;border-radius:8px;overflow:hidden;height:180px;margin-bottom:12px;background:#000;">
+
+                    @if (isVideo)
                     {
-                        <div style="height:180px;width:100%;border-radius:8px;background:#111;border:1px solid rgba(255,215,0,0.15);display:flex;flex-direction:column;align-items:center;justify-content:center;margin-bottom:12px;cursor:pointer;position:relative;">
-                            <span style="font-size:2.5rem;">&#x25B6;&#xFE0F;</span>
-                            <span style="font-size:0.72rem;color:rgba(255,255,255,0.3);margin-top:6px;letter-spacing:1px;text-transform:uppercase;">Video</span>
+                        <video style="width:100%;height:100%;object-fit:cover;"
+                               muted
+                               playsinline
+                               preload="metadata">
+                            <source src="@latestItem.MediaUrl" type="video/mp4" />
+                        </video>
+                        <div class="play-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.2);pointer-events:none;">
+                            <i class="bi bi-play-circle-fill" style="font-size:3rem;color:#FFD700;opacity:0.9;text-shadow:0 0 20px rgba(0,0,0,0.9);"></i>
                         </div>
                     }
                     else
                     {
-                        <img src="@thumbnailUrl"
-                             class="img-fluid rounded mb-3"
-                             style="height:180px;width:100%;object-fit:cover;border:1px solid rgba(255,215,0,0.1);cursor:pointer;"
+                        <img src="@latestItem.MediaUrl"
+                             style="width:100%;height:100%;object-fit:cover;"
                              onerror="this.style.display='none'" />
                     }
                 </div>
@@ -507,20 +517,31 @@
                                 @foreach (var item in portfolio.Items)
                                 {
                                     var isVideo = !string.IsNullOrEmpty(item.MediaType) && item.MediaType.Equals("Video", StringComparison.OrdinalIgnoreCase);
-                                    var thumbnailUrl = isVideo ? (item.ThumbnailUrl ?? "/images/video-placeholder.jpg") : item.MediaUrl;
                                     <div class="col-md-3">
                                         <div class="card bg-black border-secondary h-100">
-                                            <div class="portfolio-thumbnail" data-mediaurl="@item.MediaUrl" data-title="@item.Title" data-description="@item.Description" data-mediatype="@(isVideo ? "video" : "image")" onclick="openLightbox(this)">
-                                                @if (isVideo && string.IsNullOrEmpty(item.ThumbnailUrl))
+                                            <div class="portfolio-thumbnail position-relative"
+                                                 data-mediaurl="@item.MediaUrl"
+                                                 data-title="@item.Title"
+                                                 data-description="@item.Description"
+                                                 data-mediatype="@(isVideo ? "video" : "image")"
+                                                 onclick="openLightbox(this)"
+                                                 style="cursor:pointer;overflow:hidden;height:150px;background:#000;">
+
+                                                @if (isVideo)
                                                 {
-                                                    <div style="height:150px;background:#111;display:flex;flex-direction:column;align-items:center;justify-content:center;border-bottom:1px solid rgba(255,215,0,0.1);cursor:pointer;">
-                                                        <span style="font-size:2rem;">&#x25B6;&#xFE0F;</span>
-                                                        <span style="font-size:0.65rem;color:rgba(255,255,255,0.3);margin-top:4px;letter-spacing:1px;text-transform:uppercase;">Video</span>
+                                                    <video style="width:100%;height:100%;object-fit:cover;"
+                                                           muted
+                                                           playsinline
+                                                           preload="metadata">
+                                                        <source src="@item.MediaUrl" type="video/mp4" />
+                                                    </video>
+                                                    <div class="play-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.2);pointer-events:none;">
+                                                        <i class="bi bi-play-circle-fill" style="font-size:2.5rem;color:#FFD700;opacity:0.9;text-shadow:0 0 20px rgba(0,0,0,0.9);"></i>
                                                     </div>
                                                 }
                                                 else
                                                 {
-                                                    <img src="@thumbnailUrl" class="card-img-top" style="height:150px;object-fit:cover;cursor:pointer;" onerror="this.style.display='none'" />
+                                                    <img src="@item.MediaUrl" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'" />
                                                 }
                                             </div>
                                             <div class="card-body p-2 text-center">
@@ -668,7 +689,7 @@
             }
         }
 
-        // ── Lightbox (shared with client side) ──
+        // ── Lightbox ──
         let mediaItems = [];
         let currentIndex = 0;
         let isZoomed = false;
