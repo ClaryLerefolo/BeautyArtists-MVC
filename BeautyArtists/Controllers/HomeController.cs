@@ -7,6 +7,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Build.Framework;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
+using System.Net;
+using System.Net.Mail;
+using Microsoft.Extensions.Configuration;
+
 
 namespace BeautyArtists.Controllers
 {
@@ -14,12 +18,15 @@ namespace BeautyArtists.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IConfiguration _configuration;
 
 
-        public HomeController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+
+        public HomeController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IConfiguration configuration)
         {
             _context = context;
             _userManager = userManager;
+            _configuration = configuration;
         }
 
 
@@ -77,6 +84,94 @@ namespace BeautyArtists.Controllers
 
             };
             return View(model);
+        }
+        public IActionResult Support()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SubmitReport(string category, string description, string email)
+        {
+            try
+            {
+                // ?? 1. Save to database ??
+                var report = new SupportReport
+                {
+                    Category = category,
+                    Description = description,
+                    Email = email ?? "Not provided",
+                    SubmittedAt = DateTime.UtcNow.AddHours(2) // SAST
+                };
+                _context.SupportReports.Add(report);
+                await _context.SaveChangesAsync();
+
+                // ?? 2. Send email to BOTH stakeholders ??
+                string subject = $"New Support Report: {category}";
+                string body = $@"
+            <h2>New Support Report</h2>
+            <p><strong>Category:</strong> {category}</p>
+            <p><strong>User Email:</strong> {email ?? "Not provided"}</p>
+            <p><strong>Description:</strong></p>
+            <p>{description}</p>
+            <p><strong>Submitted at:</strong> {DateTime.UtcNow.AddHours(2):yyyy-MM-dd HH:mm:ss}</p>
+            <hr />
+            <p style='color:#888;'>This report was submitted via the RubiOr support page.</p>
+        ";
+
+                // ?? Option A: Send to both emails in one call (recommended) ??
+                string[] stakeholderEmails = new string[]
+                {
+            "ignatiuslerefolo07101999@gmail.com",  // Change to actual email 1
+            "neo305mofokeng@gmail.com"   // Change to actual email 2
+                };
+
+                await SendEmailToMultipleAsync(stakeholderEmails, subject, body);
+
+                // ?? Option B: Or call SendEmailAsync twice ??
+                // await SendEmailAsync("stakeholder1@rubior.com", subject, body);
+                // await SendEmailAsync("stakeholder2@rubior.com", subject, body);
+
+                TempData["Success"] = "Thank you! Your report has been submitted. We'll review it within 24 hours.";
+                return RedirectToAction(nameof(Support));
+            }
+            catch (Exception ex)
+            {
+                // Log the error (optional)
+                TempData["Error"] = "There was an issue submitting your report. Please try again or contact us directly.";
+                return RedirectToAction(nameof(Support));
+            }
+        }
+        private async Task SendEmailToMultipleAsync(string[] toEmails, string subject, string body)
+        {
+            var smtpClient = new SmtpClient
+            {
+                Host = _configuration["Email:SmtpHost"],
+                Port = int.Parse(_configuration["Email:SmtpPort"]),
+                Credentials = new NetworkCredential(
+                    _configuration["Email:Username"],
+                    _configuration["Email:Password"]
+                ),
+                EnableSsl = bool.Parse(_configuration["Email:EnableSsl"]),
+                UseDefaultCredentials = false
+            };
+
+            var mailMessage = new MailMessage
+            {
+                From = new MailAddress(_configuration["Email:FromAddress"], "RubiOr Support"),
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true
+            };
+
+            // Add ALL recipients
+            foreach (var email in toEmails)
+            {
+                mailMessage.To.Add(email);
+            }
+
+            await smtpClient.SendMailAsync(mailMessage);
         }
         public async Task<IActionResult> Categories()
         {

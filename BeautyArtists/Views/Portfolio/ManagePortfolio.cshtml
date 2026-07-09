@@ -538,8 +538,8 @@
                                                            muted
                                                            playsinline
                                                            preload="metadata">
-                                                        <source src="@Url.Content(item.MediaUrl)" type="video/mp4" />
-                                                        <p>Video not supported</p>
+                                                        <source src="@Url.Action("StreamVideo", "Portfolio", new { id = item.Id })" type="video/mp4" />
+                                                         <p>Video not supported</p>
                                                     </video>
                                                     <div class="play-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.2);pointer-events:none;">
                                                         <i class="bi bi-play-circle-fill" style="font-size:2.5rem;color:#FFD700;opacity:0.9;text-shadow:0 0 20px rgba(0,0,0,0.9);"></i>

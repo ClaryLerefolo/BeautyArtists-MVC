@@ -1,0 +1,221 @@
+﻿@{
+    ViewData["Title"] = "Support";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<section class="py-5 bg-black" style="min-height:100vh;">
+    <div class="container">
+
+        @* ── PAGE HEADER ── *@
+        <div class="text-center mb-5">
+            <h1 class="text-gold fw-bold" style="font-size:2.8rem;letter-spacing:2px;">Support Center</h1>
+            <p class="text-white-50" style="font-size:1.1rem;">We're here to help — find answers or report an issue</p>
+            <div style="width:80px;height:3px;background:linear-gradient(90deg,#b30000,#FFD700);margin:12px auto;"></div>
+        </div>
+
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success text-center mx-auto" style="max-width:800px;background:rgba(0,255,0,0.1);border:1px solid #00ff00;color:#00ff00;border-radius:12px;padding:16px;">
+                @TempData["Success"]
+            </div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger text-center mx-auto" style="max-width:800px;background:rgba(255,0,0,0.1);border:1px solid #ff0000;color:#ff6666;border-radius:12px;padding:16px;">
+                @TempData["Error"]
+            </div>
+        }
+
+        <div class="row g-5">
+
+            @* ── LEFT COLUMN: ABOUT ── *@
+            <div class="col-lg-7">
+                <div class="about-section" style="background:#0b0b0b;border:1px solid rgba(255,215,0,0.12);border-radius:20px;padding:32px;">
+                    <h2 class="text-gold fw-bold mb-4" style="font-size:1.6rem;">
+                        <i class="bi bi-info-circle me-2"></i> About RubiOr
+                    </h2>
+
+                    <p style="color:rgba(255,255,255,0.7);line-height:1.8;font-size:0.95rem;">
+                        <strong class="text-gold">RubiOr</strong> is a premium beauty booking platform designed to connect
+                        clients with top-tier beauty professionals. Our mission is to bring luxury and convenience together,
+                        making it effortless to discover, book, and experience exceptional beauty services.
+                    </p>
+
+                    <p style="color:rgba(255,255,255,0.6);line-height:1.8;font-size:0.9rem;margin-top:16px;">
+                        Whether you're looking for a full-face glam, a relaxing spa day, or the perfect nail art,
+                        RubiOr empowers you to find the right artist and book with confidence — all in a few clicks.
+                    </p>
+
+                    <div class="row g-3 mt-3">
+                        <div class="col-md-6">
+                            <div style="background:rgba(255,215,0,0.05);border-radius:12px;padding:16px;border-left:3px solid #FFD700;">
+                                <h6 style="color:#FFD700;font-weight:700;margin:0 0 4px 0;">
+                                    <i class="bi bi-shield-check me-1"></i> Trusted
+                                </h6>
+                                <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0;">Verified artists, secure payments, and real client reviews.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div style="background:rgba(255,215,0,0.05);border-radius:12px;padding:16px;border-left:3px solid #FFD700;">
+                                <h6 style="color:#FFD700;font-weight:700;margin:0 0 4px 0;">
+                                    <i class="bi bi-clock-history me-1"></i> Easy Booking
+                                </h6>
+                                <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0;">Browse, book, and manage appointments — all in one place.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div style="background:rgba(255,215,0,0.05);border-radius:12px;padding:16px;border-left:3px solid #FFD700;">
+                                <h6 style="color:#FFD700;font-weight:700;margin:0 0 4px 0;">
+                                    <i class="bi bi-people me-1"></i> Community
+                                </h6>
+                                <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0;">Connect with passionate artists who love what they do.</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div style="background:rgba(255,215,0,0.05);border-radius:12px;padding:16px;border-left:3px solid #FFD700;">
+                                <h6 style="color:#FFD700;font-weight:700;margin:0 0 4px 0;">
+                                    <i class="bi bi-phone me-1"></i> Mobile Ready
+                                </h6>
+                                <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0;">Book on the go — optimized for desktop, tablet, and mobile.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @* ── RIGHT COLUMN: REPORT A PROBLEM ── *@
+            <div class="col-lg-5">
+                <div class="report-section" style="background:#0b0b0b;border:1px solid rgba(255,215,0,0.12);border-radius:20px;padding:32px;position:sticky;top:30px;">
+
+                    <h2 class="text-gold fw-bold mb-4" style="font-size:1.6rem;">
+                        <i class="bi bi-flag me-2"></i> Report a Problem
+                    </h2>
+                    <p style="color:rgba(255,255,255,0.4);font-size:0.85rem;margin-bottom:20px;">
+                        Found something that isn't working right? Let us know so we can fix it quickly.
+                    </p>
+
+                    <form method="post" asp-controller="Home" asp-action="SubmitReport">
+                        @Html.AntiForgeryToken()
+
+                        @* ── PROBLEM CATEGORY DROPDOWN ── *@
+                        <div class="mb-3">
+                            <label class="form-label" style="color:#FFD700;font-weight:600;font-size:0.85rem;">
+                                <i class="bi bi-tag me-1"></i> Problem Category <span class="text-danger">*</span>
+                            </label>
+                            <select name="category" class="form-select" required style="background:#1a1a1a;border:1.5px solid rgba(255,215,0,0.2);color:#fff;border-radius:10px;padding:12px 16px;">
+                                <option value="">-- Select a category --</option>
+                                <option value="Payment">💳 Payment Issues</option>
+                                <option value="Booking">📅 Booking Problems</option>
+                                <option value="Technical">🖥️ Technical / App Issue</option>
+                                <option value="Account">👤 Account Problems</option>
+                                <option value="Artist">🎨 Artist / Service Issue</option>
+                                <option value="Refund">💰 Refund Request</option>
+                                <option value="Security">🔒 Security Concern</option>
+                                <option value="Suggestion">💡 Suggestion / Feature Request</option>
+                                <option value="Other">📌 Other</option>
+                            </select>
+                            <span style="color:rgba(255,255,255,0.2);font-size:0.7rem;display:block;margin-top:4px;">
+                                Choose the category that best describes your issue
+                            </span>
+                        </div>
+
+                        @* ── PROBLEM DESCRIPTION ── *@
+                        <div class="mb-3">
+                            <label class="form-label" style="color:#FFD700;font-weight:600;font-size:0.85rem;">
+                                <i class="bi bi-chat-left-text me-1"></i> Describe the Problem <span class="text-danger">*</span>
+                            </label>
+                            <textarea name="description" class="form-control" rows="5" required
+                                      style="background:#1a1a1a;border:1.5px solid rgba(255,215,0,0.2);color:#fff;border-radius:10px;padding:12px 16px;resize:vertical;"
+                                      placeholder="Tell us what happened, when it happened, and any steps to reproduce the issue..."></textarea>
+                            <span style="color:rgba(255,255,255,0.2);font-size:0.7rem;display:block;margin-top:4px;">
+                                Be as specific as possible — this helps us resolve your issue faster
+                            </span>
+                        </div>
+
+                        @* ── CONTACT EMAIL (optional) ── *@
+                        <div class="mb-3">
+                            <label class="form-label" style="color:#FFD700;font-weight:600;font-size:0.85rem;">
+                                <i class="bi bi-envelope me-1"></i> Your Email (optional)
+                            </label>
+                            <input type="email" name="email" class="form-control"
+                                   style="background:#1a1a1a;border:1.5px solid rgba(255,215,0,0.2);color:#fff;border-radius:10px;padding:12px 16px;"
+                                   placeholder="we'll reach out if we need more info" />
+                        </div>
+
+                        @* ── SUBMIT BUTTON ── *@
+                        <button type="submit" class="btn w-100 py-3" style="background:linear-gradient(135deg,#b30000,#FFD700);color:#000;font-weight:800;border:none;border-radius:12px;font-size:1rem;letter-spacing:1px;transition:all 0.3s;">
+                            <i class="bi bi-send me-2"></i> Submit Report
+                        </button>
+
+                        <p style="color:rgba(255,255,255,0.15);font-size:0.7rem;text-align:center;margin-top:12px;">
+                            All reports are confidential and reviewed by our team
+                        </p>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        @* ── ADDITIONAL RESOURCES ── *@
+        <div class="row g-4 mt-5">
+            <div class="col-md-4">
+                <div style="background:#0b0b0b;border:1px solid rgba(255,215,0,0.08);border-radius:16px;padding:24px;text-align:center;">
+                    <div style="font-size:2rem;margin-bottom:12px;">📚</div>
+                    <h5 style="color:#FFD700;font-weight:700;">FAQ</h5>
+                    <p style="color:rgba(255,255,255,0.4);font-size:0.85rem;">Common questions and quick answers</p>
+                    <a href="#" class="text-gold text-decoration-none" style="font-size:0.85rem;font-weight:600;">
+                        View FAQs <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+          
+            <div class="col-md-4">
+                <div style="background:#0b0b0b;border:1px solid rgba(255,215,0,0.08);border-radius:16px;padding:24px;text-align:center;">
+                    <div style="font-size:2rem;margin-bottom:12px;">📧</div>
+                    <h5 style="color:#FFD700;font-weight:700;">Email Support</h5>
+                    <p style="color:rgba(255,255,255,0.4);font-size:0.85rem;">Reach us directly via email</p>
+                    <a href="mailto:support@rubior.com" class="text-gold text-decoration-none" style="font-size:0.85rem;font-weight:600;">
+                        support@rubior.com <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<style>
+    .bg-black {
+        background-color: #000 !important;
+    }
+
+    .text-gold {
+        color: #FFD700 !important;
+    }
+
+    .form-control:focus {
+        border-color: #FFD700 !important;
+        box-shadow: 0 0 15px rgba(255,215,0,0.15) !important;
+        background-color: #1a1a1a !important;
+        color: #fff !important;
+    }
+
+    select option {
+        background: #1a1a1a;
+        color: #fff;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(255,215,0,0.25);
+    }
+
+    @@media (max-width: 768px) {
+        .about-section, .report-section {
+            padding: 20px !important;
+        }
+
+        h1.text-gold {
+            font-size: 2rem !important;
+        }
+    }
+</style>
