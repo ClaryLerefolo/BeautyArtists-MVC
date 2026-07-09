@@ -90,7 +90,7 @@ namespace BeautyArtists.Controllers
         // --------------------------------------------------------------------
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [RequestSizeLimit(100_000_000)] // 100 MB max
+        [RequestSizeLimit(int.MaxValue)]
         public async Task<IActionResult> CreatePortfolioItem(PortfolioItemViewModel vm)
         {
             var artistId = _userManager.GetUserId(User);

@@ -119,7 +119,7 @@ namespace BeautyArtists.Controllers
         // POST: CreatePortfolioItem (Upload Logic)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [RequestSizeLimit(100_000_000)] // 100 MB max
+        [RequestSizeLimit(int.MaxValue)]
         public async Task<IActionResult> CreatePortfolioItem(PortfolioItemViewModel vm)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -134,11 +134,11 @@ namespace BeautyArtists.Controllers
             }
 
             // 2. Check file extension
-            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".mov", ".avi", ".webm" };
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".mp4", ".mov", ".avi", ".webm", ".mkv", ".heic" };
             var extension = Path.GetExtension(vm.MediaFile.FileName).ToLowerInvariant();
             if (!allowedExtensions.Contains(extension))
             {
-                TempData["Error"] = "Unsupported file type. Allowed: JPG, PNG, GIF, MP4, MOV, AVI, WEBM.";
+                TempData["Error"] = "Unsupported file type. Allowed: JPG, PNG, GIF, MP4, MOV, AVI, WEBM, MKV, HEIC.";
                 return RedirectToAction(nameof(ManagePortfolio));
             }
 

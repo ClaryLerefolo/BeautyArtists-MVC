@@ -71,6 +71,10 @@ builder.Services.Configure<FormOptions>(options =>
     options.MultipartBodyLengthLimit = int.MaxValue;
     options.MultipartHeadersLengthLimit = int.MaxValue;
 });
+builder.Services.Configure<IISServerOptions>(options =>
+{
+    options.MaxRequestBodySize = int.MaxValue;
+});
 var app = builder.Build();
 
 // Seed Roles and Demo Users On Startup
