@@ -34,7 +34,7 @@ namespace BeautyArtists.Controllers
             var artistId = _userManager.GetUserId(User);
 
             var items = _context.PortfolioItems
-                .Include(p => p.CategoryId)
+                .Include(p => p.Category)
                 .Include(p => p.Portfolio)
                 .Where(p => p.ArtistId == artistId);
 
@@ -244,7 +244,7 @@ namespace BeautyArtists.Controllers
         {
             var item = await _context.PortfolioItems
                 .Include(p => p.Portfolio)
-                .Include(p => p.CategoryId)
+                .Include(p => p.Category)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             return item is null ? NotFound() : View(item);
