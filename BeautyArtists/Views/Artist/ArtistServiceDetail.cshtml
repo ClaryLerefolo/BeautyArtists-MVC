@@ -45,7 +45,7 @@
                 <i class="bi bi-pencil me-2"></i>Edit Service
             </a>
             <button class="btn btn-outline-gold" onclick="openAddPortfolioItem(@service.Id, @Model.DefaultPortfolioId, @(service.Service?.CategoryId ?? 0))">
-                <i class="bi bi-plus-circle me-2"></i>Add Item
+                <i class="bi bi-plus-circle me-2"></i>Add Content
             </button>
         </div>
 
@@ -100,7 +100,8 @@
         {
             <div class="text-center py-5">
                 <h4 class="text-white-50">No portfolio items yet.</h4>
-                <p style="color:rgba(255,255,255,0.2);font-size:0.9rem;">Click "Add Item" to upload your work.</p>
+                <p style="color:rgba(255,255,255,0.2);font-size:0.9rem;">Click "Add Item"
+                    to upload your work.</p>
             </div>
         }
 
@@ -188,7 +189,7 @@
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-gold">Add Item</button>
+                    <button type="submit" class="btn btn-gold">Add Content</button>
                 </div>
             </form>
         </div>
