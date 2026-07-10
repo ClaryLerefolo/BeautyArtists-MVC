@@ -169,8 +169,8 @@
             overflow-y: auto;
             overflow-x: hidden;
             padding: 12px 0;
-            overscroll-behavior: contain; /* prevents scroll chaining */
-            touch-action: pan-y; /* only vertical scroll */
+            overscroll-behavior: contain;
+            touch-action: pan-y;
         }
 
             .sidebar-nav::-webkit-scrollbar {
@@ -182,7 +182,7 @@
                 border-radius: 2px;
             }
 
-        .nav-link {
+        .nav-link, .logout-link {
             color: rgba(255,255,255,0.6) !important;
             padding: 11px 18px !important;
             margin: 2px 10px !important;
@@ -197,7 +197,7 @@
             min-height: 44px;
         }
 
-            .nav-link:hover {
+            .nav-link:hover, .logout-link:hover {
                 background: rgba(201,168,76,0.08) !important;
                 color: var(--gold) !important;
                 font-weight: 600 !important;
@@ -209,7 +209,7 @@
                 border: 1px solid rgba(201,168,76,0.2) !important;
             }
 
-            .nav-link i {
+            .nav-link i, .logout-link i {
                 color: var(--gold) !important;
                 font-size: 1.1rem !important;
                 flex-shrink: 0 !important;
@@ -217,7 +217,7 @@
                 text-align: center;
             }
 
-        .nav-link-text {
+        .nav-link-text, .logout-text {
             opacity: 1;
             transition: opacity 0.15s;
             font-size: 0.85rem;
@@ -225,20 +225,23 @@
             letter-spacing: 0.3px;
         }
 
-        .sidebar.collapsed .nav-link-text {
+        .sidebar.collapsed .nav-link-text,
+        .sidebar.collapsed .logout-text {
             opacity: 0;
             width: 0;
             overflow: hidden;
         }
 
-        .sidebar.collapsed .nav-link {
+        .sidebar.collapsed .nav-link,
+        .sidebar.collapsed .logout-link {
             position: relative;
             justify-content: center !important;
             margin: 2px 8px !important;
             padding: 11px !important;
         }
 
-            .sidebar.collapsed .nav-link::after {
+            .sidebar.collapsed .nav-link::after,
+            .sidebar.collapsed .logout-link::after {
                 content: attr(data-label);
                 position: absolute;
                 left: calc(var(--sidebar-collapsed) + 4px);
@@ -256,52 +259,30 @@
                 z-index: 9999;
             }
 
-            .sidebar.collapsed .nav-link:hover::after {
+            .sidebar.collapsed .nav-link:hover::after,
+            .sidebar.collapsed .logout-link:hover::after {
                 opacity: 1;
             }
 
-        .sidebar-footer {
-            padding: 12px 10px 20px;
-            flex-shrink: 0;
+        /* ─── Remove separate footer ─── */
+        /* .sidebar-footer removed entirely */
+
+        /* Logout link gets a red tint */
+        .logout-link {
+            color: rgba(255,100,100,0.8) !important;
             border-top: 1px solid rgba(201,168,76,0.1);
+            margin-top: 8px !important;
+            padding-top: 14px !important;
         }
 
-        .logout-btn {
-            background: rgba(255,50,50,0.08);
-            border: 1px solid rgba(255,50,50,0.2);
-            border-radius: 10px;
-            color: #ff6666 !important;
-            padding: 11px 18px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            width: 100%;
-            cursor: pointer;
-            transition: 0.2s;
-            font-size: 0.85rem;
-        }
-
-            .logout-btn:hover {
-                background: rgba(255,50,50,0.2);
-                border-color: rgba(255,50,50,0.4);
-                color: #ff9999 !important;
-            }
-
-            .logout-btn i {
+            .logout-link i {
                 color: #ff6666 !important;
-                font-size: 1.1rem;
             }
 
-        .sidebar.collapsed .logout-btn {
-            justify-content: center !important;
-            padding: 11px !important;
-        }
-
-        .sidebar.collapsed .logout-btn-text {
-            opacity: 0;
-            width: 0;
-            overflow: hidden;
-        }
+            .logout-link:hover {
+                background: rgba(255,50,50,0.1) !important;
+                color: #ff6666 !important;
+            }
 
         .main-content {
             margin-left: var(--sidebar-width);
@@ -409,20 +390,23 @@
                     display: none !important;
                 }
 
-                .sidebar .nav-link-text {
+                .sidebar .nav-link-text,
+                .sidebar .logout-text {
                     opacity: 0 !important;
                     width: 0 !important;
                     overflow: hidden !important;
                 }
 
-                .sidebar .nav-link {
+                .sidebar .nav-link,
+                .sidebar .logout-link {
                     justify-content: center !important;
                     margin: 2px 8px !important;
                     padding: 11px !important;
                     position: relative;
                 }
 
-                    .sidebar .nav-link::after {
+                    .sidebar .nav-link::after,
+                    .sidebar .logout-link::after {
                         content: attr(data-label);
                         position: absolute;
                         left: calc(var(--sidebar-collapsed) + 4px);
@@ -440,20 +424,10 @@
                         z-index: 9999;
                     }
 
-                    .sidebar .nav-link:hover::after {
+                    .sidebar .nav-link:hover::after,
+                    .sidebar .logout-link:hover::after {
                         opacity: 1;
                     }
-
-                .sidebar .logout-btn {
-                    justify-content: center !important;
-                    padding: 11px !important;
-                }
-
-                .sidebar .logout-btn-text {
-                    opacity: 0 !important;
-                    width: 0 !important;
-                    overflow: hidden !important;
-                }
 
             .main-content {
                 margin-left: var(--sidebar-collapsed) !important;
@@ -498,30 +472,23 @@
                         display: flex !important;
                     }
 
-                    .sidebar.collapsed .nav-link-text {
+                    .sidebar.collapsed .nav-link-text,
+                    .sidebar.collapsed .logout-text {
                         opacity: 1 !important;
                         width: auto !important;
                     }
 
-                    .sidebar.collapsed .logout-btn-text {
-                        opacity: 1 !important;
-                        width: auto !important;
-                    }
-
-                    .sidebar.collapsed .nav-link {
+                    .sidebar.collapsed .nav-link,
+                    .sidebar.collapsed .logout-link {
                         justify-content: flex-start !important;
                         margin: 2px 10px !important;
                         padding: 11px 18px !important;
                     }
 
-                        .sidebar.collapsed .nav-link::after {
+                        .sidebar.collapsed .nav-link::after,
+                        .sidebar.collapsed .logout-link::after {
                             display: none !important;
                         }
-
-                    .sidebar.collapsed .logout-btn {
-                        justify-content: flex-start !important;
-                        padding: 11px 18px !important;
-                    }
 
             .main-content {
                 margin-left: 0 !important;
@@ -590,18 +557,21 @@
                 <i class="bi bi-headset"></i>
                 <span class="nav-link-text">Support</span>
             </a>
-        </nav>
 
-        <div class="sidebar-footer">
-            <form asp-area="Identity" asp-page="/Account/Logout"
+            @* ── LOGOUT BUTTON (now part of the nav) ── *@
+            <a class="logout-link" data-label="Logout" href="#"
+               onclick="document.getElementById('logoutForm').submit(); return false;">
+                <i class="bi bi-box-arrow-right"></i>
+                <span class="logout-text">Logout</span>
+            </a>
+
+            <form id="logoutForm" asp-area="Identity" asp-page="/Account/Logout"
                   asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })"
-                  method="post">
-                <button type="submit" class="logout-btn">
-                    <i class="bi bi-box-arrow-right"></i>
-                    <span class="logout-btn-text">Logout</span>
-                </button>
+                  method="post" style="display:none;">
+                @Html.AntiForgeryToken()
             </form>
-        </div>
+        </nav>
+        @* ─── Removed sidebar-footer ─── *@
     </div>
 
     @* ── DESKTOP COLLAPSE TOGGLE ── *@
@@ -679,17 +649,16 @@
                 localStorage.setItem('sidebarCollapsed', collapsed);
             });
 
-            // ── Mobile open/close functions ──
             function openMobile() {
                 sidebar.classList.add('mobile-open');
                 backdrop.classList.add('show');
-                document.documentElement.classList.add('no-scroll');  // lock page scroll
+                document.documentElement.classList.add('no-scroll');
             }
 
             function closeMobile() {
                 sidebar.classList.remove('mobile-open');
                 backdrop.classList.remove('show');
-                document.documentElement.classList.remove('no-scroll'); // unlock
+                document.documentElement.classList.remove('no-scroll');
             }
 
             if (hamburgerBtn) {
@@ -706,14 +675,12 @@
                 backdrop.addEventListener('click', closeMobile);
             }
 
-            // Close sidebar when a nav link is tapped (mobile)
-            document.querySelectorAll('.sidebar-nav .nav-link').forEach(function(link) {
+            document.querySelectorAll('.sidebar-nav .nav-link, .sidebar-nav .logout-link').forEach(function(link) {
                 link.addEventListener('click', function() {
                     if (isMobile()) closeMobile();
                 });
             });
 
-            // Highlight active nav link
             const currentPath = window.location.pathname.toLowerCase();
             document.querySelectorAll('.sidebar-nav .nav-link').forEach(function(link) {
                 const href = link.getAttribute('href')?.toLowerCase();
@@ -725,7 +692,6 @@
                 }
             });
 
-            // Close mobile sidebar on window resize if screen becomes desktop
             window.addEventListener('resize', function() {
                 if (!isMobile()) closeMobile();
             });
