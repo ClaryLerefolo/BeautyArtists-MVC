@@ -106,6 +106,44 @@
                 transform: scale(1.05);
             }
 
+        .video-thumb-placeholder {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            background: #111;
+            border-radius: 6px;
+            border: 1px solid rgba(255,215,0,0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+            .video-thumb-placeholder:hover {
+                border-color: #f0c808;
+            }
+
+        .play-icon-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.2);
+            pointer-events: none;
+        }
+
+            .play-icon-overlay i {
+                font-size: 2rem;
+                color: #FFD700;
+                opacity: 0.9;
+                text-shadow: 0 0 20px rgba(0,0,0,0.9);
+            }
+
         .portfolio-item-actions {
             display: flex;
             gap: 4px;
@@ -162,6 +200,173 @@
             font-size: 0.75rem;
             margin-top: 4px;
         }
+
+        /* ── LIGHTBOX STYLES (copied from ManagePortfolio) ── */
+        .lightbox-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.92);
+            z-index: 9999;
+            overflow: hidden;
+            animation: fadeIn 0.3s ease;
+        }
+
+            .lightbox-overlay.active {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+        @@keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .lightbox-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 2.5rem;
+            cursor: pointer;
+            z-index: 100;
+            transition: color 0.3s;
+        }
+
+            .lightbox-close:hover {
+                color: #FFD700;
+            }
+
+        .lightbox-prev, .lightbox-next {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.08);
+            border: none;
+            color: #fff;
+            font-size: 3rem;
+            padding: 20px 12px;
+            cursor: pointer;
+            z-index: 100;
+            transition: background 0.3s;
+            border-radius: 4px;
+            user-select: none;
+        }
+
+        .lightbox-prev {
+            left: 20px;
+        }
+
+        .lightbox-next {
+            right: 20px;
+        }
+
+            .lightbox-prev:hover, .lightbox-next:hover {
+                background: rgba(255,215,0,0.2);
+                color: #FFD700;
+            }
+
+        .lightbox-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 60px;
+        }
+
+        .lightbox-counter {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+
+        .lightbox-media-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            max-height: 85vh;
+            overflow: hidden;
+        }
+
+        #lightboxImage {
+            max-width: 90%;
+            max-height: 85vh;
+            object-fit: contain;
+            cursor: zoom-in;
+            transition: transform 0.3s ease;
+        }
+
+            #lightboxImage.zoomed {
+                transform: scale(2);
+                cursor: zoom-out;
+            }
+
+        #lightboxVideo {
+            max-width: 90%;
+            max-height: 85vh;
+            border-radius: 8px;
+            background: #000;
+        }
+
+        .lightbox-caption {
+            color: rgba(255,255,255,0.6);
+            font-size: 0.9rem;
+            margin-top: 16px;
+            text-align: center;
+            max-width: 70%;
+            line-height: 1.4;
+        }
+
+        @@media (max-width: 768px) {
+            .lightbox-prev, .lightbox-next {
+                font-size: 1.8rem;
+                padding: 10px 8px;
+            }
+
+            .lightbox-prev {
+                left: 8px;
+            }
+
+            .lightbox-next {
+                right: 8px;
+            }
+
+            .lightbox-content {
+                padding: 40px 20px;
+            }
+
+            .lightbox-caption {
+                max-width: 90%;
+                font-size: 0.8rem;
+            }
+        }
     </style>
 }
 
@@ -213,7 +418,7 @@
                         </button>
                     </div>
 
-                    @* ── PORTFOLIO INTEGRATION ── *@
+                    @* ── PORTFOLIO INTEGRATION (with video support and lightbox) ── *@
                     <div class="mt-3 pt-3 border-top border-secondary">
                         <div class="d-flex justify-content-between align-items-center">
                             <span style="color:rgba(255,255,255,0.5);font-size:0.8rem;">
@@ -228,10 +433,38 @@
                             <div class="portfolio-grid">
                                 @foreach (var pItem in servicePortfolioItems)
                                 {
-                                    <div>
-                                        <img src="@(string.IsNullOrEmpty(pItem.ThumbnailUrl) ? (string.IsNullOrEmpty(pItem.MediaUrl) ? "/images/placeholder.jpg" : pItem.MediaUrl) : pItem.ThumbnailUrl)"
-                                             class="portfolio-thumb" alt="@pItem.Title"
-                                             onclick="location.href='@Url.Action("EditPortfolioItem", "PortfolioItem", new { id = pItem.Id })'" />
+                                    var isVideo = !string.IsNullOrEmpty(pItem.MediaType) && pItem.MediaType.Equals("Video", StringComparison.OrdinalIgnoreCase);
+                                    var thumbnailUrl = !string.IsNullOrEmpty(pItem.ThumbnailUrl) ? pItem.ThumbnailUrl : (isVideo ? "" : pItem.MediaUrl);
+                                    var mediaUrl = pItem.MediaUrl;
+                                    var title = pItem.Title ?? "Untitled";
+                                    var description = pItem.Description ?? "";
+                                    <div class="portfolio-item-wrapper">
+                                        @if (isVideo && string.IsNullOrEmpty(pItem.ThumbnailUrl))
+                                        {
+                                            <div class="video-thumb-placeholder"
+                                                 data-mediaurl="@mediaUrl"
+                                                 data-title="@title"
+                                                 data-description="@description"
+                                                 data-mediatype="video"
+                                                 onclick="openLightbox(this)">
+                                                <i class="bi bi-play-circle-fill" style="font-size:2rem;color:#FFD700;opacity:0.7;"></i>
+                                                <span style="color:rgba(255,255,255,0.2);font-size:0.5rem;margin-top:4px;">Video</span>
+                                            </div>
+                                        }
+                                        else if (!string.IsNullOrEmpty(thumbnailUrl))
+                                        {
+                                            <img src="@Url.Content(thumbnailUrl)"
+                                                 class="portfolio-thumb" alt="@title"
+                                                 data-mediaurl="@mediaUrl"
+                                                 data-title="@title"
+                                                 data-description="@description"
+                                                 data-mediatype="image"
+                                                 onclick="openLightbox(this)" />
+                                        }
+                                        else
+                                        {
+                                            <div style="width:100%;aspect-ratio:1;background:#111;border-radius:6px;border:1px solid rgba(255,215,0,0.1);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.2);font-size:0.6rem;">No media</div>
+                                        }
                                         <div class="portfolio-item-actions">
                                             <button class="btn-sm-gold" onclick="event.stopPropagation(); location.href='@Url.Action("EditPortfolioItem", "PortfolioItem", new { id = pItem.Id })'">Edit</button>
                                             <button class="btn-sm-danger" onclick="event.stopPropagation(); deletePortfolioItem(@pItem.Id)">🗑️</button>
@@ -251,7 +484,7 @@
     }
 </div>
 
-@* ── ADD SERVICE MODAL ── *@
+@* ── ADD SERVICE MODAL (unchanged) ── *@
 <div class="modal fade" id="addServiceModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -320,7 +553,7 @@
     </div>
 </div>
 
-@* ── EDIT SERVICE MODAL ── *@
+@* ── EDIT SERVICE MODAL (unchanged) ── *@
 <div class="modal fade" id="editServiceModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -366,7 +599,7 @@
     </div>
 </div>
 
-@* ── ADD PORTFOLIO ITEM MODAL ── *@
+@* ── ADD PORTFOLIO ITEM MODAL (unchanged) ── *@
 <div class="modal fade" id="addPortfolioItemModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -421,6 +654,26 @@
                     <button type="submit" class="btn w-100 py-3 font-weight-bold" style="background: #f0c808; color: #000;">ADD TO PORTFOLIO</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+@* ── LIGHTBOX OVERLAY (copied from ManagePortfolio) ── *@
+<div id="lightbox" class="lightbox-overlay" onclick="closeLightbox(event)">
+    <div class="lightbox-container">
+        <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+        <button class="lightbox-prev" onclick="navigateLightbox(-1)">&#10094;</button>
+        <button class="lightbox-next" onclick="navigateLightbox(1)">&#10095;</button>
+        <div class="lightbox-content">
+            <div class="lightbox-counter" id="lightboxCounter"></div>
+            <div id="lightboxMediaContainer" class="lightbox-media-container">
+                <img id="lightboxImage" src="" alt="" style="display:none;max-width:90%;max-height:80vh;object-fit:contain;" />
+                <video id="lightboxVideo" controls style="display:none;max-width:90%;max-height:80vh;" controlsList="nodownload">
+                    <source id="videoSource" src="" type="video/mp4" />
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="lightbox-caption" id="lightboxCaption"></div>
         </div>
     </div>
 </div>
@@ -510,12 +763,10 @@
                         data: { "__RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
                         success: function (response) {
                             if (response.success) {
-                                // Remove the portfolio item element from the DOM
-                                var el = $(`.btn-sm-danger[onclick*="deletePortfolioItem(${id})"]`).closest('div').parent();
+                                var el = $(`.btn-sm-danger[onclick*="deletePortfolioItem(${id})"]`).closest('.portfolio-item-wrapper');
                                 el.remove();
-                                // If no more items in the grid, show empty message
                                 var grid = el.closest('.portfolio-grid');
-                                if (grid.find('.portfolio-thumb').length === 0) {
+                                if (grid.find('.portfolio-item-wrapper').length === 0) {
                                     grid.after('<div class="empty-portfolio">No portfolio items yet.</div>');
                                     grid.remove();
                                 }
@@ -531,5 +782,94 @@
                 }
             });
         }
+
+        // ── LIGHTBOX LOGIC (copied from ManagePortfolio) ──
+        let mediaItems = [];
+        let currentIndex = 0;
+        let isZoomed = false;
+
+        function initializeLightbox() {
+            const thumbnails = document.querySelectorAll('.portfolio-thumb, .video-thumb-placeholder');
+            mediaItems = [];
+            thumbnails.forEach(el => {
+                const mediaUrl = el.getAttribute('data-mediaurl');
+                const title = el.getAttribute('data-title') || '';
+                const description = el.getAttribute('data-description') || '';
+                const mediaType = el.getAttribute('data-mediatype') || 'image';
+                if (mediaUrl) {
+                    mediaItems.push({ url: mediaUrl, title: title, description: description, type: mediaType });
+                }
+            });
+        }
+
+        window.openLightbox = function(element) {
+            const thumbnails = document.querySelectorAll('.portfolio-thumb, .video-thumb-placeholder');
+            const index = Array.from(thumbnails).indexOf(element);
+            if (index === -1) return;
+            initializeLightbox();
+            currentIndex = index;
+            showMedia(currentIndex);
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+            isZoomed = false;
+        };
+
+        function showMedia(index) {
+            const item = mediaItems[index];
+            if (!item) return;
+            const imageEl = document.getElementById('lightboxImage');
+            const videoEl = document.getElementById('lightboxVideo');
+            const videoSource = document.getElementById('videoSource');
+            const captionEl = document.getElementById('lightboxCaption');
+            const counterEl = document.getElementById('lightboxCounter');
+            imageEl.classList.remove('zoomed');
+            isZoomed = false;
+            counterEl.textContent = `${index + 1} / ${mediaItems.length}`;
+            let captionText = item.title;
+            if (item.description && item.description !== item.title) {
+                captionText += item.description ? ` — ${item.description}` : '';
+            }
+            captionEl.textContent = captionText;
+            if (item.type === 'video') {
+                imageEl.style.display = 'none';
+                videoEl.style.display = 'block';
+                videoSource.src = item.url;
+                videoEl.load();
+                videoEl.play().catch(() => {});
+            } else {
+                videoEl.style.display = 'none';
+                videoEl.pause();
+                imageEl.style.display = 'block';
+                imageEl.src = item.url;
+                imageEl.alt = item.title || 'Portfolio image';
+            }
+        }
+
+        window.navigateLightbox = function(direction) {
+            currentIndex = (currentIndex + direction + mediaItems.length) % mediaItems.length;
+            showMedia(currentIndex);
+        };
+
+        window.closeLightbox = function(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = '';
+            const video = document.getElementById('lightboxVideo');
+            video.pause();
+            isZoomed = false;
+        };
+
+        document.getElementById('lightboxImage').addEventListener('click', function() {
+            isZoomed = !isZoomed;
+            this.classList.toggle('zoomed');
+        });
+
+        document.addEventListener('keydown', function(e) {
+            const lightbox = document.getElementById('lightbox');
+            if (!lightbox.classList.contains('active')) return;
+            if (e.key === 'Escape') closeLightbox();
+            else if (e.key === 'ArrowLeft') { navigateLightbox(-1); e.preventDefault(); }
+            else if (e.key === 'ArrowRight') { navigateLightbox(1); e.preventDefault(); }
+        });
     </script>
 }
