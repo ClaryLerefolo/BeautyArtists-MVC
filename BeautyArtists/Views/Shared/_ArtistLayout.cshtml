@@ -1,5 +1,5 @@
-﻿@using BeautyArtists.Data                    
-@using Microsoft.EntityFrameworkCore       
+﻿@using BeautyArtists.Data
+@using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Identity
 @inject UserManager<ApplicationUser> UserManager
 @inject ApplicationDbContext DbContext
@@ -9,7 +9,6 @@
         ? $"{user.FirstName} {user.LastName}".Trim()
         : "Artist";
 
-    // ─── LOAD PROFILE PICTURE ───
     string profilePictureUrl = "/images/default-profile.png";
     if (user != null)
     {
@@ -50,6 +49,12 @@
             font-family: 'Segoe UI', Roboto, sans-serif;
             overflow-x: hidden;
         }
+
+            /* ── LOCK SCROLL WHEN SIDEBAR OPEN ON MOBILE ── */
+            html.no-scroll {
+                overflow: hidden !important;
+                height: 100% !important;
+            }
 
         /* ── SIDEBAR ── */
         .sidebar {
@@ -164,6 +169,8 @@
             overflow-y: auto;
             overflow-x: hidden;
             padding: 12px 0;
+            overscroll-behavior: contain; /* prevents scroll chaining */
+            touch-action: pan-y; /* only vertical scroll */
         }
 
             .sidebar-nav::-webkit-scrollbar {
@@ -260,37 +267,29 @@
         }
 
         .logout-btn {
-            background: none;
-            border: none;
+            background: rgba(255,50,50,0.08);
+            border: 1px solid rgba(255,50,50,0.2);
+            border-radius: 10px;
+            color: #ff6666 !important;
+            padding: 11px 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
             width: 100%;
-            color: rgba(255,100,100,0.7) !important;
-            padding: 11px 18px !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 14px !important;
-            border-radius: 10px !important;
             cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
-            overflow: hidden;
+            transition: 0.2s;
             font-size: 0.85rem;
         }
 
             .logout-btn:hover {
-                background: rgba(255,50,50,0.1) !important;
-                color: #ff6666 !important;
+                background: rgba(255,50,50,0.2);
+                border-color: rgba(255,50,50,0.4);
+                color: #ff9999 !important;
             }
 
             .logout-btn i {
-                color: rgba(255,100,100,0.7) !important;
-                font-size: 1.1rem !important;
-                flex-shrink: 0 !important;
-                width: 20px;
-                text-align: center;
-            }
-
-            .logout-btn:hover i {
                 color: #ff6666 !important;
+                font-size: 1.1rem;
             }
 
         .sidebar.collapsed .logout-btn {
@@ -559,33 +558,27 @@
         </div>
 
         <nav class="sidebar-nav">
-            <a class="nav-link" data-label="Dashboard"
-               asp-controller="Artist" asp-action="Dashboard">
+            <a class="nav-link" data-label="Dashboard" asp-controller="Artist" asp-action="Dashboard">
                 <i class="bi bi-grid-1x2-fill"></i>
                 <span class="nav-link-text">Dashboard</span>
             </a>
-            <a class="nav-link" data-label="Profile"
-               asp-controller="Artist" asp-action="Profile">
+            <a class="nav-link" data-label="Profile" asp-controller="Artist" asp-action="Profile">
                 <i class="bi bi-person-circle"></i>
                 <span class="nav-link-text">Profile</span>
             </a>
-            <a class="nav-link" data-label="My Services"
-               asp-controller="Artist" asp-action="ManageServices">
+            <a class="nav-link" data-label="My Services" asp-controller="Artist" asp-action="ManageServices">
                 <i class="bi bi-scissors"></i>
                 <span class="nav-link-text">My Services</span>
             </a>
-            <a class="nav-link" data-label="Availability"
-               asp-controller="ArtistAvailability" asp-action="Index">
+            <a class="nav-link" data-label="Availability" asp-controller="ArtistAvailability" asp-action="Index">
                 <i class="bi bi-calendar3"></i>
                 <span class="nav-link-text">Availability</span>
             </a>
-            <a class="nav-link" data-label="Appointments"
-               asp-controller="Artist" asp-action="MyAppointments">
+            <a class="nav-link" data-label="Appointments" asp-controller="Artist" asp-action="MyAppointments">
                 <i class="bi bi-calendar-check"></i>
                 <span class="nav-link-text">Appointments</span>
             </a>
-            <a class="nav-link" data-label="Earnings"
-               asp-controller="Earnings" asp-action="Earnings">
+            <a class="nav-link" data-label="Earnings" asp-controller="Earnings" asp-action="Earnings">
                 <i class="bi bi-graph-up-arrow"></i>
                 <span class="nav-link-text">Earnings</span>
             </a>
@@ -619,12 +612,9 @@
     @* ── MAIN CONTENT ── *@
     <div class="main-content" id="mainContent">
         <div class="top-branding-bar">
-
-            @* Hamburger — shows on mobile only via CSS *@
             <button class="hamburger-btn" id="hamburgerBtn" title="Open menu">
                 <i class="bi bi-list"></i>
             </button>
-
             <h1 class="branding-text">
                 @if (ViewData["Title"]?.ToString() == "Dashboard")
                 {
@@ -636,9 +626,7 @@
                     <span class="gold-name">@displayName</span>
                 }
             </h1>
-
             <div class="top-bar-right">
-                <!-- ─── PROFILE AVATAR (clickable to Profile) ─── -->
                 <a asp-controller="Artist" asp-action="Profile" class="top-bar-avatar-link" title="Edit Profile">
                     <img src="@profilePictureUrl"
                          class="top-bar-avatar"
@@ -655,7 +643,6 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // ─── SIDEBAR LOGIC ───
         (function() {
             const sidebar      = document.getElementById('sidebar');
             const mainContent  = document.getElementById('mainContent');
@@ -667,6 +654,7 @@
             const isMobile = () => window.innerWidth <= 768;
             const isTablet = () => window.innerWidth > 768 && window.innerWidth <= 1024;
 
+            // Desktop collapse logic
             if (!isMobile() && !isTablet()) {
                 const wasCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
                 if (wasCollapsed) {
@@ -691,30 +679,41 @@
                 localStorage.setItem('sidebarCollapsed', collapsed);
             });
 
-            if (hamburgerBtn) {
-                hamburgerBtn.addEventListener('click', function() {
-                    sidebar.classList.add('mobile-open');
-                    backdrop.classList.add('show');
-                    document.body.style.overflow = 'hidden';
-                });
+            // ── Mobile open/close functions ──
+            function openMobile() {
+                sidebar.classList.add('mobile-open');
+                backdrop.classList.add('show');
+                document.documentElement.classList.add('no-scroll');  // lock page scroll
             }
 
             function closeMobile() {
                 sidebar.classList.remove('mobile-open');
                 backdrop.classList.remove('show');
-                document.body.style.overflow = '';
+                document.documentElement.classList.remove('no-scroll'); // unlock
+            }
+
+            if (hamburgerBtn) {
+                hamburgerBtn.addEventListener('click', function() {
+                    if (sidebar.classList.contains('mobile-open')) {
+                        closeMobile();
+                    } else {
+                        openMobile();
+                    }
+                });
             }
 
             if (backdrop) {
                 backdrop.addEventListener('click', closeMobile);
             }
 
+            // Close sidebar when a nav link is tapped (mobile)
             document.querySelectorAll('.sidebar-nav .nav-link').forEach(function(link) {
                 link.addEventListener('click', function() {
                     if (isMobile()) closeMobile();
                 });
             });
 
+            // Highlight active nav link
             const currentPath = window.location.pathname.toLowerCase();
             document.querySelectorAll('.sidebar-nav .nav-link').forEach(function(link) {
                 const href = link.getAttribute('href')?.toLowerCase();
@@ -726,6 +725,7 @@
                 }
             });
 
+            // Close mobile sidebar on window resize if screen becomes desktop
             window.addEventListener('resize', function() {
                 if (!isMobile()) closeMobile();
             });
