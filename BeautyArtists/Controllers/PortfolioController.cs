@@ -187,7 +187,7 @@ namespace BeautyArtists.Controllers
             // Verify the item was saved correctly
             var savedItem = await _context.PortfolioItems.FindAsync(item.Id);
             TempData["Success"] = $"'{item.Title}' uploaded successfully! MediaType: {savedItem?.MediaType}";
-            return RedirectToAction(nameof(ManagePortfolio));
+            return RedirectToAction("ManageServices", "Artist");   // ← changed from ManagePortfolio
         }
 
         // Helper Method for Uploads

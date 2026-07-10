@@ -287,6 +287,39 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 description = s.Description
             }).ToList();
 
+            // ── Fetch portfolio items for this artist and group by CategoryId ──
+            var portfolioItems = await _context.PortfolioItems
+                .Where(p => p.ArtistId == userId)
+                .ToListAsync();
+
+            var portfolioItemsByCategory = portfolioItems
+                .GroupBy(p => p.CategoryId)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            ViewBag.PortfolioItemsByCategory = portfolioItemsByCategory;
+
+            // ── Ensure the artist has at least one Portfolio collection ──
+            var defaultPortfolio = await _context.Portfolios
+                .FirstOrDefaultAsync(p => p.ArtistId == userId);
+            if (defaultPortfolio == null)
+            {
+                defaultPortfolio = new Portfolio
+                {
+                    Name = "General Portfolio",
+                    Description = "Auto-created portfolio for service items.",
+                    ArtistId = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Portfolios.Add(defaultPortfolio);
+                await _context.SaveChangesAsync();
+            }
+            ViewBag.DefaultPortfolioId = defaultPortfolio.Id;
+
+            // ── Categories for dropdown (if needed) ──
+            ViewBag.Categories = await _context.ServiceCategories
+                .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name })
+                .ToListAsync();
+
             return View(userServices);
         }
 

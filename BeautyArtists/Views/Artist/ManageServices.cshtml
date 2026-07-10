@@ -3,6 +3,8 @@
 @{
     ViewData["Title"] = "Artist Service Menu";
     Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+    var portfolioItemsByCategory = ViewBag.PortfolioItemsByCategory as Dictionary<int?, List<BeautyArtists.Models.PortfolioItem>> ?? new Dictionary<int?, List<BeautyArtists.Models.PortfolioItem>>();
+    var defaultPortfolioId = ViewBag.DefaultPortfolioId as int? ?? 0;
 }
 
 @section Styles {
@@ -81,6 +83,85 @@
             height: 200px;
             object-fit: cover;
         }
+
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .portfolio-thumb {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid rgba(255,215,0,0.15);
+            transition: 0.2s;
+            cursor: pointer;
+        }
+
+            .portfolio-thumb:hover {
+                border-color: #f0c808;
+                transform: scale(1.05);
+            }
+
+        .portfolio-item-actions {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .btn-sm-gold {
+            background: rgba(255,215,0,0.1);
+            border: 1px solid rgba(255,215,0,0.2);
+            color: #FFD700;
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+            .btn-sm-gold:hover {
+                background: rgba(255,215,0,0.2);
+            }
+
+        .btn-sm-danger {
+            background: rgba(255,0,0,0.1);
+            border: 1px solid rgba(255,0,0,0.2);
+            color: #ff6666;
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+            .btn-sm-danger:hover {
+                background: rgba(255,0,0,0.2);
+            }
+
+        .add-portfolio-btn {
+            background: none;
+            border: 1px dashed rgba(255,215,0,0.3);
+            color: rgba(255,215,0,0.5);
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+            .add-portfolio-btn:hover {
+                border-color: #f0c808;
+                color: #f0c808;
+                background: rgba(255,215,0,0.05);
+            }
+
+        .empty-portfolio {
+            color: rgba(255,255,255,0.2);
+            font-size: 0.75rem;
+            margin-top: 4px;
+        }
     </style>
 }
 
@@ -99,6 +180,11 @@
 <div class="row pt-2 px-4" id="serviceOfferingRow">
     @foreach (var item in Model)
     {
+        var categoryId = item.Service?.CategoryId;
+        var servicePortfolioItems = categoryId.HasValue && portfolioItemsByCategory.ContainsKey(categoryId.Value)
+        ? portfolioItemsByCategory[categoryId.Value]
+        : new List<BeautyArtists.Models.PortfolioItem>();
+
         <div class="col-md-4 mb-4" id="service-row-@item.Id">
             <div class="card h-100 service-card text-white overflow-hidden">
                 <img src="@(string.IsNullOrEmpty(item.ImagePath) ? (item.Service?.ImagePath ?? "/images/default-service.jpg") : item.ImagePath)"
@@ -116,6 +202,7 @@
                         <div class="small mb-1"><span style="color:#f0c808">Duration:</span> @item.Duration min</div>
                         <div class="h5 mt-2 mb-0 font-weight-bold" style="color:#f0c808">Price: R @item.Price.ToString("N2")</div>
                     </div>
+
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-outline-warning flex-grow-1 font-weight-bold"
                                 onclick="openEditModal('@item.Id', '@item.Price', '@item.Duration', '@Html.Raw(JavaScriptEncoder.Default.Encode(item.CustomDescription ?? ""))', @item.IsActive.ToString().ToLower())">
@@ -125,13 +212,46 @@
                             <i class="fas fa-trash-alt"></i>
                         </button>
                     </div>
+
+                    @* ── PORTFOLIO INTEGRATION ── *@
+                    <div class="mt-3 pt-3 border-top border-secondary">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span style="color:rgba(255,255,255,0.5);font-size:0.8rem;">
+                                <i class="bi bi-images me-1"></i> Portfolio
+                            </span>
+                            <button class="add-portfolio-btn" onclick="openAddPortfolioItem(@categoryId, @defaultPortfolioId)">
+                                <i class="bi bi-plus-circle me-1"></i> Add Item
+                            </button>
+                        </div>
+                        @if (servicePortfolioItems.Any())
+                        {
+                            <div class="portfolio-grid">
+                                @foreach (var pItem in servicePortfolioItems)
+                                {
+                                    <div>
+                                        <img src="@(string.IsNullOrEmpty(pItem.ThumbnailUrl) ? (string.IsNullOrEmpty(pItem.MediaUrl) ? "/images/placeholder.jpg" : pItem.MediaUrl) : pItem.ThumbnailUrl)"
+                                             class="portfolio-thumb" alt="@pItem.Title"
+                                             onclick="location.href='@Url.Action("EditPortfolioItem", "PortfolioItem", new { id = pItem.Id })'" />
+                                        <div class="portfolio-item-actions">
+                                            <button class="btn-sm-gold" onclick="event.stopPropagation(); location.href='@Url.Action("EditPortfolioItem", "PortfolioItem", new { id = pItem.Id })'">Edit</button>
+                                            <button class="btn-sm-danger" onclick="event.stopPropagation(); deletePortfolioItem(@pItem.Id)">🗑️</button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="empty-portfolio">No portfolio items yet.</div>
+                        }
+                    </div>
                 </div>
             </div>
         </div>
     }
 </div>
 
-@* --- ADD SERVICE MODAL --- *@
+@* ── ADD SERVICE MODAL ── *@
 <div class="modal fade" id="addServiceModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -200,7 +320,7 @@
     </div>
 </div>
 
-@* --- EDIT SERVICE MODAL --- *@
+@* ── EDIT SERVICE MODAL ── *@
 <div class="modal fade" id="editServiceModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -246,12 +366,71 @@
     </div>
 </div>
 
+@* ── ADD PORTFOLIO ITEM MODAL ── *@
+<div class="modal fade" id="addPortfolioItemModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title font-weight-bold" style="color: #f0c808;">ADD PORTFOLIO ITEM</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Portfolio" asp-action="CreatePortfolioItem" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="PortfolioId" id="addPortfolio_PortfolioId" value="@defaultPortfolioId" />
+                <input type="hidden" name="CategoryId" id="addPortfolio_CategoryId" />
+                <div class="modal-body px-4">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <label class="input-label">Title <span class="text-danger">*</span></label>
+                            <input name="Title" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="input-label">Display Order</label>
+                            <input type="number" name="DisplayOrder" class="form-control" value="0" />
+                        </div>
+                        <div class="col-12">
+                            <label class="input-label">Description</label>
+                            <textarea name="Description" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="input-label">Media File <span class="text-danger">*</span></label>
+                            <input type="file" name="MediaFile" class="form-control" accept="image/*,video/*" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="input-label">Province</label>
+                            <select name="Province" class="form-select">
+                                <option value="">Select</option>
+                                <option value="Gauteng">Gauteng</option>
+                                <option value="Western Cape">Western Cape</option>
+                                <option value="KwaZulu-Natal">KwaZulu-Natal</option>
+                                <option value="Eastern Cape">Eastern Cape</option>
+                                <option value="Free State">Free State</option>
+                                <option value="Limpopo">Limpopo</option>
+                                <option value="Mpumalanga">Mpumalanga</option>
+                                <option value="North West">North West</option>
+                                <option value="Northern Cape">Northern Cape</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="input-label">City</label>
+                            <input name="City" class="form-control" placeholder="e.g. Johannesburg" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pb-4">
+                    <button type="submit" class="btn w-100 py-3 font-weight-bold" style="background: #f0c808; color: #000;">ADD TO PORTFOLIO</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         const rawServices = @Html.Raw(Json.Serialize(ViewBag.RawServices));
 
-        // Add Modal Auto-fill
+        // ── Add Service: auto-fill ──
         document.getElementById('baseServiceSelect').addEventListener('change', function() {
             const s = rawServices.find(x => (x.id || x.Id) == this.value);
             if (s) {
@@ -268,6 +447,7 @@
             }
         });
 
+        // ── Edit Service Modal ──
         function openEditModal(id, price, duration, desc, isActive) {
             document.getElementById('edit_Id').value = id;
             document.getElementById('edit_Price').value = price;
@@ -278,6 +458,7 @@
             myModal.show();
         }
 
+        // ── Delete Service ──
         $(document).on('click', '.delete-service', function() {
             const id = $(this).data('id');
             const card = $(`#service-row-${id}`);
@@ -301,5 +482,54 @@
                 }
             });
         });
+
+        // ── Open Add Portfolio Item Modal ──
+        function openAddPortfolioItem(categoryId, portfolioId) {
+            document.getElementById('addPortfolio_CategoryId').value = categoryId;
+            document.getElementById('addPortfolio_PortfolioId').value = portfolioId;
+            var modal = new bootstrap.Modal(document.getElementById('addPortfolioItemModal'));
+            modal.show();
+        }
+
+        // ── Delete Portfolio Item (AJAX) ──
+        function deletePortfolioItem(id) {
+            Swal.fire({
+                title: 'Delete this item?',
+                text: "This action cannot be undone.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e50914',
+                confirmButtonText: 'Yes, delete',
+                background: '#0a0a0a',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: '/PortfolioItem/DeleteItem/' + id,
+                        type: 'POST',
+                        data: { "__RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+                        success: function (response) {
+                            if (response.success) {
+                                // Remove the portfolio item element from the DOM
+                                var el = $(`.btn-sm-danger[onclick*="deletePortfolioItem(${id})"]`).closest('div').parent();
+                                el.remove();
+                                // If no more items in the grid, show empty message
+                                var grid = el.closest('.portfolio-grid');
+                                if (grid.find('.portfolio-thumb').length === 0) {
+                                    grid.after('<div class="empty-portfolio">No portfolio items yet.</div>');
+                                    grid.remove();
+                                }
+                                Swal.fire('Deleted!', '', 'success');
+                            } else {
+                                Swal.fire('Error', response.message || 'Delete failed', 'error');
+                            }
+                        },
+                        error: function() {
+                            Swal.fire('Error', 'Could not delete.', 'error');
+                        }
+                    });
+                }
+            });
+        }
     </script>
 }
