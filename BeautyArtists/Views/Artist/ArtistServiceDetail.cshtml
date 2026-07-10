@@ -1,0 +1,725 @@
+﻿@using System.Text.Encodings.Web
+@model BeautyArtists.Models.ViewModels.ArtistServiceDetailViewModel
+@{
+    ViewData["Title"] = "Service Detail";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+    var service = Model.UserService;
+    var categoryName = service.Service?.ServiceCategory?.Name ?? "General";
+}
+
+<section class="py-4 bg-black" style="min-height:100vh;">
+    <div class="container">
+
+        @* ── SERVICE HEADER (matches client side) ── *@
+        <div class="row align-items-center mb-5">
+            <div class="col-md-2 text-center">
+                <img src="@(string.IsNullOrEmpty(service.ImagePath) ? "/images/default-service.jpg" : service.ImagePath)"
+                     class="rounded-circle"
+                     style="width:100px;height:100px;object-fit:cover;border:3px solid #FFD700;" />
+            </div>
+            <div class="col-md-8">
+                <h1 class="text-gold fw-bold" style="font-size:2.2rem;">@service.Service?.Name</h1>
+                <p class="text-white-50 fs-6">@service.CustomDescription</p>
+                <div class="d-flex align-items-center gap-3 mt-2 flex-wrap">
+                    <span class="price-badge">R @service.Price.ToString("N0")</span>
+                    <span class="badge @(service.IsActive ? "bg-success" : "bg-secondary") px-3 py-2 rounded-pill">@(service.IsActive ? "ACTIVE" : "INACTIVE")</span>
+                </div>
+                <div class="mt-2" style="color:rgba(255,255,255,0.4);font-size:0.85rem;">
+                    <span class="me-3"><i class="bi bi-tag me-1"></i>@categoryName</span>
+                    <span><i class="bi bi-clock me-1"></i>@service.Duration min</span>
+                </div>
+            </div>
+            <div class="col-md-2 text-end">
+                <a href="@Url.Action("ManageServices", "Artist")" class="back-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15,18 9,12 15,6" />
+                    </svg>
+                    Back
+                </a>
+            </div>
+        </div>
+
+        @* ── ACTION BUTTONS ── *@
+        <div class="d-flex gap-3 mb-4 flex-wrap">
+            <a href="#" class="btn btn-gold" onclick="openEditModal('@service.Id', '@service.Price', '@service.Duration', '@Html.Raw(JavaScriptEncoder.Default.Encode(service.CustomDescription ?? ""))', @service.IsActive.ToString().ToLower())">
+                <i class="bi bi-pencil me-2"></i>Edit Service
+            </a>
+            <button class="btn btn-outline-gold" onclick="openAddPortfolioItem(@service.Id, @Model.DefaultPortfolioId, @(service.Service?.CategoryId ?? 0))">
+                <i class="bi bi-plus-circle me-2"></i>Add Item
+            </button>
+        </div>
+
+        @* ── PORTFOLIO GRID (matches client side) ── *@
+        @if (Model.PortfolioItems.Any())
+        {
+            <h3 class="text-gold mb-3" style="letter-spacing:1.5px; font-size:1.1rem;">
+                <i class="bi bi-images me-2"></i> Portfolio
+            </h3>
+            <div class="row g-3">
+                @foreach (var item in Model.PortfolioItems)
+                {
+                    var isVideo = !string.IsNullOrEmpty(item.MediaType) && item.MediaType.Equals("Video", StringComparison.OrdinalIgnoreCase);
+                    <div class="col-lg-3 col-md-4 col-sm-6">
+                        <div class="portfolio-item">
+                            @if (isVideo && string.IsNullOrEmpty(item.ThumbnailUrl))
+                            {
+                                <div class="video-thumb"
+                                     data-mediaurl="@item.MediaUrl"
+                                     data-title="@item.Title"
+                                     data-description="@item.Description"
+                                     data-mediatype="video"
+                                     onclick="openLightbox(this)">
+                                    <i class="bi bi-play-circle-fill"></i>
+                                    <span>Video</span>
+                                </div>
+                            }
+                            else if (!string.IsNullOrEmpty(item.MediaUrl))
+                            {
+                                <img src="@Url.Content(item.ThumbnailUrl ?? item.MediaUrl)"
+                                     class="portfolio-thumb"
+                                     data-mediaurl="@item.MediaUrl"
+                                     data-title="@item.Title"
+                                     data-description="@item.Description"
+                                     data-mediatype="image"
+                                     onclick="openLightbox(this)" />
+                            }
+                            else
+                            {
+                                <div class="empty-thumb">No media</div>
+                            }
+                            <div class="item-actions">
+                                <a href="@Url.Action("EditPortfolioItem", "PortfolioItem", new { id = item.Id })" class="btn-sm-gold">Edit</a>
+                                <button class="btn-sm-danger" onclick="deletePortfolioItem(@item.Id)">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <h4 class="text-white-50">No portfolio items yet.</h4>
+                <p style="color:rgba(255,255,255,0.2);font-size:0.9rem;">Click "Add Item" to upload your work.</p>
+            </div>
+        }
+
+    </div>
+</section>
+
+@* ── EDIT SERVICE MODAL ── *@
+<div class="modal fade" id="editServiceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content bg-dark text-white" style="border:1px solid rgba(255,215,0,0.2);border-radius:20px;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-gold">Edit Service</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Artist" asp-action="EditUserService" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" id="edit_Id" />
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-gold">Price (R)</label>
+                            <input type="number" name="Price" id="edit_Price" class="form-control" step="0.01" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-gold">Duration (mins)</label>
+                            <input type="number" name="Duration" id="edit_Duration" class="form-control" required />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-gold">Photo</label>
+                            <input type="file" name="ImageFile" class="form-control" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-gold">Custom Description</label>
+                            <textarea name="CustomDescription" id="edit_Description" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="IsActive" id="edit_IsActive" value="true">
+                                <label class="form-check-label text-white ms-2">Active</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gold">Update Service</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@* ── ADD PORTFOLIO ITEM MODAL ── *@
+<div class="modal fade" id="addPortfolioItemModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content bg-dark text-white" style="border:1px solid rgba(255,215,0,0.2);border-radius:20px;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-gold">Add Portfolio Item</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form asp-controller="Portfolio" asp-action="CreatePortfolioItem" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="PortfolioId" id="addPortfolio_PortfolioId" value="@Model.DefaultPortfolioId" />
+                <input type="hidden" name="CategoryId" id="addPortfolio_CategoryId" />
+                <input type="hidden" name="UserServiceId" id="addPortfolio_UserServiceId" />
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-gold">Title <span class="text-danger">*</span></label>
+                            <input name="Title" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-gold">Display Order</label>
+                            <input type="number" name="DisplayOrder" class="form-control" value="0" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-gold">Description</label>
+                            <textarea name="Description" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label text-gold">Media File <span class="text-danger">*</span></label>
+                            <input type="file" name="MediaFile" class="form-control" accept="image/*,video/*" required />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-gold">Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@* ── LIGHTBOX OVERLAY ── *@
+<div id="lightbox" class="lightbox-overlay" onclick="closeLightbox(event)">
+    <div class="lightbox-container">
+        <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
+        <button class="lightbox-prev" onclick="navigateLightbox(-1)">&#10094;</button>
+        <button class="lightbox-next" onclick="navigateLightbox(1)">&#10095;</button>
+        <div class="lightbox-content">
+            <div class="lightbox-counter" id="lightboxCounter"></div>
+            <div id="lightboxMediaContainer" class="lightbox-media-container">
+                <img id="lightboxImage" src="" alt="" style="display:none;max-width:90%;max-height:80vh;object-fit:contain;" />
+                <video id="lightboxVideo" controls style="display:none;max-width:90%;max-height:80vh;" controlsList="nodownload">
+                    <source id="videoSource" src="" type="video/mp4" />
+                    Your browser does not support the video tag.
+                </video>
+            </div>
+            <div class="lightbox-caption" id="lightboxCaption"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-black {
+        background-color: #000 !important;
+    }
+
+    .text-gold {
+        color: #FFD700 !important;
+    }
+
+    .price-badge {
+        display: inline-block;
+        background: rgba(0,0,0,0.75);
+        border: 1.5px solid #FFD700;
+        color: #FFD700;
+        font-size: 0.85rem;
+        font-weight: 800;
+        padding: 4px 14px;
+        border-radius: 20px;
+        letter-spacing: 0.5px;
+    }
+
+    .btn-gold {
+        background: linear-gradient(180deg, #FFD700 0%, #FF8C00 100%);
+        color: #000 !important;
+        font-weight: 700;
+        padding: 8px 24px;
+        border-radius: 30px;
+        border: none;
+        text-decoration: none;
+        transition: 0.3s;
+    }
+
+        .btn-gold:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(255,140,0,0.4);
+            color: #000 !important;
+        }
+
+    .btn-outline-gold {
+        background: transparent;
+        border: 1px solid #FFD700;
+        color: #FFD700;
+        font-weight: 700;
+        padding: 8px 24px;
+        border-radius: 30px;
+        text-decoration: none;
+        transition: 0.3s;
+    }
+
+        .btn-outline-gold:hover {
+            background: #FFD700;
+            color: #000;
+            transform: translateY(-2px);
+        }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: rgba(255,215,0,0.6);
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-decoration: none;
+        letter-spacing: 1px;
+        transition: color 0.2s;
+    }
+
+        .back-link:hover {
+            color: #FFD700;
+        }
+
+    .portfolio-item {
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.12);
+        border-radius: 10px;
+        overflow: hidden;
+        transition: 0.3s;
+    }
+
+        .portfolio-item:hover {
+            border-color: rgba(255,215,0,0.4);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+        }
+
+    .portfolio-thumb {
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        cursor: pointer;
+    }
+
+    .video-thumb {
+        width: 100%;
+        height: 180px;
+        background: #111;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(255,215,0,0.1);
+    }
+
+        .video-thumb i {
+            font-size: 2.5rem;
+            color: #FFD700;
+            opacity: 0.7;
+        }
+
+        .video-thumb span {
+            color: rgba(255,255,255,0.2);
+            font-size: 0.65rem;
+            margin-top: 4px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+    .empty-thumb {
+        width: 100%;
+        height: 180px;
+        background: #111;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255,255,255,0.15);
+        font-size: 0.8rem;
+    }
+
+    .item-actions {
+        padding: 8px;
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+    }
+
+    .btn-sm-gold {
+        background: rgba(255,215,0,0.1);
+        border: 1px solid rgba(255,215,0,0.2);
+        color: #FFD700;
+        font-size: 0.65rem;
+        padding: 2px 12px;
+        border-radius: 4px;
+        text-decoration: none;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+        .btn-sm-gold:hover {
+            background: rgba(255,215,0,0.2);
+        }
+
+    .btn-sm-danger {
+        background: rgba(255,0,0,0.1);
+        border: 1px solid rgba(255,0,0,0.2);
+        color: #ff6666;
+        font-size: 0.65rem;
+        padding: 2px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+        .btn-sm-danger:hover {
+            background: rgba(255,0,0,0.2);
+        }
+
+    /* ── MODALS ── */
+    .modal-content {
+        background: #0a0a0a !important;
+        border: 1px solid rgba(255,215,0,0.2) !important;
+        border-radius: 20px !important;
+    }
+
+    .modal-header {
+        border-bottom: 1px solid rgba(255,215,0,0.1) !important;
+    }
+
+    .btn-close-white {
+        filter: invert(1) grayscale(100%) brightness(200%);
+    }
+
+    .form-control, .form-select {
+        background-color: #1a1a1a !important;
+        border: 1px solid #333 !important;
+        color: #fff !important;
+    }
+
+        .form-control:focus {
+            border-color: #FFD700 !important;
+            box-shadow: 0 0 0 0.25rem rgba(255,215,0,0.15) !important;
+        }
+
+    /* ── LIGHTBOX ── */
+    .lightbox-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.92);
+        z-index: 9999;
+        overflow: hidden;
+        animation: fadeIn 0.3s ease;
+    }
+
+        .lightbox-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+    @@keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+
+        to {
+            opacity: 1;
+        }
+    }
+
+    .lightbox-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .lightbox-close {
+        position: absolute;
+        top: 20px;
+        right: 30px;
+        background: none;
+        border: none;
+        color: #fff;
+        font-size: 2.5rem;
+        cursor: pointer;
+        z-index: 100;
+        transition: color 0.3s;
+    }
+
+        .lightbox-close:hover {
+            color: #FFD700;
+        }
+
+    .lightbox-prev, .lightbox-next {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255,255,255,0.08);
+        border: none;
+        color: #fff;
+        font-size: 3rem;
+        padding: 20px 12px;
+        cursor: pointer;
+        z-index: 100;
+        transition: background 0.3s;
+        border-radius: 4px;
+        user-select: none;
+    }
+
+    .lightbox-prev {
+        left: 20px;
+    }
+
+    .lightbox-next {
+        right: 20px;
+    }
+
+        .lightbox-prev:hover, .lightbox-next:hover {
+            background: rgba(255,215,0,0.2);
+            color: #FFD700;
+        }
+
+    .lightbox-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        padding: 60px;
+    }
+
+    .lightbox-counter {
+        color: rgba(255,255,255,0.5);
+        font-size: 0.9rem;
+        margin-bottom: 16px;
+        font-weight: 300;
+        letter-spacing: 1px;
+    }
+
+    .lightbox-media-container {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        max-height: 85vh;
+        overflow: hidden;
+    }
+
+    #lightboxImage {
+        max-width: 90%;
+        max-height: 85vh;
+        object-fit: contain;
+        cursor: zoom-in;
+        transition: transform 0.3s ease;
+    }
+
+        #lightboxImage.zoomed {
+            transform: scale(2);
+            cursor: zoom-out;
+        }
+
+    #lightboxVideo {
+        max-width: 90%;
+        max-height: 85vh;
+        border-radius: 8px;
+        background: #000;
+    }
+
+    .lightbox-caption {
+        color: rgba(255,255,255,0.6);
+        font-size: 0.9rem;
+        margin-top: 16px;
+        text-align: center;
+        max-width: 70%;
+        line-height: 1.4;
+    }
+
+    @@media (max-width:768px) {
+        .lightbox-prev, .lightbox-next {
+            font-size: 1.8rem;
+            padding: 10px 8px;
+        }
+
+        .lightbox-prev {
+            left: 8px;
+        }
+
+        .lightbox-next {
+            right: 8px;
+        }
+
+        .lightbox-content {
+            padding: 40px 20px;
+        }
+
+        .lightbox-caption {
+            max-width: 90%;
+            font-size: 0.8rem;
+        }
+    }
+</style>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // ── Edit Service ──
+        function openEditModal(id, price, duration, desc, isActive) {
+            document.getElementById('edit_Id').value = id;
+            document.getElementById('edit_Price').value = price;
+            document.getElementById('edit_Duration').value = duration;
+            document.getElementById('edit_Description').value = desc;
+            document.getElementById('edit_IsActive').checked = (isActive === true || isActive === "true");
+            var modal = new bootstrap.Modal(document.getElementById('editServiceModal'));
+            modal.show();
+        }
+
+        // ── Add Portfolio Item ──
+        function openAddPortfolioItem(userServiceId, portfolioId, categoryId) {
+            document.getElementById('addPortfolio_UserServiceId').value = userServiceId;
+            document.getElementById('addPortfolio_CategoryId').value = categoryId;
+            document.getElementById('addPortfolio_PortfolioId').value = portfolioId;
+            var modal = new bootstrap.Modal(document.getElementById('addPortfolioItemModal'));
+            modal.show();
+        }
+
+        // ── Delete Portfolio Item ──
+        function deletePortfolioItem(id) {
+            Swal.fire({
+                title: 'Delete this item?',
+                text: "This action cannot be undone.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e50914',
+                confirmButtonText: 'Yes, delete',
+                background: '#0a0a0a',
+                color: '#fff'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    $.ajax({
+                        url: '/PortfolioItem/DeleteItem/' + id,
+                        type: 'POST',
+                        data: { "__RequestVerificationToken": $('input[name="__RequestVerificationToken"]').val() },
+                        success: function(response) {
+                            if (response.success) {
+                                location.reload();
+                            } else {
+                                Swal.fire('Error', response.message || 'Delete failed', 'error');
+                            }
+                        },
+                        error: function() {
+                            Swal.fire('Error', 'Could not delete.', 'error');
+                        }
+                    });
+                }
+            });
+        }
+
+        // ── LIGHTBOX ──
+        let mediaItems = [];
+        let currentIndex = 0;
+        let isZoomed = false;
+
+        function initializeLightbox() {
+            const thumbnails = document.querySelectorAll('.portfolio-thumb, .video-thumb');
+            mediaItems = [];
+            thumbnails.forEach(el => {
+                const mediaUrl = el.getAttribute('data-mediaurl');
+                const title = el.getAttribute('data-title') || '';
+                const description = el.getAttribute('data-description') || '';
+                const mediaType = el.getAttribute('data-mediatype') || 'image';
+                if (mediaUrl) {
+                    mediaItems.push({ url: mediaUrl, title: title, description: description, type: mediaType });
+                }
+            });
+        }
+
+        window.openLightbox = function(element) {
+            const thumbnails = document.querySelectorAll('.portfolio-thumb, .video-thumb');
+            const index = Array.from(thumbnails).indexOf(element);
+            if (index === -1) return;
+            initializeLightbox();
+            currentIndex = index;
+            showMedia(currentIndex);
+            document.getElementById('lightbox').classList.add('active');
+            document.body.style.overflow = 'hidden';
+            isZoomed = false;
+        };
+
+        function showMedia(index) {
+            const item = mediaItems[index];
+            if (!item) return;
+            const imageEl = document.getElementById('lightboxImage');
+            const videoEl = document.getElementById('lightboxVideo');
+            const videoSource = document.getElementById('videoSource');
+            const captionEl = document.getElementById('lightboxCaption');
+            const counterEl = document.getElementById('lightboxCounter');
+            imageEl.classList.remove('zoomed');
+            isZoomed = false;
+            counterEl.textContent = `${index + 1} / ${mediaItems.length}`;
+            let captionText = item.title;
+            if (item.description && item.description !== item.title) {
+                captionText += item.description ? ` — ${item.description}` : '';
+            }
+            captionEl.textContent = captionText;
+            if (item.type === 'video') {
+                imageEl.style.display = 'none';
+                videoEl.style.display = 'block';
+                videoSource.src = item.url;
+                videoEl.load();
+                videoEl.play().catch(() => {});
+            } else {
+                videoEl.style.display = 'none';
+                videoEl.pause();
+                imageEl.style.display = 'block';
+                imageEl.src = item.url;
+                imageEl.alt = item.title || 'Portfolio image';
+            }
+        }
+
+        window.navigateLightbox = function(direction) {
+            currentIndex = (currentIndex + direction + mediaItems.length) % mediaItems.length;
+            showMedia(currentIndex);
+        };
+
+        window.closeLightbox = function(event) {
+            if (event && event.target !== event.currentTarget) return;
+            document.getElementById('lightbox').classList.remove('active');
+            document.body.style.overflow = '';
+            const video = document.getElementById('lightboxVideo');
+            video.pause();
+            isZoomed = false;
+        };
+
+        document.getElementById('lightboxImage').addEventListener('click', function() {
+            isZoomed = !isZoomed;
+            this.classList.toggle('zoomed');
+        });
+
+        document.addEventListener('keydown', function(e) {
+            const lightbox = document.getElementById('lightbox');
+            if (!lightbox.classList.contains('active')) return;
+            if (e.key === 'Escape') closeLightbox();
+            else if (e.key === 'ArrowLeft') { navigateLightbox(-1); e.preventDefault(); }
+            else if (e.key === 'ArrowRight') { navigateLightbox(1); e.preventDefault(); }
+        });
+
+        document.addEventListener('DOMContentLoaded', initializeLightbox);
+    </script>
+}

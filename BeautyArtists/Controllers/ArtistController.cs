@@ -255,6 +255,51 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             return RedirectToAction(nameof(Profile));
         }
 
+        public async Task<IActionResult> ArtistServiceDetail(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+            var userService = await _context.UserServices
+                .Include(us => us.Service)
+                    .ThenInclude(s => s.ServiceCategory)
+                .Include(us => us.Artist)
+                .FirstOrDefaultAsync(us => us.Id == id && us.ArtistId == userId);
+            if (userService == null) return NotFound();
+
+            var portfolioItems = await _context.PortfolioItems
+                .Where(p => p.UserServiceId == id && p.ArtistId == userId)
+                .OrderBy(p => p.DisplayOrder)
+                .ToListAsync();
+
+            var defaultPortfolio = await _context.Portfolios
+                .FirstOrDefaultAsync(p => p.ArtistId == userId);
+            var defaultPortfolioId = defaultPortfolio?.Id ?? 0;
+            if (defaultPortfolio == null)
+            {
+                defaultPortfolio = new Portfolio
+                {
+                    Name = "General Portfolio",
+                    Description = "Auto-created portfolio.",
+                    ArtistId = userId,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Portfolios.Add(defaultPortfolio);
+                await _context.SaveChangesAsync();
+                defaultPortfolioId = defaultPortfolio.Id;
+            }
+
+            var vm = new ArtistServiceDetailViewModel
+            {
+                UserService = userService,
+                PortfolioItems = portfolioItems,
+                DefaultPortfolioId = defaultPortfolioId
+            };
+
+            ViewBag.Categories = await _context.ServiceCategories
+                .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name })
+                .ToListAsync();
+
+            return View(vm);
+        }
         // ═══════════════════════════════════════════════════════════
         // MANAGE SERVICES
         // ═══════════════════════════════════════════════════════════
