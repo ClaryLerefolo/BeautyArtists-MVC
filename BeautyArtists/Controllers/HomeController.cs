@@ -6,10 +6,11 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Build.Framework;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Mail;
-using Microsoft.Extensions.Configuration;
 
 
 namespace BeautyArtists.Controllers
@@ -19,14 +20,16 @@ namespace BeautyArtists.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IConfiguration _configuration;
+        private readonly IWebHostEnvironment _env;
 
 
 
-        public HomeController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IConfiguration configuration)
+        public HomeController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IConfiguration configuration, IWebHostEnvironment env)
         {
             _context = context;
             _userManager = userManager;
             _configuration = configuration;
+            _env = env;
         }
 
 
@@ -92,7 +95,7 @@ namespace BeautyArtists.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SubmitReport(string category, string description, string email)
+        public async Task<IActionResult> SubmitReport(string category, string description, string email, List<IFormFile> attachments)
         {
             try
             {
@@ -107,7 +110,36 @@ namespace BeautyArtists.Controllers
                 _context.SupportReports.Add(report);
                 await _context.SaveChangesAsync();
 
-                // ?? 2. Send email to BOTH stakeholders ??
+                // ?? 2. Handle file uploads ??
+                var uploadedFiles = new List<string>();
+                if (attachments != null && attachments.Any())
+                {
+                    // Check total size (max 10MB)
+                    long totalSize = attachments.Sum(f => f.Length);
+                    if (totalSize > 10_000_000) // 10MB limit
+                    {
+                        TempData["Error"] = "Total file size exceeds 10MB. Please reduce the size and try again.";
+                        return RedirectToAction(nameof(Support));
+                    }
+
+                    var uploadDir = Path.Combine(_env.WebRootPath, "uploads", "support");
+                    if (!Directory.Exists(uploadDir))
+                        Directory.CreateDirectory(uploadDir);
+
+                    foreach (var file in attachments)
+                    {
+                        if (file.Length == 0) continue;
+                        var fileName = $"{Guid.NewGuid():N}_{file.FileName}";
+                        var filePath = Path.Combine(uploadDir, fileName);
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+                        uploadedFiles.Add($"/uploads/support/{fileName}");
+                    }
+                }
+
+                // ?? 3. Send email to BOTH stakeholders with attachments ??
                 string subject = $"New Support Report: {category}";
                 string body = $@"
             <h2>New Support Report</h2>
@@ -116,50 +148,47 @@ namespace BeautyArtists.Controllers
             <p><strong>Description:</strong></p>
             <p>{description}</p>
             <p><strong>Submitted at:</strong> {DateTime.UtcNow.AddHours(2):yyyy-MM-dd HH:mm:ss}</p>
+            {(uploadedFiles.Any() ? $"<p><strong>Attachments:</strong> {string.Join(", ", uploadedFiles)}</p>" : "")}
             <hr />
             <p style='color:#888;'>This report was submitted via the RubiOr support page.</p>
         ";
 
-                // ?? Option A: Send to both emails in one call (recommended) ??
                 string[] stakeholderEmails = new string[]
                 {
-            "ignatiuslerefolo07101999@gmail.com",  // Change to actual email 1
-            "neo305mofokeng@gmail.com"   // Change to actual email 2
+            "ignatiuslerefolo07101999@gmail.com",
+            "neo305mofokeng@gmail.com"
                 };
 
-                await SendEmailToMultipleAsync(stakeholderEmails, subject, body);
-
-                // ?? Option B: Or call SendEmailAsync twice ??
-                // await SendEmailAsync("stakeholder1@rubior.com", subject, body);
-                // await SendEmailAsync("stakeholder2@rubior.com", subject, body);
+                await SendEmailToMultipleAsync(stakeholderEmails, subject, body, attachments);
 
                 TempData["Success"] = "Thank you! Your report has been submitted. We'll review it within 24 hours.";
                 return RedirectToAction(nameof(Support));
             }
             catch (Exception ex)
             {
-                // Log the error (optional)
+                // Log the error if you have logging set up
                 TempData["Error"] = "There was an issue submitting your report. Please try again or contact us directly.";
                 return RedirectToAction(nameof(Support));
             }
         }
-        private async Task SendEmailToMultipleAsync(string[] toEmails, string subject, string body)
+
+        private async Task SendEmailToMultipleAsync(string[] toEmails, string subject, string body, List<IFormFile> attachments = null)
         {
             var smtpClient = new SmtpClient
             {
-                Host = _configuration["Email:SmtpHost"],
-                Port = int.Parse(_configuration["Email:SmtpPort"]),
+                Host = _configuration["SmtpSettings:Host"],
+                Port = int.Parse(_configuration["SmtpSettings:Port"]),
                 Credentials = new NetworkCredential(
-                    _configuration["Email:Username"],
-                    _configuration["Email:Password"]
+                    _configuration["SmtpSettings:Username"],
+                    _configuration["SmtpSettings:Password"]
                 ),
-                EnableSsl = bool.Parse(_configuration["Email:EnableSsl"]),
+                EnableSsl = true,
                 UseDefaultCredentials = false
             };
 
             var mailMessage = new MailMessage
             {
-                From = new MailAddress(_configuration["Email:FromAddress"], "RubiOr Support"),
+                From = new MailAddress(_configuration["SmtpSettings:FromAddress"], "RubiOr Support"),
                 Subject = subject,
                 Body = body,
                 IsBodyHtml = true
@@ -169,6 +198,22 @@ namespace BeautyArtists.Controllers
             foreach (var email in toEmails)
             {
                 mailMessage.To.Add(email);
+            }
+
+            // Attach files if any
+            if (attachments != null && attachments.Any())
+            {
+                foreach (var file in attachments)
+                {
+                    if (file.Length == 0) continue;
+                    using (var ms = new MemoryStream())
+                    {
+                        await file.CopyToAsync(ms);
+                        ms.Position = 0;
+                        var attachment = new Attachment(ms, file.FileName);
+                        mailMessage.Attachments.Add(attachment);
+                    }
+                }
             }
 
             await smtpClient.SendMailAsync(mailMessage);
