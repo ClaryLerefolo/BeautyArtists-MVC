@@ -92,7 +92,6 @@ namespace BeautyArtists.Controllers
         {
             return View();
         }
-
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SubmitReport(string category, string description, string email, List<IFormFile> attachments)
@@ -111,10 +110,11 @@ namespace BeautyArtists.Controllers
                 await _context.SaveChangesAsync();
 
                 // ?? 2. Handle file uploads ??
-                var uploadedFiles = new List<string>();
+                var uploadedFilePaths = new List<string>(); // physical paths for attachments
+                var uploadedFileUrls = new List<string>();   // for display in email body
+
                 if (attachments != null && attachments.Any())
                 {
-                    // Check total size (max 10MB)
                     long totalSize = attachments.Sum(f => f.Length);
                     if (totalSize > 10_000_000) // 10MB limit
                     {
@@ -135,7 +135,8 @@ namespace BeautyArtists.Controllers
                         {
                             await file.CopyToAsync(stream);
                         }
-                        uploadedFiles.Add($"/uploads/support/{fileName}");
+                        uploadedFilePaths.Add(filePath);
+                        uploadedFileUrls.Add($"/uploads/support/{fileName}");
                     }
                 }
 
@@ -148,7 +149,7 @@ namespace BeautyArtists.Controllers
             <p><strong>Description:</strong></p>
             <p>{description}</p>
             <p><strong>Submitted at:</strong> {DateTime.UtcNow.AddHours(2):yyyy-MM-dd HH:mm:ss}</p>
-            {(uploadedFiles.Any() ? $"<p><strong>Attachments:</strong> {string.Join(", ", uploadedFiles)}</p>" : "")}
+            {(uploadedFileUrls.Any() ? $"<p><strong>Attachments:</strong> {string.Join(", ", uploadedFileUrls)}</p>" : "")}
             <hr />
             <p style='color:#888;'>This report was submitted via the RubiOr support page.</p>
         ";
@@ -159,20 +160,20 @@ namespace BeautyArtists.Controllers
             "neo305mofokeng@gmail.com"
                 };
 
-                await SendEmailToMultipleAsync(stakeholderEmails, subject, body, attachments);
+                // Pass the file paths, NOT the IFormFile list
+                await SendEmailToMultipleAsync(stakeholderEmails, subject, body, uploadedFilePaths);
 
                 TempData["Success"] = "Thank you! Your report has been submitted. We'll review it within 24 hours.";
                 return RedirectToAction(nameof(Support));
             }
             catch (Exception ex)
             {
-                // Log the error if you have logging set up
+                Console.WriteLine($"SubmitReport Error: {ex.Message}\n{ex.StackTrace}");
                 TempData["Error"] = "There was an issue submitting your report. Please try again or contact us directly.";
                 return RedirectToAction(nameof(Support));
             }
         }
-
-        private async Task SendEmailToMultipleAsync(string[] toEmails, string subject, string body, List<IFormFile> attachments = null)
+        private async Task SendEmailToMultipleAsync(string[] toEmails, string subject, string body, List<string> attachmentPaths = null)
         {
             var smtpClient = new SmtpClient
             {
@@ -186,38 +187,37 @@ namespace BeautyArtists.Controllers
                 UseDefaultCredentials = false
             };
 
-            var mailMessage = new MailMessage
+            using (var mailMessage = new MailMessage
             {
                 From = new MailAddress(_configuration["SmtpSettings:FromAddress"], "RubiOr Support"),
                 Subject = subject,
                 Body = body,
                 IsBodyHtml = true
-            };
-
-            // Add ALL recipients
-            foreach (var email in toEmails)
+            })
             {
-                mailMessage.To.Add(email);
-            }
-
-            // Attach files if any
-            if (attachments != null && attachments.Any())
-            {
-                foreach (var file in attachments)
+                // Add ALL recipients
+                foreach (var email in toEmails)
                 {
-                    if (file.Length == 0) continue;
-                    using (var ms = new MemoryStream())
+                    mailMessage.To.Add(email);
+                }
+
+                // Attach files if any (using file paths)
+                if (attachmentPaths != null && attachmentPaths.Any())
+                {
+                    foreach (var path in attachmentPaths)
                     {
-                        await file.CopyToAsync(ms);
-                        ms.Position = 0;
-                        var attachment = new Attachment(ms, file.FileName);
-                        mailMessage.Attachments.Add(attachment);
+                        if (System.IO.File.Exists(path))
+                        {
+                            var attachment = new Attachment(path);
+                            mailMessage.Attachments.Add(attachment);
+                        }
                     }
                 }
-            }
 
-            await smtpClient.SendMailAsync(mailMessage);
+                await smtpClient.SendMailAsync(mailMessage);
+            }
         }
+
         public async Task<IActionResult> Categories()
         {
             var categories = await _context.ServiceCategories
