@@ -137,10 +137,7 @@ namespace BeautyArtists.Controllers
             {
                 Title = string.IsNullOrWhiteSpace(vm.Title) ? "Untitled" : vm.Title,
                 Description = vm.Description,
-                Province = vm.Province,
-                City = vm.City,
-                DisplayOrder = vm.DisplayOrder,
-                MediaType = mediaType, // AUTO-DETECTED
+           
                 MediaUrl = mediaUrl,
                 ThumbnailUrl = null, // You can generate one later
                 IsFeatured = vm.IsFeatured,
@@ -148,8 +145,6 @@ namespace BeautyArtists.Controllers
                 CategoryId = vm.CategoryId > 0 ? vm.CategoryId : null,
                 ArtistId = artistId,
                 UploadedAt = DateTime.UtcNow,
-                ClientName = vm.ClientName,
-                MusicTrack = vm.MusicTrack
             };
 
             _context.PortfolioItems.Add(item);
@@ -167,16 +162,15 @@ namespace BeautyArtists.Controllers
             var item = await _context.PortfolioItems.FindAsync(id);
             if (item == null) return NotFound();
 
+
+
             var vm = new PortfolioItemViewModel
             {
                 Id = item.Id,
                 Title = item.Title,
                 Description = item.Description,
                 CategoryId = item.CategoryId ?? 0,
-                Province = item.Province,
-                City = item.City,
                 DisplayOrder = item.DisplayOrder,
-                MediaType = item.MediaType,
                 ExistingMediaUrl = item.MediaUrl,
                 ExistingThumbnailUrl = item.ThumbnailUrl,
                 IsFeatured = item.IsFeatured,
@@ -189,52 +183,61 @@ namespace BeautyArtists.Controllers
 
         // --------------------------------------------------------------------
         // EDIT (POST)
-        // --------------------------------------------------------------------
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> EditPortfolioItem(int id, PortfolioItemViewModel vm)
         {
+            // 1. Load the existing item
+            var item = await _context.PortfolioItems.FindAsync(id);
+            if (item == null) return NotFound();
+
+            // 2. Remove validation for fields NOT in the edit form
+            ModelState.Remove("Province");
+            ModelState.Remove("City");
+            ModelState.Remove("CategoryId");
+            ModelState.Remove("PortfolioId");
+            ModelState.Remove("MediaType"); // MediaType is set when a new file is uploaded
+
+            // 3. If ModelState is still invalid (Title, Description, etc.), return errors
             if (!ModelState.IsValid)
             {
                 await LoadDropdowns(vm);
                 return View(vm);
             }
 
-            var item = await _context.PortfolioItems.FindAsync(id);
-            if (item == null) return NotFound();
+            // 4. Update ONLY the fields that are present in the form
+            item.Title = vm.Title ?? item.Title;
+            item.Description = vm.Description ?? item.Description;
+            item.DisplayOrder = vm.DisplayOrder;
+            item.IsFeatured = vm.IsFeatured;
 
-            if (vm.MediaFile != null)
+            // 5. Handle file upload if a new file is provided
+            if (vm.MediaFile != null && vm.MediaFile.Length > 0)
             {
-                // Delete old file if exists
+                // Delete old file
                 if (!string.IsNullOrEmpty(item.MediaUrl))
                 {
                     var oldPath = Path.Combine(_env.WebRootPath, item.MediaUrl.TrimStart('/'));
                     if (System.IO.File.Exists(oldPath))
                         System.IO.File.Delete(oldPath);
                 }
+
+                // Save new file
                 item.MediaUrl = await SaveFile(vm.MediaFile, "media");
 
-                // Auto-detect media type for new file
-                var extension = Path.GetExtension(vm.MediaFile.FileName).ToLowerInvariant();
+                // Auto-detect media type from extension
+                var ext = Path.GetExtension(vm.MediaFile.FileName).ToLowerInvariant();
                 var videoExtensions = new[] { ".mp4", ".mov", ".avi", ".webm", ".mkv" };
-                item.MediaType = videoExtensions.Contains(extension) ? "Video" : "Image";
+                item.MediaType = videoExtensions.Contains(ext) ? "Video" : "Image";
             }
 
-            if (vm.ThumbnailFile != null)
-                item.ThumbnailUrl = await SaveFile(vm.ThumbnailFile, "thumb");
+            // 6. Keep Province, City, CategoryId, PortfolioId unchanged (not updated)
+            //    They are NOT in the form, so we DON'T assign them from vm.
 
-            item.Title = vm.Title;
-            item.Description = vm.Description;
-            item.Province = vm.Province;
-            item.City = vm.City;
-            item.DisplayOrder = vm.DisplayOrder;
-            item.IsFeatured = vm.IsFeatured;
-            item.PortfolioId = vm.PortfolioId > 0 ? vm.PortfolioId : null;
-            item.CategoryId = vm.CategoryId > 0 ? vm.CategoryId : null;
-
+            // 7. Save changes
             await _context.SaveChangesAsync();
 
             TempData["Success"] = $"'{item.Title}' updated successfully!";
-            return RedirectToAction("ManagePortfolio", "Portfolio");
+            return RedirectToAction("ManageServices", "Artist"); // change to "ManageServices" if you want
         }
 
         // --------------------------------------------------------------------

@@ -8,6 +8,7 @@ namespace BeautyArtists.Models.ViewModels
     public class PortfolioItemViewModel
     {
         public int Id { get; set; }
+        public int UserServiceId { get; set; }
 
         [Required]
         [StringLength(100)]
@@ -17,15 +18,15 @@ namespace BeautyArtists.Models.ViewModels
         public string? Description { get; set; }
         [Display(Name = "Category")]
       
-        public int CategoryId { get; set; }
+        public int? CategoryId { get; set; }
 
         public IEnumerable<SelectListItem>? Categories { get; set; }
 
 
         [Required]
-        public string Province { get; set; }
+        public string? Province { get; set; }
         [Required]
-        public string City { get; set; }
+        public string? City { get; set; }
 
         [StringLength(100)]
         public string? ClientName { get; set; }
@@ -60,7 +61,7 @@ namespace BeautyArtists.Models.ViewModels
 
         [Required]
         [Display(Name = "Portfolio")]
-        public int PortfolioId { get; set; }
+        public int? PortfolioId { get; set; }
 
         public IEnumerable<SelectListItem>? PortfoliosSelectList { get; set; } = new List<SelectListItem>();
 

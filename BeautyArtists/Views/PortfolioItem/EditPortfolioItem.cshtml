@@ -15,7 +15,7 @@
                 <input type="hidden" asp-for="Id" />
 
                 <div class="row">
-                    <div class="col-md-6 border-end border-secondary">
+                    <div class="col-md-5 border-end border-secondary">
                         <div class="mb-4">
                             <label class="text-warning fw-bold">Current Media</label>
                             <div class="upload-box border border-warning border-dashed p-3 text-center"
@@ -42,25 +42,11 @@
                                 </div>
                             </div>
                             <input type="file" id="mediaInput" asp-for="MediaFile" class="d-none" onchange="updatePreview(this)" />
-                            <small class="text-muted d-block mt-2">File Path: @Model.ExistingMediaUrl</small>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="text-warning fw-bold">Service Category</label>
-                            <select asp-for="CategoryId" asp-items="Model.Categories" class="form-select bg-dark text-white border-secondary">
-                                <option value="0">-- Select Category --</option>
-                            </select>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="text-warning fw-bold">Portfolio Assignment</label>
-                            <select asp-for="PortfolioId" asp-items="Model.PortfoliosSelectList" class="form-select bg-dark text-white border-secondary">
-                                <option value="0">-- No Portfolio (General) --</option>
-                            </select>
+                            <small class="text-muted d-block mt-2">Upload a new file to replace the current one (optional)</small>
                         </div>
                     </div>
 
-                    <div class="col-md-6">
+                    <div class="col-md-7">
                         <div class="row">
                             <div class="col-md-8 mb-3">
                                 <label class="text-warning fw-bold">Title</label>
@@ -72,41 +58,14 @@
                             </div>
                         </div>
 
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label class="text-warning fw-bold">Province</label>
-                                <select asp-for="Province" id="provinceSelect" class="form-select bg-dark text-white border-secondary">
-                                    <option value="">Select Province</option>
-                                    <option value="Eastern Cape">Eastern Cape</option>
-                                    <option value="Free State">Free State</option>
-                                    <option value="Gauteng">Gauteng</option>
-                                    <option value="KwaZulu-Natal">KwaZulu-Natal</option>
-                                    <option value="Limpopo">Limpopo</option>
-                                    <option value="Mpumalanga">Mpumalanga</option>
-                                    <option value="North West">North West</option>
-                                    <option value="Northern Cape">Northern Cape</option>
-                                    <option value="Western Cape">Western Cape</option>
-                                </select>
-                            </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="text-warning fw-bold">City</label>
-                                <select asp-for="City" id="citySelect" class="form-select bg-dark text-white border-secondary">
-                                    <option value="">Select City</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="text-warning fw-bold">Media Type</label>
-                            <select asp-for="MediaType" class="form-select bg-dark text-white border-secondary">
-                                <option value="Image">Image</option>
-                                <option value="Video">Video</option>
-                            </select>
-                        </div>
-
                         <div class="mb-3">
                             <label class="text-warning fw-bold">Description</label>
                             <textarea asp-for="Description" rows="4" class="form-control bg-dark text-white border-secondary"></textarea>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" asp-for="IsFeatured" id="featuredSwitch" />
+                            <label class="form-check-label text-white" for="featuredSwitch">Featured Item</label>
                         </div>
                     </div>
                 </div>
@@ -121,46 +80,6 @@
 
 @section Scripts {
     <script>
-        // --- COMPLETE CITY DATA ---
-        const southAfricaData = {
-            "Eastern Cape": ["Gqeberha", "East London", "Makhanda", "Mthatha", "Bhisho", "Kariega"],
-            "Free State": ["Bloemfontein", "Welkom", "Sasolburg", "Bethlehem", "Kroonstad"],
-            "Gauteng": ["Johannesburg", "Pretoria", "Soweto", "Sandton", "Centurion", "Roodepoort", "Benoni", "Midrand"],
-            "KwaZulu-Natal": ["Durban", "Pietermaritzburg", "Richards Bay", "Newcastle", "Umhlanga", "Ballito"],
-            "Limpopo": ["Polokwane", "Thohoyandou", "Tzaneen", "Mokopane", "Phalaborwa"],
-            "Mpumalanga": ["Mbombela", "Emalahleni", "Secunda", "Ermelo", "Middelburg"],
-            "North West": ["Klerksdorp", "Potchefstroom", "Mahikeng", "Rustenburg", "Brits"],
-            "Northern Cape": ["Kimberley", "Upington", "Springbok", "Kuruman", "De Aar"],
-            "Western Cape": ["Cape Town", "Stellenbosch", "George", "Paarl", "Mossel Bay", "Knysna", "Worcester"]
-        };
-
-        $(document).ready(function () {
-            const $province = $('#provinceSelect');
-            const $city = $('#citySelect');
-            const savedCity = '@Model.City';
-
-            function updateCities(province, selectedCity) {
-                $city.empty().append('<option value="">Select City</option>');
-                if (province && southAfricaData[province]) {
-                    southAfricaData[province].forEach(city => {
-                        const isSelected = city === selectedCity ? 'selected' : '';
-                        $city.append(`<option value="${city}" ${isSelected}>${city}</option>`);
-                    });
-                }
-            }
-
-            // AUTO-LOAD CITIES ON EDIT LOAD
-            if ($province.val()) {
-                updateCities($province.val(), savedCity);
-            }
-
-            // CHANGE EVENT
-            $province.on('change', function () {
-                updateCities($(this).val(), '');
-            });
-        });
-
-        // --- MEDIA PREVIEW LOGIC ---
         function updatePreview(input) {
             if (input.files && input.files[0]) {
                 const reader = new FileReader();

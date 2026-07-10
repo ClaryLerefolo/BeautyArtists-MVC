@@ -178,7 +178,8 @@ namespace BeautyArtists.Controllers
                 ArtistId = userId,
                 UploadedAt = DateTime.UtcNow,
                 ClientName = vm.ClientName,
-                MusicTrack = vm.MusicTrack
+                MusicTrack = vm.MusicTrack,
+                UserServiceId = vm.UserServiceId > 0 ? vm.UserServiceId : null,
             };
 
             _context.PortfolioItems.Add(item);

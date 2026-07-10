@@ -55,5 +55,10 @@ namespace BeautyArtists.Models
         [ForeignKey("PortfolioId")]
 
         public Portfolio? Portfolio { get; set; }
+
+        public int? UserServiceId { get; set; }
+
+        [ForeignKey(nameof(UserServiceId))]
+        public virtual UserService? UserService { get; set; }
     }
 }

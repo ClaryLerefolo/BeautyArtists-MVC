@@ -3,7 +3,7 @@
 @{
     ViewData["Title"] = "Artist Service Menu";
     Layout = "~/Views/Shared/_ArtistLayout.cshtml";
-    var portfolioItemsByCategory = ViewBag.PortfolioItemsByCategory as Dictionary<int?, List<BeautyArtists.Models.PortfolioItem>> ?? new Dictionary<int?, List<BeautyArtists.Models.PortfolioItem>>();
+    var portfolioItemsByService = ViewBag.PortfolioItemsByService as Dictionary<int, List<BeautyArtists.Models.PortfolioItem>> ?? new Dictionary<int, List<BeautyArtists.Models.PortfolioItem>>();
     var defaultPortfolioId = ViewBag.DefaultPortfolioId as int? ?? 0;
 }
 
@@ -201,7 +201,7 @@
             margin-top: 4px;
         }
 
-        /* ── LIGHTBOX STYLES (copied from ManagePortfolio) ── */
+        /* ── LIGHTBOX STYLES ── */
         .lightbox-overlay {
             display: none;
             position: fixed;
@@ -385,9 +385,8 @@
 <div class="row pt-2 px-4" id="serviceOfferingRow">
     @foreach (var item in Model)
     {
-        var categoryId = item.Service?.CategoryId;
-        var servicePortfolioItems = categoryId.HasValue && portfolioItemsByCategory.ContainsKey(categoryId.Value)
-        ? portfolioItemsByCategory[categoryId.Value]
+        var serviceItems = portfolioItemsByService.ContainsKey(item.Id)
+        ? portfolioItemsByService[item.Id]
         : new List<BeautyArtists.Models.PortfolioItem>();
 
         <div class="col-md-4 mb-4" id="service-row-@item.Id">
@@ -418,20 +417,20 @@
                         </button>
                     </div>
 
-                    @* ── PORTFOLIO INTEGRATION (with video support and lightbox) ── *@
+                    @* ── PORTFOLIO INTEGRATION (per-service) ── *@
                     <div class="mt-3 pt-3 border-top border-secondary">
                         <div class="d-flex justify-content-between align-items-center">
                             <span style="color:rgba(255,255,255,0.5);font-size:0.8rem;">
                                 <i class="bi bi-images me-1"></i> Portfolio
                             </span>
-                            <button class="add-portfolio-btn" onclick="openAddPortfolioItem(@categoryId, @defaultPortfolioId)">
+                            <button class="add-portfolio-btn" onclick="openAddPortfolioItem(@item.Id, @defaultPortfolioId, @(item.Service?.CategoryId ?? 0))">
                                 <i class="bi bi-plus-circle me-1"></i> Add Item
                             </button>
                         </div>
-                        @if (servicePortfolioItems.Any())
+                        @if (serviceItems.Any())
                         {
                             <div class="portfolio-grid">
-                                @foreach (var pItem in servicePortfolioItems)
+                                @foreach (var pItem in serviceItems)
                                 {
                                     var isVideo = !string.IsNullOrEmpty(pItem.MediaType) && pItem.MediaType.Equals("Video", StringComparison.OrdinalIgnoreCase);
                                     var thumbnailUrl = !string.IsNullOrEmpty(pItem.ThumbnailUrl) ? pItem.ThumbnailUrl : (isVideo ? "" : pItem.MediaUrl);
@@ -484,7 +483,7 @@
     }
 </div>
 
-@* ── ADD SERVICE MODAL (unchanged) ── *@
+@* ── ADD SERVICE MODAL ── *@
 <div class="modal fade" id="addServiceModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -553,7 +552,7 @@
     </div>
 </div>
 
-@* ── EDIT SERVICE MODAL (unchanged) ── *@
+@* ── EDIT SERVICE MODAL ── *@
 <div class="modal fade" id="editServiceModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -599,7 +598,7 @@
     </div>
 </div>
 
-@* ── ADD PORTFOLIO ITEM MODAL (unchanged) ── *@
+@* ── ADD PORTFOLIO ITEM MODAL (with UserServiceId) ── *@
 <div class="modal fade" id="addPortfolioItemModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -611,6 +610,7 @@
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="PortfolioId" id="addPortfolio_PortfolioId" value="@defaultPortfolioId" />
                 <input type="hidden" name="CategoryId" id="addPortfolio_CategoryId" />
+                <input type="hidden" name="UserServiceId" id="addPortfolio_UserServiceId" />
                 <div class="modal-body px-4">
                     <div class="row g-4">
                         <div class="col-md-6">
@@ -629,25 +629,7 @@
                             <label class="input-label">Media File <span class="text-danger">*</span></label>
                             <input type="file" name="MediaFile" class="form-control" accept="image/*,video/*" required />
                         </div>
-                        <div class="col-md-6">
-                            <label class="input-label">Province</label>
-                            <select name="Province" class="form-select">
-                                <option value="">Select</option>
-                                <option value="Gauteng">Gauteng</option>
-                                <option value="Western Cape">Western Cape</option>
-                                <option value="KwaZulu-Natal">KwaZulu-Natal</option>
-                                <option value="Eastern Cape">Eastern Cape</option>
-                                <option value="Free State">Free State</option>
-                                <option value="Limpopo">Limpopo</option>
-                                <option value="Mpumalanga">Mpumalanga</option>
-                                <option value="North West">North West</option>
-                                <option value="Northern Cape">Northern Cape</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="input-label">City</label>
-                            <input name="City" class="form-control" placeholder="e.g. Johannesburg" />
-                        </div>
+                      
                     </div>
                 </div>
                 <div class="modal-footer border-0 pb-4">
@@ -658,7 +640,7 @@
     </div>
 </div>
 
-@* ── LIGHTBOX OVERLAY (copied from ManagePortfolio) ── *@
+@* ── LIGHTBOX OVERLAY ── *@
 <div id="lightbox" class="lightbox-overlay" onclick="closeLightbox(event)">
     <div class="lightbox-container">
         <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
@@ -737,7 +719,8 @@
         });
 
         // ── Open Add Portfolio Item Modal ──
-        function openAddPortfolioItem(categoryId, portfolioId) {
+        function openAddPortfolioItem(userServiceId, portfolioId, categoryId) {
+            document.getElementById('addPortfolio_UserServiceId').value = userServiceId;
             document.getElementById('addPortfolio_CategoryId').value = categoryId;
             document.getElementById('addPortfolio_PortfolioId').value = portfolioId;
             var modal = new bootstrap.Modal(document.getElementById('addPortfolioItemModal'));
@@ -783,7 +766,7 @@
             });
         }
 
-        // ── LIGHTBOX LOGIC (copied from ManagePortfolio) ──
+        // ── LIGHTBOX LOGIC ──
         let mediaItems = [];
         let currentIndex = 0;
         let isZoomed = false;
