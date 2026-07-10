@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
+using System.Net.Mail;
 using System.Security.Claims;
 using static BeautyArtists.Models.Booking;
 
@@ -854,5 +856,177 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             ViewBag.Stats = stats;
             return View(reviews);
         }
+        // ─── GET: Artist/Support ───
+        [HttpGet]
+        public IActionResult Support()
+        {
+            return View();
+        }
+
+        // ─── POST: Artist/SubmitSupportReport ───
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SubmitSupportReport(string category, string description, string email, List<IFormFile> attachments)
+        {
+            try
+            {
+                // ── Validate required fields ──
+                if (string.IsNullOrWhiteSpace(category))
+                {
+                    TempData["Error"] = "Please select a category.";
+                    return RedirectToAction(nameof(Support));
+                }
+
+                if (string.IsNullOrWhiteSpace(description))
+                {
+                    TempData["Error"] = "Please describe the issue.";
+                    return RedirectToAction(nameof(Support));
+                }
+
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    TempData["Error"] = "Email address is required. Please enter your email so we can follow up.";
+                    return RedirectToAction(nameof(Support));
+                }
+
+                if (!IsValidEmail(email))
+                {
+                    TempData["Error"] = "Please enter a valid email address.";
+                    return RedirectToAction(nameof(Support));
+                }
+
+                // ── Save to database (reuse SupportReport model) ──
+                var report = new SupportReport
+                {
+                    Category = category,
+                    Description = description,
+                    Email = email,
+                    SubmittedAt = DateTime.UtcNow.AddHours(2)
+                };
+                _context.SupportReports.Add(report);
+                await _context.SaveChangesAsync();
+
+                // ── Handle file uploads ──
+                var uploadedFilePaths = new List<string>();
+                var uploadedFileUrls = new List<string>();
+
+                if (attachments != null && attachments.Any())
+                {
+                    long totalSize = attachments.Sum(f => f.Length);
+                    if (totalSize > 10_000_000) // 10MB limit
+                    {
+                        TempData["Error"] = "Total file size exceeds 10MB. Please reduce the size and try again.";
+                        return RedirectToAction(nameof(Support));
+                    }
+
+                    var uploadDir = Path.Combine(_env.WebRootPath, "uploads", "support");
+                    if (!Directory.Exists(uploadDir))
+                        Directory.CreateDirectory(uploadDir);
+
+                    foreach (var file in attachments)
+                    {
+                        if (file.Length == 0) continue;
+                        var fileName = $"{Guid.NewGuid():N}_{file.FileName}";
+                        var filePath = Path.Combine(uploadDir, fileName);
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+                        uploadedFilePaths.Add(filePath);
+                        uploadedFileUrls.Add($"/uploads/support/{fileName}");
+                    }
+                }
+
+                // ── Send email to stakeholders ──
+                string subject = $"New Artist Support Report: {category}";
+                string body = $@"
+            <h2>New Artist Support Report</h2>
+            <p><strong>Category:</strong> {category}</p>
+            <p><strong>Artist Email:</strong> {email}</p>
+            <p><strong>Description:</strong></p>
+            <p>{description}</p>
+            <p><strong>Submitted at:</strong> {DateTime.UtcNow.AddHours(2):yyyy-MM-dd HH:mm:ss}</p>
+            {(uploadedFileUrls.Any() ? $"<p><strong>Attachments:</strong> {string.Join(", ", uploadedFileUrls)}</p>" : "")}
+            <hr />
+            <p style='color:#888;'>This report was submitted via the RubiOr artist support page.</p>
+        ";
+
+                string[] stakeholderEmails = new string[]
+                {
+            "ignatiuslerefolo07101999@gmail.com",
+            "neo305mofokeng@gmail.com"
+                };
+
+                await SendEmailToMultipleAsync(stakeholderEmails, subject, body, uploadedFilePaths);
+
+                TempData["Success"] = "Thank you! Your report has been submitted. We'll review it within 24 hours.";
+                return RedirectToAction(nameof(Support));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SubmitSupportReport Error: {ex.Message}\n{ex.StackTrace}");
+                TempData["Error"] = "There was an issue submitting your report. Please try again or contact us directly.";
+                return RedirectToAction(nameof(Support));
+            }
+        }
+
+        // ─── Helper: Validate email ───
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // ─── Helper: Send email with attachments (copy from HomeController or use shared service) ───
+        private async Task SendEmailToMultipleAsync(string[] toEmails, string subject, string body, List<string> attachmentPaths = null)
+        {
+            var smtpClient = new SmtpClient
+            {
+                Host = _configuration["SmtpSettings:Host"],
+                Port = int.Parse(_configuration["SmtpSettings:Port"]),
+                Credentials = new NetworkCredential(
+                    _configuration["SmtpSettings:Username"],
+                    _configuration["SmtpSettings:Password"]
+                ),
+                EnableSsl = true,
+                UseDefaultCredentials = false
+            };
+
+            using (var mailMessage = new MailMessage
+            {
+                From = new MailAddress(_configuration["SmtpSettings:FromAddress"], "RubiOr Support"),
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = true
+            })
+            {
+                foreach (var email in toEmails)
+                {
+                    mailMessage.To.Add(email);
+                }
+
+                if (attachmentPaths != null && attachmentPaths.Any())
+                {
+                    foreach (var path in attachmentPaths)
+                    {
+                        if (System.IO.File.Exists(path))
+                        {
+                            var attachment = new Attachment(path);
+                            mailMessage.Attachments.Add(attachment);
+                        }
+                    }
+                }
+
+                await smtpClient.SendMailAsync(mailMessage);
+            }
+        }
     }
+
 }

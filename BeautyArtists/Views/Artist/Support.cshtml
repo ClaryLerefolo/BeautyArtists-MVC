@@ -1,0 +1,240 @@
+﻿@{
+    ViewData["Title"] = "Artist Support";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+}
+
+<section class="py-5 bg-black" style="min-height:100vh;">
+    <div class="container">
+
+        @* ── PAGE HEADER ── *@
+        <div class="text-center mb-5">
+            <h1 class="text-gold fw-bold" style="font-size:2.8rem;letter-spacing:2px;">Artist Support Center</h1>
+            <p class="text-white-50" style="font-size:1.1rem;">We're here to help — find answers or report an issue</p>
+            <div style="width:80px;height:3px;background:linear-gradient(90deg,#b30000,#FFD700);margin:12px auto;"></div>
+        </div>
+
+        @if (TempData["Success"] != null)
+        {
+            <div class="alert alert-success text-center mx-auto" style="max-width:800px;background:rgba(0,255,0,0.1);border:1px solid #00ff00;color:#00ff00;border-radius:12px;padding:16px;">
+                @TempData["Success"]
+            </div>
+        }
+        @if (TempData["Error"] != null)
+        {
+            <div class="alert alert-danger text-center mx-auto" style="max-width:800px;background:rgba(255,0,0,0.1);border:1px solid #ff0000;color:#ff6666;border-radius:12px;padding:16px;">
+                @TempData["Error"]
+            </div>
+        }
+
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+
+                @* ─── ACCORDION 1: ABOUT (using <details>) ─── *@
+                <details style="background:#0b0b0b;border:1px solid rgba(255,215,0,0.15);border-radius:16px;margin-bottom:20px;padding:0;">
+                    <summary style="list-style:none;cursor:pointer;padding:20px 24px;color:#FFD700;font-size:1.3rem;font-weight:700;display:flex;align-items:center;justify-content:space-between;border-radius:16px;transition:background 0.2s;">
+                        <span>
+                            <i class="bi bi-info-circle me-3" style="font-size:1.5rem;"></i> About Artist Support
+                        </span>
+                        <span style="font-size:0.8rem;color:rgba(255,215,0,0.4);">
+                            <i class="bi bi-chevron-down"></i>
+                        </span>
+                    </summary>
+                    <div style="padding:0 24px 24px 24px;color:rgba(255,255,255,0.7);">
+                        <p style="line-height:1.8;font-size:0.95rem;">
+                            <strong class="text-gold">RubiOr Artist Support</strong> is dedicated to helping you succeed on our platform.
+                            Whether you need help with your profile, services, bookings, payments, or technical issues,
+                            we're here to assist you every step of the way.
+                        </p>
+                        <p style="line-height:1.8;font-size:0.9rem;margin-top:16px;">
+                            We understand that your time is valuable, so we've streamlined our support process.
+                            Use the form below to report any issues, and our team will get back to you promptly.
+                        </p>
+                    </div>
+                </details>
+
+                @* ─── ACCORDION 2: REPORT A PROBLEM ─── *@
+                <details style="background:#0b0b0b;border:1px solid rgba(255,215,0,0.15);border-radius:16px;padding:0;">
+                    <summary style="list-style:none;cursor:pointer;padding:20px 24px;color:#FFD700;font-size:1.3rem;font-weight:700;display:flex;align-items:center;justify-content:space-between;border-radius:16px;transition:background 0.2s;">
+                        <span>
+                            <i class="bi bi-flag me-3" style="font-size:1.5rem;"></i> Issues
+                        </span>
+                        <span style="font-size:0.8rem;color:rgba(255,215,0,0.4);">
+                            <i class="bi bi-chevron-down"></i>
+                        </span>
+                    </summary>
+                    <div style="padding:0 24px 24px 24px;">
+
+                        <p style="color:rgba(255,255,255,0.4);font-size:0.85rem;margin-bottom:20px;">
+                            Found something that isn't working right? Let us know so we can fix it quickly.
+                        </p>
+
+                        <form method="post" asp-controller="Artist" asp-action="SubmitSupportReport" enctype="multipart/form-data">
+                            @Html.AntiForgeryToken()
+
+                            @* ── PROBLEM CATEGORY DROPDOWN ── *@
+                            <div class="mb-3">
+                                <label class="form-label" style="color:#FFD700;font-weight:600;font-size:0.85rem;">
+                                    <i class="bi bi-tag me-1"></i> Issue Category <span class="text-danger">*</span>
+                                </label>
+                                <select name="category" class="form-select" required style="background:#1a1a1a;border:1.5px solid rgba(255,215,0,0.2);color:#fff;border-radius:10px;padding:12px 16px;">
+                                    <option value="">-- Select a category --</option>
+                                    <option value="Payment">Payment & Payout Issues</option>
+                                    <option value="Booking">Booking Problems</option>
+                                    <option value="Technical">Technical / App Issue</option>
+                                    <option value="Account">Account & Profile</option>
+                                    <option value="Client">Client Communication</option>
+                                    <option value="Service">Service Management</option>
+                                    <option value="Portfolio">Portfolio Issues</option>
+                                    <option value="Refund">Refund Request</option>
+                                    <option value="Security">Security Concern</option>
+                                    <option value="Suggestion">Suggestion / Feature Request</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <span style="color:rgba(255,255,255,0.2);font-size:0.7rem;display:block;margin-top:4px;">
+                                    Choose the category that best describes your issue
+                                </span>
+                            </div>
+
+                            @* ── PROBLEM DESCRIPTION ── *@
+                            <div class="mb-3">
+                                <label class="form-label" style="color:#FFD700;font-weight:600;font-size:0.85rem;">
+                                    <i class="bi bi-chat-left-text me-1"></i> Describe the Issue <span class="text-danger">*</span>
+                                </label>
+                                <textarea name="description" class="form-control" rows="5" required
+                                          style="background:#1a1a1a;border:1.5px solid rgba(255,215,0,0.2);color:#fff;border-radius:10px;padding:12px 16px;resize:vertical;"
+                                          placeholder="Tell us what happened, when it happened, and any steps to reproduce the issue..."></textarea>
+                                <span style="color:rgba(255,255,255,0.2);font-size:0.7rem;display:block;margin-top:4px;">
+                                    Be as specific as possible — this helps us resolve your issue faster
+                                </span>
+                            </div>
+
+                            @* ── FILE ATTACHMENTS (optional) ── *@
+                            <div class="mb-3">
+                                <label class="form-label" style="color:#FFD700;font-weight:600;font-size:0.85rem;">
+                                    <i class="bi bi-paperclip me-1"></i> Attach Screenshots (optional)
+                                </label>
+                                <input type="file" name="attachments" class="form-control" multiple
+                                       accept="image/*,.pdf,.doc,.docx"
+                                       style="background:#1a1a1a;border:1.5px solid rgba(255,215,0,0.2);color:#fff;border-radius:10px;padding:12px 16px;"
+                                       onchange="updateFileCount(this)" />
+                                <div id="fileCount" style="color:rgba(255,255,255,0.3);font-size:0.75rem;margin-top:4px;">
+                                    No files selected
+                                </div>
+                                <span style="color:rgba(255,255,255,0.2);font-size:0.7rem;display:block;margin-top:4px;">
+                                    Attach images or documents to help explain your issue (max 10MB total)
+                                </span>
+                            </div>
+
+                            @* ── CONTACT EMAIL (mandatory) ── *@
+                            <div class="mb-3">
+                                <label class="form-label" style="color:#FFD700;font-weight:600;font-size:0.85rem;">
+                                    <i class="bi bi-envelope me-1"></i> Your Email <span class="text-danger">*</span>
+                                </label>
+                                <input type="email" name="email" class="form-control"
+                                       style="background:#1a1a1a;border:1.5px solid rgba(255,215,0,0.2);color:#fff;border-radius:10px;padding:12px 16px;"
+                                       placeholder="enter your email address so we can follow up"
+                                       required
+                                       data-val="true"
+                                       data-val-required="Please enter your email address"
+                                       data-val-email="Please enter a valid email address" />
+                                <span style="color:rgba(255,255,255,0.2);font-size:0.7rem;display:block;margin-top:4px;">
+                                    We need your email to respond to your issue
+                                </span>
+                            </div>
+
+                            @* ── SUBMIT BUTTON ── *@
+                            <button type="submit" class="btn w-100 py-3" style="background:linear-gradient(135deg,#b30000,#FFD700);color:#000;font-weight:800;border:none;border-radius:12px;font-size:1rem;letter-spacing:1px;transition:all 0.3s;">
+                                <i class="bi bi-send me-2"></i> Submit Report
+                            </button>
+
+                            <p style="color:rgba(255,255,255,0.15);font-size:0.7rem;text-align:center;margin-top:12px;">
+                                All reports are confidential and reviewed by our team
+                            </p>
+                        </form>
+                    </div>
+                </details>
+
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<style>
+    .bg-black {
+        background-color: #000 !important;
+    }
+
+    .text-gold {
+        color: #FFD700 !important;
+    }
+
+    /* ── <details> accordion styling ── */
+    details summary::-webkit-details-marker {
+        display: none;
+    }
+
+    details summary {
+        list-style: none;
+    }
+
+        details summary:hover {
+            background: rgba(255,215,0,0.05);
+        }
+
+    details[open] summary {
+        border-bottom: 1px solid rgba(255,215,0,0.1);
+        border-radius: 16px 16px 0 0;
+    }
+
+    details[open] .bi-chevron-down {
+        transform: rotate(180deg);
+        transition: transform 0.3s;
+    }
+
+    .bi-chevron-down {
+        transition: transform 0.3s;
+        display: inline-block;
+    }
+
+    .form-control:focus {
+        border-color: #FFD700 !important;
+        box-shadow: 0 0 15px rgba(255,215,0,0.15) !important;
+        background-color: #1a1a1a !important;
+        color: #fff !important;
+    }
+
+    select option {
+        background: #1a1a1a;
+        color: #fff;
+    }
+
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(255,215,0,0.25);
+    }
+
+    @@media (max-width: 768px) {
+        h1.text-gold {
+            font-size: 2rem !important;
+        }
+
+        details summary {
+            font-size: 1rem !important;
+            padding: 16px 18px !important;
+        }
+
+        details > div {
+            padding: 0 16px 16px 16px !important;
+        }
+    }
+</style>
+
+<script>
+    function updateFileCount(input) {
+        const count = input.files.length;
+        document.getElementById('fileCount').textContent = count > 0
+            ? `${count} file${count > 1 ? 's' : ''} selected`
+            : 'No files selected';
+    }
+</script>
