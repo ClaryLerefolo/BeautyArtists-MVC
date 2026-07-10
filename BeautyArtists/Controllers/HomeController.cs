@@ -98,25 +98,50 @@ namespace BeautyArtists.Controllers
         {
             try
             {
-                // ?? 1. Save to database ??
+                // ?? Validate required fields ??
+                if (string.IsNullOrWhiteSpace(category))
+                {
+                    TempData["Error"] = "Please select a category.";
+                    return RedirectToAction(nameof(Support));
+                }
+
+                if (string.IsNullOrWhiteSpace(description))
+                {
+                    TempData["Error"] = "Please describe the issue.";
+                    return RedirectToAction(nameof(Support));
+                }
+
+                if (string.IsNullOrWhiteSpace(email))
+                {
+                    TempData["Error"] = "Email address is required. Please enter your email so we can follow up.";
+                    return RedirectToAction(nameof(Support));
+                }
+
+                if (!IsValidEmail(email))
+                {
+                    TempData["Error"] = "Please enter a valid email address.";
+                    return RedirectToAction(nameof(Support));
+                }
+
+                // ?? Save to database ??
                 var report = new SupportReport
                 {
                     Category = category,
                     Description = description,
-                    Email = email ?? "Not provided",
-                    SubmittedAt = DateTime.UtcNow.AddHours(2) // SAST
+                    Email = email, // now guaranteed not null
+                    SubmittedAt = DateTime.UtcNow.AddHours(2)
                 };
                 _context.SupportReports.Add(report);
                 await _context.SaveChangesAsync();
 
-                // ?? 2. Handle file uploads ??
-                var uploadedFilePaths = new List<string>(); // physical paths for attachments
-                var uploadedFileUrls = new List<string>();   // for display in email body
+                // ?? Handle file uploads ??
+                var uploadedFilePaths = new List<string>();
+                var uploadedFileUrls = new List<string>();
 
                 if (attachments != null && attachments.Any())
                 {
                     long totalSize = attachments.Sum(f => f.Length);
-                    if (totalSize > 10_000_000) // 10MB limit
+                    if (totalSize > 10_000_000)
                     {
                         TempData["Error"] = "Total file size exceeds 10MB. Please reduce the size and try again.";
                         return RedirectToAction(nameof(Support));
@@ -140,12 +165,12 @@ namespace BeautyArtists.Controllers
                     }
                 }
 
-                // ?? 3. Send email to BOTH stakeholders with attachments ??
+                // ?? Send email ??
                 string subject = $"New Support Report: {category}";
                 string body = $@"
             <h2>New Support Report</h2>
             <p><strong>Category:</strong> {category}</p>
-            <p><strong>User Email:</strong> {email ?? "Not provided"}</p>
+            <p><strong>User Email:</strong> {email}</p>
             <p><strong>Description:</strong></p>
             <p>{description}</p>
             <p><strong>Submitted at:</strong> {DateTime.UtcNow.AddHours(2):yyyy-MM-dd HH:mm:ss}</p>
@@ -160,7 +185,6 @@ namespace BeautyArtists.Controllers
             "neo305mofokeng@gmail.com"
                 };
 
-                // Pass the file paths, NOT the IFormFile list
                 await SendEmailToMultipleAsync(stakeholderEmails, subject, body, uploadedFilePaths);
 
                 TempData["Success"] = "Thank you! Your report has been submitted. We'll review it within 24 hours.";
@@ -171,6 +195,18 @@ namespace BeautyArtists.Controllers
                 Console.WriteLine($"SubmitReport Error: {ex.Message}\n{ex.StackTrace}");
                 TempData["Error"] = "There was an issue submitting your report. Please try again or contact us directly.";
                 return RedirectToAction(nameof(Support));
+            }
+        }
+        private bool IsValidEmail(string email)
+        {
+            try
+            {
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
+            }
+            catch
+            {
+                return false;
             }
         }
         private async Task SendEmailToMultipleAsync(string[] toEmails, string subject, string body, List<string> attachmentPaths = null)
