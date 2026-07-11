@@ -102,24 +102,39 @@
                             <div class="cat-action-group">
                                 @if (User.Identity!.IsAuthenticated)
                                 {
-                                    <div style="display: flex; gap: 8px; width: 100%;">
+                                    <div class="cat-buttons-flex">
                                         <a asp-controller="Booking"
                                            asp-action="BookService"
                                            asp-route-userServiceId="@service.UserServiceId"
-                                           class="cat-booknow-btn" style="flex: 1; text-align: center;">
+                                           class="cat-booknow-btn">
                                             <span>Book Now</span>
                                         </a>
-  
+                                        <a asp-controller="Portfolio"
+                                           asp-action="ArtistServicePortfolio"
+                                           asp-route-artistId="@service.ArtistId"
+                                           asp-route-serviceId="@service.UserServiceId"
+                                           class="cat-viewservice-btn">
+                                            View Service
+                                        </a>
                                     </div>
                                 }
                                 else
                                 {
-                                    <a asp-area="Identity"
-                                       asp-page="/Account/Login"
-                                       asp-route-returnUrl="@Url.Action("BookService", "Booking", new { userServiceId = service.UserServiceId })"
-                                       class="cat-booknow-btn">
-                                        <span>Book Now</span>
-                                    </a>
+                                    <div class="cat-buttons-flex">
+                                        <a asp-area="Identity"
+                                           asp-page="/Account/Login"
+                                           asp-route-returnUrl="@Url.Action("BookService", "Booking", new { userServiceId = service.UserServiceId })"
+                                           class="cat-booknow-btn">
+                                            <span>Book Now</span>
+                                        </a>
+                                        <a asp-controller="Portfolio"
+                                           asp-action="ArtistServicePortfolio"
+                                           asp-route-artistId="@service.ArtistId"
+                                           asp-route-serviceId="@service.UserServiceId"
+                                           class="cat-viewservice-btn">
+                                            View Service
+                                        </a>
+                                    </div>
                                 }
                             </div>
 
@@ -141,6 +156,14 @@
 </div>
 
 <style>
+    /* STACKED BUTTON WRAPPER */
+    .cat-buttons-flex {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+    }
+
     .cat-chat-btn {
         display: inline-flex;
         align-items: center;
@@ -164,6 +187,7 @@
             border-color: #FFD700;
             transform: translateY(-2px);
         }
+
     .cat-page {
         background: #000;
         min-height: 100vh;
@@ -451,7 +475,7 @@
         -webkit-overflow: hidden;
     }
 
-    /* ── SINGLE ACTION BUTTON STYLING ── */
+    /* ── ACTION STYLING WITH BOTH BUTTONS ── */
     .cat-action-group {
         display: flex;
         width: 100%;
@@ -460,7 +484,7 @@
 
     .cat-booknow-btn {
         width: 100%;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
         padding: 12px 10px;
@@ -469,19 +493,46 @@
         letter-spacing: 1px;
         text-transform: uppercase;
         text-decoration: none;
-        border-radius: 8px;
+        border-radius: 20px;
         transition: all 0.25s ease;
         text-align: center;
-        background: transparent;
-        border: 1px solid #FFD700;
-        color: #FFD700;
+        background: linear-gradient(180deg, #FFD700 0%, #FF8C00 100%);
+        border: none;
+        color: #000;
     }
 
         .cat-booknow-btn:hover {
-            background: #FFD700;
-            color: #000;
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+            background: linear-gradient(180deg, #FFE44D 0%, #FFA500 100%);
+            box-shadow: 0 0 20px rgba(255, 140, 0, 0.4);
             transform: translateY(-2px);
+            color: #000;
+        }
+
+    .cat-viewservice-btn {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 10px;
+        font-weight: 800;
+        font-size: 0.85rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        text-decoration: none;
+        border-radius: 20px;
+        transition: all 0.25s ease;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 215, 0, 0.4);
+        color: #FFD700;
+    }
+
+        .cat-viewservice-btn:hover {
+            background: rgba(255, 215, 0, 0.15);
+            border-color: #FFD700;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+            transform: translateY(-2px);
+            color: #FFD700;
         }
 
     /* ── EMPTY ── */
@@ -496,37 +547,4 @@
         color: rgba(255,215,0,0.15);
         margin-bottom: 16px;
     }
-    /* ── SINGLE ACTION BUTTON STYLING (MATCHED GRADIENT) ── */
-    .cat-action-group {
-        display: flex;
-        width: 100%;
-        margin-top: auto;
-    }
-
-    .cat-booknow-btn {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 12px 10px;
-        font-weight: 800;
-        font-size: 0.85rem;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        text-decoration: none;
-        border-radius: 20px; /* Rounded pill style matching the screenshot */
-        transition: all 0.25s ease;
-        text-align: center;
-        /* Exact color match: Rich gold to vibrant orange gradient */
-        background: linear-gradient(180deg, #FFD700 0%, #FF8C00 100%);
-        border: none;
-        color: #000; /* Dark text for crisp contrast on the bright background */
-    }
-
-        .cat-booknow-btn:hover {
-            background: linear-gradient(180deg, #FFE44D 0%, #FFA500 100%);
-            box-shadow: 0 0 20px rgba(255, 140, 0, 0.4);
-            transform: translateY(-2px);
-            color: #000;
-        }
 </style>
