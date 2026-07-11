@@ -41,12 +41,19 @@
             padding: 12px 0;
         }
 
+            .navbar .container {
+                max-width: 100%;
+                padding-left: 16px;
+                padding-right: 16px;
+            }
+
         /* ── BRAND ── */
         .navbar-brand {
             display: flex;
             align-items: center;
             gap: 12px;
             text-decoration: none;
+            flex-shrink: 0;
         }
 
         .brand-logo-wrap {
@@ -100,7 +107,47 @@
             margin-top: 2px;
         }
 
-        /* ── NAV LINKS ── */
+        /* ── SCROLLABLE NAV LINKS WRAPPER ── */
+        .navbar-nav-wrapper {
+            display: flex;
+            align-items: center;
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+            margin: 0 12px;
+            padding-bottom: 6px;
+            justify-content: flex-start;
+            position: relative;
+            /* Gradient fade on right edge to indicate more content */
+            mask-image: linear-gradient(to right, black 90%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to right, black 90%, transparent 100%);
+        }
+
+            .navbar-nav-wrapper::-webkit-scrollbar {
+                height: 4px;
+            }
+
+            .navbar-nav-wrapper::-webkit-scrollbar-thumb {
+                background: #C9A84C;
+                border-radius: 4px;
+            }
+
+            .navbar-nav-wrapper::-webkit-scrollbar-track {
+                background: rgba(201,168,76,0.1);
+            }
+
+        .navbar-nav {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 0 8px;
+            margin: 0;
+            padding: 0;
+            list-style: none;
+            align-items: center;
+        }
+
         .nav-link {
             color: rgba(201,168,76,0.8) !important;
             text-transform: uppercase;
@@ -110,6 +157,7 @@
             padding: 6px 14px !important;
             transition: color 0.2s;
             position: relative;
+            white-space: nowrap;
         }
 
             .nav-link::after {
@@ -132,31 +180,6 @@
                     transform: scaleX(1);
                 }
 
-        /* ── DROPDOWN ── */
-        .dropdown-menu {
-            background: #0a0a0a !important;
-            border: 1px solid rgba(201,168,76,0.2) !important;
-            border-radius: 10px;
-            padding: 8px;
-            margin-top: 8px !important;
-        }
-
-        .dropdown-item {
-            color: #fff !important;
-            font-size: 0.78rem;
-            font-weight: 600;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            padding: 9px 16px;
-            border-radius: 6px;
-            transition: all 0.2s;
-        }
-
-            .dropdown-item:hover {
-                background: rgba(201,168,76,0.1) !important;
-                color: #C9A84C !important;
-            }
-
         /* ── AUTH BUTTONS ── */
         .nav-auth-link {
             color: rgba(255,255,255,0.7) !important;
@@ -167,6 +190,7 @@
             padding: 6px 14px !important;
             text-decoration: none;
             transition: color 0.2s;
+            white-space: nowrap;
         }
 
             .nav-auth-link:hover {
@@ -185,6 +209,7 @@
             text-decoration: none;
             transition: all 0.3s;
             box-shadow: 0 0 12px rgba(139,0,0,0.3);
+            white-space: nowrap;
         }
 
             .nav-auth-highlight:hover {
@@ -192,6 +217,76 @@
                 color: #000 !important;
                 box-shadow: 0 0 20px rgba(201,168,76,0.4);
             }
+
+        /* ── HAMBURGER TOGGLER ── */
+        .navbar-toggler {
+            border-color: rgba(201,168,76,0.3) !important;
+            padding: 8px 12px !important;
+            border-radius: 8px !important;
+            margin-left: 12px;
+            flex-shrink: 0;
+        }
+
+            .navbar-toggler:hover {
+                background: rgba(201,168,76,0.08);
+            }
+
+        .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(201,168,76,0.8)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+            width: 28px !important;
+            height: 28px !important;
+        }
+
+        /* ── RESPONSIVE ── */
+        @@media (max-width: 768px) {
+            .navbar-nav-wrapper {
+                overflow-x: visible;
+                margin: 0;
+                padding-bottom: 0;
+                flex: none;
+                width: 100%;
+                justify-content: flex-start !important;
+                mask-image: none !important; /* remove gradient on mobile */
+                -webkit-mask-image: none !important;
+            }
+
+            .navbar-nav {
+                flex-wrap: wrap;
+                gap: 0 6px;
+                justify-content: flex-start !important;
+                margin-left: 0 !important;
+                padding-left: 4px;
+            }
+
+            .navbar-collapse {
+                background: #000;
+                padding: 12px 0;
+                border-top: 1px solid rgba(201,168,76,0.1);
+                margin-top: 8px;
+            }
+
+            .nav-link {
+                padding: 4px 10px !important;
+                font-size: 0.7rem;
+            }
+
+            .nav-auth-link,
+            .nav-auth-highlight {
+                font-size: 0.7rem;
+                padding: 6px 12px !important;
+            }
+
+            .auth-wrapper {
+                margin-left: 0 !important;
+                justify-content: flex-start !important;
+                flex-wrap: wrap;
+                gap: 4px 8px;
+                padding: 8px 0 0 4px;
+                border-top: 1px solid rgba(201,168,76,0.08);
+                margin-top: 4px;
+                width: 100%;
+            }
+        }
 
         /* ── TOAST ── */
         #toastContainer {
@@ -290,36 +385,31 @@
                     </div>
                 </a>
 
+                @* ── TOGGLER ── *@
                 <button class="navbar-toggler" type="button"
-                        data-bs-toggle="collapse" data-bs-target="#navMenu">
+                        data-bs-toggle="collapse" data-bs-target="#navMenu"
+                        aria-controls="navMenu" aria-expanded="false">
                     <span class="navbar-toggler-icon"></span>
                 </button>
 
+                @* ── COLLAPSIBLE CONTENT ── *@
                 <div class="collapse navbar-collapse" id="navMenu">
-                    <ul class="navbar-nav ms-auto align-items-center gap-1">
 
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="Home" asp-action="Support">Support</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="Home" asp-action="AllServices">Services</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="Home" asp-action="BrowseArtists">Artists</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="Home" asp-action="Categories">Explore</a>
-                        </li>
+                    @* ── SCROLLABLE NAV LINKS ── *@
+                    <div class="navbar-nav-wrapper">
+                        <ul class="navbar-nav align-items-center gap-1">
+                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Home</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Categories">Explore</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="BrowseArtists">Artists</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="AllServices">Services</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Booking" asp-action="MyBookings">Appointments</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Support">Support</a></li>
+                            <!-- Add more tabs here as needed -->
+                        </ul>
+                    </div>
 
-                      
-
-                    </ul>
-
-                    @* ── AUTH ── *@
-                    <div class="ms-3 d-flex align-items-center gap-2">
+                    @* ── AUTH BUTTONS ── *@
+                    <div class="d-flex align-items-center gap-2 ms-auto flex-shrink-0 auth-wrapper">
                         @if (SignInManager.IsSignedIn(User))
                         {
                             <span class="nav-auth-link" style="color:rgba(201,168,76,0.55)!important;font-size:0.75rem;">
