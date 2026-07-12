@@ -53,6 +53,8 @@ namespace BeautyArtists.Models
         public bool IsFullyPaid => TotalPaid >= TotalAmount;
         public DateTime? DepositPaidDate { get; set; }
         public DateTime? FinalPaidDate { get; set; }
+        public bool IsLocationShared { get; set; } = false;
+
 
         // Enum to represent different booking statuses
         public BookingStatus Status { get; set; }

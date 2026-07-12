@@ -190,7 +190,9 @@ namespace BeautyArtists.Controllers
                     ArtistProfilePicture = r.Booking?.UserService?.Artist?.ArtistProfile?.ProfilePictureUrl
                         ?? "/images/default-profile.png",
                     AppointmentDate = r.Booking?.AppointmentDate.ToString("dddd, dd MMM yyyy")
-                        ?? DateTime.Now.ToString("dddd, dd MMM yyyy")
+                        ?? DateTime.Now.ToString("dddd, dd MMM yyyy"),
+                        ArtistId = r.Booking?.UserService?.ArtistId
+
                 }).ToList()
             };
 

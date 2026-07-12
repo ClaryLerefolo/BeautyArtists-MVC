@@ -25,10 +25,16 @@ namespace BeautyArtists.Controllers
         private readonly ICommunicationService _commService;
         private readonly INotificationService _notificationService;
         private readonly IPaystackService _paystackService;
-        private readonly IConfiguration _configuration;       
+        private readonly IConfiguration _configuration;
 
-
-        public ArtistController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment env, ICommunicationService communicationService, INotificationService notificationService, IPaystackService paystackService, IConfiguration configuration)
+        public ArtistController(
+            ApplicationDbContext context,
+            UserManager<ApplicationUser> userManager,
+            IWebHostEnvironment env,
+            ICommunicationService communicationService,
+            INotificationService notificationService,
+            IPaystackService paystackService,
+            IConfiguration configuration)
         {
             _context = context;
             _userManager = userManager;
@@ -49,56 +55,45 @@ namespace BeautyArtists.Controllers
 
             var artistId = user.Id;
 
-            // ─── SAFE NAME HANDLING ───
             var artistName = user.FullName;
             if (string.IsNullOrWhiteSpace(artistName))
             {
                 artistName = $"{user.FirstName ?? ""} {user.LastName ?? ""}".Trim();
                 if (string.IsNullOrWhiteSpace(artistName))
-                {
                     artistName = user.Email ?? "Artist";
-                }
             }
 
-            // ─── DATABASE QUERIES WITH ERROR HANDLING ───
-            var portfolioCount = await _context.PortfolioItems
-                .CountAsync(p => p.ArtistId == artistId);
-
-            var servicesCount = await _context.UserServices
-                .CountAsync(us => us.ArtistId == artistId);
-
+            var portfolioCount = await _context.PortfolioItems.CountAsync(p => p.ArtistId == artistId);
+            var servicesCount = await _context.UserServices.CountAsync(us => us.ArtistId == artistId);
             var upcomingAppointmentsCount = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId
-                    && b.AppointmentDate > DateTime.Now
-                    && b.Status == Booking.BookingStatus.Confirmed)
+                            && b.AppointmentDate > DateTime.Now
+                            && b.Status == BookingStatus.Confirmed)
                 .CountAsync();
 
             var monthlyEarnings = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId
-                    && b.AppointmentDate.Month == DateTime.Now.Month
-                    && b.AppointmentDate.Year == DateTime.Now.Year
-                    && b.Status == Booking.BookingStatus.Confirmed)
+                            && b.AppointmentDate.Month == DateTime.Now.Month
+                            && b.AppointmentDate.Year == DateTime.Now.Year
+                            && b.Status == BookingStatus.Confirmed)
                 .SumAsync(b => (decimal?)b.UserService.Price) ?? 0;
 
-            // ─── CHART DATA ───
             var chartData = new List<decimal>();
             var chartLabels = new List<string>();
-
             for (int i = 5; i >= 0; i--)
             {
                 var monthDate = DateTime.Now.AddMonths(-i);
                 var monthSum = await _context.Bookings
                     .Where(b => b.UserService.ArtistId == artistId
-                           && b.Status == Booking.BookingStatus.Confirmed
-                           && b.AppointmentDate.Month == monthDate.Month
-                           && b.AppointmentDate.Year == monthDate.Year)
+                                && b.Status == BookingStatus.Confirmed
+                                && b.AppointmentDate.Month == monthDate.Month
+                                && b.AppointmentDate.Year == monthDate.Year)
                     .SumAsync(b => (decimal?)b.UserService.Price) ?? 0;
 
                 chartData.Add(monthSum);
                 chartLabels.Add(monthDate.ToString("MMM"));
             }
 
-            // ─── RECENT APPOINTMENTS WITH NULL CHECKS ───
             var recentAppointments = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId)
                 .OrderByDescending(b => b.AppointmentDate)
@@ -144,7 +139,6 @@ namespace BeautyArtists.Controllers
             ViewData["Title"] = "Profile";
 
             var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
-
             if (profile == null)
             {
                 profile = new ArtistProfile
@@ -159,71 +153,72 @@ namespace BeautyArtists.Controllers
                     InstagramUrl = "",
                     ProfilePictureUrl = "/images/default-profile.png"
                 };
-
                 _context.ArtistProfiles.Add(profile);
                 await _context.SaveChangesAsync();
             }
             return View(profile);
         }
 
-       [HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IFormFile? ProfilePicture)
-{
-    var user = await _userManager.GetUserAsync(User);
-    if (user == null) return Challenge();
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IFormFile? ProfilePicture)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Challenge();
 
-    var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
-    if (profile == null) return NotFound();
+            var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+            if (profile == null) return NotFound();
 
-    // 🔥 Only update allowed fields – keep UserId intact
-    profile.FullName = updatedProfile.FullName ?? profile.FullName;
-    profile.Bio = updatedProfile.Bio ?? profile.Bio;
-    profile.YearsExperience = updatedProfile.YearsExperience;
-    profile.Province = updatedProfile.Province ?? profile.Province;
-    profile.City = updatedProfile.City ?? profile.City;
-    profile.ContactInfo = updatedProfile.ContactInfo ?? profile.ContactInfo;
+            // Update basic fields
+            profile.FullName = updatedProfile.FullName ?? profile.FullName;
+            profile.Bio = updatedProfile.Bio ?? profile.Bio;
+            profile.YearsExperience = updatedProfile.YearsExperience;
+            profile.Province = updatedProfile.Province ?? profile.Province;
+            profile.City = updatedProfile.City ?? profile.City;
+            profile.ContactInfo = updatedProfile.ContactInfo ?? profile.ContactInfo;
             profile.InstagramUrl = updatedProfile.InstagramUrl ?? profile.InstagramUrl;
-                    profile.FacebookUrl = updatedProfile.FacebookUrl ?? profile.FacebookUrl;
+            profile.FacebookUrl = updatedProfile.FacebookUrl ?? profile.FacebookUrl;
             profile.TwitterUrl = updatedProfile.TwitterUrl ?? profile.TwitterUrl;
             profile.TikTokUrl = updatedProfile.TikTokUrl ?? profile.TikTokUrl;
 
+            // ── NEW: Studio address fields (for walk‑in) ──
+            profile.StudioAddress = updatedProfile.StudioAddress ?? profile.StudioAddress;
+            profile.StudioCity = updatedProfile.StudioCity ?? profile.StudioCity;
+            profile.StudioProvince = updatedProfile.StudioProvince ?? profile.StudioProvince;
+            profile.StudioPostalCode = updatedProfile.StudioPostalCode ?? profile.StudioPostalCode;
+            profile.StudioLatitude = updatedProfile.StudioLatitude ?? profile.StudioLatitude;
+            profile.StudioLongitude = updatedProfile.StudioLongitude ?? profile.StudioLongitude;
 
-            // Handle image upload
+            // Handle profile picture
             if (ProfilePicture != null && ProfilePicture.Length > 0)
-    {
-        // Ensure directory exists
-        var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");
-        if (!Directory.Exists(uploadsFolder))
-        {
-            Directory.CreateDirectory(uploadsFolder);
+            {
+                var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");
+                if (!Directory.Exists(uploadsFolder))
+                    Directory.CreateDirectory(uploadsFolder);
+
+                if (!string.IsNullOrEmpty(profile.ProfilePictureUrl) && !profile.ProfilePictureUrl.StartsWith("/images/"))
+                {
+                    var oldPath = Path.Combine(_env.WebRootPath, profile.ProfilePictureUrl.TrimStart('/'));
+                    if (System.IO.File.Exists(oldPath))
+                        System.IO.File.Delete(oldPath);
+                }
+
+                var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(ProfilePicture.FileName);
+                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await ProfilePicture.CopyToAsync(fileStream);
+                }
+                profile.ProfilePictureUrl = "/uploads/profile_pictures/" + uniqueFileName;
+            }
+
+            _context.Entry(profile).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Profile updated successfully!";
+            return RedirectToAction(nameof(Profile));
         }
 
-        // Delete old image if exists (optional)
-        if (!string.IsNullOrEmpty(profile.ProfilePictureUrl) && !profile.ProfilePictureUrl.StartsWith("/images/"))
-        {
-            var oldPath = Path.Combine(_env.WebRootPath, profile.ProfilePictureUrl.TrimStart('/'));
-            if (System.IO.File.Exists(oldPath))
-                System.IO.File.Delete(oldPath);
-        }
-
-        // Save new image
-        var uniqueFileName = Guid.NewGuid().ToString() + Path.GetExtension(ProfilePicture.FileName);
-        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-        using (var fileStream = new FileStream(filePath, FileMode.Create))
-        {
-            await ProfilePicture.CopyToAsync(fileStream);
-        }
-        profile.ProfilePictureUrl = "/uploads/profile_pictures/" + uniqueFileName;
-    }
-
-    // 🔥 Explicitly mark only modified properties to avoid overwriting UserId
-    _context.Entry(profile).State = EntityState.Modified;
-    await _context.SaveChangesAsync();
-
-    TempData["Success"] = "Profile updated successfully!";
-    return RedirectToAction(nameof(Profile));
-}
         [HttpPost]
         public async Task<IActionResult> UpdatePicture(IFormFile ProfilePicture)
         {
@@ -235,7 +230,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");
             if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
 
-            // Delete old image if not default
             if (!string.IsNullOrEmpty(profile.ProfilePictureUrl) && !profile.ProfilePictureUrl.StartsWith("/images/"))
             {
                 var oldPath = Path.Combine(_env.WebRootPath, profile.ProfilePictureUrl.TrimStart('/'));
@@ -255,6 +249,9 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             return RedirectToAction(nameof(Profile));
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // ARTIST SERVICE DETAIL
+        // ═══════════════════════════════════════════════════════════
         public async Task<IActionResult> ArtistServiceDetail(int id)
         {
             var userId = _userManager.GetUserId(User);
@@ -300,6 +297,7 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
             return View(vm);
         }
+
         // ═══════════════════════════════════════════════════════════
         // MANAGE SERVICES
         // ═══════════════════════════════════════════════════════════
@@ -323,7 +321,8 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 Text = s.Name
             }).ToList();
 
-            ViewBag.RawServices = available.Select(s => new {
+            ViewBag.RawServices = available.Select(s => new
+            {
                 id = s.Id,
                 name = s.Name,
                 serviceCategory = new { name = s.ServiceCategory?.Name ?? "General" },
@@ -332,7 +331,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 description = s.Description
             }).ToList();
 
-            // ── Fetch portfolio items grouped by UserServiceId ──
             var portfolioItems = await _context.PortfolioItems
                 .Where(p => p.ArtistId == userId)
                 .ToListAsync();
@@ -344,7 +342,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
             ViewBag.PortfolioItemsByService = portfolioItemsByService;
 
-            // ── Ensure default portfolio exists ──
             var defaultPortfolio = await _context.Portfolios
                 .FirstOrDefaultAsync(p => p.ArtistId == userId);
             if (defaultPortfolio == null)
@@ -383,7 +380,7 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             }
 
             model.ArtistId = userId;
-            model.IsActive = true;              // ✅ FORCE ACTIVE
+            model.IsActive = true;
 
             ModelState.Clear();
 
@@ -419,6 +416,7 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 return RedirectToAction(nameof(ManageServices));
             }
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditUserService(UserService model, IFormFile? ImageFile)
@@ -426,20 +424,15 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             var existingService = await _context.UserServices.FindAsync(model.Id);
             if (existingService == null) return NotFound();
 
-            // Remove validation for properties not in the edit form
             ModelState.Remove("ArtistId");
             ModelState.Remove("ServiceId");
             ModelState.Remove("Artist");
             ModelState.Remove("Service");
             ModelState.Remove("ImagePath");
 
-            // Ensure IsActive is correctly bound (checkbox unchecked -> false)
-            // The model binder will set IsActive to false if the checkbox is not present,
-            // but we explicitly get the form value for safety.
             var isActiveForm = Request.Form["IsActive"].FirstOrDefault();
             model.IsActive = !string.IsNullOrEmpty(isActiveForm) && isActiveForm == "true";
 
-            // Update only allowed fields
             existingService.Price = model.Price;
             existingService.Duration = model.Duration;
             existingService.CustomDescription = model.CustomDescription;
@@ -447,14 +440,12 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
             if (ImageFile != null && ImageFile.Length > 0)
             {
-                // Delete old image if exists
                 if (!string.IsNullOrEmpty(existingService.ImagePath))
                 {
                     var oldPath = Path.Combine(_env.WebRootPath, existingService.ImagePath.TrimStart('/'));
                     if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
                 }
 
-                // Save new image
                 var uploadDir = Path.Combine(_env.WebRootPath, "uploads/services");
                 if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
                 var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(ImageFile.FileName)}";
@@ -490,7 +481,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
                 _context.UserServices.Remove(userService);
                 await _context.SaveChangesAsync();
-
                 return Ok();
             }
             catch (Exception)
@@ -584,9 +574,10 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             TempData["Success"] = $"Transport cost of R{transportCost:N2} added successfully!";
             return RedirectToAction("MyAppointments");
         }
-        // ─── GET: Artist/Banking ───
 
-
+        // ═══════════════════════════════════════════════════════════
+        // BANKING
+        // ═══════════════════════════════════════════════════════════
         [HttpGet]
         public async Task<IActionResult> Banking()
         {
@@ -635,7 +626,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
             if (profile == null) return NotFound();
 
-            // ── STEP 1: VALIDATE BANK ACCOUNT ──
             var validationResult = await _paystackService.ValidateBankAccountAsync(
                 model.BankCode, model.AccountNumber);
 
@@ -647,17 +637,14 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
             model.AccountHolderName = validationResult.AccountHolderName;
 
-            // ── STEP 2: GET BANK NAME ──
             var bankName = banks.FirstOrDefault(b => b.Code == model.BankCode)?.Name ?? "";
 
-            // ── STEP 3: UPDATE PROFILE ──
             profile.BankName = bankName;
             profile.BankCode = model.BankCode;
             profile.AccountHolderName = validationResult.AccountHolderName;
             profile.IsBankAccountVerified = true;
             profile.BankAccountVerifiedDate = DateTime.UtcNow;
 
-            // ── STEP 4: TEST MODE – SKIP SUBACCOUNT CREATION ──
             bool isTestMode = _configuration["Paystack:Mode"]?.ToLower() != "live";
 
             if (isTestMode)
@@ -669,7 +656,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 return RedirectToAction(nameof(Banking));
             }
 
-            // ── LIVE MODE: CREATE SUBACCOUNT ──
             var businessName = profile.FullName ?? user.Email ?? "Artist";
             var subaccountResult = await _paystackService.CreateSubaccountAsync(
                 email: user.Email,
@@ -694,7 +680,7 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
             return RedirectToAction("Profile", "Artist");
         }
-        // ── AJAX VALIDATION ENDPOINT ──
+
         [HttpGet]
         public async Task<IActionResult> ValidateAccount(string bankCode, string accountNumber)
         {
@@ -711,31 +697,19 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             });
         }
 
-        // ─── 🔥 FIXED: TEST MODE BANKS ───
         private List<Bank> GetTestBanks()
         {
             return new List<Bank>
-    {
-        new Bank { Name = "ABSA (Test)", Code = "000003" },
-        new Bank { Name = "Capitec (Test)", Code = "000002" },
-        new Bank { Name = "FNB (Test)", Code = "000001" },
-        new Bank { Name = "Standard Bank (Test)", Code = "000004" }
-    };
+            {
+                new Bank { Name = "ABSA (Test)", Code = "000003" },
+                new Bank { Name = "Capitec (Test)", Code = "000002" },
+                new Bank { Name = "FNB (Test)", Code = "000001" },
+                new Bank { Name = "Standard Bank (Test)", Code = "000004" }
+            };
         }
 
-        // ─── FOR LIVE MODE: USE THIS INSTEAD ───
-        // private List<Bank> GetRealBanks()
-        // {
-        //     return new List<Bank>
-        //     {
-        //         new Bank { Name = "ABSA", Code = "585001" },
-        //         new Bank { Name = "Capitec", Code = "585010" },
-        //         new Bank { Name = "FNB", Code = "585012" },
-        //         new Bank { Name = "Standard Bank", Code = "585014" }
-        //     };
-        // }
         // ═══════════════════════════════════════════════════════════
-        // ARTIST UPDATE STATUS - FIXED WITH NOTIFICATIONS & CHECKS
+        // ARTIST UPDATE STATUS
         // ═══════════════════════════════════════════════════════════
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -751,25 +725,24 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 .Include(b => b.AvailabilitySlot)
                 .FirstOrDefaultAsync(b => b.Id == bookingId && b.UserService.ArtistId == artistId);
 
-            if (booking == null)
-                return Unauthorized();
+            if (booking == null) return Unauthorized();
 
             booking.ArtistNotes = artistNotes;
 
-            var client = booking.Customer;
-            var clientEmail = client?.Email;
-            var clientName = client?.FirstName ?? "Valued Client";
+            // ── Walk‑in bookings go to confirmation step ──
+            if (newStatus == BookingStatus.Accepted && booking.SelectedLocationType == LocationType.WalkIn)
+            {
+                return RedirectToAction(nameof(ConfirmAcceptWalkIn), new { bookingId = bookingId });
+            }
 
             if (newStatus == BookingStatus.Accepted)
             {
-                // Handle transport cost for house calls
                 if (booking.SelectedLocationType == LocationType.HouseCall && transportCost > 0)
                 {
                     booking.TransportCost = transportCost;
                     booking.TotalAmount = (booking.UserService?.Price ?? 0) + transportCost;
                 }
 
-                // Prevent accepting if already confirmed or deposit paid
                 if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
                 {
                     TempData["Error"] = "This booking is already confirmed or paid.";
@@ -777,15 +750,9 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 }
 
                 booking.Status = BookingStatus.Accepted;
-
-                if (booking.AvailabilitySlot != null)
-                {
-                    booking.AvailabilitySlot.IsBooked = true;
-                }
-
+                if (booking.AvailabilitySlot != null) booking.AvailabilitySlot.IsBooked = true;
                 await _context.SaveChangesAsync();
 
-                // ========== SEND IN-APP NOTIFICATION TO CLIENT ==========
                 try
                 {
                     await _notificationService.CreateNotificationAsync(
@@ -797,30 +764,26 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                         Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id })
                     );
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"In-app notification error (non-critical): {ex.Message}");
-                }
+                catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
 
-                // ========== SEND EMAIL TO CLIENT ==========
-                if (!string.IsNullOrEmpty(clientEmail))
+                if (!string.IsNullOrEmpty(booking.Customer?.Email))
                 {
                     var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
                     string subject = "✅ Your Appointment Has Been Accepted!";
                     string emailBody = $@"
-<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-    <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
-    <p>Dear {clientName},</p>
-    <p>Great news! The artist has ACCEPTED your appointment request.</p>
-    <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
-    <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
-    <p><strong>Total Amount:</strong> R {booking.TotalAmount:N2}</p>
-    <p><strong>Deposit Required (50%):</strong> R {(booking.TotalAmount / 2):N2}</p>
-    <div style='text-align: center; margin: 20px 0;'>
-        <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR 50% DEPOSIT NOW</a>
-    </div>
-    <p>Thank you for choosing Beauty Artists Hub!</p>
-</div>";
+                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+                        <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
+                        <p>Dear {booking.Customer.FirstName},</p>
+                        <p>Great news! The artist has ACCEPTED your appointment request.</p>
+                        <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
+                        <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
+                        <p><strong>Total Amount:</strong> R {booking.TotalAmount:N2}</p>
+                        <p><strong>Deposit Required (50%):</strong> R {(booking.TotalAmount / 2):N2}</p>
+                        <div style='text-align: center; margin: 20px 0;'>
+                            <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR 50% DEPOSIT NOW</a>
+                        </div>
+                        <p>Thank you for choosing Beauty Artists Hub!</p>
+                    </div>";
 
                     await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
                 }
@@ -829,7 +792,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             }
             else if (newStatus == BookingStatus.Rejected)
             {
-                // Prevent rejecting if already confirmed or deposit paid
                 if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
                 {
                     TempData["Error"] = "Cannot reject a booking that is already confirmed or paid.";
@@ -837,12 +799,7 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 }
 
                 booking.Status = BookingStatus.Rejected;
-
-                if (booking.AvailabilitySlot != null)
-                {
-                    booking.AvailabilitySlot.IsBooked = false;
-                }
-
+                if (booking.AvailabilitySlot != null) booking.AvailabilitySlot.IsBooked = false;
                 await _context.SaveChangesAsync();
 
                 try
@@ -856,16 +813,12 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                         Url.Action("MyBookings", "Booking")
                     );
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"In-app notification error (non-critical): {ex.Message}");
-                }
+                catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
 
                 TempData["Success"] = "Appointment request rejected. Client has been notified.";
             }
             else if (newStatus == BookingStatus.Completed)
             {
-                // 🔥 FIXED: Check if fully paid using DepositPaid + FinalPaymentPaid
                 decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
                 if (totalPaid < booking.TotalAmount)
                 {
@@ -873,7 +826,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                     return RedirectToAction(nameof(MyAppointments));
                 }
 
-                // Prevent completing if not confirmed
                 if (booking.Status != BookingStatus.Confirmed)
                 {
                     TempData["Error"] = "Booking must be confirmed before it can be marked as completed.";
@@ -894,16 +846,102 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                         Url.Action("MyBookings", "Booking")
                     );
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"In-app notification error (non-critical): {ex.Message}");
-                }
+                catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
 
                 TempData["Success"] = "Service marked as completed! Client has been notified.";
             }
 
             return RedirectToAction(nameof(MyAppointments));
         }
+
+        // ═══════════════════════════════════════════════════════════
+        // CONFIRM WALK‑IN ACCEPTANCE (with location sharing)
+        // ═══════════════════════════════════════════════════════════
+        [HttpGet]
+        public async Task<IActionResult> ConfirmAcceptWalkIn(int bookingId)
+        {
+            var artistId = _userManager.GetUserId(User);
+            var booking = await _context.Bookings
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                        .ThenInclude(a => a.ArtistProfile)
+                .FirstOrDefaultAsync(b => b.Id == bookingId && b.UserService.ArtistId == artistId);
+
+            if (booking == null || booking.SelectedLocationType != LocationType.WalkIn)
+                return NotFound();
+
+            var model = new ConfirmAcceptWalkInViewModel
+            {
+                BookingId = booking.Id,
+                ServiceName = booking.UserService?.Service?.Name ?? "Service",
+                HasStudioAddress = !string.IsNullOrEmpty(booking.UserService?.Artist?.ArtistProfile?.StudioAddress)
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfirmAcceptWalkIn(int bookingId, bool shareLocation)
+        {
+            var artistId = _userManager.GetUserId(User);
+            var booking = await _context.Bookings
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                        .ThenInclude(a => a.ArtistProfile)
+                .Include(b => b.Customer)
+                .FirstOrDefaultAsync(b => b.Id == bookingId && b.UserService.ArtistId == artistId);
+
+            if (booking == null)
+                return NotFound();
+
+            booking.IsLocationShared = shareLocation;
+            booking.Status = BookingStatus.Accepted;
+            booking.ArtistNotes = "Accepted with location sharing: " + (shareLocation ? "Yes" : "No");
+
+            if (booking.AvailabilitySlot != null)
+                booking.AvailabilitySlot.IsBooked = true;
+
+            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _notificationService.CreateNotificationAsync(
+                    booking.CustomerId,
+                    "Appointment Accepted! ✅",
+                    $"Great news! {booking.UserService?.Artist?.FirstName} has ACCEPTED your walk‑in appointment for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd}.",
+                    "booking_accepted",
+                    booking.Id.ToString(),
+                    Url.Action("MyBookings", "Booking")
+                );
+            }
+            catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
+
+            if (!string.IsNullOrEmpty(booking.Customer?.Email))
+            {
+                string subject = "✅ Your Walk‑in Appointment Has Been Accepted!";
+                string emailBody = $@"
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+                    <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
+                    <p>Dear {booking.Customer.FirstName},</p>
+                    <p>Great news! The artist has ACCEPTED your walk‑in appointment request.</p>
+                    <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
+                    <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
+                    <p><strong>Total Amount:</strong> R {booking.TotalAmount:N2}</p>
+                    <p><strong>Deposit Required (50%):</strong> R {(booking.TotalAmount / 2):N2}</p>
+                    <div style='text-align: center; margin: 20px 0;'>
+                        <a href='{Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme)}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR 50% DEPOSIT NOW</a>
+                    </div>
+                    <p>Thank you for choosing Beauty Artists Hub!</p>
+                </div>";
+
+                await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
+            }
+
+            TempData["Success"] = "Walk‑in appointment accepted successfully! " + (shareLocation ? "Location sharing enabled." : "Location sharing disabled.");
+            return RedirectToAction(nameof(MyAppointments));
+        }
+
         // ═══════════════════════════════════════════════════════════
         // REVIEWS
         // ═══════════════════════════════════════════════════════════
@@ -934,21 +972,22 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             ViewBag.Stats = stats;
             return View(reviews);
         }
-        // ─── GET: Artist/Support ───
+
+        // ═══════════════════════════════════════════════════════════
+        // SUPPORT (Artist)
+        // ═══════════════════════════════════════════════════════════
         [HttpGet]
         public IActionResult Support()
         {
             return View();
         }
 
-        // ─── POST: Artist/SubmitSupportReport ───
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SubmitSupportReport(string category, string description, string email, List<IFormFile> attachments)
         {
             try
             {
-                // ── Validate required fields ──
                 if (string.IsNullOrWhiteSpace(category))
                 {
                     TempData["Error"] = "Please select a category.";
@@ -973,7 +1012,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                     return RedirectToAction(nameof(Support));
                 }
 
-                // ── Save to database (reuse SupportReport model) ──
                 var report = new SupportReport
                 {
                     Category = category,
@@ -984,14 +1022,13 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                 _context.SupportReports.Add(report);
                 await _context.SaveChangesAsync();
 
-                // ── Handle file uploads ──
                 var uploadedFilePaths = new List<string>();
                 var uploadedFileUrls = new List<string>();
 
                 if (attachments != null && attachments.Any())
                 {
                     long totalSize = attachments.Sum(f => f.Length);
-                    if (totalSize > 10_000_000) // 10MB limit
+                    if (totalSize > 10_000_000)
                     {
                         TempData["Error"] = "Total file size exceeds 10MB. Please reduce the size and try again.";
                         return RedirectToAction(nameof(Support));
@@ -1015,7 +1052,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
                     }
                 }
 
-                // ── Send email to stakeholders ──
                 string subject = $"New Artist Support Report: {category}";
                 string body = $@"
             <h2>New Artist Support Report</h2>
@@ -1031,8 +1067,8 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
 
                 string[] stakeholderEmails = new string[]
                 {
-            "ignatiuslerefolo07101999@gmail.com",
-            "neo305mofokeng@gmail.com"
+                    "ignatiuslerefolo07101999@gmail.com",
+                    "neo305mofokeng@gmail.com"
                 };
 
                 await SendEmailToMultipleAsync(stakeholderEmails, subject, body, uploadedFilePaths);
@@ -1048,7 +1084,7 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             }
         }
 
-        // ─── Helper: Validate email ───
+        // ─── Helpers ───
         private bool IsValidEmail(string email)
         {
             try
@@ -1062,7 +1098,6 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             }
         }
 
-        // ─── Helper: Send email with attachments (copy from HomeController or use shared service) ───
         private async Task SendEmailToMultipleAsync(string[] toEmails, string subject, string body, List<string> attachmentPaths = null)
         {
             var smtpClient = new SmtpClient
@@ -1106,5 +1141,4 @@ public async Task<IActionResult> EditProfile(ArtistProfile updatedProfile, IForm
             }
         }
     }
-
 }

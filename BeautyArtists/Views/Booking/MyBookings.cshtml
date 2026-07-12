@@ -198,7 +198,74 @@
                                     }
                                 </div>
 
-                                @* Show Transport Cost if House Call *@
+                                @* ── STUDIO LOCATION (Walk‑in, location shared, deposit paid) ── *@
+                                @if (item.Booking.SelectedLocationType == BeautyArtists.Models.LocationType.WalkIn
+                                                        && item.Booking.IsLocationShared
+                                                        && item.Booking.IsDepositPaid)
+                                {
+                                    <div style="background:rgba(52,152,219,0.08);border:1px solid rgba(52,152,219,0.3);border-radius:10px;padding:14px;margin-bottom:14px;">
+                                        <span style="font-size:0.6rem;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.3);display:block;margin-bottom:8px;">
+                                            📍 Studio Location
+                                        </span>
+
+                                        @if (!string.IsNullOrEmpty(item.StudioAddress))
+                                        {
+                                            <div style="font-size:0.85rem;color:#fff;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                                                <strong style="color:#FFD700;min-width:80px;display:inline-block;">Address:</strong>
+                                                <span>@item.StudioAddress</span>
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(item.StudioCity))
+                                        {
+                                            <div style="font-size:0.85rem;color:#fff;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+                                                <strong style="color:#FFD700;min-width:80px;display:inline-block;">City:</strong>
+                                                <span>@item.StudioCity</span>
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(item.StudioProvince))
+                                        {
+                                            <div style="font-size:0.85rem;color:#fff;padding:3px 0;">
+                                                <strong style="color:#FFD700;min-width:80px;display:inline-block;">Province:</strong>
+                                                <span>@item.StudioProvince</span>
+                                            </div>
+                                        }
+
+                                        @* ─── FIXED: Check HasValue for double? ─── *@
+                                        @if (item.StudioLatitude.HasValue && item.StudioLongitude.HasValue)
+                                        {
+                                            <div style="margin-top:10px;">
+                                                <a href="https://www.google.com/maps/search/?api=1&query=@item.StudioLatitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),@item.StudioLongitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                                   target="_blank"
+                                                   style="display:block;text-align:center;padding:9px;background:#1e1e1e;border:1px solid #00ffcc;color:#00ffcc;border-radius:8px;font-size:0.75rem;font-weight:700;text-decoration:none;transition:all .2s;">
+                                                    🗺 OPEN STUDIO IN GOOGLE MAPS
+                                                </a>
+                                            </div>
+                                        }
+                                        else if (!string.IsNullOrEmpty(item.StudioAddress))
+                                        {
+                                            var searchQuery = Uri.EscapeDataString($"{item.StudioAddress} {item.StudioCity} {item.StudioProvince}".Trim());
+                                            <div style="margin-top:10px;">
+                                                <a href="https://www.google.com/maps/search/?api=1&query=@searchQuery"
+                                                   target="_blank"
+                                                   style="display:block;text-align:center;padding:9px;background:#1e1e1e;border:1px solid #00ffcc;color:#00ffcc;border-radius:8px;font-size:0.75rem;font-weight:700;text-decoration:none;">
+                                                    🗺 OPEN STUDIO IN GOOGLE MAPS
+                                                </a>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                                else if (item.Booking.SelectedLocationType == BeautyArtists.Models.LocationType.WalkIn
+                                && item.Booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed
+                                && !item.Booking.IsDepositPaid)
+                                {
+                                    <div style="background:rgba(240,200,8,0.05);border:1px dashed rgba(240,200,8,0.2);border-radius:10px;padding:12px;margin-bottom:14px;text-align:center;">
+                                        <span style="font-size:0.75rem;color:rgba(240,200,8,0.6);">
+                                            🔒 Studio address unlocks after your 50% deposit is paid.
+                                        </span>
+                                    </div>
+                                }
+
+                                @* ── Transport Cost (House Call) ── *@
                                 @if (booking.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall && booking.TransportCost > 0)
                                 {
                                     <div class="mb-meta-item" style="color: #FFD700;">
@@ -266,7 +333,6 @@
                                 {
                                     if (isLastMinute)
                                     {
-                                        // Last‑minute: must pay FULL amount NOW
                                         <a asp-controller="Booking"
                                            asp-action="CheckoutDeposit"
                                            asp-route-id="@booking.Id"
@@ -279,7 +345,6 @@
                                     }
                                     else
                                     {
-                                        // Normal: pay 50% deposit
                                         <a asp-controller="Booking"
                                            asp-action="CheckoutDeposit"
                                            asp-route-id="@booking.Id"
@@ -292,7 +357,6 @@
                                 @* ── PAYMENT BUTTONS FOR CONFIRMED STATUS ── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
                                 {
-                                    // ── Calculate remaining balance ──
                                     decimal remainingBalance = booking.TotalAmount - booking.DepositPaid;
                                     if (remainingBalance < 0) remainingBalance = 0;
 
@@ -306,7 +370,6 @@
                                     {
                                         if (isLastMinute)
                                         {
-                                            // Last‑minute: must pay the FULL remaining amount NOW
                                             <a asp-controller="Booking"
                                                asp-action="CheckoutFinalPayment"
                                                asp-route-id="@booking.Id"
@@ -319,7 +382,6 @@
                                         }
                                         else
                                         {
-                                            // Normal: pay remaining balance
                                             <a asp-controller="Booking"
                                                asp-action="CheckoutFinalPayment"
                                                asp-route-id="@booking.Id"
@@ -354,8 +416,6 @@
                                         <button type="submit" class="mb-btn-cancel">Cancel</button>
                                     </form>
                                 }
-
-                              
 
                                 @* ── REVIEW BUTTON ── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Completed)
@@ -415,7 +475,7 @@
 </script>
 
 <style>
-    /* ────────── YOUR EXISTING STYLES (keep as is) ────────── */
+    /* ────────── YOUR EXISTING STYLES ────────── */
     .mb-page {
         background: #000;
         min-height: 100vh;
@@ -515,7 +575,6 @@
         background: rgba(255,215,0,0.12);
     }
 
-    /* ── NEW REVIEWS LINK ROW ── */
     .mb-reviews-link-row {
         margin-top: 6px;
         display: flex;
@@ -924,7 +983,6 @@
             color: #FFD700;
         }
 
-    /* ─── MOBILE RESPONSIVE ─── */
     @@media (max-width: 768px) {
         .mb-card-body {
             flex-wrap: wrap;

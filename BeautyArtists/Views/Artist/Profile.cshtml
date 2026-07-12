@@ -3,6 +3,7 @@
     Layout = "~/Views/Shared/_ArtistLayout.cshtml";
 }
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
     .profile-wrapper {
         padding: 20px;
@@ -128,7 +129,6 @@
                 text-decoration: underline;
             }
 
-    /* ── BANKING STATUS BADGE ── */
     .banking-verified {
         color: #28a745;
         font-weight: 600;
@@ -151,7 +151,6 @@
             text-decoration: underline;
         }
 
-    /* ── SOCIAL MEDIA ICONS ── */
     .social-links {
         display: flex;
         flex-wrap: wrap;
@@ -203,7 +202,6 @@
             border-color: #FF0050;
         }
 
-    /* ── BUTTONS ── */
     .btn-edit {
         background: linear-gradient(135deg, #e50914, #f0c808);
         border: none;
@@ -255,7 +253,6 @@
             color: #fff;
         }
 
-    /* ── MODAL ── */
     .modal-content-custom {
         background: #0d0d0d;
         border: 1px solid #f0c808;
@@ -319,6 +316,30 @@
         margin-bottom: 20px;
         max-width: 900px;
     }
+
+    .btn-outline-gold {
+        background: #FFD700;
+        color: #000 !important;
+        border: 1px solid #FFD700;
+        font-weight: 700;
+        padding: 10px 12px;
+        border-radius: 8px;
+        transition: 0.3s;
+        cursor: pointer;
+    }
+
+        .btn-outline-gold:hover {
+            background: #e5c100;
+            border-color: #e5c100;
+        }
+
+    #studioMap {
+        height: 250px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 215, 0, 0.2);
+        margin: 10px 0;
+        background: #222;
+    }
 </style>
 
 @if (TempData["Success"] != null)
@@ -365,7 +386,6 @@
                     <span class="info-value">@Model.ContactInfo</span>
                 </div>
 
-                <!-- ─── 🔥 BANKING STATUS ─── -->
                 <div class="info-row">
                     <span class="info-label">Banking:</span>
                     @if (Model.IsBankAccountVerified && !string.IsNullOrEmpty(Model.SubaccountCode))
@@ -391,7 +411,6 @@
                     }
                 </div>
 
-                @* ── SOCIAL MEDIA (Instagram, Facebook, Twitter/X, TikTok) ── *@
                 @if (!string.IsNullOrEmpty(Model.InstagramUrl) || !string.IsNullOrEmpty(Model.FacebookUrl) ||
                                 !string.IsNullOrEmpty(Model.TwitterUrl) || !string.IsNullOrEmpty(Model.TikTokUrl))
                 {
@@ -425,9 +444,49 @@
                         </div>
                     </div>
                 }
+
+                <div class="mt-4 pt-3 border-top border-secondary">
+                    <h5 style="color:#f0c808; font-weight:700;">Studio Location (Walk‑in)</h5>
+                    <p style="color:rgba(255,255,255,0.3); font-size:0.8rem;">
+                        This address will be shown to clients after they've fully paid for a walk‑in booking.
+                    </p>
+
+                    <div class="row mb-2">
+                        <div class="col-md-8">
+                            <input type="text" id="studioSearchInput" class="form-control form-control-custom"
+                                   placeholder="🔍 Search for your studio address..." />
+                        </div>
+                        <div class="col-md-4">
+                            <button type="button" id="studioSearchBtn" class="btn-outline-gold w-100">Go</button>
+                        </div>
+                    </div>
+
+                    <div id="studioMap"></div>
+
+                    <div class="row g-2 mt-2">
+                        <div class="col-md-6">
+                            <label class="form-label-custom">Studio Address</label>
+                            <input asp-for="StudioAddress" class="form-control form-control-custom" id="studioAddressField" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label-custom">City</label>
+                            <input asp-for="StudioCity" class="form-control form-control-custom" id="studioCityField" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label-custom">Province</label>
+                            <input asp-for="StudioProvince" class="form-control form-control-custom" id="studioProvinceField" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label-custom">Postal Code</label>
+                            <input asp-for="StudioPostalCode" class="form-control form-control-custom" id="studioPostalField" />
+                        </div>
+                        <input asp-for="StudioLatitude" type="hidden" id="studioLatField" />
+                        <input asp-for="StudioLongitude" type="hidden" id="studioLngField" />
+                    </div>
+                    <small class="text-muted">Click on the map to set your studio location. You can also search above.</small>
+                </div>
             </div>
 
-            @* ── BUTTONS ── *@
             <div style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;">
                 <button class="btn-edit" onclick="openEditModal()">✎ Edit Profile</button>
                 <a href="@Url.Action("Banking", "Artist")" class="btn-edit" style="background: linear-gradient(135deg, #f0c808, #e50914); text-decoration: none; text-align: center;">
@@ -522,7 +581,6 @@
                         </div>
                     </div>
 
-                    @* ── SOCIAL MEDIA FIELDS (FB, X, TikTok) ── *@
                     <div class="row mt-2">
                         <div class="col-md-4 mb-3">
                             <label class="form-label-custom">Facebook URL</label>
@@ -537,6 +595,35 @@
                             <input asp-for="TikTokUrl" class="form-control form-control-custom" placeholder="https://tiktok.com/syourhandle" />
                         </div>
                     </div>
+
+                    <div class="mt-4 pt-3 border-top border-secondary">
+                        <h5 style="color:#f0c808; font-weight:700;">Studio Location</h5>
+                        <p style="color:rgba(255,255,255,0.3); font-size:0.8rem;">
+                            This address will be shown to clients after they've fully paid for a walk‑in booking.
+                        </p>
+
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label-custom">Studio Address</label>
+                                <input asp-for="StudioAddress" class="form-control form-control-custom" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label-custom">City</label>
+                                <input asp-for="StudioCity" class="form-control form-control-custom" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label-custom">Province</label>
+                                <input asp-for="StudioProvince" class="form-control form-control-custom" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label-custom">Postal Code</label>
+                                <input asp-for="StudioPostalCode" class="form-control form-control-custom" />
+                            </div>
+                            <input asp-for="StudioLatitude" type="hidden" id="modalStudioLat" />
+                            <input asp-for="StudioLongitude" type="hidden" id="modalStudioLng" />
+                        </div>
+                        <small class="text-muted">Latitude and Longitude are set automatically via the map.</small>
+                    </div>
                 </div>
 
                 <div class="modal-footer-custom">
@@ -549,7 +636,11 @@
     </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+    // ─── LOCATIONIQ API KEY ───
+    const LOCATIONIQ_API_KEY = 'pk.262798f25cd021707b77f66c88babd01';
+
     function openEditModal() {
         var myModal = new bootstrap.Modal(document.getElementById('editModal'));
         myModal.show();
@@ -590,7 +681,6 @@
         provSelect.value = initialProvince;
     }
     updateCities();
-
     provSelect.addEventListener('change', updateCities);
 
     // ── IMAGE PREVIEW ──
@@ -603,6 +693,125 @@
             };
             reader.readAsDataURL(file);
         }
+    });
+
+    // ── STUDIO MAP ──
+    let studioMap, studioMarker;
+
+    function initStudioMap() {
+        const lat = @((Model.StudioLatitude ?? -26.2041).ToString(System.Globalization.CultureInfo.InvariantCulture));
+        const lng = @((Model.StudioLongitude ?? 28.0473).ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+        studioMap = L.map('studioMap').setView([lat, lng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(studioMap);
+
+        studioMarker = L.marker([lat, lng], { draggable: true }).addTo(studioMap);
+
+        studioMarker.on('dragend', function() {
+            const pos = studioMarker.getLatLng();
+            document.getElementById('studioLatField').value = pos.lat.toFixed(6);
+            document.getElementById('studioLngField').value = pos.lng.toFixed(6);
+            const modalLat = document.getElementById('modalStudioLat');
+            const modalLng = document.getElementById('modalStudioLng');
+            if (modalLat) modalLat.value = pos.lat.toFixed(6);
+            if (modalLng) modalLng.value = pos.lng.toFixed(6);
+            reverseGeocode(pos.lat, pos.lng);
+        });
+
+        studioMap.on('click', function(e) {
+            const pos = e.latlng;
+            studioMarker.setLatLng(pos);
+            document.getElementById('studioLatField').value = pos.lat.toFixed(6);
+            document.getElementById('studioLngField').value = pos.lng.toFixed(6);
+            const modalLat = document.getElementById('modalStudioLat');
+            const modalLng = document.getElementById('modalStudioLng');
+            if (modalLat) modalLat.value = pos.lat.toFixed(6);
+            if (modalLng) modalLng.value = pos.lng.toFixed(6);
+            reverseGeocode(pos.lat, pos.lng);
+        });
+
+        setTimeout(function() {
+            studioMap.invalidateSize();
+        }, 300);
+    }
+
+    // ─── REVERSE GEOCODE USING LOCATIONIQ ───
+    async function reverseGeocode(lat, lng) {
+        try {
+            const resp = await fetch(
+                `https://us1.locationiq.com/v1/reverse.php?key=${LOCATIONIQ_API_KEY}&lat=${lat}&lon=${lng}&format=json`
+            );
+            const data = await resp.json();
+            if (data && data.address) {
+                const addr = data.address;
+                const house = addr.house_number || addr.building || '';
+                const road = addr.road || addr.street || '';
+                const suburb = addr.suburb || addr.neighbourhood || addr.city_district || '';
+                const city = addr.city || addr.town || addr.village || '';
+                const state = addr.state || addr.province || '';
+                const postcode = addr.postcode || '';
+
+                // ─── UPDATE DISPLAY FIELDS ───
+                document.getElementById('studioAddressField').value = `${house} ${road}`.trim();
+                document.getElementById('studioCityField').value = city || suburb;
+                document.getElementById('studioProvinceField').value = state;
+                document.getElementById('studioPostalField').value = postcode;
+
+                // ─── UPDATE MODAL FIELDS (the ones that get saved) ───
+                const modalAddress = document.querySelector('input[name="StudioAddress"]');
+                const modalCity = document.querySelector('input[name="StudioCity"]');
+                const modalProvince = document.querySelector('input[name="StudioProvince"]');
+                const modalPostal = document.querySelector('input[name="StudioPostalCode"]');
+
+                if (modalAddress) modalAddress.value = `${house} ${road}`.trim();
+                if (modalCity) modalCity.value = city || suburb;
+                if (modalProvince) modalProvince.value = state;
+                if (modalPostal) modalPostal.value = postcode;
+
+                // ─── UPDATE HIDDEN LAT/LNG FIELDS ───
+                const modalLat = document.getElementById('modalStudioLat');
+                const modalLng = document.getElementById('modalStudioLng');
+                if (modalLat) modalLat.value = lat.toFixed(6);
+                if (modalLng) modalLng.value = lng.toFixed(6);
+            }
+        } catch (e) {
+            console.warn('Reverse geocode error:', e);
+            document.getElementById('studioAddressField').placeholder = 'Enter address manually';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initStudioMap();
+
+        // ─── SEARCH USING LOCATIONIQ ───
+        document.getElementById('studioSearchBtn').addEventListener('click', function() {
+            const query = document.getElementById('studioSearchInput').value.trim();
+            if (!query) return;
+            const url = `https://us1.locationiq.com/v1/search.php?key=${LOCATIONIQ_API_KEY}&q=${encodeURIComponent(query)}&format=json&limit=1`;
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        const lat = parseFloat(data[0].lat);
+                        const lon = parseFloat(data[0].lon);
+                        studioMap.setView([lat, lon], 19);
+                        studioMarker.setLatLng([lat, lon]);
+                        document.getElementById('studioLatField').value = lat.toFixed(6);
+                        document.getElementById('studioLngField').value = lon.toFixed(6);
+                        const modalLat = document.getElementById('modalStudioLat');
+                        const modalLng = document.getElementById('modalStudioLng');
+                        if (modalLat) modalLat.value = lat.toFixed(6);
+                        if (modalLng) modalLng.value = lon.toFixed(6);
+                        reverseGeocode(lat, lon);
+                        document.getElementById('studioSearchInput').value = data[0].display_name || '';
+                    } else {
+                        alert('Address not found. Try a more specific search.');
+                    }
+                })
+                .catch(() => alert('Search error. Check your connection.'));
+        });
     });
 
     @if (!ViewData.ModelState.IsValid)

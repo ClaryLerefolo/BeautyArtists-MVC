@@ -1,0 +1,77 @@
+﻿@model BeautyArtists.Models.ViewModels.ConfirmAcceptWalkInViewModel
+@{
+    ViewData["Title"] = "Accept Walk‑in Appointment";
+    Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+}
+
+<div class="container py-5">
+    <div class="card bg-dark text-white border-warning p-4" style="max-width:600px; margin:0 auto; border-radius:20px;">
+        <h3 class="text-gold">Walk‑in Appointment</h3>
+        <p class="text-muted">@Model.ServiceName</p>
+
+        @if (Model.HasStudioAddress)
+        {
+            <p class="text-light">
+                Would you like to share your studio location with the client? <br />
+                <small class="text-warning">(The client will see it only after they have paid in full.)</small>
+            </p>
+
+            <form method="post" asp-action="ConfirmAcceptWalkIn" asp-controller="Artist">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="bookingId" value="@Model.BookingId" />
+
+                <div class="d-flex gap-3 mt-3 flex-wrap">
+                    <button type="submit" name="shareLocation" value="true" class="btn btn-gold flex-grow-1">
+                        Yes, Share Location
+                    </button>
+                    <button type="submit" name="shareLocation" value="false" class="btn btn-outline-secondary flex-grow-1">
+                        No, Don't Share
+                    </button>
+                </div>
+            </form>
+        }
+        else
+        {
+            <p class="text-warning">⚠️ You haven't set up a studio address yet. Please <a href="@Url.Action("Profile", "Artist")" class="text-gold">add your studio location</a> before accepting walk‑in bookings.</p>
+            <a href="@Url.Action("MyAppointments", "Artist")" class="btn btn-outline-gold">← Back</a>
+        }
+    </div>
+</div>
+
+<style>
+    .btn-gold {
+        background: linear-gradient(180deg, #FFD700 0%, #FF8C00 100%);
+        color: #000 !important;
+        font-weight: 700;
+        padding: 10px 20px;
+        border-radius: 30px;
+        border: none;
+        transition: 0.3s;
+    }
+
+        .btn-gold:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(255,140,0,0.4);
+            color: #000 !important;
+        }
+
+    .btn-outline-secondary {
+        background: transparent;
+        border: 1px solid #555;
+        color: #aaa;
+        font-weight: 600;
+        padding: 10px 20px;
+        border-radius: 30px;
+        transition: 0.3s;
+    }
+
+        .btn-outline-secondary:hover {
+            background: rgba(255,255,255,0.05);
+            border-color: #999;
+            color: #fff;
+        }
+
+    .text-gold {
+        color: #FFD700;
+    }
+</style>

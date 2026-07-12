@@ -1143,7 +1143,14 @@ namespace BeautyArtists.Controllers
                 Bookings = bookings.Select(b => new BookingWithReviewStatus
                 {
                     Booking = b,
-                    HasReviewed = reviewedBookingIds.Contains(b.Id)
+                    HasReviewed = reviewedBookingIds.Contains(b.Id),
+
+                    // ─── POPULATE STUDIO ADDRESS FIELDS ───
+                    StudioAddress = b.UserService?.Artist?.ArtistProfile?.StudioAddress,
+                    StudioCity = b.UserService?.Artist?.ArtistProfile?.StudioCity,
+                    StudioProvince = b.UserService?.Artist?.ArtistProfile?.StudioProvince,
+                    StudioLatitude = b.UserService?.Artist?.ArtistProfile?.StudioLatitude,
+                    StudioLongitude = b.UserService?.Artist?.ArtistProfile?.StudioLongitude
                 }).ToList()
             };
 

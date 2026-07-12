@@ -11,5 +11,11 @@ namespace BeautyArtists.Models.ViewModels
     {
         public Booking Booking { get; set; }
         public bool HasReviewed { get; set; }
+
+        public string? StudioAddress { get; set; }
+        public string? StudioCity { get; set; }
+        public string? StudioProvince { get; set; }
+        public double? StudioLatitude { get; set; }
+        public double? StudioLongitude { get; set; }
     }
 }

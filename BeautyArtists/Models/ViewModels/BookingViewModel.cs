@@ -32,5 +32,12 @@ namespace BeautyArtists.Models.ViewModels
         public string? HouseNumber { get; set; }
         public string? StreetAddress { get; set; }
         public string? AreaCode { get; set; }
+
+        public bool IsLocationShared { get; set; } = false;
+        public string? StudioAddress { get; set; }
+        public string? StudioCity { get; set; }
+        public string? StudioProvince { get; set; }
+        public double? StudioLatitude { get; set; }
+        public double? StudioLongitude { get; set; }
     }
 }

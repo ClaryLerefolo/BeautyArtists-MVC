@@ -14,5 +14,6 @@ namespace BeautyArtists.Models.ViewModels
         public string ArtistName { get; set; }
         public string ArtistProfilePicture { get; set; }
         public string AppointmentDate { get; set; }
+        public string ArtistId { get; set; }
     }
 }
