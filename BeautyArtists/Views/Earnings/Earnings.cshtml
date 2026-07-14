@@ -367,43 +367,6 @@
                 font-size: 1.1rem;
             }
         }
-
-        /* ── PLATFORM EARNINGS CARD ── */
-        .platform-card {
-            background: linear-gradient(135deg, #1a0a00, #0d0d00);
-            border: 1.5px solid rgba(240,200,8,0.2);
-            border-radius: 14px;
-            padding: 16px 20px;
-        }
-
-            .platform-card .label {
-                font-size: 0.6rem;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 1.5px;
-                color: rgba(255,215,0,0.4);
-            }
-
-            .platform-card .value {
-                font-size: 1.6rem;
-                font-weight: 800;
-                color: var(--gold);
-            }
-
-            .platform-card .sub {
-                font-size: 0.7rem;
-                color: rgba(255,255,255,0.25);
-            }
-
-        .platform-badge {
-            font-size: 0.6rem;
-            padding: 2px 8px;
-            border-radius: 50px;
-            font-weight: 700;
-            background: rgba(240,200,8,0.1);
-            color: var(--gold);
-            border: 1px solid rgba(240,200,8,0.2);
-        }
     </style>
 }
 
@@ -524,31 +487,6 @@
         </div>
     </div>
 
-    @* ── 🔥 NEW: PLATFORM EARNINGS ROW ── *@
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="platform-card">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <span class="label"><i class="fas fa-crown me-1"></i> Platform Revenue (Booking Fees + Commissions)</span>
-                        <div class="value">R @Model.TotalPlatformLifetimeEarnings.ToString("N2")</div>
-                        <div class="sub">
-                            <span class="platform-badge">💰 Booking Fees: R @Model.TotalBookingFeesCollected.ToString("N2")</span>
-                            <span class="platform-badge ms-2">📊 Commissions: R @Model.TotalCommissionCollected.ToString("N2")</span>
-                            <span class="platform-badge ms-2">📈 This Month: R @Model.ThisMonthPlatformEarnings.ToString("N2")</span>
-                        </div>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <div style="font-size:0.65rem;color:rgba(255,255,255,0.2);">
-                            <div>Total Artist Gross: R @Model.TotalArtistGross.ToString("N2")</div>
-                            <div>Total Client Paid: R @Model.TotalClientPaid.ToString("N2")</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     @* ── PAYMENT BREAKDOWN BAR ── *@
     <div class="payment-breakdown mb-4">
         <div class="row align-items-center g-2">
@@ -572,8 +510,8 @@
             </div>
             <div class="col-3">
                 <div class="breakdown-item">
-                    <span class="label">Booking Fees</span>
-                    <span class="value gold">R @Model.TotalBookingFeesCollected.ToString("N2")</span>
+                    <span class="label">Your Earnings</span>
+                    <span class="value gold">R @Model.TotalLifetimeEarnings.ToString("N2")</span>
                 </div>
             </div>
         </div>
@@ -628,12 +566,10 @@
                             <th>Date</th>
                             <th>Client</th>
                             <th>Service</th>
-                            <th class="text-end">Price</th>
-                            <th class="text-end">Booking Fee</th>
+                            <th class="text-end">Service Price</th>
                             <th class="text-end">Deposit</th>
                             <th class="text-end">Final</th>
-                            <th class="text-end">Your Cut</th>
-                            <th class="text-end">Platform</th>
+                            <th class="text-end">Earnings</th>
                             <th class="text-center">Status</th>
                         </tr>
                     </thead>
@@ -644,12 +580,10 @@
                                 <td style="color:rgba(255,255,255,0.4)">@item.Date.ToString("dd MMM yyyy")</td>
                                 <td style="color:#fff;font-weight:600">@item.ClientName</td>
                                 <td style="color:rgba(255,255,255,0.6)">@item.ServiceName</td>
-                                <td class="text-end fw-bold">R @item.OriginalPrice.ToString("N2")</td>
-                                <td class="text-end" style="color:var(--gold);">R @item.BookingFee.ToString("N2")</td>
+                                <td class="text-end fw-bold" style="color:#fff;">R @item.OriginalPrice.ToString("N2")</td>
                                 <td class="text-end" style="color:#17a2b8;">R @item.DepositPaid.ToString("N2")</td>
                                 <td class="text-end" style="color:#28a745;">R @item.FinalPaymentPaid.ToString("N2")</td>
                                 <td class="text-end fw-bold" style="color:var(--gold)">R @item.YourEarnings.ToString("N2")</td>
-                                <td class="text-end" style="color:#ff6b6b;">R @item.PlatformTotalEarnings.ToString("N2")</td>
                                 <td class="text-center">
                                     @if (item.IsFullyPaid)
                                     {
@@ -669,12 +603,9 @@
                     </tbody>
                     <tfoot>
                         <tr style="border-top:1px solid rgba(240,200,8,0.15)">
-                            <td colspan="7" style="padding:12px;font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.3)">Total</td>
+                            <td colspan="6" style="padding:12px;font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.3)">Total</td>
                             <td class="text-end" style="color:var(--gold);font-size:0.9rem;font-weight:900;padding:12px;">
                                 R @Model.History.Sum(h => h.YourEarnings).ToString("N2")
-                            </td>
-                            <td class="text-end" style="color:#ff6b6b;font-size:0.9rem;font-weight:900;padding:12px;">
-                                R @Model.History.Sum(h => h.PlatformTotalEarnings).ToString("N2")
                             </td>
                             <td></td>
                         </tr>
