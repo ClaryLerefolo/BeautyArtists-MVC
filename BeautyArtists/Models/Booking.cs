@@ -20,11 +20,43 @@ namespace BeautyArtists.Models
 
         [DataType(DataType.Currency)]
         [Column(TypeName = "decimal(18,2)")]
-        public decimal TotalAmount { get; set; } // Base Service Price + TransportCost
+        public decimal TotalAmount { get; set; } // Base Service Price + TransportCost + BookingFee (Client Total)
 
         [DataType(DataType.Currency)]
         [Column(TypeName = "decimal(18,2)")]
         public decimal TransportCost { get; set; } = 0; // Set by Artist later for house calls.
+
+        // ============================================================
+        // 🔥 NEW: Booking Fee & Commission Fields
+        // ============================================================
+
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal BookingFee { get; set; } = 6.00m; // R6 fixed client booking fee
+
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ServicePrice { get; set; } = 0m; // Original artist price (before fees)
+
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal PlatformCommission { get; set; } = 0m; // 15% commission deducted from artist
+
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal PlatformEarnings { get; set; } = 0m; // BookingFee + Commission (total platform revenue)
+
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ArtistNetAmount { get; set; } = 0m; // What the artist actually receives (85% of service price)
+
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ArtistTotalEarned { get; set; } = 0m; // Accumulated earnings for this booking (deposit + final)
+
+        // ============================================================
+        // Existing properties below...
+        // ============================================================
 
         [Required(ErrorMessage = "Please select whether you want a Walk-In or House Call.")]
         public LocationType SelectedLocationType { get; set; } // WalkIn or HouseCall

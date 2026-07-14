@@ -96,6 +96,12 @@
         public string Status { get; set; } = "";
 
         public decimal Amount { get; set; }
+
+        public decimal ServicePrice { get; set; }        // Artist's original price
+        public decimal BookingFee { get; set; }          // R5 booking fee
+        public decimal ClientTotal { get; set; }         // ServicePrice + BookingFee
+        public decimal PlatformCommission { get; set; }  // 15% commission
+        public decimal ArtistNet { get; set; }           // 85% of service price
     }
 
 

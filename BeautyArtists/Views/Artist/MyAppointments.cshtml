@@ -311,6 +311,7 @@
                             </div>
                         </div>
 
+                        <!-- 🔥 FIXED FINANCIAL ROW - ARTIST ONLY SEES SERVICE PRICE -->
                         <div class="financial-row small mb-3">
                             @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
                             {
@@ -319,10 +320,12 @@
                                     <span>R @item.TransportCost.ToString("N2")</span>
                                 </div>
                             }
+                            <!-- ✅ ARTIST SEES ONLY THEIR SERVICE PRICE -->
                             <div class="d-flex justify-content-between font-weight-bold border-top border-secondary pt-1">
-                                <span style="color: #f0c808;">Total Amount:</span>
-                                <span style="color: #f0c808; font-weight: bold;">R @item.TotalAmount.ToString("N2")</span>
+                                <span style="color: #f0c808;">Service Price:</span>
+                                <span style="color: #f0c808; font-weight: bold;">R @item.ServicePrice.ToString("N2")</span>
                             </div>
+                
                             <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-secondary" style="font-size: 0.7rem;">
                                 <span class="text-muted">Deposit Status (50%):</span>
                                 @if (item.IsDepositPaid)
@@ -377,8 +380,8 @@
                                             <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
                                             <button type="submit" class="btn btn-success w-100 fw-bold"
                                                     onclick="document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
-                                                                         var tInput = document.getElementById('transport-@item.Id');
-                                                                         if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
+                                                                                     var tInput = document.getElementById('transport-@item.Id');
+                                                                                     if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
                                                 <i class="fas fa-check me-1"></i> ACCEPT
                                             </button>
                                         </form>

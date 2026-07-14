@@ -23,8 +23,11 @@
                 </div>
             </div>
             <div class="book-price-block">
-                <span class="book-price-label">Total</span>
-                <span class="book-price">R @Model.Price.ToString("N0")</span>
+                <span class="book-price-label">Service Price</span>
+                <span class="book-price" style="font-size: 1.2rem; color: #fff;">R @Model.Price.ToString("N0")</span>
+                <span style="display: block; font-size: 0.7rem; color: rgba(255,215,0,0.5);">+ R @Model.BookingFee.ToString("N0") booking fee</span>
+                <span class="book-price-label" style="margin-top: 8px;">Total You Pay</span>
+                <span class="book-price">R @Model.ClientTotal.ToString("N0")</span>
             </div>
         </div>
     </div>

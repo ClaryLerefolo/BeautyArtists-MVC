@@ -4,7 +4,6 @@ using BeautyArtists.Models.ViewModels;
 using BeautyArtists.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -20,6 +19,8 @@ namespace BeautyArtists.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ICommunicationService _commService;
         private readonly INotificationService _notificationService;
+        private const decimal COMMISSION_RATE = 0.15m;
+        private const decimal BOOKING_FEE = 5.00m; // 🔥 CHANGED TO R5
 
         public BookingController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ICommunicationService commService, INotificationService notificationService)
         {
@@ -44,9 +45,9 @@ namespace BeautyArtists.Controllers
             return View(services);
         }
 
-        // ═══════════════════════════════════════════════════════════
-        //  GET: Booking/GetArtistAvailability - FIXED FOR CALENDAR
-        // ═══════════════════════════════════════════════════════════
+        // ═══════════════════════════════════
+        //  GET: Booking/GetArtistAvailability
+        // ═══════════════════════════════════
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> GetArtistAvailability(string artistId)
@@ -75,9 +76,9 @@ namespace BeautyArtists.Controllers
             return Json(slots);
         }
 
-        // ═══════════════════════════════════════════════════════════
+        // ═══════════════════════════════════
         //  DEBUG: Check slots in database (REMOVE AFTER TESTING)
-        // ═══════════════════════════════════════════════════════════
+        // ═══════════════════════════════════
         [HttpGet]
         [AllowAnonymous]
         public async Task<IActionResult> DebugSlots(string artistId)
@@ -131,11 +132,16 @@ namespace BeautyArtists.Controllers
                 ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
                 : userService.Artist?.UserName ?? "Pro Artist";
 
+            decimal bookingFee = BOOKING_FEE;
+            decimal clientTotal = userService.Price + bookingFee;
+
             var model = new BookingViewModel
             {
                 UserServiceId = userServiceId,
                 ServiceName = userService.Service?.Name,
                 Price = userService.Price,
+                BookingFee = bookingFee,
+                ClientTotal = clientTotal,
                 ArtistName = artistName,
                 ArtistId = userService.ArtistId,
                 ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
@@ -146,6 +152,9 @@ namespace BeautyArtists.Controllers
             return View("BookService", model);
         }
 
+        // ══════════════════════════════════
+        //  POST: Booking/ConfirmBooking
+        // ══════════════════════════════════
         [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -159,10 +168,9 @@ namespace BeautyArtists.Controllers
                 var currentUser = await _userManager.GetUserAsync(User);
                 if (currentUser == null) return Challenge();
 
-                // ── HOUSE CALL VALIDATION (FIXED) ──
+                // ── HOUSE CALL VALIDATION ──
                 if (model.SelectedLocationType == LocationType.HouseCall)
                 {
-                    // 🔥 Check the 3 separate fields, NOT HouseCallAddress
                     if (string.IsNullOrWhiteSpace(model.HouseNumber))
                         ModelState.AddModelError("HouseNumber", "House/Unit number is required for house calls.");
 
@@ -191,6 +199,8 @@ namespace BeautyArtists.Controllers
                     {
                         model.ServiceName = userService.Service?.Name;
                         model.Price = userService.Price;
+                        model.BookingFee = BOOKING_FEE;
+                        model.ClientTotal = userService.Price + BOOKING_FEE;
                         model.ArtistId = userService.ArtistId;
                         model.ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
                             ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
@@ -221,6 +231,8 @@ namespace BeautyArtists.Controllers
                     {
                         model.ServiceName = userService.Service?.Name;
                         model.Price = userService.Price;
+                        model.BookingFee = BOOKING_FEE;
+                        model.ClientTotal = userService.Price + BOOKING_FEE;
                         model.ArtistId = userService.ArtistId;
                         model.ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
                             ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
@@ -233,7 +245,7 @@ namespace BeautyArtists.Controllers
 
                 var appointmentDate = slot.AvailableDate.Add(slot.StartTime);
 
-                // ── BUILD THE COMBINED ADDRESS (ONLY ONCE) ──
+                // ── BUILD THE COMBINED ADDRESS ──
                 string fullAddress = string.Empty;
                 if (model.SelectedLocationType == LocationType.HouseCall)
                 {
@@ -243,6 +255,16 @@ namespace BeautyArtists.Controllers
                     if (!string.IsNullOrWhiteSpace(model.AreaCode)) parts.Add(model.AreaCode);
                     fullAddress = string.Join(", ", parts);
                 }
+
+                // ============================================================
+                // 🔥 CALCULATE FEES & SPLITS
+                // ============================================================
+                decimal bookingFee = BOOKING_FEE;
+                decimal servicePrice = model.Price;
+                decimal clientTotal = servicePrice + bookingFee;
+                decimal platformCommission = servicePrice * COMMISSION_RATE;
+                decimal platformEarnings = bookingFee + platformCommission;
+                decimal artistNetAmount = servicePrice * (1 - COMMISSION_RATE);
 
                 // ── CREATE BOOKING ──
                 var booking = new Booking
@@ -256,28 +278,29 @@ namespace BeautyArtists.Controllers
                     Status = BookingStatus.Pending,
                     SelectedLocationType = model.SelectedLocationType.GetValueOrDefault(LocationType.WalkIn),
                     TransportCost = 0,
-                    TotalAmount = model.Price,
+
+                    TotalAmount = clientTotal,
+                    ServicePrice = servicePrice,
+                    BookingFee = bookingFee,
+                    PlatformCommission = platformCommission,
+                    PlatformEarnings = platformEarnings,
+                    ArtistNetAmount = artistNetAmount,
+                    ArtistTotalEarned = 0m,
+
                     IsDepositPaid = false,
                     AvailabilitySlotId = slot.Id,
 
-                    // ─── ADDRESS FIELDS (SEPARATE) ───
                     HouseNumber = model.HouseNumber ?? "",
                     StreetAddress = model.StreetAddress ?? "",
                     AreaCode = model.AreaCode ?? "",
-
-                    // ─── COMBINED ADDRESS (ONLY SET ONCE) ───
                     HouseCallAddress = fullAddress,
-
-                    // ─── MAP COORDINATES ───
                     Latitude = model.Latitude ?? "",
                     Longitude = model.Longitude ?? "",
                 };
 
-                // ✅ SAVE BOOKING
                 _context.Bookings.Add(booking);
                 await _context.SaveChangesAsync();
 
-                // ✅ LOCK SLOT
                 slot.IsBooked = true;
                 await _context.SaveChangesAsync();
 
@@ -312,12 +335,7 @@ namespace BeautyArtists.Controllers
                         var artist = await _userManager.FindByIdAsync(slot.ArtistId);
                         if (artist != null && !string.IsNullOrEmpty(artist.Email))
                         {
-                            Console.WriteLine($"✅ Sending booking email to artist: {artist.Email}");
                             await _commService.SendBookingRequestToArtistAsync(slot.ArtistId, booking.Id);
-                        }
-                        else
-                        {
-                            Console.WriteLine($"❌ Cannot send email to artist: Email is null or empty. ArtistId: {slot.ArtistId}, Email: {artist?.Email ?? "null"}");
                         }
                     }
 
@@ -326,7 +344,6 @@ namespace BeautyArtists.Controllers
                         try
                         {
                             await _commService.SendBookingConfirmationToClientAsync(currentUser.Id, booking.Id);
-                            Console.WriteLine($"✅ Booking confirmation email sent to client: {currentUser.Email}");
                         }
                         catch (Exception ex)
                         {
@@ -337,7 +354,6 @@ namespace BeautyArtists.Controllers
                 catch (Exception ex)
                 {
                     Console.WriteLine($"❌ Notification/Email error: {ex.Message}");
-                    Console.WriteLine($"Stack: {ex.StackTrace}");
                 }
 
                 TempData["Success"] = booking.SelectedLocationType == LocationType.WalkIn
@@ -349,15 +365,13 @@ namespace BeautyArtists.Controllers
             catch (Exception ex)
             {
                 Console.WriteLine($"FATAL ERROR in ConfirmBooking: {ex.Message}");
-                Console.WriteLine($"Stack Trace: {ex.StackTrace}");
-
                 TempData["Error"] = "There was an error processing your booking. Please try again.";
                 return RedirectToAction("BookService", new { userServiceId = model.UserServiceId });
             }
         }
 
         // ══════════════════════════════════
-        //  POST: Booking/ArtistUpdateStatus - FIXED WITH ACCEPTED STATUS
+        //  POST: Booking/ArtistUpdateStatus
         // ══════════════════════════════════
         [Authorize]
         [HttpPost]
@@ -372,31 +386,26 @@ namespace BeautyArtists.Controllers
 
             if (booking == null) return NotFound();
 
-            // Store the artist's notes
             booking.ArtistNotes = artistNotes;
-
-            // Get client for email
             var client = await _userManager.FindByIdAsync(booking.CustomerId);
 
-            // ========== ARTIST ACCEPTS THE BOOKING ==========
             if (newStatus == Booking.BookingStatus.Accepted)
             {
-                // Handle transport cost for house calls
                 if (booking.SelectedLocationType == LocationType.HouseCall)
                 {
                     if (transportCost >= 0)
                     {
                         booking.TransportCost = transportCost;
-                        booking.TotalAmount = (booking.UserService?.Price ?? 0) + transportCost;
+                        booking.TotalAmount = booking.ServicePrice + transportCost + booking.BookingFee;
                     }
                 }
 
                 booking.Status = BookingStatus.Accepted;
                 await _context.SaveChangesAsync();
 
-                // ========== SEND EMAIL TO CLIENT ==========
                 var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
 
+                // 🔥 ARTIST EMAIL - ONLY SHOWS THEIR SERVICE PRICE, NOT BOOKING FEE BREAKDOWN
                 string subject = "✅ Your Appointment Has Been Accepted!";
                 string emailBody = $@"
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
@@ -421,11 +430,12 @@ namespace BeautyArtists.Controllers
             
             <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                 <h3 style='color: #f0c808; margin-top: 0;'>💰 Payment Details</h3>
-                <p><strong>Base Price:</strong> R {booking.UserService?.Price:N2}</p>
+                <p><strong>Service Price:</strong> R {booking.ServicePrice:N2}</p>
                 {(booking.TransportCost > 0 ? $"<p><strong>Transport Cost:</strong> R {booking.TransportCost:N2}</p>" : "")}
                 <p><strong>Total Amount:</strong> <span style='color: #f0c808; font-size: 18px;'>R {booking.TotalAmount:N2}</span></p>
                 <hr style='border-color: #333;'>
-                <p><strong>Deposit Required (50%):</strong> <span style='color: #ff6600;'>R {(booking.TotalAmount / 2):N2}</span></p>
+                <p><strong>Deposit Required (50% of service + R5 booking fee):</strong> <span style='color: #ff6600;'>R {((booking.ServicePrice / 2) + booking.BookingFee):N2}</span></p>
+                <p><strong>Final Payment (remaining 50% of service):</strong> R {(booking.ServicePrice / 2):N2}</p>
             </div>
             
             {(booking.ArtistNotes != null ? $@"
@@ -436,13 +446,13 @@ namespace BeautyArtists.Controllers
             
             <div style='text-align: center; margin: 25px 0;'>
                 <a href='{depositUrl}' style='background: linear-gradient(45deg, #f0c808, #e50914); color: #000; padding: 14px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px; display: inline-block;'>
-                    💰 PAY YOUR 50% DEPOSIT NOW
+                    💰 PAY YOUR DEPOSIT NOW
                 </a>
             </div>
             
             <div style='background: rgba(229, 9, 20, 0.1); padding: 12px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #e50914;'>
                 <p style='margin: 0; font-size: 12px; color: #ff8888;'>
-                    <strong>⚠️ IMPORTANT:</strong> Your appointment is not confirmed until the 50% deposit is paid. Please complete your payment as soon as possible.
+                    <strong>⚠️ IMPORTANT:</strong> Your appointment is not confirmed until the deposit is paid. Please complete your payment as soon as possible.
                 </p>
             </div>
             
@@ -453,7 +463,6 @@ namespace BeautyArtists.Controllers
             </p>
         </div>";
 
-                // Send email
                 if (client != null && !string.IsNullOrEmpty(client.Email))
                 {
                     await _commService.SendDirectMessageEmailAsync(
@@ -464,17 +473,15 @@ namespace BeautyArtists.Controllers
                     );
                 }
 
-                // 🔔 IN-APP NOTIFICATION: To client - Appointment Accepted
                 await _notificationService.CreateNotificationAsync(
                     booking.CustomerId,
                     "Appointment Accepted! ✅",
-                    $"Great news! Your appointment for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd} has been ACCEPTED. Pay your 50% deposit now!",
+                    $"Great news! Your appointment for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd} has been ACCEPTED. Pay your deposit now!",
                     "booking_accepted",
                     booking.Id.ToString(),
                     Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id })
                 );
 
-                // 🔔 IN-APP NOTIFICATION: To artist - Confirmation
                 await _notificationService.CreateNotificationAsync(
                     booking.UserService.ArtistId,
                     "You Accepted an Appointment 🎉",
@@ -491,7 +498,6 @@ namespace BeautyArtists.Controllers
                 booking.Status = BookingStatus.Rejected;
                 await _context.SaveChangesAsync();
 
-                // Send rejection email to client
                 string rejectSubject = "❌ Appointment Request Update";
                 string rejectBody = $@"
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #e50914; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
@@ -514,7 +520,6 @@ namespace BeautyArtists.Controllers
                     );
                 }
 
-                // 🔔 IN-APP NOTIFICATION: To client - Appointment Rejected
                 await _notificationService.CreateNotificationAsync(
                     booking.CustomerId,
                     "Appointment Declined ❌",
@@ -524,7 +529,6 @@ namespace BeautyArtists.Controllers
                     Url.Action("MyBookings", "Booking")
                 );
 
-                // Free up the slot
                 if (booking.AvailabilitySlotId.HasValue)
                 {
                     var slot = await _context.ArtistAvailabilities.FirstOrDefaultAsync(a => a.Id == booking.AvailabilitySlotId.Value);
@@ -539,7 +543,6 @@ namespace BeautyArtists.Controllers
                 booking.Status = BookingStatus.Completed;
                 await _context.SaveChangesAsync();
 
-                // Send completion email to client
                 string completeSubject = "🎉 Service Completed! Thank You!";
                 string completeBody = $@"
         <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
@@ -560,7 +563,6 @@ namespace BeautyArtists.Controllers
                     );
                 }
 
-                // 🔔 IN-APP NOTIFICATION: To client - Service Completed
                 await _notificationService.CreateNotificationAsync(
                     booking.CustomerId,
                     "Service Completed! ⭐",
@@ -577,7 +579,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ══════════════════════════════════
-        //  GET: Booking/CheckoutDeposit – NEW (Paystack ready)
+        //  GET: Booking/CheckoutDeposit
         // ══════════════════════════════════
         [Authorize]
         [HttpGet]
@@ -605,12 +607,11 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings");
             }
 
-            // ── Check if last‑minute (appointment within 2 days) ──
             var daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
             var isLastMinute = daysUntilAppointment < 2;
 
-            // If last‑minute, they must pay the full amount
-            var depositAmount = isLastMinute ? booking.TotalAmount : booking.TotalAmount / 2;
+            // 🔥 FIXED: Deposit = 50% of service price + FULL booking fee
+            var depositAmount = isLastMinute ? booking.TotalAmount : (booking.ServicePrice / 2) + booking.BookingFee;
 
             var model = new CheckoutViewModel
             {
@@ -624,6 +625,9 @@ namespace BeautyArtists.Controllers
             return View(model);
         }
 
+        // ══════════════════════════════════
+        //  POST: Booking/ProcessDeposit
+        // ══════════════════════════════════
         [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -647,34 +651,40 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                // Calculate deposit amount (50% of total)
-                decimal depositAmount = booking.TotalAmount / 2;
+                // ============================================================
+                // 🔥 CORRECT: Deposit = 50% of Service Price + FULL Booking Fee
+                // ============================================================
+                decimal depositAmount = (booking.ServicePrice / 2) + booking.BookingFee;
 
                 // ============================================================
-                // 🔥 RECORD THE DEPOSIT – keep TotalAmount intact
+                // 🔥 Artist ONLY gets 85% of the service price portion (50% of service price)
+                // Booking fee goes 100% to platform
                 // ============================================================
+                decimal artistShareOfDeposit = (booking.ServicePrice / 2) * (1 - COMMISSION_RATE);
+
                 booking.DepositPaid = depositAmount;
                 booking.DepositPaidDate = DateTime.UtcNow;
                 booking.IsDepositPaid = true;
+                booking.ArtistTotalEarned = artistShareOfDeposit;
                 await _context.SaveChangesAsync();
 
-                // ── Send notifications (keep your existing email logic) ──
+                // ── Send notifications ──
                 var artist = booking.UserService?.Artist;
                 var serviceName = booking.UserService?.Service?.Name ?? "your service";
 
                 await _notificationService.CreateNotificationAsync(
                     booking.UserService.ArtistId,
                     "Deposit Received! 💰",
-                    $"{currentUser.FirstName} has paid the 50% deposit for {serviceName}.",
+                    $"{currentUser.FirstName} has paid the deposit for {serviceName}.",
                     "deposit_paid",
                     booking.Id.ToString(),
                     Url.Action("MyAppointments", "Artist")
                 );
 
-                // Email to artist
+                // Email to artist (only shows their cut, no booking fee breakdown)
                 if (artist != null && !string.IsNullOrEmpty(artist.Email))
                 {
-                    string artistSubject = "💰 Deposit Received – 50% Paid!";
+                    string artistSubject = "💰 Deposit Received!";
                     string artistBody = $@"
 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
     <h2 style='color: #f0c808; text-align: center;'>Deposit Received! ✅</h2>
@@ -684,8 +694,9 @@ namespace BeautyArtists.Controllers
         <p><strong>Service:</strong> {serviceName}</p>
         <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
         <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
+        <p><strong>Your Cut (85%):</strong> R {artistShareOfDeposit:N2}</p>
     </div>
-    <p>The appointment is now <strong>confirmed</strong>. The client will pay the remaining balance 2 days before the appointment.</p>
+    <p>The client will pay the remaining 50% of the service price 2 days before the appointment.</p>
     <hr>
     <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
 </div>";
@@ -693,22 +704,24 @@ namespace BeautyArtists.Controllers
                     await _commService.SendDirectMessageEmailAsync(currentUser.Id, artist.Id, artistSubject, artistBody);
                 }
 
-                // Email to client
+                // Email to client (shows full breakdown)
                 string clientSubject = "✅ Deposit Confirmed!";
                 string clientBody = $@"
 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
     <h2 style='color: #28a745; text-align: center;'>Deposit Confirmed! 🎉</h2>
     <p>Dear {currentUser.FirstName},</p>
     <p>Your deposit of <strong>R{depositAmount:N2}</strong> has been received.</p>
+    <p><strong>Deposit Breakdown:</strong></p>
+    <p style='padding-left: 20px;'>50% of Service Price: R {(booking.ServicePrice / 2):N2}</p>
+    <p style='padding-left: 20px; color: #f0c808;'>+ Booking Fee: R {booking.BookingFee:N2}</p>
     <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>CONFIRMED</strong>.</p>
-    <p>You will receive a reminder to pay the remaining balance 2 days before the appointment.</p>
+    <p>You will pay the remaining <strong>R {(booking.ServicePrice / 2):N2}</strong> 2 days before the appointment.</p>
     <hr>
     <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
 </div>";
 
                 await _commService.SendDirectMessageEmailAsync(artist?.Id, currentUser.Id, clientSubject, clientBody);
 
-                // Update booking status to Confirmed (since deposit is paid)
                 booking.Status = BookingStatus.Confirmed;
                 await _context.SaveChangesAsync();
 
@@ -722,7 +735,6 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings");
             }
         }
-
 
         // ══════════════════════════════════
         //  POST: Booking/ProcessFinalPayment
@@ -750,12 +762,15 @@ namespace BeautyArtists.Controllers
 
                 if (!booking.IsDepositPaid)
                 {
-                    TempData["Error"] = "You must pay the initial 50% deposit first.";
+                    TempData["Error"] = "You must pay the initial deposit first.";
                     return RedirectToAction("MyBookings");
                 }
 
-                // Calculate remaining balance (total / 2 minus any final payment already recorded)
-                decimal remainingBalance = (booking.TotalAmount / 2) - booking.FinalPaymentPaid;
+                // ============================================================
+                // 🔥 CORRECT: Final payment = remaining 50% of ServicePrice ONLY
+                // Booking fee was already paid in full with deposit
+                // ============================================================
+                decimal remainingBalance = booking.ServicePrice / 2;
 
                 if (remainingBalance <= 0)
                 {
@@ -771,18 +786,17 @@ namespace BeautyArtists.Controllers
                 }
 
                 // ============================================================
-                // 🔥 THE FIX – Record the final payment, keep TotalAmount intact
+                // 🔥 Artist gets 85% of the remaining service price
                 // ============================================================
                 booking.FinalPaymentPaid = remainingBalance;
                 booking.FinalPaidDate = DateTime.UtcNow;
-                // DO NOT set TotalAmount = 0
+                booking.ArtistTotalEarned += remainingBalance * (1 - COMMISSION_RATE);
                 await _context.SaveChangesAsync();
 
-                // ── Send notifications (exactly as you had) ──
+                // ── Send notifications ──
                 var artist = booking.UserService?.Artist;
                 var serviceName = booking.UserService?.Service?.Name ?? "your service";
 
-                // In-app notification to artist
                 await _notificationService.CreateNotificationAsync(
                     booking.UserService.ArtistId,
                     "Final Payment Received! 💵",
@@ -792,7 +806,6 @@ namespace BeautyArtists.Controllers
                     Url.Action("MyAppointments", "Artist")
                 );
 
-                // Email to artist
                 if (artist != null && !string.IsNullOrEmpty(artist.Email))
                 {
                     string artistSubject = "💰 Final Payment Received – Appointment Fully Paid!";
@@ -805,8 +818,9 @@ namespace BeautyArtists.Controllers
             <p><strong>Service:</strong> {serviceName}</p>
             <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
             <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
+            <p><strong>Your Total Cut (85%):</strong> R {booking.ArtistTotalEarned:N2}</p>
         </div>
-        <p>This appointment is now <strong>FULLY PAID</strong>. You can now mark it as completed after the service.</p>
+        <p>This appointment is now <strong>FULLY PAID</strong>.</p>
         <hr>
         <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
     </div>";
@@ -814,7 +828,6 @@ namespace BeautyArtists.Controllers
                     await _commService.SendDirectMessageEmailAsync(currentUser.Id, artist.Id, artistSubject, artistBody);
                 }
 
-                // Email to client
                 string clientSubject = "✅ Final Payment Confirmed!";
                 string clientBody = $@"
 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
@@ -845,7 +858,7 @@ namespace BeautyArtists.Controllers
         // ══════════════════════════════════
         [Authorize]
         [HttpPost]
-        [Route("Booking/Cancel/{id}")] 
+        [Route("Booking/Cancel/{id}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Cancel(int id, string? clientNotes)
         {
@@ -853,6 +866,9 @@ namespace BeautyArtists.Controllers
 
             var booking = await _context.Bookings
                 .Include(b => b.UserService)
+                .ThenInclude(us => us.Artist)
+                .Include(b => b.UserService)
+                .ThenInclude(us => us.Service)
                 .FirstOrDefaultAsync(b => b.Id == id && b.CustomerId == currentUser.Id);
 
             if (booking == null ||
@@ -872,36 +888,40 @@ namespace BeautyArtists.Controllers
 
             await _context.SaveChangesAsync();
 
-            // Email notification to artist
-            if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
+            try
             {
-                await _commService.SendDirectMessageEmailAsync(
-                    currentUser.Id,
+                if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
+                {
+                    await _commService.SendDirectMessageEmailAsync(
+                        currentUser.Id,
+                        booking.UserService.ArtistId,
+                        "Booking Cancelled By Client",
+                        $"Client {currentUser.FirstName} has cancelled Booking #{booking.Id} for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd}."
+                    );
+                }
+
+                await _notificationService.CreateNotificationAsync(
                     booking.UserService.ArtistId,
-                    "Booking Cancelled By Client",
-                    $"Client {currentUser.FirstName} has cancelled Booking #{booking.Id}."
+                    "Booking Cancelled ❌",
+                    $"{currentUser.FirstName} has cancelled their booking for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd}.",
+                    "booking_cancelled",
+                    booking.Id.ToString(),
+                    Url.Action("MyAppointments", "Artist")
+                );
+
+                await _notificationService.CreateNotificationAsync(
+                    currentUser.Id,
+                    "Booking Cancelled ❌",
+                    $"You have cancelled your appointment for {booking.UserService?.Service?.Name}.",
+                    "booking_cancelled",
+                    booking.Id.ToString(),
+                    Url.Action("MyBookings", "Booking")
                 );
             }
-
-            // 🔔 IN-APP NOTIFICATION: To artist
-            await _notificationService.CreateNotificationAsync(
-                booking.UserService.ArtistId,
-                "Booking Cancelled ❌",
-                $"{currentUser.FirstName} has cancelled their booking for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd}.",
-                "booking_cancelled",
-                booking.Id.ToString(),
-                Url.Action("MyAppointments", "Artist")
-            );
-
-            // 🔔 IN-APP NOTIFICATION: To client
-            await _notificationService.CreateNotificationAsync(
-                currentUser.Id,
-                "Booking Cancelled ❌",
-                $"You have cancelled your appointment for {booking.UserService?.Service?.Name}.",
-                "booking_cancelled",
-                booking.Id.ToString(),
-                Url.Action("MyBookings", "Booking")
-            );
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Notification/Email failed for cancellation of booking {booking.Id}: {ex.Message}");
+            }
 
             TempData["Success"] = "Your booking has been cancelled.";
             return RedirectToAction("MyBookings");
@@ -947,7 +967,9 @@ namespace BeautyArtists.Controllers
                 ServiceName = booking.UserService?.Service?.Name,
                 ArtistName = artistName,
                 ArtistId = booking.UserService?.ArtistId,
-                Price = booking.TotalAmount
+                Price = booking.ServicePrice,
+                BookingFee = booking.BookingFee,
+                ClientTotal = booking.TotalAmount
             };
 
             return View("Reschedule", model);
@@ -1003,7 +1025,6 @@ namespace BeautyArtists.Controllers
 
             await _context.SaveChangesAsync();
 
-            // 🔔 IN-APP NOTIFICATION: To client - Appointment Rescheduled
             await _notificationService.CreateNotificationAsync(
                 booking.CustomerId,
                 "Appointment Rescheduled 🔄",
@@ -1013,7 +1034,6 @@ namespace BeautyArtists.Controllers
                 Url.Action("MyBookings", "Booking")
             );
 
-            // 🔔 IN-APP NOTIFICATION: To artist - Appointment Rescheduled
             await _notificationService.CreateNotificationAsync(
                 booking.UserService.ArtistId,
                 "Appointment Rescheduled 🔄",
@@ -1023,7 +1043,6 @@ namespace BeautyArtists.Controllers
                 Url.Action("MyAppointments", "Artist")
             );
 
-            // Email notification to artist
             if (booking.UserService != null && !string.IsNullOrEmpty(booking.UserService.ArtistId))
             {
                 await _commService.SendDirectMessageEmailAsync(
@@ -1038,9 +1057,6 @@ namespace BeautyArtists.Controllers
             return RedirectToAction("MyBookings");
         }
 
-        // ══════════════════════════════════
-        //  GET: Booking/CheckoutFinalPayment
-        // ══════════════════════════════════
         // ══════════════════════════════════
         //  GET: Booking/CheckoutFinalPayment
         // ══════════════════════════════════
@@ -1069,28 +1085,37 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                // Calculate remaining balance
-                decimal remainingBalance = booking.TotalAmount / 2;
+                // 🔥 CORRECT: Remaining balance = 50% of ServicePrice ONLY
+                decimal remainingBalance = booking.ServicePrice / 2;
 
-                if (remainingBalance <= 0)
+                // Check if deposit was paid
+                if (!booking.IsDepositPaid)
+                {
+                    TempData["Error"] = "Please pay the deposit first.";
+                    return RedirectToAction("MyBookings");
+                }
+
+                // Check if already fully paid
+                if (booking.FinalPaymentPaid >= remainingBalance || remainingBalance <= 0)
                 {
                     TempData["Error"] = "This booking has already been fully paid.";
                     return RedirectToAction("MyBookings");
                 }
 
-                // ── 🔥 NEW LOGIC ──
+                // ── Check if last‑minute ──
                 double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
                 bool isLastMinute = daysUntilAppointment < 2;
 
-                // If last minute, force full payment (remaining balance = total - deposit)
                 if (isLastMinute)
                 {
-                    remainingBalance = booking.TotalAmount - booking.DepositPaid;
-                    // If deposit was already paid, this is just the final 50%.
-                    // If deposit wasn't paid (shouldn't happen if confirmed), they pay full.
+                    // Last minute: they pay the remaining balance (could be more if deposit wasn't enough)
+                    decimal totalRemaining = booking.TotalAmount - booking.DepositPaid;
+                    if (totalRemaining > 0)
+                    {
+                        remainingBalance = totalRemaining;
+                    }
                 }
 
-                // If no remaining balance, they're already fully paid
                 if (remainingBalance <= 0)
                 {
                     TempData["Error"] = "This booking has already been fully paid.";
@@ -1114,6 +1139,11 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings");
             }
         }
+        
+
+        // ══════════════════════════════════
+        //  GET: Booking/MyBookings
+        // ══════════════════════════════════
         [HttpGet]
         public async Task<IActionResult> MyBookings()
         {
@@ -1144,8 +1174,6 @@ namespace BeautyArtists.Controllers
                 {
                     Booking = b,
                     HasReviewed = reviewedBookingIds.Contains(b.Id),
-
-                    // ─── POPULATE STUDIO ADDRESS FIELDS ───
                     StudioAddress = b.UserService?.Artist?.ArtistProfile?.StudioAddress,
                     StudioCity = b.UserService?.Artist?.ArtistProfile?.StudioCity,
                     StudioProvince = b.UserService?.Artist?.ArtistProfile?.StudioProvince,

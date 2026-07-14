@@ -42,5 +42,7 @@ namespace BeautyArtists.Models
 
         [ForeignKey("BookingId")]
         public virtual Booking? Booking { get; set; }
+        public bool IsFullPayment { get; set; }  // 🔥 NEW - For last-minute full payments
+
     }
 }

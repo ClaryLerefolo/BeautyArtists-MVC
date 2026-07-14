@@ -9,6 +9,13 @@ namespace BeautyArtists.Models.ViewModels
         public int UserServiceId { get; set; }
         public string? ServiceName { get; set; }
         public decimal Price { get; set; }
+
+        // ============================================================
+        // 🔥 NEW: Booking Fee & Client Total
+        // ============================================================
+        public decimal BookingFee { get; set; } = 6.00m;  // R6 fixed booking fee
+        public decimal ClientTotal { get; set; }           // Price + BookingFee (what client pays)
+
         public string? ArtistName { get; set; }
         public string? ArtistId { get; set; }      // Needed to fetch slots
         public string? ArtistProfilePicture { get; set; } // For the UI header

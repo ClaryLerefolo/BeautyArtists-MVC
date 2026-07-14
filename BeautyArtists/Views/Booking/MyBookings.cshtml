@@ -353,11 +353,20 @@
                                         </a>
                                     }
                                 }
-
                                 @* ── PAYMENT BUTTONS FOR CONFIRMED STATUS ── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
                                 {
-                                    decimal remainingBalance = booking.TotalAmount - booking.DepositPaid;
+                                    // 🔥 FIXED: Booking fee is paid in full with deposit
+                                    // Remaining balance = 50% of ServicePrice (booking fee already paid)
+                                    decimal remainingBalance = booking.ServicePrice / 2;
+
+                                    // If deposit wasn't paid yet, show full amount (deposit + booking fee)
+                                    if (!booking.IsDepositPaid)
+                                    {
+                                        remainingBalance = (booking.ServicePrice / 2) + booking.BookingFee;
+                                    }
+
+                                    // Safety check
                                     if (remainingBalance < 0) remainingBalance = 0;
 
                                     if (remainingBalance <= 0 || isFullyPaid)

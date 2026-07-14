@@ -29,7 +29,7 @@ namespace BeautyArtists.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _config["Paystack:SecretKey"]);
         }
 
-        // ─── 🔥 UPDATED: Added subaccount parameter ───
+        // ─── 🔥 FIXED: Determine if deposit or final payment ───
         public async Task<(bool success, string message, string authorizationUrl, string reference)> InitializePayment(
             string email,
             decimal amount,
@@ -41,6 +41,17 @@ namespace BeautyArtists.Services
                 int amountInCents = (int)(amount * 100);
                 string reference = GenerateReference();
 
+                // ─── 🔥 FETCH BOOKING TO DETERMINE PAYMENT TYPE ───
+                var booking = await _context.Bookings.FirstOrDefaultAsync(b => b.Id == bookingId);
+                if (booking == null)
+                {
+                    return (false, "Booking not found", null, null);
+                }
+
+                // Determine if this is a deposit or final payment
+                bool isDeposit = !booking.IsDepositPaid;
+                bool isFullPayment = amount >= booking.TotalAmount;
+
                 var request = new PaystackInitRequest
                 {
                     email = email,
@@ -48,8 +59,8 @@ namespace BeautyArtists.Services
                     currency = "ZAR",
                     reference = reference,
                     callback_url = _config["Paystack:CallbackUrl"],
-                    subaccount = subaccount, // ─── 🔥 THIS IS THE KEY ───
-                    transaction_charge = 0    // Let Paystack handle the split
+                    subaccount = subaccount,
+                    transaction_charge = 0
                 };
 
                 var json = JsonConvert.SerializeObject(request);
@@ -58,13 +69,13 @@ namespace BeautyArtists.Services
                 var response = await _httpClient.PostAsync("https://api.paystack.co/transaction/initialize", content);
                 var responseString = await response.Content.ReadAsStringAsync();
 
-                // 🔥 Log for debugging
                 Console.WriteLine($"Paystack Init Response: {responseString}");
 
                 var result = JsonConvert.DeserializeObject<PaystackInitResponse>(responseString);
 
                 if (result != null && result.status && result.data != null)
                 {
+                    // ─── 🔥 SAVE PAYMENT WITH CORRECT IsDeposit FLAG ───
                     var payment = new Payment
                     {
                         BookingId = bookingId,
@@ -72,7 +83,8 @@ namespace BeautyArtists.Services
                         Amount = amount,
                         Reference = reference,
                         Status = "pending",
-                        IsDeposit = true,
+                        IsDeposit = isDeposit,          // ✅ TRUE for deposit, FALSE for final payment
+                        IsFullPayment = isFullPayment,  // ✅ TRUE if full payment (last minute)
                         PaymentMethod = "pending",
                         PhoneNumber = ""
                     };
@@ -98,7 +110,6 @@ namespace BeautyArtists.Services
                 var response = await _httpClient.GetAsync($"https://api.paystack.co/transaction/verify/{reference}");
                 var responseString = await response.Content.ReadAsStringAsync();
 
-                // 🔥 Log for debugging
                 Console.WriteLine($"Paystack Verify Response: {responseString}");
 
                 var result = JsonConvert.DeserializeObject<PaystackVerifyResponse>(responseString);
@@ -140,8 +151,8 @@ namespace BeautyArtists.Services
         public string currency { get; set; }
         public string reference { get; set; }
         public string callback_url { get; set; }
-        public string subaccount { get; set; }        // ─── 🔥 NEW ───
-        public int transaction_charge { get; set; }   // ─── 🔥 NEW ───
+        public string subaccount { get; set; }
+        public int transaction_charge { get; set; }
     }
 
     public class PaystackInitResponse

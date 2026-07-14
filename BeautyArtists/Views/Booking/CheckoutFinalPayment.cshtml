@@ -35,7 +35,20 @@
                         <p><strong>Date:</strong> @Model.Booking.AppointmentDate.ToString("MMMM dd, yyyy")</p>
                         <p><strong>Time:</strong> @Model.Booking.AppointmentDate.ToString("hh:mm tt")</p>
                         <hr style="border-color: rgba(@(isLastMinute ? "240,200,8" : "40,167,69"), 0.2);">
-                        <p><strong>Deposit Paid (50%):</strong> <span style="color: #ff6600;">R @((Model.Booking.TotalAmount / 2).ToString("N2"))</span></p>
+
+                        <!-- 🔥 PAYMENT BREAKDOWN -->
+                        <div style="background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                            <h3 style="color: #f0c808; margin-top: 0;">💰 Final Payment</h3>
+                            <p><strong>Service Price:</strong> R @Model.Booking.ServicePrice.ToString("N2")</p>
+                            <p><strong>Booking Fee:</strong> R @Model.Booking.BookingFee.ToString("N2") <span style="color: #28a745;">(Already Paid)</span></p>
+                            <hr style="border-color: #333;">
+                            <p><strong>Remaining Balance:</strong> R @Model.DepositAmount.ToString("N2")</p>
+                            <p style="font-size: 0.7rem; color: rgba(255,255,255,0.3);">
+                                This is the remaining 50% of the service price.
+                            </p>
+                        </div>
+
+                        <p><strong>Deposit Paid (50%):</strong> <span style="color: #ff6600;">R @((Model.Booking.ServicePrice / 2).ToString("N2"))</span></p>
                         <p><strong>Remaining Balance:</strong> <span style="color: @headerColor; font-size: 1.5rem;">R @Model.DepositAmount.ToString("N2")</span></p>
                         @if (isLastMinute)
                         {

@@ -109,7 +109,8 @@
                     <strong id="summarySlot" style="color:#00c853">—</strong>
                 </div>
             </div>
-            @* --- Add this inside the form, right after the Summary section --- *@
+
+            @* ── REASON FOR RESCHEDULING ── *@
             <div class="book-section">
                 <div class="book-step-header">
                     <div class="book-step-num">2</div>
@@ -128,6 +129,7 @@
                     </div>
                 </div>
             </div>
+
             @* ── ACTIONS ── *@
             <div class="reschedule-actions">
                 <button type="submit" class="book-confirm-btn" id="confirmBtn">
@@ -512,8 +514,12 @@
         const artistId = '@Model.ArtistId';
         let selectedSlot = null;
 
-        fetch(`/ArtistAvailability/GetSlots?artistId=${artistId}`)
-            .then(res => res.json())
+        // 🔥 FIXED: Use the correct endpoint from your BookingController
+        fetch(`/Booking/GetArtistAvailability?artistId=${artistId}`)
+            .then(res => {
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return res.json();
+            })
             .then(slots => {
                 document.getElementById('slotsLoading').style.display = 'none';
 
@@ -526,24 +532,28 @@
                 grid.style.display = 'grid';
 
                 slots.forEach(slot => {
-                    const parts = slot.display.split(': ');
-                    const datePart = parts[0];
-                    const timePart = parts[1] || '';
+                    // 🔥 FIXED: Use the exact format from your API
+                    const dateDisplay = new Date(slot.date + 'T00:00:00').toLocaleDateString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric'
+                    });
 
                     const card = document.createElement('div');
                     card.className = 'slot-card';
                     card.dataset.slotId = slot.id;
+                    card.dataset.date = slot.date;
 
                     card.innerHTML = `
                         <div class="slot-check">✓</div>
-                        <div class="slot-date">📅 ${datePart}</div>
+                        <div class="slot-date">📅 ${dateDisplay}</div>
                         <div class="slot-time">
                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none"
                                  stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="12" r="10"/>
                                 <polyline points="12,6 12,12 16,14"/>
                             </svg>
-                            ${timePart}
+                            ${slot.timeString}
                         </div>
                     `;
 
@@ -553,8 +563,8 @@
                         selectedSlot = slot;
 
                         document.getElementById('selectedSlotId').value = slot.id;
-                        document.getElementById('selectedDate').value = slot.date + 'T00:00:00';
-                        document.getElementById('summarySlot').textContent = slot.display;
+                        document.getElementById('selectedDate').value = slot.date;
+                        document.getElementById('summarySlot').textContent = `${dateDisplay} — ${slot.timeString}`;
                         document.getElementById('bookSummary').style.display = 'block';
                         document.getElementById('slotError').style.display = 'none';
                     });
@@ -568,10 +578,30 @@
             });
 
         document.getElementById('rescheduleForm').addEventListener('submit', function(e) {
+            let valid = true;
+
             if (!selectedSlot) {
                 e.preventDefault();
                 document.getElementById('slotError').style.display = 'block';
                 document.getElementById('slotError').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                valid = false;
+            }
+
+            const reason = document.getElementById('rescheduleReason').value.trim();
+            if (!reason) {
+                e.preventDefault();
+                document.getElementById('reasonError').style.display = 'block';
+                document.getElementById('reasonError').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                valid = false;
+            }
+
+            if (!valid) e.preventDefault();
+        });
+
+        // Hide reason error when user starts typing
+        document.getElementById('rescheduleReason').addEventListener('input', function() {
+            if (this.value.trim()) {
+                document.getElementById('reasonError').style.display = 'none';
             }
         });
     </script>

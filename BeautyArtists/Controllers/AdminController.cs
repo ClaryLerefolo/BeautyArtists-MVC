@@ -17,7 +17,8 @@ namespace BeautyArtists.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _hostEnvironment;
-
+        private const decimal COMMISSION_RATE = 0.15m;
+        private const decimal BOOKING_FEE = 5.00m;
 
         public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment hostEnvironment)
         {
@@ -34,20 +35,21 @@ namespace BeautyArtists.Controllers
                 TotalArtists = await _userManager.GetUsersInRoleAsync("Artist").ContinueWith(t => t.Result.Count),
                 TotalCustomers = await _userManager.GetUsersInRoleAsync("Client").ContinueWith(t => t.Result.Count),
                 TotalBookings = await _context.Bookings.CountAsync(),
-                TotalRevenue = await _context.UserServices
-                    .Join(_context.Bookings, us => us.Id, b => b.UserServiceId, (us, b) => us.Price)
-                    .SumAsync(),
-                RevenuePerArtist = await _context.UserServices
-    .Include(us => us.Artist)
-    .Join(_context.Bookings, us => us.Id, b => b.UserServiceId, (us, b) => new { us.ArtistId, us.Price, us.Artist })
-    .GroupBy(x => x.ArtistId)
-    .Select(g => new AdminDashboardViewModel.ArtistRevenue
-    {
-        ArtistId = g.Key,
-        ArtistName = g.Select(x => x.Artist.FirstName + " " + x.Artist.LastName).FirstOrDefault(),
-        TotalRevenue = g.Sum(x => x.Price)
-    })
-    .ToListAsync()
+                TotalRevenue = await _context.Bookings
+                    .Where(b => b.Status == BookingStatus.Completed)
+                    .SumAsync(b => b.ServicePrice * (1 - COMMISSION_RATE)),
+                RevenuePerArtist = await _context.Bookings
+                    .Where(b => b.Status == BookingStatus.Completed)
+                    .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                    .GroupBy(b => b.UserService.ArtistId)
+                    .Select(g => new AdminDashboardViewModel.ArtistRevenue
+                    {
+                        ArtistId = g.Key,
+                        ArtistName = g.Select(b => b.UserService.Artist.FirstName + " " + b.UserService.Artist.LastName).FirstOrDefault(),
+                        TotalRevenue = g.Sum(b => b.ServicePrice * (1 - COMMISSION_RATE))
+                    })
+                    .ToListAsync()
             };
 
             return View("Index", model);
@@ -61,7 +63,6 @@ namespace BeautyArtists.Controllers
             {
                 var role = (await _userManager.GetRolesAsync(user)).FirstOrDefault() ?? "None";
 
-                // CHECK IF DEACTIVATED: If LockoutEnd is in the future, they are deactivated
                 bool isDeactivated = user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.Now;
 
                 userList.Add(new UserManagementViewModel
@@ -70,7 +71,7 @@ namespace BeautyArtists.Controllers
                     FullName = $"{user.FirstName} {user.LastName}",
                     Email = user.Email,
                     Role = role,
-                    IsDeactivated = isDeactivated // Make sure to add this prop to your ViewModel!
+                    IsDeactivated = isDeactivated
                 });
             }
             var allServices = await _context.Services.ToListAsync();
@@ -98,7 +99,6 @@ namespace BeautyArtists.Controllers
             var user = await _userManager.FindByIdAsync(id);
             if (user == null) return NotFound();
 
-            // If currently deactivated (locked out), reactivate them
             if (user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.Now)
             {
                 await _userManager.SetLockoutEndDateAsync(user, null);
@@ -106,7 +106,6 @@ namespace BeautyArtists.Controllers
             }
             else
             {
-                // Deactivate them by locking the account for 200 years
                 await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.Now.AddYears(200));
                 TempData["Error"] = "User deactivated.";
             }
@@ -150,7 +149,6 @@ namespace BeautyArtists.Controllers
             return RedirectToAction(nameof(ManageUsers));
         }
 
-
         public async Task<IActionResult> DeletePromotedAdmins()
         {
             var users = _userManager.Users.ToList();
@@ -159,26 +157,20 @@ namespace BeautyArtists.Controllers
             {
                 var roles = await _userManager.GetRolesAsync(user);
 
-                // Check if the user is an Admin and should not be one (should be Artist or Client instead)
                 if (roles.Contains("Admin") && (user.Role == "Artist" || user.Role == "Client"))
                 {
-                    // Delete the user if they shouldn't be an Admin
                     var result = await _userManager.DeleteAsync(user);
 
                     if (!result.Succeeded)
                     {
-                        // Handle error (maybe log or display a message)
                         TempData["ErrorMessage"] = "An error occurred while deleting some users.";
                     }
                 }
             }
 
-            // Redirect to the user management page after deletion
             return RedirectToAction("Index", "Admin");
         }
 
-        // Show all services
-        //Show Service Creation Form
         public IActionResult CreateService()
         {
             var model = new ServiceViewModel
@@ -191,13 +183,11 @@ namespace BeautyArtists.Controllers
                     Text = c.Name
                 })
                 .ToList()
-
             };
 
             return View(model);
-
         }
-        // GET: Admin/ManageServices
+
         public async Task<IActionResult> ManageServices()
         {
             var services = await _context.Services
@@ -207,7 +197,6 @@ namespace BeautyArtists.Controllers
             return View(services);
         }
 
-        // POST: Admin/CreateService
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateService(ServiceViewModel model, IFormFile? ImageFile)
@@ -249,7 +238,6 @@ namespace BeautyArtists.Controllers
             return RedirectToAction(nameof(ManageServices));
         }
 
-        // POST: Admin/EditService
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditService(ServiceViewModel model, IFormFile? ImageFile)
@@ -279,7 +267,6 @@ namespace BeautyArtists.Controllers
             return RedirectToAction(nameof(ManageServices));
         }
 
-        // POST: Admin/DeleteService
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteService(int id)
@@ -287,7 +274,6 @@ namespace BeautyArtists.Controllers
             var service = await _context.Services.FindAsync(id);
             if (service == null) return NotFound();
 
-            // Safety check — don't delete if artists are using it
             var inUse = await _context.UserServices.AnyAsync(us => us.ServiceId == id);
             if (inUse)
             {
@@ -301,9 +287,6 @@ namespace BeautyArtists.Controllers
             return RedirectToAction(nameof(ManageServices));
         }
 
-        // POST: Admin/CreateService
-
-        // Show edit form
         public async Task<IActionResult> EditService(int id)
         {
             var service = await _context.Services.FindAsync(id);
@@ -325,30 +308,31 @@ namespace BeautyArtists.Controllers
                     Text = c.Name
                 })
                 .ToList()
-
             };
 
             return View(model);
-
         }
+
         public async Task<IActionResult> Revenue()
         {
             ViewData["Title"] = "Revenue";
             return View();
         }
+
         private async Task LogActivity(string artistId, string message)
         {
             var log = new ActivityLog
             {
                 ArtistId = artistId,
-                Action = message, // This matches your Model's 'Action' property
-                Description = $"Log generated at {DateTime.Now}", // Optional detail
+                Action = message,
+                Description = $"Log generated at {DateTime.Now}",
                 Timestamp = DateTime.Now
             };
 
             _context.ActivityLogs.Add(log);
             await _context.SaveChangesAsync();
         }
+
         public async Task<IActionResult> AuditLogs()
         {
             var logs = await _context.ActivityLogs
@@ -358,7 +342,6 @@ namespace BeautyArtists.Controllers
 
             return View(logs);
         }
-        // Save edited service
 
         public async Task<IActionResult> BookingDetails(int id)
         {
@@ -374,22 +357,21 @@ namespace BeautyArtists.Controllers
 
             return View(booking);
         }
-        // 1. THE VIEW: See all bookings across the whole shop
+
         public async Task<IActionResult> ManageBookings()
         {
             var allBookings = await _context.Bookings
-                .Include(b => b.Customer) // Who is the client?
+                .Include(b => b.Customer)
                 .Include(b => b.UserService)
-                    .ThenInclude(us => us.Service) // What service?
+                    .ThenInclude(us => us.Service)
                 .Include(b => b.UserService)
-                    .ThenInclude(us => us.Artist) // Which specific artist?
+                    .ThenInclude(us => us.Artist)
                 .OrderByDescending(b => b.AppointmentDate)
                 .ToListAsync();
 
             return View(allBookings);
         }
 
-        // 2. THE MASTER OVERRIDE: Reverse or change any status
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AdminOverride(int bookingId, BookingStatus newStatus)
@@ -401,20 +383,16 @@ namespace BeautyArtists.Controllers
 
             if (booking == null) return NotFound();
 
-            // Admin has full freedom: Cancel, Approve (Confirmed), Completed, or Rejected
             booking.Status = newStatus;
 
-            // SYNC THE CALENDAR: If Admin "Reverses" a rejection, we lock the slot again
             if (booking.AvailabilitySlot != null)
             {
-                // The slot is only "Free" if the status is Cancelled or Rejected
                 booking.AvailabilitySlot.IsBooked = (newStatus != BookingStatus.Cancelled &&
                                                     newStatus != BookingStatus.Rejected);
             }
 
             await _context.SaveChangesAsync();
 
-            // LOG THE CEO INTERVENTION: So you have a paper trail
             await LogActivity(booking.UserService.ArtistId, $"ADMIN OVERRIDE: Forced status to {newStatus}");
 
             TempData["Success"] = "Booking status successfully overridden by Admin.";
@@ -426,34 +404,29 @@ namespace BeautyArtists.Controllers
             return View(await _context.HeroBanners.ToListAsync());
         }
 
-
         [HttpGet]
         public IActionResult CreateHeroBanner()
         {
             return View();
         }
-        // 2. POST: Create Hero Banner
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> CreateHeroBanner(HeroBanner banner, IFormFile imageFile)
         {
             if (imageFile != null && imageFile.Length > 0)
             {
-                // Set the folder path: wwwroot/images/banners
                 string wwwRootPath = _hostEnvironment.WebRootPath;
                 string fileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
                 string uploadPath = Path.Combine(wwwRootPath, @"images\banners");
 
-                // Ensure directory exists
                 if (!Directory.Exists(uploadPath)) Directory.CreateDirectory(uploadPath);
 
-                // Save file to server
                 using (var fileStream = new FileStream(Path.Combine(uploadPath, fileName), FileMode.Create))
                 {
                     await imageFile.CopyToAsync(fileStream);
                 }
 
-                // Save the path to the database
                 banner.ImagePath = "/images/banners/" + fileName;
             }
 
@@ -462,7 +435,6 @@ namespace BeautyArtists.Controllers
             return RedirectToAction(nameof(HeroBanners));
         }
 
-        // 1. GET: Load the banner data into the Edit View
         [HttpGet]
         public async Task<IActionResult> EditHeroBanner(int id)
         {
@@ -472,7 +444,6 @@ namespace BeautyArtists.Controllers
             return View(banner);
         }
 
-        // 3. POST: Edit Hero Banner
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> EditHeroBanner(HeroBanner banner, IFormFile? imageFile)
@@ -482,7 +453,6 @@ namespace BeautyArtists.Controllers
 
             if (imageFile != null && imageFile.Length > 0)
             {
-                // New image upload logic
                 string wwwRootPath = _hostEnvironment.WebRootPath;
                 string fileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
                 string uploadPath = Path.Combine(wwwRootPath, @"images\banners");
@@ -492,12 +462,9 @@ namespace BeautyArtists.Controllers
                     await imageFile.CopyToAsync(fileStream);
                 }
                 banner.ImagePath = "/images/banners/" + fileName;
-
-                // Optional: Delete the old physical file here to keep the server clean
             }
             else
             {
-                // Keep the existing image path if no new file was uploaded
                 banner.ImagePath = existingBanner.ImagePath;
             }
 
@@ -507,7 +474,3 @@ namespace BeautyArtists.Controllers
         }
     }
 }
-   
-
-
-

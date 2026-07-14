@@ -4,6 +4,7 @@ using BeautyArtists.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BeautyInRedAndGold.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260714172656_AddBookingFeeAndCommissionFields")]
+    partial class AddBookingFeeAndCommissionFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -587,9 +590,6 @@ namespace BeautyInRedAndGold.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsDeposit")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsFullPayment")
                         .HasColumnType("bit");
 
                     b.Property<DateTime?>("PaidAt")

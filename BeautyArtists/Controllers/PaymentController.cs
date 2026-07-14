@@ -237,38 +237,41 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                 if (payment.Status == "success")
                 {
                     // Check if deposit was not recorded yet
-                    if (!booking.IsDepositPaid && booking.DepositPaid == 0 && payment.Amount == booking.TotalAmount / 2)
+                    if (!booking.IsDepositPaid && booking.DepositPaid == 0)
                     {
-                        booking.DepositPaid = payment.Amount;
-                        booking.DepositPaidDate = DateTime.UtcNow;
-                        booking.IsDepositPaid = true;
-                        booking.Status = BookingStatus.Confirmed;
-                        await _context.SaveChangesAsync();
+                        // Determine if this was a deposit or full payment
+                        bool isFull = payment.Amount >= booking.TotalAmount;
 
-                        await SendDepositEmails(booking, payment.Amount);
-                        TempData["Success"] = "Payment successful! Your appointment is now confirmed.";
+                        if (isFull)
+                        {
+                            booking.DepositPaid = payment.Amount;
+                            booking.DepositPaidDate = DateTime.UtcNow;
+                            booking.IsDepositPaid = true;
+                            booking.FinalPaymentPaid = 0;
+                            booking.Status = BookingStatus.Confirmed;
+                            await _context.SaveChangesAsync();
+
+                            await SendFullPaymentEmails(booking, payment.Amount);
+                            TempData["Success"] = "Full payment successful! Your appointment is now confirmed and fully paid.";
+                        }
+                        else
+                        {
+                            booking.DepositPaid = payment.Amount;
+                            booking.DepositPaidDate = DateTime.UtcNow;
+                            booking.IsDepositPaid = true;
+                            booking.Status = BookingStatus.Confirmed;
+                            await _context.SaveChangesAsync();
+
+                            await SendDepositEmails(booking, payment.Amount);
+                            TempData["Success"] = "Deposit successful! Your appointment is now confirmed.";
+                        }
                         return RedirectToAction("MyBookings", "Booking");
                     }
 
-                    // Check for full payment (amount equals total)
-                    if (!booking.IsDepositPaid && payment.Amount == booking.TotalAmount)
-                    {
-                        booking.DepositPaid = payment.Amount;
-                        booking.DepositPaidDate = DateTime.UtcNow;
-                        booking.IsDepositPaid = true;
-                        booking.FinalPaymentPaid = 0;
-                        booking.Status = BookingStatus.Confirmed;
-                        await _context.SaveChangesAsync();
-
-                        await SendFullPaymentEmails(booking, payment.Amount);
-                        TempData["Success"] = "Full payment successful! Your appointment is now confirmed and fully paid.";
-                        return RedirectToAction("MyBookings", "Booking");
-                    }
-
-                    // Check for final payment (if deposit already paid and amount > 0)
+                    // Check for final payment (if deposit already paid and no final payment recorded)
                     if (booking.IsDepositPaid && booking.FinalPaymentPaid == 0 && payment.Amount > 0)
                     {
-                        decimal remainingBalance = payment.Amount;
+                        decimal remainingBalance = booking.ServicePrice / 2;
                         booking.FinalPaymentPaid = remainingBalance;
                         booking.FinalPaidDate = DateTime.UtcNow;
                         await _context.SaveChangesAsync();
@@ -288,15 +291,15 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                 payment.PaidAt = DateTime.UtcNow;
                 payment.PaymentMethod = result.data.channel;
 
+                // 🔥 Check if this is a deposit (booking fee paid in full with deposit)
                 bool isDeposit = !booking.IsDepositPaid;
+                bool isFullPayment = payment.Amount >= booking.TotalAmount;
 
                 if (isDeposit)
                 {
-                    // Check if this is a full payment (last‑minute)
-                    bool isFullPayment = payment.Amount >= booking.TotalAmount;
-
                     if (isFullPayment)
                     {
+                        // Full payment (last-minute)
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -309,6 +312,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     }
                     else
                     {
+                        // Deposit = 50% of service price + FULL booking fee
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -319,58 +323,65 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                         TempData["Success"] = "Deposit successful! Your appointment is now confirmed.";
                     }
 
-                    // In-app notifications
-                    var currentUser = await _userManager.FindByIdAsync(booking.CustomerId);
-                    if (currentUser != null)
+                    // ─── SEND IN-APP NOTIFICATIONS ───
+                    if (User.Identity.IsAuthenticated)
                     {
-                        string notifTitle = isFullPayment ? "Full Payment Received! 💰" : "Deposit Received! 💰";
-                        string notifMsg = isFullPayment
-                            ? $"Your full payment of R{payment.Amount:N2} has been received. Appointment CONFIRMED!"
-                            : $"Your deposit of R{payment.Amount:N2} has been received. Appointment CONFIRMED!";
-                        await _notificationService.CreateNotificationAsync(
-                            booking.CustomerId,
-                            notifTitle,
-                            notifMsg,
-                            "payment_received",
-                            booking.Id.ToString(),
-                            Url.Action("MyBookings", "Booking")
-                        );
-                    }
-                    var artist = await _userManager.FindByIdAsync(booking.UserService.ArtistId);
-                    if (artist != null)
-                    {
-                        string notifTitle = isFullPayment ? "Full Payment Received! 🎉" : "Deposit Paid! 🎉";
-                        string notifMsg = isFullPayment
-                            ? $"{currentUser?.FirstName} paid the full amount. Appointment confirmed."
-                            : $"{currentUser?.FirstName} paid the deposit. Appointment confirmed.";
-                        await _notificationService.CreateNotificationAsync(
-                            artist.Id,
-                            notifTitle,
-                            notifMsg,
-                            "payment_received",
-                            booking.Id.ToString(),
-                            Url.Action("MyAppointments", "Artist")
-                        );
+                        var currentUser = await _userManager.FindByIdAsync(booking.CustomerId);
+                        if (currentUser != null)
+                        {
+                            string notifTitle = isFullPayment ? "Full Payment Received! 💰" : "Deposit Received! 💰";
+                            string notifMsg = isFullPayment
+                                ? $"Your full payment of R{payment.Amount:N2} has been received. Appointment CONFIRMED!"
+                                : $"Your deposit of R{payment.Amount:N2} has been received. Appointment CONFIRMED!";
+                            await _notificationService.CreateNotificationAsync(
+                                booking.CustomerId,
+                                notifTitle,
+                                notifMsg,
+                                "payment_received",
+                                booking.Id.ToString(),
+                                Url.Action("MyBookings", "Booking")
+                            );
+                        }
+                        var artist = await _userManager.FindByIdAsync(booking.UserService.ArtistId);
+                        if (artist != null)
+                        {
+                            string notifTitle = isFullPayment ? "Full Payment Received! 🎉" : "Deposit Paid! 🎉";
+                            string notifMsg = isFullPayment
+                                ? $"{currentUser?.FirstName} paid the full amount. Appointment confirmed."
+                                : $"{currentUser?.FirstName} paid the deposit. Appointment confirmed.";
+                            await _notificationService.CreateNotificationAsync(
+                                artist.Id,
+                                notifTitle,
+                                notifMsg,
+                                "payment_received",
+                                booking.Id.ToString(),
+                                Url.Action("MyAppointments", "Artist")
+                            );
+                        }
                     }
                 }
                 else
                 {
                     // ── Final Payment ──
-                    decimal remainingBalance = payment.Amount;
+                    decimal remainingBalance = booking.ServicePrice / 2;
                     booking.FinalPaymentPaid = remainingBalance;
                     booking.FinalPaidDate = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
 
                     await SendFinalPaymentEmails(booking, remainingBalance);
 
-                    await _notificationService.CreateNotificationAsync(
-                        booking.UserService.ArtistId,
-                        "Final Payment Received! 💵",
-                        $"{booking.Customer?.FirstName} paid the remaining balance. Appointment fully paid!",
-                        "payment_received",
-                        booking.Id.ToString(),
-                        Url.Action("MyAppointments", "Artist")
-                    );
+                    // ─── SEND IN-APP NOTIFICATION ───
+                    if (User.Identity.IsAuthenticated)
+                    {
+                        await _notificationService.CreateNotificationAsync(
+                            booking.UserService.ArtistId,
+                            "Final Payment Received! 💵",
+                            $"{booking.Customer?.FirstName} paid the remaining balance. Appointment fully paid!",
+                            "payment_received",
+                            booking.Id.ToString(),
+                            Url.Action("MyAppointments", "Artist")
+                        );
+                    }
 
                     TempData["Success"] = "Final payment successful! Your appointment is now fully paid.";
                 }
