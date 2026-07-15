@@ -22,13 +22,6 @@
                     <span class="book-artist-name">@Model.ArtistName</span>
                 </div>
             </div>
-            <div class="book-price-block">
-                <span class="book-price-label">Service Price</span>
-                <span class="book-price" style="font-size: 1.2rem; color: #fff;">R @Model.Price.ToString("N0")</span>
-                <span style="display: block; font-size: 0.7rem; color: rgba(255,215,0,0.5);">+ R @Model.BookingFee.ToString("N0") booking fee</span>
-                <span class="book-price-label" style="margin-top: 8px;">Total You Pay</span>
-                <span class="book-price">R @Model.ClientTotal.ToString("N0")</span>
-            </div>
         </div>
     </div>
 
@@ -173,13 +166,27 @@
                 <textarea asp-for="Notes" class="book-textarea" placeholder="e.g. I prefer natural looks, I have sensitive skin..." rows="3"></textarea>
             </div>
 
-            @* ── STEP 4: SUMMARY ── *@
+            @* ── STEP 4: SUMMARY WITH PRICE BLOCK ── *@
             <div class="book-section book-summary" id="bookSummary" style="display:none">
                 <div class="book-summary-row"><span>Service</span><strong>@Model.ServiceName</strong></div>
                 <div class="book-summary-row"><span>Artist</span><strong>@Model.ArtistName</strong></div>
                 <div class="book-summary-row"><span>Appointment Type</span><strong id="summaryLocationType">Walk-In</strong></div>
                 <div class="book-summary-row"><span>Date &amp; Time</span><strong id="summarySlot">—</strong></div>
-                <div class="book-summary-row book-summary-total"><span>Base Service Total</span><strong>R @Model.Price.ToString("N0")</strong></div>
+
+                <!-- 🔥 PRICE BLOCK MOVED HERE INSIDE SUMMARY -->
+                <div class="book-summary-row book-summary-total">
+                    <span>Service Price</span>
+                    <strong>R @Model.Price.ToString("N0")</strong>
+                </div>
+                <div class="book-summary-row" style="border-bottom: 1px solid rgba(255,215,0,0.15);">
+                    <span style="color: rgba(255,215,0,0.5);">Booking Fee</span>
+                    <strong style="color: rgba(255,215,0,0.7);">R @Model.BookingFee.ToString("N0")</strong>
+                </div>
+                <div class="book-summary-row book-summary-total" style="border-bottom: none; padding-bottom: 0;">
+                    <span style="color: #FFD700; font-weight: 800;">Total You Pay</span>
+                    <strong style="color: #FFD700; font-size: 1.2rem;">R @Model.ClientTotal.ToString("N0")</strong>
+                </div>
+
                 <div class="travel-cost-disclaimer" id="travelDisclaimer" style="display:none">ℹ️ <em>Transport costs for house calls are calculated and added by your artist when reviewing the request.</em></div>
             </div>
 
@@ -622,28 +629,6 @@
         font-weight: 600;
     }
 
-    .book-price-block {
-        text-align: right;
-    }
-
-    .book-price-label {
-        display: block;
-        font-size: 0.6rem;
-        font-weight: 700;
-        letter-spacing: 3px;
-        text-transform: uppercase;
-        color: rgba(255,255,255,0.25);
-        margin-bottom: 4px;
-    }
-
-    .book-price {
-        display: block;
-        font-size: clamp(1.5rem, 6vw, 2.4rem);
-        font-weight: 800;
-        color: #FFD700;
-        text-shadow: 0 0 20px rgba(255,215,0,0.3);
-    }
-
     .book-server-errors {
         background: rgba(255,0,0,0.08);
         border: 1px solid rgba(255,0,0,0.3);
@@ -958,6 +943,10 @@
         justify-content: space-between;
         padding: 10px 0;
         border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .book-summary-total {
+        border-bottom: none !important;
     }
 
     .travel-cost-disclaimer {

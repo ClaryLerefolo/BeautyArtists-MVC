@@ -2,7 +2,7 @@
 using System.Net.Mail;
 using Microsoft.Extensions.Configuration;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Identity.UI.Services; // 1. Import the Microsoft Namespace
+using Microsoft.AspNetCore.Identity.UI.Services;
 
 namespace BeautyArtists.Services
 {
@@ -36,5 +36,15 @@ namespace BeautyArtists.Services
                 }
             }
         }
+    }
+
+    // 🔥 ADD THIS CLASS HERE - OUTSIDE SmtpEmailSender BUT INSIDE THE NAMESPACE
+    public class SmtpSettings
+    {
+        public string Host { get; set; }
+        public int Port { get; set; }
+        public string Username { get; set; }
+        public string Password { get; set; }
+        public string FromAddress { get; set; }
     }
 }

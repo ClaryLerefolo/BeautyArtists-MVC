@@ -50,6 +50,8 @@ builder.Services.AddAuthorization();
 //builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 
 // ??? OTHER SERVICES ???
+builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
+
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
 builder.Services.AddTransient<ICommunicationService, CommunicationService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
