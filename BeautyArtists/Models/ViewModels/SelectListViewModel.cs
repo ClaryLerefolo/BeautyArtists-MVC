@@ -29,6 +29,7 @@
             public string? City { get; set; }
             public double AverageRating { get; set; }
             public int ReviewCount { get; set; }
+            public string? ArtistLocation { get; set; }
         }
     }
 }

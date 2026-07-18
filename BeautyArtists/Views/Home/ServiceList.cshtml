@@ -34,7 +34,6 @@
         }
         else
         {
-
             <div></div>
         }
 
@@ -176,7 +175,7 @@
                                 <h5 class="text-gold fw-bold">@service.ServiceName</h5>
                                 <p class="small text-white-50 flex-grow-1">@service.Description</p>
 
-                                <!-- ─── 🔥 STAR RATING & REVIEW COUNT 🔥 ─── -->
+                                <!-- ─── STAR RATING & REVIEW COUNT ─── -->
                                 <div class="mb-2">
                                     <span style="color: #FFD700;">
                                         @for (int i = 1; i <= 5; i++)
@@ -578,25 +577,6 @@
 
 @section Scripts {
     <script>
-
-
-        // ── PORTFOLIO MODAL ──
-        document.getElementById('artistPortfolioModal')
-            .addEventListener('show.bs.modal', function(event) {
-                const btn       = event.relatedTarget;
-                const artistId  = btn.getAttribute('data-artist-id');
-                const serviceId = btn.getAttribute('data-service-id');
-                const container = document.getElementById('artistPortfolioContent');
-                container.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-warning"></div></div>';
-                fetch('/Portfolio/ArtistPortfolioModal?artistId=' + artistId + '&serviceId=' + serviceId)
-                    .then(function(r) { return r.text(); })
-                    .then(function(html) { container.innerHTML = html; });
-            });
-
-
-
-
-
         // ── FILTER LOGIC ──
         var isAllServices = @(isAllServices ? "true" : "false");
 
@@ -615,20 +595,23 @@
             var noResultsEl = document.getElementById('noResultsMsg');
             var items       = document.querySelectorAll('.service-item');
 
+            console.log('🔍 provinceData:', provinceData);
+            console.log('🔍 Items found:', items.length);
+
             function openPanel()  { panel.classList.add('open'); backdrop.classList.add('open'); document.body.style.overflow = 'hidden'; }
             function closePanel() { panel.classList.remove('open'); backdrop.classList.remove('open'); document.body.style.overflow = ''; }
+
             toggle.addEventListener('click', openPanel);
             closeBtn.addEventListener('click', closePanel);
             backdrop.addEventListener('click', closePanel);
 
-            // ── Province → City cascading (FIXED VERSION) ──
+            // ── Province → City cascading ──
             function populateCities(province, selectCity) {
                 citySel.innerHTML = '<option value="">All Cities</option>';
 
-                // Fix: Case-insensitive key matching
                 const matchedKey = Object.keys(provinceData).find(k => k.toLowerCase() === province.toLowerCase());
 
-                if (!province || !matchedKey || provinceData[matchedKey].length === 0) {
+                if (!province || !matchedKey || !provinceData[matchedKey] || provinceData[matchedKey].length === 0) {
                     citySel.disabled = true;
                     citySel.innerHTML = '<option value="">Select a province first</option>';
                     return;
@@ -644,23 +627,9 @@
                 });
             }
 
-            // Fix: Trigger applyFilters immediately on province change
-            provSel.addEventListener('change', function() {
-                populateCities(this.value, '');
-                applyFilters();
-            });
-
-            citySel.addEventListener('change', applyFilters);
-            catSel.addEventListener('change', applyFilters);
-
-            priceEl.addEventListener('input', function() {
-                priceLabel.textContent = 'R ' + parseInt(this.value).toLocaleString('en-ZA');
-                applyFilters();
-            });
-
-            // ── Main filter logic ──
+            // ── Apply filters ──
             function applyFilters() {
-                var maxP    = parseFloat(priceEl.value);
+                var maxP    = parseFloat(priceEl.value) || 0;
                 var catVal  = catSel.value.toLowerCase();
                 var provVal = provSel.value.toLowerCase();
                 var cityVal = citySel.value.toLowerCase();
@@ -677,8 +646,12 @@
                           && (provVal === '' || itemProv === provVal)
                           && (cityVal === '' || itemCity === cityVal);
 
-                    if (ok) { item.classList.remove('hidden'); visible++; }
-                    else    { item.classList.add('hidden'); }
+                    if (ok) {
+                        item.classList.remove('hidden');
+                        visible++;
+                    } else {
+                        item.classList.add('hidden');
+                    }
                 });
 
                 countEl.textContent = visible;
@@ -693,6 +666,7 @@
                 badgeEl.style.display = active > 0 ? 'inline-flex' : 'none';
             }
 
+            // ── Reset filters ──
             function resetFilters() {
                 catSel.value  = '';
                 provSel.value = '';
@@ -701,6 +675,20 @@
                 priceLabel.textContent = 'R ' + parseInt(priceEl.max).toLocaleString('en-ZA');
                 applyFilters();
             }
+
+            // ── Event listeners ──
+            provSel.addEventListener('change', function() {
+                populateCities(this.value, '');
+                applyFilters();
+            });
+
+            citySel.addEventListener('change', applyFilters);
+            catSel.addEventListener('change', applyFilters);
+
+            priceEl.addEventListener('input', function() {
+                priceLabel.textContent = 'R ' + parseInt(this.value).toLocaleString('en-ZA');
+                applyFilters();
+            });
 
             document.getElementById('filterReset').addEventListener('click', resetFilters);
             window.resetFilters = resetFilters;

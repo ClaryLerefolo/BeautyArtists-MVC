@@ -382,10 +382,16 @@ namespace BeautyArtists.Controllers
         {
             var services = await _context.UserServices
                 .Include(us => us.Service)
-                    .ThenInclude(s => s.ServiceCategory) // FIXED
+                    .ThenInclude(s => s.ServiceCategory)
                 .Include(us => us.Artist)
-                     .ThenInclude(a => a.ArtistProfile) 
+                    .ThenInclude(a => a.ArtistProfile)
                 .Where(us => us.IsActive)
+                .ToListAsync();
+
+            // ?? Get all reviews for these services
+            var serviceIds = services.Select(s => s.ServiceId).ToList();
+            var allReviews = await _context.Reviews
+                .Where(r => serviceIds.Contains(r.ServiceId))
                 .ToListAsync();
 
             var model = new ServiceListViewModel
@@ -397,19 +403,31 @@ namespace BeautyArtists.Controllers
                     ServiceName = us.Service?.Name ?? "Unnamed",
                     Description = us.CustomDescription ?? us.Service?.Description ?? "",
                     Category = us.Service?.ServiceCategory?.Name ?? "Uncategorized",
-                    CategoryId = us.Service?.CategoryId ?? 0,       // ? ADDED
+                    CategoryId = us.Service?.CategoryId ?? 0,
                     Price = us.Price,
                     ImagePath = us.ImagePath ?? us.Service?.ImagePath,
                     ArtistName = !string.IsNullOrEmpty(us.Artist?.FirstName)
                         ? $"{us.Artist.FirstName} {us.Artist.LastName}".Trim()
                         : us.Artist?.UserName ?? "Pro Artist",
                     ArtistId = us.ArtistId,
-                    City = us.Artist?.ArtistProfile?.City ?? "Unknown"
+                    City = us.Artist?.ArtistProfile?.City ?? "",
+                    Province = us.Artist?.ArtistProfile?.Province ?? "",
+                    ArtistLocation = !string.IsNullOrEmpty(us.Artist?.ArtistProfile?.City)
+                ? $"{us.Artist.ArtistProfile.City}, {us.Artist.ArtistProfile.Province}"
+                : us.Artist?.ArtistProfile?.Province ?? "",
+
+                    // ?? Calculate from allReviews
+                    ReviewCount = allReviews.Count(r => r.ServiceId == us.ServiceId),
+                    AverageRating = allReviews.Where(r => r.ServiceId == us.ServiceId).Any()
+                        ? Math.Round(allReviews.Where(r => r.ServiceId == us.ServiceId).Average(r => r.Rating), 1)
+                        : 0
                 }).ToList()
             };
 
             return View("ServiceList", model);
         }
+
+
         [Route("Home/Artists")]
         [Route("Home/BrowseArtists")]
         public async Task<IActionResult> BrowseArtists()
@@ -555,7 +573,10 @@ namespace BeautyArtists.Controllers
     ? $"{us.Artist.FirstName} {us.Artist.LastName}".Trim()
     : us.Artist?.UserName ?? "Pro Artist",
                     ArtistId = us.ArtistId,
-                    City = us.Artist?.ArtistProfile?.City ?? "Unknown"
+                    City = us.Artist?.ArtistProfile?.City ?? "",
+                    ArtistLocation = !string.IsNullOrEmpty(us.Artist?.ArtistProfile?.City)
+        ? $"{us.Artist.ArtistProfile.City}, {us.Artist.ArtistProfile.Province}"
+        : us.Artist?.ArtistProfile?.Province ?? ""
                 }).ToList()
             };
 
