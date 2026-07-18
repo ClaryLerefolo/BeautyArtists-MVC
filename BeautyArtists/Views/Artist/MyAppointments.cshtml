@@ -51,6 +51,13 @@
     }
 
     var bookingsList = filteredBookings.ToList();
+
+    // ─── COUNT ACTIVE FILTERS ───
+    var activeFilterCount = 0;
+    if (!string.IsNullOrEmpty(filterMonth)) activeFilterCount++;
+    if (!string.IsNullOrEmpty(filterStatus) && filterStatus != "all") activeFilterCount++;
+    if (!string.IsNullOrEmpty(filterFrom)) activeFilterCount++;
+    if (!string.IsNullOrEmpty(filterTo)) activeFilterCount++;
 }
 
 @section Styles {
@@ -77,13 +84,78 @@
                 margin: 0;
             }
 
+        /* ─── FILTER TOGGLE PILL ─── */
+        .filter-toggle-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filter-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 18px;
+            border-radius: 999px;
+            background: rgba(255,215,0,0.08);
+            border: 1px solid rgba(255,215,0,0.3);
+            color: #FFD700;
+            font-weight: 700;
+            font-size: 0.78rem;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.25s;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+            .filter-toggle-btn:hover {
+                background: rgba(255,215,0,0.15);
+                border-color: #FFD700;
+            }
+
+            .filter-toggle-btn .badge {
+                background: #FFD700;
+                color: #000;
+                font-size: 0.6rem;
+                font-weight: 900;
+                padding: 1px 7px;
+                border-radius: 50%;
+                min-width: 20px;
+                text-align: center;
+            }
+
+            .filter-toggle-btn .arrow {
+                transition: transform 0.3s ease;
+                display: inline-block;
+                font-size: 0.6rem;
+            }
+
+            .filter-toggle-btn.open .arrow {
+                transform: rotate(180deg);
+            }
+
+        /* ─── FILTER BAR (COLLAPSIBLE) ─── */
         .filter-bar {
             background: #0b0b0b;
             border: 1px solid rgba(255,215,0,0.1);
             border-radius: 14px;
             padding: 16px 20px;
             margin-bottom: 24px;
+            overflow: hidden;
+            max-height: 0;
+            padding: 0 20px;
+            opacity: 0;
+            transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
         }
+
+            .filter-bar.open {
+                max-height: 600px;
+                padding: 16px 20px;
+                opacity: 1;
+            }
 
         .filter-grid {
             display: grid;
@@ -177,7 +249,6 @@
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
-            margin-bottom: 16px;
         }
 
         .filter-pill {
@@ -196,7 +267,6 @@
         .results-count {
             color: rgba(255,255,255,0.3);
             font-size: 0.75rem;
-            margin-bottom: 16px;
         }
 
             .results-count span {
@@ -204,6 +274,7 @@
                 font-weight: 800;
             }
 
+        /* ─── APPOINTMENT CARDS ─── */
         .appointment-card {
             background-color: #121212;
             border: 1px solid rgba(240, 200, 8, 0.2);
@@ -404,8 +475,55 @@
 
 <div class="container-fluid px-4">
 
-    @* ─── FILTER BAR ─── *@
-    <div class="filter-bar">
+    @* ─── FILTER TOGGLE + RESULTS COUNT ─── *@
+    <div class="filter-toggle-wrapper">
+        <button class="filter-toggle-btn" id="filterToggleBtn">
+            <i class="fas fa-sliders-h"></i>
+            <span>Filters</span>
+            @if (activeFilterCount > 0)
+            {
+                <span class="badge">@activeFilterCount</span>
+            }
+            <span class="arrow">▼</span>
+        </button>
+        <div class="results-count">
+            <span>@bookingsList.Count</span> appointment@(bookingsList.Count != 1 ? "s" : "") found
+        </div>
+    </div>
+
+    @* ─── ACTIVE FILTER PILLS ─── *@
+    @{
+        var hasFilters = (!string.IsNullOrEmpty(filterMonth) && filterMonth != "") ||
+        (!string.IsNullOrEmpty(filterStatus) && filterStatus != "all") ||
+        !string.IsNullOrEmpty(filterFrom) ||
+        !string.IsNullOrEmpty(filterTo);
+    }
+    @if (hasFilters)
+    {
+        <div class="active-filters" style="margin-bottom: 16px;">
+            @if (!string.IsNullOrEmpty(filterMonth))
+            {
+                var monthNumber = int.Parse(filterMonth);
+                var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(monthNumber);
+                <span class="filter-pill"><i class="bi bi-calendar-month"></i> @monthName</span>
+            }
+            @if (!string.IsNullOrEmpty(filterStatus) && filterStatus != "all")
+            {
+                <span class="filter-pill"><i class="bi bi-circle-fill"></i> @filterStatus</span>
+            }
+            @if (!string.IsNullOrEmpty(filterFrom))
+            {
+                <span class="filter-pill"><i class="bi bi-calendar"></i> From @DateTime.ParseExact(filterFrom, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture).ToString("dd MMM yyyy")</span>
+            }
+            @if (!string.IsNullOrEmpty(filterTo))
+            {
+                <span class="filter-pill"><i class="bi bi-calendar"></i> To @DateTime.ParseExact(filterTo, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture).ToString("dd MMM yyyy")</span>
+            }
+        </div>
+    }
+
+    @* ─── FILTER BAR (COLLAPSIBLE) ─── *@
+    <div class="filter-bar" id="filterBar">
         <form method="get" asp-action="MyAppointments" class="filter-grid">
             <div class="filter-field">
                 <span class="filter-label">Month</span>
@@ -449,43 +567,6 @@
                 </a>
             </div>
         </form>
-    </div>
-
-    @* ─── ACTIVE FILTER PILLS ─── *@
-    @{
-        var hasFilters = (!string.IsNullOrEmpty(filterMonth) && filterMonth != "") ||
-        (!string.IsNullOrEmpty(filterStatus) && filterStatus != "all") ||
-        !string.IsNullOrEmpty(filterFrom) ||
-        !string.IsNullOrEmpty(filterTo);
-    }
-    @if (hasFilters)
-    {
-        <div class="active-filters">
-            <span style="font-size:0.65rem;color:rgba(255,255,255,0.3);align-self:center;">Active filters:</span>
-            @if (!string.IsNullOrEmpty(filterMonth))
-            {
-                var monthNumber = int.Parse(filterMonth);
-                var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(monthNumber);
-                <span class="filter-pill"><i class="bi bi-calendar-month"></i> @monthName</span>
-            }
-            @if (!string.IsNullOrEmpty(filterStatus) && filterStatus != "all")
-            {
-                <span class="filter-pill"><i class="bi bi-circle-fill"></i> @filterStatus</span>
-            }
-            @if (!string.IsNullOrEmpty(filterFrom))
-            {
-                <span class="filter-pill"><i class="bi bi-calendar"></i> From @DateTime.ParseExact(filterFrom, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture).ToString("dd MMM yyyy")</span>
-            }
-            @if (!string.IsNullOrEmpty(filterTo))
-            {
-                <span class="filter-pill"><i class="bi bi-calendar"></i> To @DateTime.ParseExact(filterTo, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture).ToString("dd MMM yyyy")</span>
-            }
-        </div>
-    }
-
-    @* ─── RESULTS COUNT ─── *@
-    <div class="results-count">
-        <span>@bookingsList.Count</span> appointment@(bookingsList.Count != 1 ? "s" : "") found
     </div>
 
     @* ─── APPOINTMENTS GRID ─── *@
@@ -711,3 +792,24 @@
         }
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('filterToggleBtn');
+        const filterBar = document.getElementById('filterBar');
+
+        // Check if any filters are active, if so keep open
+        @if (hasFilters)
+        {
+                <text>
+                    filterBar.classList.add('open');
+                    toggleBtn.classList.add('open');
+                </text>
+        }
+
+        toggleBtn.addEventListener('click', function() {
+            filterBar.classList.toggle('open');
+            toggleBtn.classList.toggle('open');
+        });
+    });
+</script>
