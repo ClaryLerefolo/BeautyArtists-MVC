@@ -715,143 +715,180 @@ namespace BeautyArtists.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ArtistUpdateStatus(int bookingId, BookingStatus newStatus, string artistNotes, decimal transportCost = 0)
         {
-            var artistId = _userManager.GetUserId(User);
-
-            var booking = await _context.Bookings
-                .Include(b => b.UserService)
-                    .ThenInclude(us => us.Service)
-                .Include(b => b.UserService.Artist)
-                .Include(b => b.Customer)
-                .Include(b => b.AvailabilitySlot)
-                .FirstOrDefaultAsync(b => b.Id == bookingId && b.UserService.ArtistId == artistId);
-
-            if (booking == null) return Unauthorized();
-
-            booking.ArtistNotes = artistNotes;
-
-            // ── Walk‑in bookings go to confirmation step ──
-            if (newStatus == BookingStatus.Accepted && booking.SelectedLocationType == LocationType.WalkIn)
+            try
             {
-                return RedirectToAction(nameof(ConfirmAcceptWalkIn), new { bookingId = bookingId });
-            }
+                var artistId = _userManager.GetUserId(User);
 
-            if (newStatus == BookingStatus.Accepted)
-            {
-                if (booking.SelectedLocationType == LocationType.HouseCall && transportCost > 0)
-                {
-                    booking.TransportCost = transportCost;
-                    booking.TotalAmount = (booking.UserService?.Price ?? 0) + transportCost;
-                }
+                var booking = await _context.Bookings
+                    .Include(b => b.UserService)
+                        .ThenInclude(us => us.Service)
+                    .Include(b => b.UserService)
+                        .ThenInclude(us => us.Artist)
+                    .Include(b => b.Customer)
+                    .Include(b => b.AvailabilitySlot)
+                    .FirstOrDefaultAsync(b => b.Id == bookingId && b.UserService.ArtistId == artistId);
 
-                if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
+                if (booking == null)
                 {
-                    TempData["Error"] = "This booking is already confirmed or paid.";
+                    TempData["Error"] = "Booking not found or you don't have permission.";
                     return RedirectToAction(nameof(MyAppointments));
                 }
 
-                booking.Status = BookingStatus.Accepted;
-                if (booking.AvailabilitySlot != null) booking.AvailabilitySlot.IsBooked = true;
-                await _context.SaveChangesAsync();
-
-                try
+                // 🔥 FIX: Check if UserService exists
+                if (booking.UserService == null)
                 {
-                    await _notificationService.CreateNotificationAsync(
-                        booking.CustomerId,
-                        "Appointment Accepted! ✅",
-                        $"Great news! {booking.UserService?.Artist?.FirstName} has ACCEPTED your appointment for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd}. Pay your 50% deposit now!",
-                        "booking_accepted",
-                        booking.Id.ToString(),
-                        Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id })
-                    );
+                    TempData["Error"] = "This booking has missing service details. Please contact support.";
+                    return RedirectToAction(nameof(MyAppointments));
                 }
-                catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
 
-                if (!string.IsNullOrEmpty(booking.Customer?.Email))
+                booking.ArtistNotes = artistNotes;
+
+                // ── Walk‑in bookings go to confirmation step ──
+                if (newStatus == BookingStatus.Accepted && booking.SelectedLocationType == LocationType.WalkIn)
                 {
-                    var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
-                    string subject = "✅ Your Appointment Has Been Accepted!";
-                    string emailBody = $@"
+                    return RedirectToAction(nameof(ConfirmAcceptWalkIn), new { bookingId = bookingId });
+                }
+
+                if (newStatus == BookingStatus.Accepted)
+                {
+                    if (booking.SelectedLocationType == LocationType.HouseCall && transportCost > 0)
+                    {
+                        booking.TransportCost = transportCost;
+                        booking.TotalAmount = (booking.UserService?.Price ?? 0) + transportCost + booking.BookingFee;
+                    }
+
+                    if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
+                    {
+                        TempData["Error"] = "This booking is already confirmed or paid.";
+                        return RedirectToAction(nameof(MyAppointments));
+                    }
+
+                    booking.Status = BookingStatus.Accepted;
+                    if (booking.AvailabilitySlot != null) booking.AvailabilitySlot.IsBooked = true;
+                    await _context.SaveChangesAsync();
+
+                    // ─── SEND IN-APP NOTIFICATION ───
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(booking.CustomerId))
+                        {
+                            await _notificationService.CreateNotificationAsync(
+                                booking.CustomerId,
+                                "Appointment Accepted! ✅",
+                                $"Great news! {booking.UserService?.Artist?.FirstName ?? "The artist"} has ACCEPTED your appointment for {booking.UserService?.Service?.Name ?? "your service"} on {booking.AppointmentDate:MMM dd}. Pay your 50% deposit now!",
+                                "booking_accepted",
+                                booking.Id.ToString(),
+                                Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id })
+                            );
+                        }
+                    }
+                    catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
+
+                    // ─── SEND EMAIL ───
+                    if (booking.Customer != null && !string.IsNullOrEmpty(booking.Customer.Email))
+                    {
+                        try
+                        {
+                            var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
+                            string subject = "✅ Your Appointment Has Been Accepted!";
+                            string emailBody = $@"
                     <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
                         <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
                         <p>Dear {booking.Customer.FirstName},</p>
                         <p>Great news! The artist has ACCEPTED your appointment request.</p>
-                        <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
+                        <p><strong>Service:</strong> {booking.UserService?.Service?.Name ?? "your service"}</p>
                         <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
-                        <p><strong>Total Amount:</strong> R {booking.TotalAmount:N2}</p>
-                        <p><strong>Deposit Required (50%):</strong> R {(booking.TotalAmount / 2):N2}</p>
+                        <p><strong>Service Price:</strong> R {booking.ServicePrice:N2}</p>
+                        <p><strong>Deposit Required:</strong> R {((booking.ServicePrice / 2) + booking.BookingFee):N2}</p>
                         <div style='text-align: center; margin: 20px 0;'>
-                            <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR 50% DEPOSIT NOW</a>
+                            <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR DEPOSIT NOW</a>
                         </div>
                         <p>Thank you for choosing Beauty Artists Hub!</p>
                     </div>";
 
-                    await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
+                            await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
+                        }
+                        catch (Exception ex) { Console.WriteLine($"Email error: {ex.Message}"); }
+                    }
+
+                    TempData["Success"] = "Appointment accepted! Client has been notified to pay deposit.";
+                }
+                else if (newStatus == BookingStatus.Rejected)
+                {
+                    if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
+                    {
+                        TempData["Error"] = "Cannot reject a booking that is already confirmed or paid.";
+                        return RedirectToAction(nameof(MyAppointments));
+                    }
+
+                    booking.Status = BookingStatus.Rejected;
+                    if (booking.AvailabilitySlot != null) booking.AvailabilitySlot.IsBooked = false;
+                    await _context.SaveChangesAsync();
+
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(booking.CustomerId))
+                        {
+                            await _notificationService.CreateNotificationAsync(
+                                booking.CustomerId,
+                                "Appointment Declined ❌",
+                                $"Unfortunately, your appointment request for {booking.UserService?.Service?.Name ?? "your service"} on {booking.AppointmentDate:MMM dd} has been declined.",
+                                "booking_rejected",
+                                booking.Id.ToString(),
+                                Url.Action("MyBookings", "Booking")
+                            );
+                        }
+                    }
+                    catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
+
+                    TempData["Success"] = "Appointment request rejected. Client has been notified.";
+                }
+                else if (newStatus == BookingStatus.Completed)
+                {
+                    decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
+                    if (totalPaid < booking.TotalAmount)
+                    {
+                        TempData["Error"] = "Client must pay the full amount before you can mark this as completed.";
+                        return RedirectToAction(nameof(MyAppointments));
+                    }
+
+                    if (booking.Status != BookingStatus.Confirmed)
+                    {
+                        TempData["Error"] = "Booking must be confirmed before it can be marked as completed.";
+                        return RedirectToAction(nameof(MyAppointments));
+                    }
+
+                    booking.Status = BookingStatus.Completed;
+                    await _context.SaveChangesAsync();
+
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(booking.CustomerId))
+                        {
+                            await _notificationService.CreateNotificationAsync(
+                                booking.CustomerId,
+                                "Service Completed! ⭐",
+                                $"Your {booking.UserService?.Service?.Name ?? "service"} appointment has been completed. Thank you for choosing us!",
+                                "booking_completed",
+                                booking.Id.ToString(),
+                                Url.Action("MyBookings", "Booking")
+                            );
+                        }
+                    }
+                    catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
+
+                    TempData["Success"] = "Service marked as completed! Client has been notified.";
                 }
 
-                TempData["Success"] = "Appointment accepted! Client has been notified to pay deposit.";
+                return RedirectToAction(nameof(MyAppointments));
             }
-            else if (newStatus == BookingStatus.Rejected)
+            catch (Exception ex)
             {
-                if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
-                {
-                    TempData["Error"] = "Cannot reject a booking that is already confirmed or paid.";
-                    return RedirectToAction(nameof(MyAppointments));
-                }
-
-                booking.Status = BookingStatus.Rejected;
-                if (booking.AvailabilitySlot != null) booking.AvailabilitySlot.IsBooked = false;
-                await _context.SaveChangesAsync();
-
-                try
-                {
-                    await _notificationService.CreateNotificationAsync(
-                        booking.CustomerId,
-                        "Appointment Declined ❌",
-                        $"Unfortunately, your appointment request for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd} has been declined.",
-                        "booking_rejected",
-                        booking.Id.ToString(),
-                        Url.Action("MyBookings", "Booking")
-                    );
-                }
-                catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
-
-                TempData["Success"] = "Appointment request rejected. Client has been notified.";
+                Console.WriteLine($"❌ ArtistUpdateStatus error: {ex.Message}");
+                Console.WriteLine($"❌ Stack: {ex.StackTrace}");
+                TempData["Error"] = "An error occurred while updating the booking status. Please try again.";
+                return RedirectToAction(nameof(MyAppointments));
             }
-            else if (newStatus == BookingStatus.Completed)
-            {
-                decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
-                if (totalPaid < booking.TotalAmount)
-                {
-                    TempData["Error"] = "Client must pay the full amount before you can mark this as completed.";
-                    return RedirectToAction(nameof(MyAppointments));
-                }
-
-                if (booking.Status != BookingStatus.Confirmed)
-                {
-                    TempData["Error"] = "Booking must be confirmed before it can be marked as completed.";
-                    return RedirectToAction(nameof(MyAppointments));
-                }
-
-                booking.Status = BookingStatus.Completed;
-                await _context.SaveChangesAsync();
-
-                try
-                {
-                    await _notificationService.CreateNotificationAsync(
-                        booking.CustomerId,
-                        "Service Completed! ⭐",
-                        $"Your {booking.UserService?.Service?.Name} appointment has been completed. Thank you for choosing us!",
-                        "booking_completed",
-                        booking.Id.ToString(),
-                        Url.Action("MyBookings", "Booking")
-                    );
-                }
-                catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
-
-                TempData["Success"] = "Service marked as completed! Client has been notified.";
-            }
-
-            return RedirectToAction(nameof(MyAppointments));
         }
 
         // ═══════════════════════════════════════════════════════════

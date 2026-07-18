@@ -319,7 +319,10 @@
                         @* ── RIGHT: PRICE + ACTIONS ── *@
                         <div class="mb-card-right">
                             <div class="mb-amount">
-                                <span class="mb-amount-label">Total</span>
+                                <span class="mb-amount-label">Service Price</span>
+                                <span class="mb-amount-value" style="color: #fff; font-size: 1.2rem;">R @booking.ServicePrice.ToString("N0")</span>
+                                <span style="display: block; font-size: 0.65rem; color: rgba(255,215,0,0.5);">+ R @booking.BookingFee.ToString("N0") booking fee</span>
+                                <span class="mb-amount-label" style="margin-top: 4px;">Total</span>
                                 <span class="mb-amount-value">R @booking.TotalAmount.ToString("N0")</span>
                                 @if (booking.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall && booking.TransportCost > 0)
                                 {
@@ -345,32 +348,28 @@
                                     }
                                     else
                                     {
+                                        // 🔥 FIXED: Deposit shows 50% of ServicePrice ONLY (R70)
+                                        decimal depositAmount = booking.ServicePrice / 2;
                                         <a asp-controller="Booking"
                                            asp-action="CheckoutDeposit"
                                            asp-route-id="@booking.Id"
                                            class="mb-btn-deposit">
-                                            💰 PAY 50% DEPOSIT – R @((booking.TotalAmount / 2).ToString("N0"))
+                                            💰 PAY 50% DEPOSIT – R @depositAmount.ToString("N0")
                                         </a>
                                     }
                                 }
                                 @* ── PAYMENT BUTTONS FOR CONFIRMED STATUS ── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
                                 {
-                                    // 🔥 FIXED: Booking fee is paid in full with deposit
-                                    // Remaining balance = 50% of ServicePrice (booking fee already paid)
                                     decimal remainingBalance = booking.ServicePrice / 2;
 
-                                    // If deposit wasn't paid yet, show full amount (deposit + booking fee)
                                     if (!booking.IsDepositPaid)
                                     {
                                         remainingBalance = (booking.ServicePrice / 2) + booking.BookingFee;
                                     }
 
-                                    // Safety check
                                     if (remainingBalance < 0) remainingBalance = 0;
 
-                                    // 🔥 FIXED: Use the isFullyPaid variable already declared at the top
-                                    // DO NOT redeclare it here - it's already defined above
                                     if (remainingBalance <= 0 || isFullyPaid)
                                     {
                                         <span class="text-muted small" style="text-align:center; display:block; padding:4px 0; color:#28a745; font-weight:600;">

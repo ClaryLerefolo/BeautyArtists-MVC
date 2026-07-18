@@ -4,6 +4,53 @@
 @{
     ViewData["Title"] = "My Appointments";
     Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+
+    // ─── GET FILTER VALUES FROM QUERY STRING ───
+    var filterMonth = Context.Request.Query["filterMonth"].ToString();
+    var filterStatus = Context.Request.Query["filterStatus"].ToString();
+    var filterFrom = Context.Request.Query["filterFrom"].ToString();
+    var filterTo = Context.Request.Query["filterTo"].ToString();
+
+    // ─── GENERATE MONTH LIST (January to December - NO YEARS) ───
+    var months = new List<SelectListItem>();
+    months.Add(new SelectListItem { Value = "", Text = "All Months" });
+    for (int month = 1; month <= 12; month++)
+    {
+        var date = new DateTime(2024, month, 1);
+        var value = month.ToString("00");
+        var text = date.ToString("MMMM");
+        months.Add(new SelectListItem { Value = value, Text = text, Selected = value == filterMonth });
+    }
+
+    // ─── APPLY FILTERS ───
+    var filteredBookings = Model.AsEnumerable();
+
+    if (!string.IsNullOrEmpty(filterMonth) && int.TryParse(filterMonth, out int monthNum))
+    {
+        filteredBookings = filteredBookings.Where(b => b.AppointmentDate.Month == monthNum);
+    }
+
+    if (!string.IsNullOrEmpty(filterStatus) && filterStatus != "all")
+    {
+        if (Enum.TryParse<BookingStatus>(filterStatus, true, out var status))
+        {
+            filteredBookings = filteredBookings.Where(b => b.Status == status);
+        }
+    }
+
+    if (!string.IsNullOrEmpty(filterFrom))
+    {
+        var fromDate = DateTime.ParseExact(filterFrom, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        filteredBookings = filteredBookings.Where(b => b.AppointmentDate.Date >= fromDate.Date);
+    }
+
+    if (!string.IsNullOrEmpty(filterTo))
+    {
+        var toDate = DateTime.ParseExact(filterTo, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        filteredBookings = filteredBookings.Where(b => b.AppointmentDate.Date <= toDate.Date);
+    }
+
+    var bookingsList = filteredBookings.ToList();
 }
 
 @section Styles {
@@ -28,6 +75,133 @@
                 font-weight: 800;
                 text-transform: uppercase;
                 margin: 0;
+            }
+
+        .filter-bar {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+        }
+
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            align-items: end;
+        }
+
+        .filter-field {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-label {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.3);
+        }
+
+        .filter-select, .filter-input {
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.12) !important;
+            border-radius: 8px !important;
+            color: #fff !important;
+            padding: 8px 12px !important;
+            font-size: 0.8rem;
+            width: 100%;
+        }
+
+            .filter-select option {
+                background: #111;
+            }
+
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-filter-apply {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+            .btn-filter-apply:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+            }
+
+        .btn-filter-reset {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.4);
+            font-weight: 700;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: all 0.2s;
+            width: 100%;
+            text-align: center;
+        }
+
+            .btn-filter-reset:hover {
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.7);
+            }
+
+        .active-filters {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .filter-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: rgba(255,215,0,0.1);
+            border: 1px solid rgba(255,215,0,0.2);
+            color: rgba(255,215,0,0.8);
+        }
+
+        .results-count {
+            color: rgba(255,255,255,0.3);
+            font-size: 0.75rem;
+            margin-bottom: 16px;
+        }
+
+            .results-count span {
+                color: #FFD700;
+                font-weight: 800;
             }
 
         .appointment-card {
@@ -134,31 +308,6 @@
                 color: #000;
             }
 
-        .address-detail {
-            font-size: 0.8rem;
-            padding: 4px 0;
-            color: rgba(255,255,255,0.7);
-        }
-
-            .address-detail strong {
-                color: #FFD700;
-            }
-
-        .card-footer-actions {
-            border-top: 1px solid rgba(255,255,255,0.08);
-            padding-top: 1rem;
-            margin-top: auto;
-        }
-
-        .booked-date {
-            font-size: 0.75rem;
-            color: #6c757d;
-            text-align: center;
-            padding-top: 0.5rem;
-            margin-top: 0.5rem;
-            border-top: 1px solid rgba(255,255,255,0.05);
-        }
-
         .address-box {
             background: rgba(155, 89, 182, 0.08);
             border: 1px solid rgba(155, 89, 182, 0.3);
@@ -196,6 +345,56 @@
                 .address-box .address-line .value {
                     color: #eee;
                 }
+
+        .card-footer-actions {
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 1rem;
+            margin-top: auto;
+        }
+
+        .booked-date {
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-align: center;
+            padding-top: 0.5rem;
+            margin-top: 0.5rem;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .btn-outline-gold {
+            background: transparent;
+            border: 1px solid #FFD700;
+            color: #FFD700;
+            transition: 0.25s;
+            padding: 8px 24px;
+            border-radius: 50px;
+            text-decoration: none;
+        }
+
+            .btn-outline-gold:hover {
+                background: #FFD700;
+                color: #000;
+            }
+
+        @@media (max-width: 768px) {
+            .filter-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .filter-actions {
+                grid-column: span 2;
+            }
+        }
+
+        @@media (max-width: 480px) {
+            .filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-actions {
+                grid-column: span 1;
+            }
+        }
     </style>
 }
 
@@ -204,233 +403,311 @@
 </div>
 
 <div class="container-fluid px-4">
+
+    @* ─── FILTER BAR ─── *@
+    <div class="filter-bar">
+        <form method="get" asp-action="MyAppointments" class="filter-grid">
+            <div class="filter-field">
+                <span class="filter-label">Month</span>
+                <select name="filterMonth" class="filter-select">
+                    @foreach (var month in months)
+                    {
+                        <option value="@month.Value" selected="@(month.Selected ? "selected" : null)">@month.Text</option>
+                    }
+                </select>
+            </div>
+
+            <div class="filter-field">
+                <span class="filter-label">From Date</span>
+                <input type="date" name="filterFrom" class="filter-input" value="@filterFrom" />
+            </div>
+
+            <div class="filter-field">
+                <span class="filter-label">To Date</span>
+                <input type="date" name="filterTo" class="filter-input" value="@filterTo" />
+            </div>
+
+            <div class="filter-field">
+                <span class="filter-label">Status</span>
+                <select name="filterStatus" class="filter-select">
+                    <option value="all" selected="@(string.IsNullOrEmpty(filterStatus) || filterStatus == "all")">All Statuses</option>
+                    <option value="Pending" selected="@(filterStatus == "Pending")">Pending</option>
+                    <option value="Accepted" selected="@(filterStatus == "Accepted")">Accepted</option>
+                    <option value="Confirmed" selected="@(filterStatus == "Confirmed")">Confirmed</option>
+                    <option value="Completed" selected="@(filterStatus == "Completed")">Completed</option>
+                    <option value="Cancelled" selected="@(filterStatus == "Cancelled")">Cancelled</option>
+                    <option value="Rejected" selected="@(filterStatus == "Rejected")">Rejected</option>
+                </select>
+            </div>
+
+            <div class="filter-field" style="display:flex; gap:8px;">
+                <button type="submit" class="btn-filter-apply">
+                    <i class="fas fa-search"></i> Apply
+                </button>
+                <a asp-action="MyAppointments" class="btn-filter-reset">
+                    <i class="fas fa-times"></i> Reset
+                </a>
+            </div>
+        </form>
+    </div>
+
+    @* ─── ACTIVE FILTER PILLS ─── *@
+    @{
+        var hasFilters = (!string.IsNullOrEmpty(filterMonth) && filterMonth != "") ||
+        (!string.IsNullOrEmpty(filterStatus) && filterStatus != "all") ||
+        !string.IsNullOrEmpty(filterFrom) ||
+        !string.IsNullOrEmpty(filterTo);
+    }
+    @if (hasFilters)
+    {
+        <div class="active-filters">
+            <span style="font-size:0.65rem;color:rgba(255,255,255,0.3);align-self:center;">Active filters:</span>
+            @if (!string.IsNullOrEmpty(filterMonth))
+            {
+                var monthNumber = int.Parse(filterMonth);
+                var monthName = System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(monthNumber);
+                <span class="filter-pill"><i class="bi bi-calendar-month"></i> @monthName</span>
+            }
+            @if (!string.IsNullOrEmpty(filterStatus) && filterStatus != "all")
+            {
+                <span class="filter-pill"><i class="bi bi-circle-fill"></i> @filterStatus</span>
+            }
+            @if (!string.IsNullOrEmpty(filterFrom))
+            {
+                <span class="filter-pill"><i class="bi bi-calendar"></i> From @DateTime.ParseExact(filterFrom, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture).ToString("dd MMM yyyy")</span>
+            }
+            @if (!string.IsNullOrEmpty(filterTo))
+            {
+                <span class="filter-pill"><i class="bi bi-calendar"></i> To @DateTime.ParseExact(filterTo, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture).ToString("dd MMM yyyy")</span>
+            }
+        </div>
+    }
+
+    @* ─── RESULTS COUNT ─── *@
+    <div class="results-count">
+        <span>@bookingsList.Count</span> appointment@(bookingsList.Count != 1 ? "s" : "") found
+    </div>
+
+    @* ─── APPOINTMENTS GRID ─── *@
     <div class="row">
-        @foreach (var item in Model)
+        @if (bookingsList.Any())
         {
-            <div class="col-xl-4 col-md-6 mb-4">
-                <div class="card appointment-card text-white">
-                    <!-- CARD HEADER -->
-                    <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center pt-4 px-4">
-                        <div class="text-muted small">
-                            <i class="far fa-clock me-1"></i> @item.AppointmentDate.ToString("MMM dd, yyyy @ HH:mm")
-                        </div>
-                        <span class="status-badge bg-@(item.Status.ToString().ToLower())">
-                            @if (item.Status == BookingStatus.Accepted)
-                            {
-                                @:ACCEPTED (AWAITING DEPOSIT)
-                            }
-                            else
-                            {
-                                @item.Status
-                            }
-                        </span>
-                    </div>
-
-                    <!-- CARD BODY -->
-                    <div class="card-body p-4 d-flex flex-column">
-                        <div>
-                            <div class="client-info-box mb-3">
-                                <div class="d-flex justify-content-between align-items-start mb-1">
-                                    <h5 class="mb-0" style="color: #f0c808;">@item.Customer?.FirstName @item.Customer?.LastName</h5>
-                                    @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
-                                    {
-                                        <span class="type-indicator type-housecall">🏠 House Call</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="type-indicator type-walkin">💈 Walk-In</span>
-                                    }
-                                </div>
-                                <div class="small text-white-50">@item.UserService?.Service?.Name</div>
+            @foreach (var item in bookingsList)
+            {
+                <div class="col-xl-4 col-md-6 mb-4">
+                    <div class="card appointment-card text-white">
+                        <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center pt-4 px-4">
+                            <div class="text-muted small">
+                                <i class="far fa-clock me-1"></i> @item.AppointmentDate.ToString("MMM dd, yyyy @ HH:mm")
                             </div>
-
-                            @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
-                            {
-                                <div class="address-box">
-                                    <span class="label">📍 Client Location Details</span>
-                                    @if (!string.IsNullOrEmpty(item.HouseNumber) || !string.IsNullOrEmpty(item.StreetAddress) || !string.IsNullOrEmpty(item.AreaCode))
-                                    {
-                                        @if (!string.IsNullOrEmpty(item.HouseNumber))
-                                        {
-                                            <div class="address-line"><strong>House/Unit:</strong> <span class="value">@item.HouseNumber</span></div>
-                                        }
-                                        @if (!string.IsNullOrEmpty(item.StreetAddress))
-                                        {
-                                            <div class="address-line"><strong>Street:</strong> <span class="value">@item.StreetAddress</span></div>
-                                        }
-                                        @if (!string.IsNullOrEmpty(item.AreaCode))
-                                        {
-                                            <div class="address-line"><strong>Area/Postal:</strong> <span class="value">@item.AreaCode</span></div>
-                                        }
-                                    }
-                                    else if (!string.IsNullOrEmpty(item.HouseCallAddress))
-                                    {
-                                        <div class="address-line"><strong>Full Address:</strong> <span class="value">@item.HouseCallAddress</span></div>
-                                    }
-                                    else
-                                    {
-                                        <div class="address-line" style="color: #ff6666;"><em>No address provided</em></div>
-                                    }
-                                    @if (!string.IsNullOrEmpty(item.Latitude) && !string.IsNullOrEmpty(item.Longitude))
-                                    {
-                                        <div class="mt-2">
-                                            <a href="https://www.google.com/maps/search/?api=1&query=@item.Latitude,@item.Longitude"
-                                               target="_blank" class="btn btn-sm map-btn w-100 fw-bold rounded-2 shadow-sm text-center">
-                                                <i class="fas fa-route me-1"></i> OPEN IN GOOGLE MAPS
-                                            </a>
-                                        </div>
-                                    }
-                                </div>
-                            }
-
-                            @if (!string.IsNullOrEmpty(item.Notes))
-                            {
-                                <div class="mb-3">
-                                    <small class="text-muted d-block text-uppercase" style="font-size: 0.6rem; letter-spacing: 1px;">Initial Client Notes:</small>
-                                    <p class="small mb-0" style="color: #ddd;">@item.Notes</p>
-                                </div>
-                            }
-
-                            @if (!string.IsNullOrEmpty(item.ArtistNotes))
-                            {
-                                <div class="note-box mb-3 p-2 rounded" style="background: rgba(241, 196, 15, 0.05); border: 1px dashed rgba(241, 196, 15, 0.2);">
-                                    <small class="text-warning d-block text-uppercase" style="font-size: 0.6rem; font-weight: bold;">Your Note to Client:</small>
-                                    <span class="small" style="font-style: italic; color: #eee;">"@item.ArtistNotes"</span>
-                                </div>
-                            }
-
-                            <div class="row g-2 mb-3">
-                                <div class="col-6">
-                                    <small class="text-muted d-block">Duration</small>
-                                    <strong>@item.UserService?.Duration mins</strong>
-                                </div>
-                                <div class="col-6">
-                                    <small class="text-muted d-block">Base Price</small>
-                                    <strong style="color: #ddd;">R @(item.UserService?.Price.ToString("N2") ?? "0.00")</strong>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 🔥 FIXED FINANCIAL ROW - ARTIST ONLY SEES SERVICE PRICE -->
-                        <div class="financial-row small mb-3">
-                            @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
-                            {
-                                <div class="d-flex justify-content-between text-white-50 mb-1">
-                                    <span>Transport Costs:</span>
-                                    <span>R @item.TransportCost.ToString("N2")</span>
-                                </div>
-                            }
-                            <!-- ✅ ARTIST SEES ONLY THEIR SERVICE PRICE -->
-                            <div class="d-flex justify-content-between font-weight-bold border-top border-secondary pt-1">
-                                <span style="color: #f0c808;">Service Price:</span>
-                                <span style="color: #f0c808; font-weight: bold;">R @item.ServicePrice.ToString("N2")</span>
-                            </div>
-                
-                            <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-secondary" style="font-size: 0.7rem;">
-                                <span class="text-muted">Deposit Status (50%):</span>
-                                @if (item.IsDepositPaid)
+                            <span class="status-badge bg-@(item.Status.ToString().ToLower())">
+                                @if (item.Status == BookingStatus.Accepted)
                                 {
-                                    <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> PAID</span>
+                                    @:ACCEPTED (AWAITING DEPOSIT)
                                 }
                                 else
                                 {
-                                    <span class="text-warning fw-bold"><i class="fas fa-hourglass-half me-1"></i> AWAITING</span>
+                                    @item.Status
                                 }
-                            </div>
+                            </span>
                         </div>
 
-                        <!-- ===== FOOTER WITH ACTION BUTTONS ===== -->
-                        <div class="card-footer-actions">
-                            @if (item.Status == BookingStatus.Pending)
-                            {
-                                <!-- PENDING: Show transport input & note -->
-                                <div class="mb-2">
-                                    @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
-                                    {
-                                        <div class="mb-2">
-                                            <small class="text-muted d-block text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Set Transport Fee (R):</small>
-                                            <div class="input-group input-group-sm">
-                                                <span class="input-group-text bg-dark border-secondary text-white-50">R</span>
-                                                <input type="number" id="transport-@item.Id" class="form-control bg-dark text-white border-secondary"
-                                                       placeholder="0.00" step="0.01" min="0" value="@(item.TransportCost > 0 ? item.TransportCost.ToString("F2") : "")" />
-                                            </div>
-                                        </div>
-                                    }
-                                    <input type="text" id="note-@item.Id" class="form-control bg-dark text-white border-secondary"
-                                           placeholder="Add a note for the client..." style="font-size: 0.8rem;" />
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div>
+                                <div class="client-info-box mb-3">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <h5 class="mb-0" style="color: #f0c808;">@item.Customer?.FirstName @item.Customer?.LastName</h5>
+                                        @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
+                                        {
+                                            <span class="type-indicator type-housecall">🏠 House Call</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="type-indicator type-walkin">💈 Walk-In</span>
+                                        }
+                                    </div>
+                                    <div class="small text-white-50">@item.UserService?.Service?.Name</div>
                                 </div>
 
-                                <!-- Action buttons -->
-                                <div class="d-flex gap-2">
-                                    @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.WalkIn)
+                                @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
+                                {
+                                    <div class="address-box">
+                                        <span class="label">📍 Client Location Details</span>
+                                        @if (!string.IsNullOrEmpty(item.HouseNumber) || !string.IsNullOrEmpty(item.StreetAddress) || !string.IsNullOrEmpty(item.AreaCode))
+                                        {
+                                            @if (!string.IsNullOrEmpty(item.HouseNumber))
+                                            {
+                                                <div class="address-line"><strong>House/Unit:</strong> <span class="value">@item.HouseNumber</span></div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(item.StreetAddress))
+                                            {
+                                                <div class="address-line"><strong>Street:</strong> <span class="value">@item.StreetAddress</span></div>
+                                            }
+                                            @if (!string.IsNullOrEmpty(item.AreaCode))
+                                            {
+                                                <div class="address-line"><strong>Area/Postal:</strong> <span class="value">@item.AreaCode</span></div>
+                                            }
+                                        }
+                                        else if (!string.IsNullOrEmpty(item.HouseCallAddress))
+                                        {
+                                            <div class="address-line"><strong>Full Address:</strong> <span class="value">@item.HouseCallAddress</span></div>
+                                        }
+                                        else
+                                        {
+                                            <div class="address-line" style="color: #ff6666;"><em>No address provided</em></div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(item.Latitude) && !string.IsNullOrEmpty(item.Longitude))
+                                        {
+                                            <div class="mt-2">
+                                                <a href="https://www.google.com/maps/search/?api=1&query=@item.Latitude,@item.Longitude"
+                                                   target="_blank" class="btn btn-sm map-btn w-100 fw-bold rounded-2 shadow-sm text-center">
+                                                    <i class="fas fa-route me-1"></i> OPEN IN GOOGLE MAPS
+                                                </a>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrEmpty(item.Notes))
+                                {
+                                    <div class="mb-3">
+                                        <small class="text-muted d-block text-uppercase" style="font-size: 0.6rem; letter-spacing: 1px;">Initial Client Notes:</small>
+                                        <p class="small mb-0" style="color: #ddd;">@item.Notes</p>
+                                    </div>
+                                }
+
+                                @if (!string.IsNullOrEmpty(item.ArtistNotes))
+                                {
+                                    <div class="note-box mb-3 p-2 rounded" style="background: rgba(241, 196, 15, 0.05); border: 1px dashed rgba(241, 196, 15, 0.2);">
+                                        <small class="text-warning d-block text-uppercase" style="font-size: 0.6rem; font-weight: bold;">Your Note to Client:</small>
+                                        <span class="small" style="font-style: italic; color: #eee;">"@item.ArtistNotes"</span>
+                                    </div>
+                                }
+
+                                <div class="row g-2 mb-3">
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Duration</small>
+                                        <strong>@item.UserService?.Duration mins</strong>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">Base Price</small>
+                                        <strong style="color: #ddd;">R @(item.UserService?.Price.ToString("N2") ?? "0.00")</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="financial-row small mb-3">
+                                @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
+                                {
+                                    <div class="d-flex justify-content-between text-white-50 mb-1">
+                                        <span>Transport Costs:</span>
+                                        <span>R @item.TransportCost.ToString("N2")</span>
+                                    </div>
+                                }
+                                <div class="d-flex justify-content-between font-weight-bold border-top border-secondary pt-1">
+                                    <span style="color: #f0c808;">Service Price:</span>
+                                    <span style="color: #f0c808; font-weight: bold;">R @item.ServicePrice.ToString("N2")</span>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-secondary" style="font-size: 0.7rem;">
+                                    <span class="text-muted">Deposit Status (50%):</span>
+                                    @if (item.IsDepositPaid)
                                     {
-                                        <!-- WALK-IN: Redirect to confirmation page -->
-                                        <a href="@Url.Action("ConfirmAcceptWalkIn", "Artist", new { bookingId = item.Id })"
-                                           class="btn btn-success w-100 fw-bold">
-                                            <i class="fas fa-check me-1"></i> ACCEPT
-                                        </a>
+                                        <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> PAID</span>
                                     }
                                     else
                                     {
-                                        <!-- HOUSE CALL: Use form with transport cost -->
+                                        <span class="text-warning fw-bold"><i class="fas fa-hourglass-half me-1"></i> AWAITING</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="card-footer-actions">
+                                @if (item.Status == BookingStatus.Pending)
+                                {
+                                    <div class="mb-2">
+                                        @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
+                                        {
+                                            <div class="mb-2">
+                                                <small class="text-muted d-block text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Set Transport Fee (R):</small>
+                                                <div class="input-group input-group-sm">
+                                                    <span class="input-group-text bg-dark border-secondary text-white-50">R</span>
+                                                    <input type="number" id="transport-@item.Id" class="form-control bg-dark text-white border-secondary"
+                                                           placeholder="0.00" step="0.01" min="0" value="@(item.TransportCost > 0 ? item.TransportCost.ToString("F2") : "")" />
+                                                </div>
+                                            </div>
+                                        }
+                                        <input type="text" id="note-@item.Id" class="form-control bg-dark text-white border-secondary"
+                                               placeholder="Add a note for the client..." style="font-size: 0.8rem;" />
+                                    </div>
+
+                                    <div class="d-flex gap-2">
+                                        @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.WalkIn)
+                                        {
+                                            <a href="@Url.Action("ConfirmAcceptWalkIn", "Artist", new { bookingId = item.Id })"
+                                               class="btn btn-success w-100 fw-bold">
+                                                <i class="fas fa-check me-1"></i> ACCEPT
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <form asp-action="ArtistUpdateStatus" method="post" class="flex-fill">
+                                                <input type="hidden" name="bookingId" value="@item.Id" />
+                                                <input type="hidden" name="newStatus" value="@BookingStatus.Accepted" />
+                                                <input type="hidden" name="artistNotes" id="confirm-note-@item.Id" />
+                                                <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
+                                                <button type="submit" class="btn btn-success w-100 fw-bold"
+                                                        onclick="document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
+                                                                                                 var tInput = document.getElementById('transport-@item.Id');
+                                                                                                 if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
+                                                    <i class="fas fa-check me-1"></i> ACCEPT
+                                                </button>
+                                            </form>
+                                        }
+
                                         <form asp-action="ArtistUpdateStatus" method="post" class="flex-fill">
                                             <input type="hidden" name="bookingId" value="@item.Id" />
-                                            <input type="hidden" name="newStatus" value="@BookingStatus.Accepted" />
-                                            <input type="hidden" name="artistNotes" id="confirm-note-@item.Id" />
-                                            <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
-                                            <button type="submit" class="btn btn-success w-100 fw-bold"
-                                                    onclick="document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
-                                                                                     var tInput = document.getElementById('transport-@item.Id');
-                                                                                     if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
-                                                <i class="fas fa-check me-1"></i> ACCEPT
+                                            <input type="hidden" name="newStatus" value="@BookingStatus.Rejected" />
+                                            <input type="hidden" name="artistNotes" id="reject-note-@item.Id" />
+                                            <button type="submit" class="btn btn-outline-danger w-100 fw-bold"
+                                                    onclick="document.getElementById('reject-note-@item.Id').value = document.getElementById('note-@item.Id').value">
+                                                <i class="fas fa-times me-1"></i> REJECT
                                             </button>
                                         </form>
-                                    }
-
-                                    <!-- REJECT (works for both) -->
-                                    <form asp-action="ArtistUpdateStatus" method="post" class="flex-fill">
+                                    </div>
+                                }
+                                else if (item.Status == BookingStatus.Accepted)
+                                {
+                                    <div class="alert alert-info text-center mb-0" style="background: rgba(23, 162, 184, 0.15); border: 1px solid #17a2b8; color: #17a2b8;">
+                                        <i class="fas fa-clock me-2"></i> Awaiting client's 50% deposit...
+                                    </div>
+                                }
+                                else if (item.Status == BookingStatus.Confirmed)
+                                {
+                                    <form asp-action="ArtistUpdateStatus" method="post">
                                         <input type="hidden" name="bookingId" value="@item.Id" />
-                                        <input type="hidden" name="newStatus" value="@BookingStatus.Rejected" />
-                                        <input type="hidden" name="artistNotes" id="reject-note-@item.Id" />
-                                        <button type="submit" class="btn btn-outline-danger w-100 fw-bold"
-                                                onclick="document.getElementById('reject-note-@item.Id').value = document.getElementById('note-@item.Id').value">
-                                            <i class="fas fa-times me-1"></i> REJECT
+                                        <input type="hidden" name="newStatus" value="@BookingStatus.Completed" />
+                                        <button type="submit" class="btn btn-primary w-100 fw-bold">
+                                            <i class="fas fa-check-double me-2"></i> MARK COMPLETED
                                         </button>
                                     </form>
-                                </div>
-                            }
-                            else if (item.Status == BookingStatus.Accepted)
-                            {
-                                <div class="alert alert-info text-center mb-0" style="background: rgba(23, 162, 184, 0.15); border: 1px solid #17a2b8; color: #17a2b8;">
-                                    <i class="fas fa-clock me-2"></i> Awaiting client's 50% deposit...
-                                </div>
-                            }
-                            else if (item.Status == BookingStatus.Confirmed)
-                            {
-                                <form asp-action="ArtistUpdateStatus" method="post">
-                                    <input type="hidden" name="bookingId" value="@item.Id" />
-                                    <input type="hidden" name="newStatus" value="@BookingStatus.Completed" />
-                                    <button type="submit" class="btn btn-primary w-100 fw-bold">
-                                        <i class="fas fa-check-double me-2"></i> MARK COMPLETED
-                                    </button>
-                                </form>
-                            }
+                                }
 
-                            <!-- BOOKED DATE -->
-                            <div class="booked-date">
-                                <i class="far fa-calendar-alt me-1"></i> Booked @item.BookingDate.ToString("dd MMM yyyy")
+                                <div class="booked-date">
+                                    <i class="far fa-calendar-alt me-1"></i> Booked @item.BookingDate.ToString("dd MMM yyyy")
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+            }
+        }
+        else
+        {
+            <div class="col-12 text-center py-5">
+                <h3 class="text-muted">No appointments match your filters.</h3>
+                <a asp-action="MyAppointments" class="btn btn-outline-gold mt-3">Clear Filters</a>
             </div>
         }
     </div>
 </div>
-
-@if (!Model.Any())
-{
-    <div class="text-center py-5">
-        <h3 class="text-muted">No appointments yet.</h3>
-    </div>
-}
