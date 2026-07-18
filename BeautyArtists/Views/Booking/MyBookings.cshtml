@@ -8,6 +8,7 @@
     var confirmed = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed);
     var completed = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Completed);
     var cancelled = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Cancelled);
+    var rejected = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Rejected);
 }
 
 <div class="mb-page">
@@ -40,6 +41,11 @@
                 <div class="mb-stat">
                     <span class="mb-stat-num" style="color:#00c853">@confirmed</span>
                     <span class="mb-stat-label">CONFIRMED</span>
+                </div>
+                <div class="mb-stat-div"></div>
+                <div class="mb-stat">
+                    <span class="mb-stat-num" style="color:#e50914">@rejected</span>
+                    <span class="mb-stat-label">REJECTED</span>
                 </div>
             </div>
 
@@ -96,6 +102,7 @@
                     BeautyArtists.Models.Booking.BookingStatus.Confirmed => "status-confirmed",
                     BeautyArtists.Models.Booking.BookingStatus.Completed => "status-completed",
                     BeautyArtists.Models.Booking.BookingStatus.Cancelled => "status-cancelled",
+                    BeautyArtists.Models.Booking.BookingStatus.Rejected => "status-rejected",
                     _ => "status-pending"
                 };
                 string statusIcon = booking.Status switch
@@ -105,11 +112,13 @@
                     BeautyArtists.Models.Booking.BookingStatus.Confirmed => "✅",
                     BeautyArtists.Models.Booking.BookingStatus.Completed => "⭐",
                     BeautyArtists.Models.Booking.BookingStatus.Cancelled => "❌",
+                    BeautyArtists.Models.Booking.BookingStatus.Rejected => "🚫",
                     _ => "⏳"
                 };
                 string statusDisplay = booking.Status switch
                 {
                     BeautyArtists.Models.Booking.BookingStatus.Accepted => "ACCEPTED - AWAITING DEPOSIT",
+                    BeautyArtists.Models.Booking.BookingStatus.Rejected => "REJECTED",
                     _ => booking.Status.ToString().ToUpper()
                 };
 
@@ -127,7 +136,7 @@
                 double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
                 bool isLastMinute = daysUntilAppointment < 2;
 
-                <div class="mb-card @(booking.Status == BeautyArtists.Models.Booking.BookingStatus.Cancelled ? "mb-card-cancelled" : "")">
+                <div class="mb-card @(booking.Status == BeautyArtists.Models.Booking.BookingStatus.Cancelled || booking.Status == BeautyArtists.Models.Booking.BookingStatus.Rejected ? "mb-card-cancelled" : "")">
 
                     @* Status strip *@
                     <div class="mb-card-strip @statusClass"></div>
@@ -444,6 +453,14 @@
                                         <span class="text-muted small" style="text-align:center; display:block; padding:4px 0; color:rgba(255,255,255,0.4);">✅ Review submitted</span>
                                     }
                                 }
+
+                                @* ── REJECTED STATUS - SHOW REASON ── *@
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Rejected && !string.IsNullOrEmpty(booking.ArtistNotes))
+                                {
+                                    <div class="alert alert-danger text-center mb-0" style="background: rgba(255,50,50,0.1); border: 1px solid #ff5555; color: #ff5555; font-size: 0.7rem; padding: 6px 10px;">
+                                        <strong>Reason:</strong> @booking.ArtistNotes
+                                    </div>
+                                }
                             </div>
 
                             @* ── BOOKED DATE ── *@
@@ -730,6 +747,10 @@
         background: #555;
     }
 
+    .status-rejected {
+        background: #e50914 !important;
+    }
+
     .mb-card-body {
         display: flex;
         flex: 1;
@@ -784,6 +805,11 @@
     .status-cancelled.mb-status-badge {
         background: rgba(100,100,100,0.2);
         color: #888;
+    }
+
+    .status-rejected.mb-status-badge {
+        background: rgba(108,117,125,0.2);
+        color: #6c757d;
     }
 
     .mb-booking-id {
