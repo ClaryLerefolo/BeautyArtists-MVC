@@ -11,6 +11,9 @@
         public string? Province { get; set; }
         public string? City { get; set; }
         public List<ServiceItem> Services { get; set; } = new();
+        public int CurrentPage { get; set; } = 1;
+        public int TotalPages { get; set; } = 1;
+        public int TotalCount { get; set; } = 0;
 
         public class ServiceItem
         {

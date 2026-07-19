@@ -84,6 +84,30 @@
                 margin: 0;
             }
 
+        /* ─── ALERT MESSAGES ─── */
+        .alert-message {
+            padding: 12px 18px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: rgba(0, 200, 83, 0.1);
+            border: 1px solid rgba(0, 200, 83, 0.3);
+            color: #00c853;
+        }
+
+        .alert-error {
+            background: rgba(255, 50, 50, 0.08);
+            border: 1px solid rgba(255, 50, 50, 0.25);
+            color: #ff5555;
+        }
+
         /* ─── FILTER TOGGLE PILL ─── */
         .filter-toggle-wrapper {
             display: flex;
@@ -475,6 +499,20 @@
 
 <div class="container-fluid px-4">
 
+    @* ─── 🔥 SUCCESS / ERROR MESSAGES ─── *@
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert-message alert-success">
+            <i class="fas fa-check-circle"></i> @TempData["Success"]
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert-message alert-error">
+            <i class="fas fa-exclamation-circle"></i> @TempData["Error"]
+        </div>
+    }
+
     @* ─── FILTER TOGGLE + RESULTS COUNT ─── *@
     <div class="filter-toggle-wrapper">
         <button class="filter-toggle-btn" id="filterToggleBtn">
@@ -739,8 +777,8 @@
                                                 <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
                                                 <button type="submit" class="btn btn-success w-100 fw-bold"
                                                         onclick="document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
-                                                                                                 var tInput = document.getElementById('transport-@item.Id');
-                                                                                                 if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
+                                                                                                                 var tInput = document.getElementById('transport-@item.Id');
+                                                                                                                 if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
                                                     <i class="fas fa-check me-1"></i> ACCEPT
                                                 </button>
                                             </form>
@@ -801,10 +839,10 @@
         // Check if any filters are active, if so keep open
         @if (hasFilters)
         {
-                <text>
-                    filterBar.classList.add('open');
-                    toggleBtn.classList.add('open');
-                </text>
+                    <text>
+                        filterBar.classList.add('open');
+                        toggleBtn.classList.add('open');
+                    </text>
         }
 
         toggleBtn.addEventListener('click', function() {

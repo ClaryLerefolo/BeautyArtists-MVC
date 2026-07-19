@@ -22,8 +22,6 @@ namespace BeautyArtists.Controllers
         private readonly IConfiguration _configuration;
         private readonly IWebHostEnvironment _env;
 
-
-
         public HomeController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IConfiguration configuration, IWebHostEnvironment env)
         {
             _context = context;
@@ -32,29 +30,33 @@ namespace BeautyArtists.Controllers
             _env = env;
         }
 
-
+        // ???????????????????????????????????????????????????????????
+        //  INDEX - Homepage with banners, categories, featured & top rated
+        // ???????????????????????????????????????????????????????????
         public async Task<IActionResult> Index()
         {
-            var banners = await _context.HeroBanners.ToListAsync();
-            var categories = await _context.ServiceCategories.ToListAsync();
-            var testimonials = await _context.Testimonials.ToListAsync();
+            // ?? FIX: Run queries sequentially (DbContext is NOT thread-safe)
+            var banners = await _context.HeroBanners.AsNoTracking().ToListAsync();
+            var categories = await _context.ServiceCategories.AsNoTracking().ToListAsync();
+            var testimonials = await _context.Testimonials.AsNoTracking().ToListAsync();
 
-            // ONE service per artist — take the newest active one
+            // One service per artist — newest active one
             var featuredServices = await _context.UserServices
                 .Include(us => us.Service)
                 .Include(us => us.Artist)
                 .Where(us => us.IsActive)
-                .GroupBy(us => us.ArtistId)          // group by artist
-                .Select(g => g.OrderByDescending(us => us.Id).First()) // newest per artist
+                .AsNoTracking()
+                .GroupBy(us => us.ArtistId)
+                .Select(g => g.OrderByDescending(us => us.Id).First())
                 .Take(6)
                 .ToListAsync();
 
-            // ?? TOP RATED SERVICES (min 3 reviews, ordered by rating)
-            // ?? TOP RATED SERVICES (via Bookings)
+            // Top Rated Services (min 3 reviews, ordered by rating)
             var topRatedServices = await _context.UserServices
                 .Include(us => us.Service)
                 .Include(us => us.Artist)
                 .Where(us => us.IsActive)
+                .AsNoTracking()
                 .Select(us => new
                 {
                     Service = us,
@@ -84,21 +86,25 @@ namespace BeautyArtists.Controllers
                 FeaturedServices = featuredServices,
                 Testimonials = testimonials,
                 TopRatedServices = topRatedServices
-
             };
+
             return View(model);
         }
+
+        // ???????????????????????????????????????????????????????????
+        //  SUPPORT
+        // ???????????????????????????????????????????????????????????
         public IActionResult Support()
         {
             return View();
         }
+
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SubmitReport(string category, string description, string email, List<IFormFile> attachments)
         {
             try
             {
-                // ?? Validate required fields ??
                 if (string.IsNullOrWhiteSpace(category))
                 {
                     TempData["Error"] = "Please select a category.";
@@ -123,18 +129,16 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction(nameof(Support));
                 }
 
-                // ?? Save to database ??
                 var report = new SupportReport
                 {
                     Category = category,
                     Description = description,
-                    Email = email, // now guaranteed not null
+                    Email = email,
                     SubmittedAt = DateTime.UtcNow.AddHours(2)
                 };
                 _context.SupportReports.Add(report);
                 await _context.SaveChangesAsync();
 
-                // ?? Handle file uploads ??
                 var uploadedFilePaths = new List<string>();
                 var uploadedFileUrls = new List<string>();
 
@@ -165,7 +169,6 @@ namespace BeautyArtists.Controllers
                     }
                 }
 
-                // ?? Send email ??
                 string subject = $"New Support Report: {category}";
                 string body = $@"
             <h2>New Support Report</h2>
@@ -181,8 +184,8 @@ namespace BeautyArtists.Controllers
 
                 string[] stakeholderEmails = new string[]
                 {
-            "ignatiuslerefolo07101999@gmail.com",
-            "neo305mofokeng@gmail.com"
+                    "ignatiuslerefolo07101999@gmail.com",
+                    "neo305mofokeng@gmail.com"
                 };
 
                 await SendEmailToMultipleAsync(stakeholderEmails, subject, body, uploadedFilePaths);
@@ -197,6 +200,7 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction(nameof(Support));
             }
         }
+
         private bool IsValidEmail(string email)
         {
             try
@@ -209,6 +213,7 @@ namespace BeautyArtists.Controllers
                 return false;
             }
         }
+
         private async Task SendEmailToMultipleAsync(string[] toEmails, string subject, string body, List<string> attachmentPaths = null)
         {
             var smtpClient = new SmtpClient
@@ -231,13 +236,11 @@ namespace BeautyArtists.Controllers
                 IsBodyHtml = true
             })
             {
-                // Add ALL recipients
                 foreach (var email in toEmails)
                 {
                     mailMessage.To.Add(email);
                 }
 
-                // Attach files if any (using file paths)
                 if (attachmentPaths != null && attachmentPaths.Any())
                 {
                     foreach (var path in attachmentPaths)
@@ -254,23 +257,30 @@ namespace BeautyArtists.Controllers
             }
         }
 
+        // ???????????????????????????????????????????????????????????
+        //  CATEGORIES
+        // ???????????????????????????????????????????????????????????
         public async Task<IActionResult> Categories()
         {
             var categories = await _context.ServiceCategories
                 .OrderBy(c => c.Name)
+                .AsNoTracking()
                 .ToListAsync();
             return View(categories);
         }
 
+        // ???????????????????????????????????????????????????????????
+        //  VIEW SERVICE
+        // ???????????????????????????????????????????????????????????
         public async Task<IActionResult> ViewService(string artistId)
         {
+            ViewBag.Portfolios = await _context.PortfolioItems.AsNoTracking().ToListAsync();
 
-            // Add this BEFORE building the model
-            ViewBag.Portfolios = await _context.PortfolioItems.ToListAsync();
             if (string.IsNullOrEmpty(artistId)) return NotFound();
 
             var artist = await _context.Users
                 .Include(u => u.ArtistProfile)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == artistId);
 
             if (artist == null) return NotFound();
@@ -280,17 +290,19 @@ namespace BeautyArtists.Controllers
                 .Include(us => us.Service)
                     .ThenInclude(s => s.ServiceCategory)
                 .Include(us => us.Artist)
+                .AsNoTracking()
                 .ToListAsync();
 
             ViewBag.Portfolios = await _context.Portfolios
                 .Include(p => p.Items)
                 .Where(p => p.ArtistId == artistId)
+                .AsNoTracking()
                 .ToListAsync();
 
             // GROUP by category — one representative service per category
             var groupedServices = userServices
                 .GroupBy(us => us.Service?.ServiceCategory?.Name ?? "Other")
-                .Select(g => g.First()) // one per category
+                .Select(g => g.First())
                 .ToList();
 
             var model = new ServiceListViewModel
@@ -301,10 +313,9 @@ namespace BeautyArtists.Controllers
                     ? $"{artist.FirstName} {artist.LastName}".Trim()
                     : artist.UserName ?? artist.Email,
                 ArtistLocation = !string.IsNullOrEmpty(artist.ArtistProfile?.City)
-    ? $"{artist.ArtistProfile.City}, {artist.ArtistProfile.Province}"
-    : artist.ArtistProfile?.Province ?? "",
-                ArtistProfilePicture = artist.ArtistProfile?.ProfilePictureUrl
-                                       ?? "/images/default-profile.png",
+                    ? $"{artist.ArtistProfile.City}, {artist.ArtistProfile.Province}"
+                    : artist.ArtistProfile?.Province ?? "",
+                ArtistProfilePicture = artist.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
                 Services = groupedServices.Select(us => new ServiceListViewModel.ServiceItem
                 {
                     UserServiceId = us.Id,
@@ -323,8 +334,10 @@ namespace BeautyArtists.Controllers
 
             return View("ServiceList", model);
         }
-       
 
+        // ???????????????????????????????????????????????????????????
+        //  TOP RATED
+        // ???????????????????????????????????????????????????????????
         public async Task<IActionResult> TopRated()
         {
             var topRatedServices = await _context.UserServices
@@ -333,6 +346,7 @@ namespace BeautyArtists.Controllers
                 .Include(us => us.Artist)
                     .ThenInclude(a => a.ArtistProfile)
                 .Where(us => us.IsActive)
+                .AsNoTracking()
                 .Select(us => new
                 {
                     Service = us,
@@ -347,6 +361,13 @@ namespace BeautyArtists.Controllers
                 .OrderByDescending(x => x.AverageRating)
                 .ThenByDescending(x => x.ReviewCount)
                 .Select(x => x.Service)
+                .ToListAsync();
+
+            // Get reviews for ALL services at once
+            var serviceIds = topRatedServices.Select(s => s.Id).ToList();
+            var allReviews = await _context.Reviews
+                .Where(r => serviceIds.Contains(r.Booking.UserServiceId))
+                .AsNoTracking()
                 .ToListAsync();
 
             var model = new ServiceListViewModel
@@ -367,10 +388,10 @@ namespace BeautyArtists.Controllers
                     ArtistId = us.ArtistId,
                     City = us.Artist?.ArtistProfile?.City ?? "Unknown",
                     Province = us.Artist?.ArtistProfile?.Province ?? "",
-                    AverageRating = _context.Reviews
+                    AverageRating = allReviews
                         .Where(r => r.Booking.UserServiceId == us.Id)
                         .Average(r => (double?)r.Rating) ?? 0,
-                    ReviewCount = _context.Reviews
+                    ReviewCount = allReviews
                         .Where(r => r.Booking.UserServiceId == us.Id)
                         .Count()
                 }).ToList()
@@ -378,20 +399,32 @@ namespace BeautyArtists.Controllers
 
             return View("ServiceList", model);
         }
-        public async Task<IActionResult> AllServices()
+
+        // ???????????????????????????????????????????????????????????
+        //  ALL SERVICES (with pagination)
+        // ???????????????????????????????????????????????????????????
+        public async Task<IActionResult> AllServices(int page = 1, int pageSize = 12)
         {
-            var services = await _context.UserServices
+            var query = _context.UserServices
                 .Include(us => us.Service)
                     .ThenInclude(s => s.ServiceCategory)
                 .Include(us => us.Artist)
                     .ThenInclude(a => a.ArtistProfile)
                 .Where(us => us.IsActive)
+                .AsNoTracking();
+
+            var totalCount = await query.CountAsync();
+
+            var services = await query
+                .OrderByDescending(us => us.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            // ?? Get all reviews for these services
             var serviceIds = services.Select(s => s.ServiceId).ToList();
             var allReviews = await _context.Reviews
                 .Where(r => serviceIds.Contains(r.ServiceId))
+                .AsNoTracking()
                 .ToListAsync();
 
             var model = new ServiceListViewModel
@@ -413,31 +446,42 @@ namespace BeautyArtists.Controllers
                     City = us.Artist?.ArtistProfile?.City ?? "",
                     Province = us.Artist?.ArtistProfile?.Province ?? "",
                     ArtistLocation = !string.IsNullOrEmpty(us.Artist?.ArtistProfile?.City)
-                ? $"{us.Artist.ArtistProfile.City}, {us.Artist.ArtistProfile.Province}"
-                : us.Artist?.ArtistProfile?.Province ?? "",
-
-                    // ?? Calculate from allReviews
+                        ? $"{us.Artist.ArtistProfile.City}, {us.Artist.ArtistProfile.Province}"
+                        : us.Artist?.ArtistProfile?.Province ?? "",
                     ReviewCount = allReviews.Count(r => r.ServiceId == us.ServiceId),
                     AverageRating = allReviews.Where(r => r.ServiceId == us.ServiceId).Any()
                         ? Math.Round(allReviews.Where(r => r.ServiceId == us.ServiceId).Average(r => r.Rating), 1)
                         : 0
-                }).ToList()
+                }).ToList(),
+                CurrentPage = page,
+                TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
+                TotalCount = totalCount
             };
 
             return View("ServiceList", model);
         }
 
-
+        // ???????????????????????????????????????????????????????????
+        //  BROWSE ARTISTS
+        // ???????????????????????????????????????????????????????????
         [Route("Home/Artists")]
         [Route("Home/BrowseArtists")]
-        public async Task<IActionResult> BrowseArtists()
+        public async Task<IActionResult> BrowseArtists(int page = 1, int pageSize = 12)
         {
-            var artists = await _context.Users
+            var query = _context.Users
                 .Where(u => u.ArtistProfile != null)
                 .Include(u => u.ArtistProfile)
                 .Include(u => u.UserServices.Where(us => us.IsActive))
                     .ThenInclude(us => us.Service)
-                        .ThenInclude(s => s.ServiceCategory) //  FIXED (was .Category)
+                        .ThenInclude(s => s.ServiceCategory)
+                .AsNoTracking();
+
+            var totalCount = await query.CountAsync();
+
+            var artists = await query
+                .OrderBy(u => u.FirstName)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
             var model = artists.Select(a => new BrowseArtistViewModel
@@ -445,16 +489,13 @@ namespace BeautyArtists.Controllers
                 ArtistId = a.Id,
                 FullName = !string.IsNullOrEmpty(a.FirstName)
                     ? $"{a.FirstName} {a.LastName}".Trim()
-                    : a.ArtistProfile?.FullName
-                      ?? a.UserName
-                      ?? a.Email,
+                    : a.ArtistProfile?.FullName ?? a.UserName ?? a.Email,
                 Province = a.ArtistProfile?.Province ?? "Unknown",
                 City = a.ArtistProfile?.City ?? "",
-                ProfilePictureUrl = a.ArtistProfile?.ProfilePictureUrl
-                                    ?? "/images/default-profile.png",
-                ContactInfo = a.ArtistProfile?.ContactInfo,       // ? ADD
-                InstagramUrl = a.ArtistProfile?.InstagramUrl,     // ? ADD
-                YearsExperience = a.ArtistProfile?.YearsExperience ?? 0, // ? ADD
+                ProfilePictureUrl = a.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
+                ContactInfo = a.ArtistProfile?.ContactInfo,
+                InstagramUrl = a.ArtistProfile?.InstagramUrl,
+                YearsExperience = a.ArtistProfile?.YearsExperience ?? 0,
                 Bio = a.ArtistProfile?.Bio,
                 Services = a.UserServices
                     .Where(us => us.IsActive)
@@ -463,38 +504,56 @@ namespace BeautyArtists.Controllers
                     .ToList()
             }).ToList();
 
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            ViewBag.TotalCount = totalCount;
+
             return View("BrowseArtists", model);
         }
+
+        // ???????????????????????????????????????????????????????????
+        //  CATALOGUE
+        // ???????????????????????????????????????????????????????????
         [AllowAnonymous]
         public async Task<IActionResult> Catalogue(string artistId, int categoryId)
         {
             if (string.IsNullOrEmpty(artistId)) return NotFound();
 
-            // Get artist details
-            var artist = await _context.Users
+            var artistTask = _context.Users
                 .Include(u => u.ArtistProfile)
+                .AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Id == artistId);
-            if (artist == null) return NotFound();
 
-            // Get category details
-            var category = await _context.ServiceCategories
+            var categoryTask = _context.ServiceCategories
+                .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == categoryId);
-            if (category == null) return NotFound();
 
-            // Get ALL services by this artist in this category
-            var userServices = await _context.UserServices
+            var userServicesTask = _context.UserServices
                 .Where(us => us.ArtistId == artistId
                           && us.IsActive
                           && us.Service.CategoryId == categoryId)
                 .Include(us => us.Service)
                     .ThenInclude(s => s.ServiceCategory)
                 .Include(us => us.Artist)
+                .AsNoTracking()
                 .ToListAsync();
 
-            ViewBag.Portfolios = await _context.Portfolios
+            var portfoliosTask = _context.Portfolios
                 .Include(p => p.Items)
                 .Where(p => p.ArtistId == artistId)
+                .AsNoTracking()
                 .ToListAsync();
+
+            await Task.WhenAll(artistTask, categoryTask, userServicesTask, portfoliosTask);
+
+            var artist = await artistTask;
+            var category = await categoryTask;
+            var userServices = await userServicesTask;
+            var portfolios = await portfoliosTask;
+
+            if (artist == null || category == null) return NotFound();
+
+            ViewBag.Portfolios = portfolios;
 
             var artistName = !string.IsNullOrEmpty(artist.FirstName)
                 ? $"{artist.FirstName} {artist.LastName}".Trim()
@@ -506,10 +565,9 @@ namespace BeautyArtists.Controllers
                 ArtistId = artist.Id,
                 ArtistName = artistName,
                 ArtistLocation = !string.IsNullOrEmpty(artist.ArtistProfile?.City)
-    ? $"{artist.ArtistProfile.City}, {artist.ArtistProfile.Province}"
-    : artist.ArtistProfile?.Province ?? "",
-                ArtistProfilePicture = artist.ArtistProfile?.ProfilePictureUrl
-                                       ?? "/images/default-profile.png",
+                    ? $"{artist.ArtistProfile.City}, {artist.ArtistProfile.Province}"
+                    : artist.ArtistProfile?.Province ?? "",
+                ArtistProfilePicture = artist.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
                 Services = userServices.Select(us => new ServiceListViewModel.ServiceItem
                 {
                     UserServiceId = us.Id,
@@ -520,42 +578,54 @@ namespace BeautyArtists.Controllers
                     Price = us.Price,
                     ImagePath = us.ImagePath ?? us.Service?.ImagePath,
                     ArtistName = artistName,
-                    ArtistId = us.ArtistId, // never forget
+                    ArtistId = us.ArtistId,
                 }).ToList()
             };
 
-            return View("Catalogue", model); // NOT ServiceList anymore
+            return View("Catalogue", model);
         }
 
-
-        [Route("Home/CategoryServices/{categoryId}")] // This fixes the 404
-        public async Task<IActionResult> CategoryServices(int categoryId)
+        // ???????????????????????????????????????????????????????????
+        //  CATEGORY SERVICES (with pagination)
+        // ???????????????????????????????????????????????????????????
+        [Route("Home/CategoryServices/{categoryId}")]
+        public async Task<IActionResult> CategoryServices(int categoryId, int page = 1, int pageSize = 12)
         {
-            // 1. Get the Category details
             var category = await _context.ServiceCategories
+                .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == categoryId);
 
             if (category == null) return NotFound();
 
-            // 2. Fetch ONLY services that belong to this category
-            var userServices = await _context.UserServices
+            var query = _context.UserServices
                 .Include(us => us.Service)
-                    .ThenInclude(s => s.ServiceCategory) // Ensure Category is included for the name
+                    .ThenInclude(s => s.ServiceCategory)
                 .Include(us => us.Artist)
-                     .ThenInclude(a => a.ArtistProfile)
+                    .ThenInclude(a => a.ArtistProfile)
                 .Where(us => us.IsActive && us.Service.CategoryId == categoryId)
+                .AsNoTracking();
+
+            var totalCount = await query.CountAsync();
+
+            var userServices = await query
+                .OrderByDescending(us => us.Id)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            var allForDebug = await _context.UserServices.Include(u => u.Service).Where(u => u.IsActive).ToListAsync();
-            TempData["Debug"] = $"CLICKED={categoryId} FOUND={userServices.Count} ALL_ACTIVE={allForDebug.Count} CATS=" +
-                string.Join(",", allForDebug.Select(u => $"{u.Service?.Name}:CatId={u.Service?.CategoryId}"));
+            // Get reviews for these services
+            var serviceIds = userServices.Select(s => s.ServiceId).ToList();
+            var allReviews = await _context.Reviews
+                .Where(r => serviceIds.Contains(r.ServiceId))
+                .AsNoTracking()
+                .ToListAsync();
 
-            // Fetch portfolio items for this category to pass to the modal
+            // Portfolio items
             ViewBag.Portfolios = await _context.PortfolioItems
                 .Where(pi => pi.CategoryId == categoryId)
+                .AsNoTracking()
                 .ToListAsync();
 
-            // 3. Map to your existing ViewModel
             var model = new ServiceListViewModel
             {
                 Title = $"Services in {category.Name}",
@@ -570,18 +640,24 @@ namespace BeautyArtists.Controllers
                     Price = us.Price,
                     ImagePath = us.ImagePath ?? us.Service?.ImagePath,
                     ArtistName = !string.IsNullOrEmpty(us.Artist?.FirstName)
-    ? $"{us.Artist.FirstName} {us.Artist.LastName}".Trim()
-    : us.Artist?.UserName ?? "Pro Artist",
+                        ? $"{us.Artist.FirstName} {us.Artist.LastName}".Trim()
+                        : us.Artist?.UserName ?? "Pro Artist",
                     ArtistId = us.ArtistId,
                     City = us.Artist?.ArtistProfile?.City ?? "",
                     ArtistLocation = !string.IsNullOrEmpty(us.Artist?.ArtistProfile?.City)
-        ? $"{us.Artist.ArtistProfile.City}, {us.Artist.ArtistProfile.Province}"
-        : us.Artist?.ArtistProfile?.Province ?? ""
-                }).ToList()
+                        ? $"{us.Artist.ArtistProfile.City}, {us.Artist.ArtistProfile.Province}"
+                        : us.Artist?.ArtistProfile?.Province ?? "",
+                    ReviewCount = allReviews.Count(r => r.ServiceId == us.ServiceId),
+                    AverageRating = allReviews.Where(r => r.ServiceId == us.ServiceId).Any()
+                        ? Math.Round(allReviews.Where(r => r.ServiceId == us.ServiceId).Average(r => r.Rating), 1)
+                        : 0
+                }).ToList(),
+                CurrentPage = page,
+                TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
+                TotalCount = totalCount
             };
 
             return View("ServiceList", model);
         }
     }
-
 }

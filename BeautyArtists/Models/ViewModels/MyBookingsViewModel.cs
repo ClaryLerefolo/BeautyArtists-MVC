@@ -4,7 +4,10 @@ namespace BeautyArtists.Models.ViewModels
 {
     public class MyBookingsViewModel
     {
-        public List<BookingWithReviewStatus> Bookings { get; set; }
+        public List<BookingWithReviewStatus> Bookings { get; set; } = new();
+        public int CurrentPage { get; set; } = 1;
+        public int TotalPages { get; set; } = 1;
+        public int TotalCount { get; set; } = 0;
     }
 
     public class BookingWithReviewStatus

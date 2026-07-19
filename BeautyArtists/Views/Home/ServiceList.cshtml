@@ -256,6 +256,52 @@
     </div>
 </section>
 
+@* ─── 🔥 PAGINATION ─── *@
+@if (Model.TotalPages > 1)
+{
+    <div class="container">
+        <div class="pagination-wrapper" style="margin-top: 10px; padding-bottom: 40px;">
+            <div class="pagination-container" style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;">
+                @if (Model.CurrentPage > 1)
+                {
+                    <a asp-action="AllServices" asp-route-page="@(Model.CurrentPage - 1)" class="pagination-btn" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; color: #FFD700; font-size: 0.8rem; text-decoration: none; transition: 0.2s;">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                }
+
+                <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                    @for (int i = 1; i <= Model.TotalPages; i++)
+                    {
+                        if (i == Model.CurrentPage)
+                        {
+                            <span style="padding: 8px 14px; background: #FFD700; color: #000; border-radius: 8px; font-weight: 800; font-size: 0.85rem;">@i</span>
+                        }
+                        else if (i == 1 || i == Model.TotalPages || Math.Abs(i - Model.CurrentPage) <= 2)
+                        {
+                            <a asp-action="AllServices" asp-route-page="@i" style="padding: 8px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: rgba(255,255,255,0.6); font-size: 0.85rem; text-decoration: none; transition: 0.2s;">
+                                @i
+                            </a>
+                        }
+                        else if (i == Model.CurrentPage - 3 || i == Model.CurrentPage + 3)
+                        {
+                            <span style="padding: 8px 8px; color: rgba(255,255,255,0.2); font-size: 0.85rem;">…</span>
+                        }
+                    }
+                </div>
+
+                @if (Model.CurrentPage < Model.TotalPages)
+                {
+                    <a asp-action="AllServices" asp-route-page="@(Model.CurrentPage + 1)" class="pagination-btn" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; color: #FFD700; font-size: 0.8rem; text-decoration: none; transition: 0.2s;">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                }
+            </div>
+            <div class="pagination-info" style="text-align: center; margin-top: 12px; color: rgba(255,255,255,0.3); font-size: 0.75rem;">
+                Showing <span style="color: #FFD700;">@((Model.CurrentPage - 1) * 12 + 1)</span> - <span style="color: #FFD700;">@Math.Min(Model.CurrentPage * 12, Model.TotalCount)</span> of <span style="color: #FFD700;">@Model.TotalCount</span> services
+            </div>
+        </div>
+    </div>
+}
 
 <style>
     .btn-outline-gold {
@@ -572,6 +618,23 @@
 
     .service-item.hidden {
         display: none !important;
+    }
+
+    /* ─── PAGINATION STYLES ─── */
+    .pagination-btn:hover {
+        background: rgba(255,215,0,0.2) !important;
+        border-color: #FFD700 !important;
+    }
+
+    @@media (max-width: 768px) {
+        .pagination-container {
+            gap: 4px !important;
+        }
+
+        .pagination-btn {
+            padding: 6px 12px !important;
+            font-size: 0.7rem !important;
+        }
     }
 </style>
 
