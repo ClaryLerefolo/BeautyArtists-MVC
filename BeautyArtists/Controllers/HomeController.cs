@@ -340,17 +340,19 @@ namespace BeautyArtists.Controllers
             {
                 Console.WriteLine("TopRated: Starting...");
 
-                var topRatedServices = await _context.UserServices
+                var query = _context.UserServices
                     .Include(us => us.Service)
                         .ThenInclude(s => s.ServiceCategory)
                     .Include(us => us.Artist)
                         .ThenInclude(a => a.ArtistProfile)
                     .Where(us => us.IsActive)
-                    .AsNoTracking()
+                    .AsNoTracking();
+
+                // ??? Get services with review aggregates ???
+                var servicesWithReviews = await query
                     .Select(us => new
                     {
-                        Service = us,
-                        // ?? FIX: Handle null Booking references in Reviews
+                        UserService = us,
                         AverageRating = _context.Reviews
                             .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
                             .Average(r => (double?)r.Rating) ?? 0,
@@ -358,68 +360,51 @@ namespace BeautyArtists.Controllers
                             .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
                             .Count()
                     })
-                    .Where(x => x.ReviewCount >= 3)
+                    .Where(x => x.ReviewCount >= 3)   // only services with at least 3 reviews
                     .OrderByDescending(x => x.AverageRating)
                     .ThenByDescending(x => x.ReviewCount)
-                    .Select(x => x.Service)
                     .ToListAsync();
 
-                Console.WriteLine($"TopRated: Found {topRatedServices.Count} services with 3+ reviews");
+                Console.WriteLine($"TopRated: Found {servicesWithReviews.Count} services with 3+ reviews");
 
-                var serviceIds = topRatedServices.Select(s => s.Id).ToList();
-                var allReviews = new List<Review>();
-
-                if (serviceIds.Any())
-                {
-                    allReviews = await _context.Reviews
-                        .Where(r => r.Booking != null && serviceIds.Contains(r.Booking.UserServiceId))
-                        .AsNoTracking()
-                        .ToListAsync();
-                    Console.WriteLine($"TopRated: Found {allReviews.Count} reviews");
-                }
-
+                // ??? Build the view model ???
                 var model = new ServiceListViewModel
                 {
                     Title = "Top Rated Services",
-                    Services = topRatedServices.Select(us => new ServiceListViewModel.ServiceItem
+                    Services = servicesWithReviews.Select(x => new ServiceListViewModel.ServiceItem
                     {
-                        UserServiceId = us.Id,
-                        ServiceName = us.Service?.Name ?? "Unnamed",
-                        Description = us.CustomDescription ?? us.Service?.Description ?? "",
-                        Category = us.Service?.ServiceCategory?.Name ?? "Uncategorized",
-                        CategoryId = us.Service?.CategoryId ?? 0,
-                        Price = us.Price,
-                        ImagePath = us.ImagePath ?? us.Service?.ImagePath,
-                        ArtistName = !string.IsNullOrEmpty(us.Artist?.FirstName)
-                            ? $"{us.Artist.FirstName} {us.Artist.LastName}".Trim()
-                            : us.Artist?.UserName ?? "Pro Artist",
-                        ArtistId = us.ArtistId,
-                        City = us.Artist?.ArtistProfile?.City ?? "Unknown",
-                        Province = us.Artist?.ArtistProfile?.Province ?? "",
-                        AverageRating = allReviews
-                            .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
-                            .Select(r => (double)r.Rating)
-                            .DefaultIfEmpty(0)
-                            .Average(),
-                        ReviewCount = allReviews
-                            .Count(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
+                        UserServiceId = x.UserService.Id,
+                        ServiceName = x.UserService.Service?.Name ?? "Unnamed",
+                        Description = x.UserService.CustomDescription ?? x.UserService.Service?.Description ?? "",
+                        Category = x.UserService.Service?.ServiceCategory?.Name ?? "Uncategorized",
+                        CategoryId = x.UserService.Service?.CategoryId ?? 0,
+                        Price = x.UserService.Price,
+                        ImagePath = x.UserService.ImagePath ?? x.UserService.Service?.ImagePath,
+                        ArtistName = !string.IsNullOrEmpty(x.UserService.Artist?.FirstName)
+                            ? $"{x.UserService.Artist.FirstName} {x.UserService.Artist.LastName}".Trim()
+                            : x.UserService.Artist?.UserName ?? "Pro Artist",
+                        ArtistId = x.UserService.ArtistId,
+                        City = x.UserService.Artist?.ArtistProfile?.City ?? "Unknown",
+                        Province = x.UserService.Artist?.ArtistProfile?.Province ?? "",
+                        AverageRating = x.AverageRating,
+                        ReviewCount = x.ReviewCount
                     }).ToList(),
                     CurrentPage = 1,
                     TotalPages = 1,
-                    TotalCount = topRatedServices.Count
+                    TotalCount = servicesWithReviews.Count
                 };
 
-                Console.WriteLine($"? TopRated: Successfully built model with {model.Services.Count} services");
+                Console.WriteLine($"TopRated: Successfully built model with {model.Services.Count} services");
                 return View("ServiceList", model);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? TopRated ERROR: {ex.Message}");
+                Console.WriteLine($"TopRated ERROR: {ex.Message}");
                 Console.WriteLine($"Stack: {ex.StackTrace}");
 
                 var emptyModel = new ServiceListViewModel
                 {
-                    Title = "? Top Rated Services",
+                    Title = "Top Rated Services",
                     Services = new List<ServiceListViewModel.ServiceItem>(),
                     CurrentPage = 1,
                     TotalPages = 1,
