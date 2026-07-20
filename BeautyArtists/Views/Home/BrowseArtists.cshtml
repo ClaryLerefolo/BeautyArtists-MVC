@@ -3,6 +3,9 @@
     ViewData["Title"] = "Browse Artists";
     Layout = "~/Views/Shared/_Layout.cshtml";
     var artistList = Model.ToList();
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var totalCount = ViewBag.TotalCount as int? ?? 0;
 }
 
 <div class="ba-page">
@@ -15,8 +18,8 @@
             <h1 class="ba-hero-title">Browse Artists</h1>
             <p class="ba-hero-sub">Discover skilled beauty professionals ready to serve you</p>
             <div class="ba-hero-stat">
-                <span class="ba-hero-num">@artistList.Count</span>
-                <span class="ba-hero-label">ARTIST@(artistList.Count != 1 ? "S" : "") AVAILABLE</span>
+                <span class="ba-hero-num">@totalCount</span>
+                <span class="ba-hero-label">ARTIST@(totalCount != 1 ? "S" : "") AVAILABLE</span>
             </div>
         </div>
     </div>
@@ -152,6 +155,56 @@
             </div>
         }
     </div>
+
+    @* ─── 🔥 PAGINATION (12 per page) ─── *@
+    @if (totalPages > 1)
+    {
+        <div class="container">
+            <div class="pagination-wrapper" style="margin-top: 10px; padding-bottom: 40px;">
+                <div class="pagination-container" style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;">
+                    @if (currentPage > 1)
+                    {
+                        <a asp-action="BrowseArtists" asp-route-page="@(currentPage - 1)" class="pagination-btn" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; color: #FFD700; font-size: 0.8rem; text-decoration: none; transition: 0.2s;">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    }
+
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            if (i == currentPage)
+                            {
+                                <span style="padding: 8px 14px; background: #FFD700; color: #000; border-radius: 8px; font-weight: 800; font-size: 0.85rem;">@i</span>
+                            }
+                            else if (i == 1 || i == totalPages || Math.Abs(i - currentPage) <= 2)
+                            {
+                                <a asp-action="BrowseArtists" asp-route-page="@i" style="padding: 8px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: rgba(255,255,255,0.6); font-size: 0.85rem; text-decoration: none; transition: 0.2s;">
+                                    @i
+                                </a>
+                            }
+                            else if (i == currentPage - 3 || i == currentPage + 3)
+                            {
+                                <span style="padding: 8px 8px; color: rgba(255,255,255,0.2); font-size: 0.85rem;">…</span>
+                            }
+                        }
+                    </div>
+
+                    @if (currentPage < totalPages)
+                    {
+                        <a asp-action="BrowseArtists" asp-route-page="@(currentPage + 1)" class="pagination-btn" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; color: #FFD700; font-size: 0.8rem; text-decoration: none; transition: 0.2s;">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    }
+                </div>
+                <div class="pagination-info" style="text-align: center; margin-top: 12px; color: rgba(255,255,255,0.3); font-size: 0.75rem;">
+                    Showing <span style="color: #FFD700;">@((currentPage - 1) * 12 + 1)</span>
+                    - <span style="color: #FFD700;">@Math.Min(currentPage * 12, totalCount)</span>
+                    of <span style="color: #FFD700;">@totalCount</span> artists
+                </div>
+            </div>
+        </div>
+    }
+
 </div>
 
 <style>
@@ -446,5 +499,22 @@
         font-size: 3rem;
         color: rgba(255,215,0,0.15);
         margin-bottom: 16px;
+    }
+
+    /* ── PAGINATION STYLES (to match services) ── */
+    .pagination-btn:hover {
+        background: rgba(255,215,0,0.2) !important;
+        border-color: #FFD700 !important;
+    }
+
+    @@media (max-width: 768px) {
+        .pagination-container {
+            gap: 4px !important;
+        }
+
+        .pagination-btn {
+            padding: 6px 12px !important;
+            font-size: 0.7rem !important;
+        }
     }
 </style>

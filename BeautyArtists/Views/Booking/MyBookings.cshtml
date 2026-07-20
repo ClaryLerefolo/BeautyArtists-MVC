@@ -9,6 +9,12 @@
     var completed = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Completed);
     var cancelled = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Cancelled);
     var rejected = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Rejected);
+
+    // ── Get filter values from ViewBag (set by controller) ──
+    var selectedMonth = ViewBag.SelectedMonth as string;      // "yyyy-MM"
+    var startDate = ViewBag.StartDate as DateTime?;
+    var endDate = ViewBag.EndDate as DateTime?;
+    var selectedStatus = ViewBag.SelectedStatus as string;
 }
 
 <div class="mb-page">
@@ -67,7 +73,85 @@
             </div>
         </div>
     }
-    @* 🔥 CLIENTS SHOULDN'T SEE ARTIST ERRORS - REMOVED *@
+
+    @* ── FILTER PILL + PANEL ── *@
+    <div class="container mt-4">
+        <!-- Filter Toggle Pill -->
+        <div class="mb-filter-pill-wrapper">
+            <button class="mb-filter-pill" id="filterToggleBtn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="4" y1="6" x2="20" y2="6" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                    <line x1="11" y1="18" x2="13" y2="18" />
+                </svg>
+                Filter
+                <span id="filterActiveBadge" class="mb-filter-badge" style="display:none;">●</span>
+            </button>
+        </div>
+
+        <!-- Filter Panel (initially hidden) -->
+        <div class="mb-filter-panel" id="filterPanel" style="display:none;">
+            <form method="get" asp-action="MyBookings" id="filterForm">
+                <div class="mb-filter-row">
+
+                    @* Month dropdown (Jan to Dec – NO YEARS) *@
+                    <div class="mb-filter-group">
+                        <label class="mb-filter-label" for="filterMonth">Month</label>
+                        <select id="filterMonth" name="month" class="mb-filter-select">
+                            <option value="">All Months</option>
+                            @{
+                                var months = new string[]
+                                {
+                                                        "January", "February", "March", "April", "May", "June",
+                                                        "July", "August", "September", "October", "November", "December"
+                                };
+                                for (int i = 1; i <= 12; i++)
+                                {
+                                    var monthValue = DateTime.Now.Year + "-" + i.ToString("D2");
+                                    var monthText = months[i - 1];
+                                    var isSelected = selectedMonth == monthValue;
+                                    <option value="@monthValue" selected="@isSelected">@monthText</option>
+                                }
+                            }
+                        </select>
+                    </div>
+
+                    @* Date range *@
+                    <div class="mb-filter-group">
+                        <label class="mb-filter-label" for="filterStartDate">From</label>
+                        <input type="date" id="filterStartDate" name="startDate" class="mb-filter-input"
+                               value="@(startDate?.ToString("yyyy-MM-dd") ?? "")" />
+                    </div>
+                    <div class="mb-filter-group">
+                        <label class="mb-filter-label" for="filterEndDate">To</label>
+                        <input type="date" id="filterEndDate" name="endDate" class="mb-filter-input"
+                               value="@(endDate?.ToString("yyyy-MM-dd") ?? "")" />
+                    </div>
+
+                    @* Status dropdown *@
+                    <div class="mb-filter-group">
+                        <label class="mb-filter-label" for="filterStatus">Status</label>
+                        <select id="filterStatus" name="status" class="mb-filter-select">
+                            <option value="">All Statuses</option>
+                            @foreach (var status in Enum.GetValues(typeof(BeautyArtists.Models.Booking.BookingStatus)))
+                            {
+                                var statusStr = status.ToString();
+                                var isSelected = selectedStatus == statusStr;
+                                <option value="@statusStr" selected="@isSelected">@statusStr.ToUpper()</option>
+                            }
+                        </select>
+                    </div>
+
+                    @* Action buttons *@
+                    <div class="mb-filter-actions">
+                        <button type="submit" class="mb-filter-btn-apply">Apply Filters</button>
+                        <a asp-action="MyBookings" class="mb-filter-btn-clear">Clear</a>
+                    </div>
+
+                </div>
+            </form>
+        </div>
+    </div>
 
     @* ── BOOKINGS LIST ── *@
     <div class="container mb-body">
@@ -232,7 +316,6 @@
                                             </div>
                                         }
 
-                                        @* ─── FIXED: Check HasValue for double? ─── *@
                                         @if (item.StudioLatitude.HasValue && item.StudioLongitude.HasValue)
                                         {
                                             <div style="margin-top:10px;">
@@ -468,14 +551,25 @@
                 </div>
             }
 
-            @* ─── PAGINATION ─── *@
+            @* ─── PAGINATION (with filters preserved) ─── *@
             @if (Model.TotalPages > 1)
             {
                 <div class="pagination-wrapper" style="margin-top: 30px;">
                     <div class="pagination-container" style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;">
+
+                        @* Helper to build route values preserving filters *@
+                        @{
+                            var routeParams = new Dictionary<string, string>();
+                            if (!string.IsNullOrEmpty(selectedMonth)) routeParams["month"] = selectedMonth;
+                            if (startDate.HasValue) routeParams["startDate"] = startDate.Value.ToString("yyyy-MM-dd");
+                            if (endDate.HasValue) routeParams["endDate"] = endDate.Value.ToString("yyyy-MM-dd");
+                            if (!string.IsNullOrEmpty(selectedStatus)) routeParams["status"] = selectedStatus;
+                        }
+
                         @if (Model.CurrentPage > 1)
                         {
-                            <a asp-action="MyBookings" asp-route-page="@(Model.CurrentPage - 1)" class="pagination-btn" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; color: #FFD700; font-size: 0.8rem; text-decoration: none; transition: 0.2s;">
+                            var prevParams = new Dictionary<string, string>(routeParams) { ["page"] = (Model.CurrentPage - 1).ToString() };
+                            <a asp-action="MyBookings" asp-all-route-data="prevParams" class="pagination-btn">
                                 <i class="fas fa-chevron-left"></i> Previous
                             </a>
                         }
@@ -489,7 +583,8 @@
                                 }
                                 else if (i == 1 || i == Model.TotalPages || Math.Abs(i - Model.CurrentPage) <= 2)
                                 {
-                                    <a asp-action="MyBookings" asp-route-page="@i" style="padding: 8px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: rgba(255,255,255,0.6); font-size: 0.85rem; text-decoration: none; transition: 0.2s;">
+                                    var pageParams = new Dictionary<string, string>(routeParams) { ["page"] = i.ToString() };
+                                    <a asp-action="MyBookings" asp-all-route-data="pageParams" style="padding: 8px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: rgba(255,255,255,0.6); font-size: 0.85rem; text-decoration: none; transition: 0.2s;">
                                         @i
                                     </a>
                                 }
@@ -502,7 +597,8 @@
 
                         @if (Model.CurrentPage < Model.TotalPages)
                         {
-                            <a asp-action="MyBookings" asp-route-page="@(Model.CurrentPage + 1)" class="pagination-btn" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,215,0,0.1); border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; color: #FFD700; font-size: 0.8rem; text-decoration: none; transition: 0.2s;">
+                            var nextParams = new Dictionary<string, string>(routeParams) { ["page"] = (Model.CurrentPage + 1).ToString() };
+                            <a asp-action="MyBookings" asp-all-route-data="nextParams" class="pagination-btn">
                                 Next <i class="fas fa-chevron-right"></i>
                             </a>
                         }
@@ -537,9 +633,36 @@
         form.querySelector('input[name="clientNotes"]').value = reason;
         return confirm('Are you sure you want to cancel this appointment?');
     }
+
+    // ── FILTER TOGGLE ──
+    document.addEventListener('DOMContentLoaded', function() {
+        var toggleBtn = document.getElementById('filterToggleBtn');
+        var panel = document.getElementById('filterPanel');
+        var badge = document.getElementById('filterActiveBadge');
+
+        // Check if any filter is active (if ViewBag has values)
+        var hasActiveFilter = '@(string.IsNullOrEmpty(selectedMonth) && !startDate.HasValue && !endDate.HasValue && string.IsNullOrEmpty(selectedStatus) ? "false" : "true")' === 'true';
+        if (hasActiveFilter) {
+            badge.style.display = 'inline';
+        }
+
+        toggleBtn.addEventListener('click', function() {
+            if (panel.style.display === 'none' || panel.style.display === '') {
+                panel.style.display = 'block';
+            } else {
+                panel.style.display = 'none';
+            }
+        });
+
+        // Auto-open if filters are active
+        if (hasActiveFilter) {
+            panel.style.display = 'block';
+        }
+    });
 </script>
 
 <style>
+    /* ── ALL YOUR ORIGINAL STYLES ── */
     .mb-page {
         background: #000;
         min-height: 100vh;
@@ -1062,6 +1185,179 @@
         border-color: #FFD700 !important;
     }
 
+    /* ── FILTER PILL + PANEL STYLES (NEW) ── */
+    .mb-filter-pill-wrapper {
+        display: flex;
+        justify-content: flex-start;
+        margin-bottom: 12px;
+    }
+
+    .mb-filter-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 20px;
+        background: rgba(255,215,0,0.08);
+        border: 1px solid rgba(255,215,0,0.2);
+        border-radius: 50px;
+        color: #FFD700;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        backdrop-filter: blur(4px);
+    }
+
+        .mb-filter-pill:hover {
+            background: rgba(255,215,0,0.15);
+            border-color: #FFD700;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255,215,0,0.15);
+        }
+
+        .mb-filter-pill svg {
+            stroke: #FFD700;
+        }
+
+    .mb-filter-badge {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background: #FFD700;
+        border-radius: 50%;
+        margin-left: 4px;
+        animation: pulse 1.5s infinite;
+    }
+
+    @@keyframes pulse {
+        0% {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        50% {
+            opacity: 0.4;
+            transform: scale(0.8);
+        }
+
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .mb-filter-panel {
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.08);
+        border-radius: 14px;
+        padding: 20px 24px;
+        margin-bottom: 24px;
+        display: none;
+    }
+
+        .mb-filter-panel[style*="display: block"] {
+            display: block;
+            border-color: rgba(255,215,0,0.15);
+        }
+
+    .mb-filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 16px;
+    }
+
+    .mb-filter-group {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 150px;
+        min-width: 120px;
+    }
+
+    .mb-filter-label {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.3);
+        margin-bottom: 4px;
+    }
+
+    .mb-filter-select,
+    .mb-filter-input {
+        background: #111;
+        border: 1px solid rgba(255,215,0,0.12);
+        border-radius: 8px;
+        color: #fff;
+        padding: 8px 12px;
+        font-size: 0.82rem;
+        outline: none;
+        transition: border-color 0.2s;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+        .mb-filter-select:focus,
+        .mb-filter-input:focus {
+            border-color: rgba(255,215,0,0.4);
+        }
+
+        .mb-filter-select option {
+            background: #111;
+        }
+
+        .mb-filter-input[type="date"] {
+            color-scheme: dark;
+        }
+
+    .mb-filter-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex: 0 0 auto;
+        padding-bottom: 0;
+    }
+
+    .mb-filter-btn-apply,
+    .mb-filter-btn-clear {
+        padding: 8px 20px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .mb-filter-btn-apply {
+        background: linear-gradient(135deg, #f0c808, #e50914);
+        color: #000;
+    }
+
+        .mb-filter-btn-apply:hover {
+            background: linear-gradient(135deg, #e50914, #f0c808);
+            box-shadow: 0 0 20px rgba(240,200,8,0.3);
+        }
+
+    .mb-filter-btn-clear {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: rgba(255,255,255,0.4);
+    }
+
+        .mb-filter-btn-clear:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
     @@media (max-width: 768px) {
         .mb-card-body {
             flex-wrap: wrap;
@@ -1127,6 +1423,35 @@
         .pagination-btn {
             padding: 6px 12px !important;
             font-size: 0.7rem !important;
+        }
+
+        .mb-filter-panel {
+            padding: 16px;
+        }
+
+        .mb-filter-row {
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .mb-filter-group {
+            flex: 1 1 100%;
+            min-width: 0;
+        }
+
+        .mb-filter-actions {
+            width: 100%;
+            justify-content: stretch;
+        }
+
+        .mb-filter-btn-apply,
+        .mb-filter-btn-clear {
+            flex: 1;
+        }
+
+        .mb-filter-pill {
+            font-size: 0.7rem;
+            padding: 6px 16px;
         }
     }
 </style>

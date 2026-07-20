@@ -846,7 +846,6 @@ namespace BeautyArtists.Controllers
         // ══════════════════════════════════
         [Authorize]
         [HttpPost]
-        [Route("Booking/Cancel/{id}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Cancel(int id, string? clientNotes)
         {
@@ -1134,39 +1133,80 @@ namespace BeautyArtists.Controllers
         //  GET: Booking/MyBookings
         // ══════════════════════════════════
         [HttpGet]
-        public async Task<IActionResult> MyBookings(int page = 1, int pageSize = 10)
+        public async Task<IActionResult> MyBookings(
+            int page = 1,
+            int pageSize = 10,
+            string month = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null,
+            string status = null)
         {
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser == null) return Challenge();
 
-            // ─── GET TOTAL COUNT FOR PAGINATION ───
-            var totalCount = await _context.Bookings
-                .Where(b => b.CustomerId == currentUser.Id && b.UserService != null)
-                .AsNoTracking()  // 🔥 ADD THIS - Count doesn't need tracking
-                .CountAsync();
-
-            // ─── GET PAGINATED BOOKINGS ───
-            var bookings = await _context.Bookings
+            // ─── BASE QUERY ──────────────────────────────────────────────
+            var query = _context.Bookings
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Service)
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Artist)
                         .ThenInclude(a => a.ArtistProfile)
                 .Where(b => b.CustomerId == currentUser.Id && b.UserService != null)
+                .AsNoTracking();
+
+            // ─── APPLY FILTERS ──────────────────────────────────────────
+
+            // Month filter (format "yyyy-MM")
+            if (!string.IsNullOrEmpty(month) &&
+                DateTime.TryParseExact(month, "yyyy-MM",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,
+                    out var monthDate))
+            {
+                var start = new DateTime(monthDate.Year, monthDate.Month, 1);
+                var end = start.AddMonths(1).AddDays(-1);
+                query = query.Where(b => b.AppointmentDate >= start && b.AppointmentDate <= end);
+            }
+
+            // Date range (start)
+            if (startDate.HasValue)
+                query = query.Where(b => b.AppointmentDate >= startDate.Value);
+
+            // Date range (end)
+            if (endDate.HasValue)
+                query = query.Where(b => b.AppointmentDate <= endDate.Value);
+
+            // Status filter
+            if (!string.IsNullOrEmpty(status) &&
+                Enum.TryParse<BookingStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(b => b.Status == statusEnum);
+            }
+
+            // ─── PAGINATION ──────────────────────────────────────────────
+
+            var totalCount = await query.CountAsync();
+
+            var bookings = await query
                 .OrderByDescending(b => b.BookingDate)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
-                .AsNoTracking()
                 .ToListAsync();
+
+            // ─── REVIEW CHECK ────────────────────────────────────────────
 
             var bookingIds = bookings.Select(b => b.Id).ToList();
+            var reviewedBookingIds = new List<int>();
+            if (bookingIds.Any())
+            {
+                reviewedBookingIds = await _context.Reviews
+                    .Where(r => bookingIds.Contains(r.BookingId))
+                    .Select(r => r.BookingId)
+                    .Distinct()
+                    .ToListAsync();
+            }
 
-            // 🔥 FIX: Remove AsNoTracking() from this query (already correct)
-            var reviewedBookingIds = await _context.Reviews
-                .Where(r => bookingIds.Contains(r.BookingId))
-                .Select(r => r.BookingId)
-                .Distinct()
-                .ToListAsync();
+            // ─── BUILD VIEW MODEL ───────────────────────────────────────
 
             var model = new MyBookingsViewModel
             {
@@ -1184,6 +1224,13 @@ namespace BeautyArtists.Controllers
                 TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
                 TotalCount = totalCount
             };
+
+            // ─── PASS FILTER VALUES TO VIEWBAG (for UI) ──────────────
+
+            ViewBag.SelectedMonth = month;
+            ViewBag.StartDate = startDate;
+            ViewBag.EndDate = endDate;
+            ViewBag.SelectedStatus = status;
 
             return View(model);
         }

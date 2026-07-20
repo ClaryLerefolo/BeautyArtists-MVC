@@ -29,8 +29,8 @@
         <div class="row justify-content-center">
             <div class="col-lg-10">
 
-                @* ─── ACCORDION 1: ABOUT (using <details>) ─── *@
-                <details style="background:#0b0b0b;border:1px solid rgba(255,215,0,0.15);border-radius:16px;margin-bottom:20px;padding:0;">
+                @* ─── ACCORDION 1: ABOUT ─── *@
+                <details style="background:#0b0b0b;border:1px solid rgba(255,215,0,0.15);border-radius:16px;margin-bottom:20px;padding:0;" open>
                     <summary style="list-style:none;cursor:pointer;padding:20px 24px;color:#FFD700;font-size:1.3rem;font-weight:700;display:flex;align-items:center;justify-content:space-between;border-radius:16px;transition:background 0.2s;">
                         <span>
                             <i class="bi bi-info-circle me-3" style="font-size:1.5rem;"></i> About RubiOr
@@ -39,56 +39,113 @@
                             <i class="bi bi-chevron-down"></i>
                         </span>
                     </summary>
-                    <div style="padding:0 24px 24px 24px;color:rgba(255,255,255,0.7);">
-                        <p style="line-height:1.8;font-size:0.95rem;">
-                            <strong class="text-gold">RubiOr</strong> is a premium beauty booking platform designed to connect
-                            clients with top-tier beauty professionals. Our mission is to bring luxury and convenience together,
-                            making it effortless to discover, book, and experience exceptional beauty services.
-                        </p>
+                    <div style="padding:0 24px 24px 24px;">
 
-                        <p style="line-height:1.8;font-size:0.9rem;margin-top:16px;">
-                            Whether you're looking for a full-face glam, a relaxing spa day, or the perfect nail art,
-                            RubiOr empowers you to find the right artist and book with confidence — all in a few clicks.
-                        </p>
+                        @* ── ABOUT TEXT ── *@
+                        <div style="color:rgba(255,255,255,0.8);line-height:1.9;font-size:0.95rem;">
+                            <p>
+                                <span style="color:#FFD700;font-weight:700;">RubiOr</span> is a technology company dedicated to delivering premium self-service digital solutions for the beauty and fashion industry. Our platform is designed to simplify the way clients discover, book, and engage with beauty professionals while empowering artists with the tools they need to manage and grow their businesses.
+                            </p>
 
-                        <div class="row g-3 mt-3">
-                            <div class="col-md-6">
-                                <div style="background:rgba(255,215,0,0.05);border-radius:12px;padding:16px;border-left:3px solid #FFD700;">
-                                    <h6 style="color:#FFD700;font-weight:700;margin:0 0 4px 0;">
-                                        <i class="bi bi-shield-check me-1"></i> Trusted
+                            <p>
+                                For <span style="color:#FFD700;font-weight:600;">clients</span>, RubiOr provides a seamless and convenient way to access trusted beauty services through an intuitive, premium digital experience. For <span style="color:#FFD700;font-weight:600;">artists</span> and independent beauty professionals, our platform offers an all-in-one solution for managing client relationships, appointments, communication, and business operations with greater efficiency.
+                            </p>
+
+                            <p>
+                                By facilitating the entire customer journey—from discovery and booking to service delivery and ongoing engagement—we create value for both clients and artists, saving time while enhancing the overall experience.
+                            </p>
+                        </div>
+
+                        @* ── FEATURE BOXES ── *@
+                        <div class="row g-3 mt-4">
+                            <div class="col-md-4">
+                                <div style="background:rgba(255,215,0,0.04);border-radius:12px;padding:18px 16px;border-left:3px solid #FFD700;height:100%;">
+                                    <h6 style="color:#FFD700;font-weight:700;margin:0 0 6px 0;font-size:0.85rem;letter-spacing:0.5px;">
+                                        <i class="bi bi-shield-check me-1"></i> Trusted Platform
                                     </h6>
-                                    <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0;">Verified artists, secure payments, and real client reviews.</p>
+                                    <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0;line-height:1.5;">
+                                        Verified artists, secure payments, and real client reviews.
+                                    </p>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div style="background:rgba(255,215,0,0.05);border-radius:12px;padding:16px;border-left:3px solid #FFD700;">
-                                    <h6 style="color:#FFD700;font-weight:700;margin:0 0 4px 0;">
-                                        <i class="bi bi-clock-history me-1"></i> Easy Booking
+                            <div class="col-md-4">
+                                <div style="background:rgba(255,215,0,0.04);border-radius:12px;padding:18px 16px;border-left:3px solid #FFD700;height:100%;">
+                                    <h6 style="color:#FFD700;font-weight:700;margin:0 0 6px 0;font-size:0.85rem;letter-spacing:0.5px;">
+                                        <i class="bi bi-phone me-1"></i> All-in-One
                                     </h6>
-                                    <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0;">Browse, book, and manage appointments — all in one place.</p>
+                                    <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0;line-height:1.5;">
+                                        Browse, book, manage appointments, and grow your business.
+                                    </p>
                                 </div>
                             </div>
-                            <div class="col-md-6">
-                                <div style="background:rgba(255,215,0,0.05);border-radius:12px;padding:16px;border-left:3px solid #FFD700;">
-                                    <h6 style="color:#FFD700;font-weight:700;margin:0 0 4px 0;">
-                                        <i class="bi bi-people me-1"></i> Community
+                            <div class="col-md-4">
+                                <div style="background:rgba(255,215,0,0.04);border-radius:12px;padding:18px 16px;border-left:3px solid #FFD700;height:100%;">
+                                    <h6 style="color:#FFD700;font-weight:700;margin:0 0 6px 0;font-size:0.85rem;letter-spacing:0.5px;">
+                                        <i class="bi bi-people me-1"></i> Community-First
                                     </h6>
-                                    <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0;">Connect with passionate artists who love what they do.</p>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div style="background:rgba(255,215,0,0.05);border-radius:12px;padding:16px;border-left:3px solid #FFD700;">
-                                    <h6 style="color:#FFD700;font-weight:700;margin:0 0 4px 0;">
-                                        <i class="bi bi-phone me-1"></i> Mobile Ready
-                                    </h6>
-                                    <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0;">Book on the go — optimized for desktop, tablet, and mobile.</p>
+                                    <p style="color:rgba(255,255,255,0.4);font-size:0.8rem;margin:0;line-height:1.5;">
+                                        Connecting passionate beauty professionals with their ideal clients.
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </details>
 
-                @* ─── ACCORDION 2: REPORT A PROBLEM (using <details>) ─── *@
+                @* ─── ACCORDION 2: OUR MISSION ─── *@
+                <details style="background:#0b0b0b;border:1px solid rgba(255,215,0,0.15);border-radius:16px;margin-bottom:20px;padding:0;">
+                    <summary style="list-style:none;cursor:pointer;padding:20px 24px;color:#FFD700;font-size:1.3rem;font-weight:700;display:flex;align-items:center;justify-content:space-between;border-radius:16px;transition:background 0.2s;">
+                        <span>
+                            <i class="bi bi-rocket me-3" style="font-size:1.5rem;"></i> Our Mission
+                        </span>
+                        <span style="font-size:0.8rem;color:rgba(255,215,0,0.4);">
+                            <i class="bi bi-chevron-down"></i>
+                        </span>
+                    </summary>
+                    <div style="padding:0 24px 24px 24px;">
+
+                        @* ── MISSION TEXT ── *@
+                        <div style="color:rgba(255,255,255,0.8);line-height:1.9;font-size:0.95rem;">
+                            <p>
+                                Our mission is to <span style="color:#FFD700;font-weight:600;">accelerate the digital transformation</span> of independent beauty and fashion professionals by providing affordable, premium technology solutions.
+                            </p>
+
+                            <p>
+                                We believe every contractor, regardless of size, should have access to world-class digital tools that enable them to <span style="color:#FFD700;font-weight:600;">grow their businesses</span>, strengthen client relationships, and compete in an increasingly digital marketplace—all at a minimal cost of adoption.
+                            </p>
+                        </div>
+
+                        @* ── MISSION VALUES ── *@
+                        <div class="row g-3 mt-4">
+                            <div class="col-md-3 col-6">
+                                <div style="text-align:center;padding:14px 8px;background:rgba(255,215,0,0.04);border-radius:12px;border:1px solid rgba(255,215,0,0.06);">
+                                    <i class="bi bi-gem" style="color:#FFD700;font-size:1.8rem;"></i>
+                                    <h6 style="color:#FFD700;font-weight:700;margin:8px 0 0 0;font-size:0.7rem;letter-spacing:0.5px;">Premium</h6>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <div style="text-align:center;padding:14px 8px;background:rgba(255,215,0,0.04);border-radius:12px;border:1px solid rgba(255,215,0,0.06);">
+                                    <i class="bi bi-wallet2" style="color:#FFD700;font-size:1.8rem;"></i>
+                                    <h6 style="color:#FFD700;font-weight:700;margin:8px 0 0 0;font-size:0.7rem;letter-spacing:0.5px;">Affordable</h6>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <div style="text-align:center;padding:14px 8px;background:rgba(255,215,0,0.04);border-radius:12px;border:1px solid rgba(255,215,0,0.06);">
+                                    <i class="bi bi-tools" style="color:#FFD700;font-size:1.8rem;"></i>
+                                    <h6 style="color:#FFD700;font-weight:700;margin:8px 0 0 0;font-size:0.7rem;letter-spacing:0.5px;">Empowering</h6>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <div style="text-align:center;padding:14px 8px;background:rgba(255,215,0,0.04);border-radius:12px;border:1px solid rgba(255,215,0,0.06);">
+                                    <i class="bi bi-graph-up-arrow" style="color:#FFD700;font-size:1.8rem;"></i>
+                                    <h6 style="color:#FFD700;font-weight:700;margin:8px 0 0 0;font-size:0.7rem;letter-spacing:0.5px;">Growth</h6>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
+                @* ─── ACCORDION 3: ISSUES ─── *@
                 <details style="background:#0b0b0b;border:1px solid rgba(255,215,0,0.15);border-radius:16px;padding:0;">
                     <summary style="list-style:none;cursor:pointer;padding:20px 24px;color:#FFD700;font-size:1.3rem;font-weight:700;display:flex;align-items:center;justify-content:space-between;border-radius:16px;transition:background 0.2s;">
                         <span>
@@ -107,7 +164,7 @@
                         <form method="post" asp-controller="Home" asp-action="SubmitReport" enctype="multipart/form-data">
                             @Html.AntiForgeryToken()
 
-                            @* ── PROBLEM CATEGORY DROPDOWN ── *@
+                            @* ── PROBLEM CATEGORY ── *@
                             <div class="mb-3">
                                 <label class="form-label" style="color:#FFD700;font-weight:600;font-size:0.85rem;">
                                     <i class="bi bi-tag me-1"></i> Issue Category <span class="text-danger">*</span>
@@ -142,7 +199,7 @@
                                 </span>
                             </div>
 
-                            @* ── FILE ATTACHMENTS (optional) ── *@
+                            @* ── FILE ATTACHMENTS ── *@
                             <div class="mb-3">
                                 <label class="form-label" style="color:#FFD700;font-weight:600;font-size:0.85rem;">
                                     <i class="bi bi-paperclip me-1"></i> Attach Screenshots (optional)
@@ -159,7 +216,7 @@
                                 </span>
                             </div>
 
-                            @* ── CONTACT EMAIL (mandatory) ── *@
+                            @* ── CONTACT EMAIL ── *@
                             <div class="mb-3">
                                 <label class="form-label" style="color:#FFD700;font-weight:600;font-size:0.85rem;">
                                     <i class="bi bi-envelope me-1"></i> Your Email <span class="text-danger">*</span>
@@ -176,7 +233,7 @@
                                 </span>
                             </div>
 
-                            @* ── SUBMIT BUTTON ── *@
+                            @* ── SUBMIT ── *@
                             <button type="submit" class="btn w-100 py-3" style="background:linear-gradient(135deg,#b30000,#FFD700);color:#000;font-weight:800;border:none;border-radius:12px;font-size:1rem;letter-spacing:1px;transition:all 0.3s;">
                                 <i class="bi bi-send me-2"></i> Submit Report
                             </button>
