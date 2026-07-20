@@ -338,7 +338,7 @@ namespace BeautyArtists.Controllers
         {
             try
             {
-                Console.WriteLine("?? TopRated: Starting...");
+                Console.WriteLine("TopRated: Starting...");
 
                 var topRatedServices = await _context.UserServices
                     .Include(us => us.Service)
@@ -364,7 +364,7 @@ namespace BeautyArtists.Controllers
                     .Select(x => x.Service)
                     .ToListAsync();
 
-                Console.WriteLine($"?? TopRated: Found {topRatedServices.Count} services with 3+ reviews");
+                Console.WriteLine($"TopRated: Found {topRatedServices.Count} services with 3+ reviews");
 
                 var serviceIds = topRatedServices.Select(s => s.Id).ToList();
                 var allReviews = new List<Review>();
@@ -375,12 +375,12 @@ namespace BeautyArtists.Controllers
                         .Where(r => r.Booking != null && serviceIds.Contains(r.Booking.UserServiceId))
                         .AsNoTracking()
                         .ToListAsync();
-                    Console.WriteLine($"?? TopRated: Found {allReviews.Count} reviews");
+                    Console.WriteLine($"TopRated: Found {allReviews.Count} reviews");
                 }
 
                 var model = new ServiceListViewModel
                 {
-                    Title = "? Top Rated Services",
+                    Title = "Top Rated Services",
                     Services = topRatedServices.Select(us => new ServiceListViewModel.ServiceItem
                     {
                         UserServiceId = us.Id,
