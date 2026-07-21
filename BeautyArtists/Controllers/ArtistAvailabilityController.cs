@@ -21,17 +21,26 @@ namespace BeautyArtists.Controllers
 
         // GET: ArtistAvailability/Index
         [HttpGet]
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int page = 1, int pageSize = 10)
         {
             var userId = _userManager.GetUserId(User);
             if (string.IsNullOrEmpty(userId))
                 return Challenge();
 
-            var slots = await _context.ArtistAvailabilities
+            var query = _context.ArtistAvailabilities
                 .Where(a => a.ArtistId == userId && a.AvailableDate >= DateTime.Now.Date)
                 .OrderBy(a => a.AvailableDate)
-                .ThenBy(a => a.StartTime)
+                .ThenBy(a => a.StartTime);
+
+            var totalCount = await query.CountAsync();
+            var slots = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            ViewBag.TotalCount = totalCount;
 
             return View(slots);
         }

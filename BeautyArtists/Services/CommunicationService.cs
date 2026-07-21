@@ -63,7 +63,7 @@ namespace BeautyArtists.Services
             </div>
             <p>You will receive a notification when the artist responds.</p>
             <hr>
-            <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+            <p style='font-size: 12px; color: #666;'>RubiOr</p>
         </div>";
 
                 await _emailSender.SendEmailAsync(client.Email, subject, body);
@@ -168,7 +168,7 @@ namespace BeautyArtists.Services
             
             <hr style='border-color: #333; margin: 20px 0;'>
             <p style='font-size: 11px; color: #666; text-align: center;'>
-                &copy; {DateTime.Now.Year} Beauty Artists Hub
+                &copy; {DateTime.Now.Year} RubiOr
             </p>
         </div>";
 
@@ -206,7 +206,7 @@ namespace BeautyArtists.Services
             <p>Hi {user.FirstName},</p>
             <p>The status of appointment <strong>#{bookingId}</strong> has been updated to: <span style='color:#28a745; font-weight:bold;'>{status}</span>.</p>
             <hr>
-            <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+            <p style='font-size: 12px; color: #666;'>RubiOr</p>
         </div>";
 
                 await _emailSender.SendEmailAsync(user.Email, subject, body);

@@ -55,45 +55,40 @@ namespace BeautyArtists.Controllers
 
             var artistId = user.Id;
 
-            var artistName = user.FullName;
-            if (string.IsNullOrWhiteSpace(artistName))
-            {
-                artistName = $"{user.FirstName ?? ""} {user.LastName ?? ""}".Trim();
-                if (string.IsNullOrWhiteSpace(artistName))
-                    artistName = user.Email ?? "Artist";
-            }
+            // ─── GET COUNTS (SEQUENTIALLY) ───
+            var portfolioCount = await _context.PortfolioItems
+                .Where(p => p.ArtistId == artistId)
+                .AsNoTracking()
+                .CountAsync();
 
-            var portfolioCount = await _context.PortfolioItems.CountAsync(p => p.ArtistId == artistId);
-            var servicesCount = await _context.UserServices.CountAsync(us => us.ArtistId == artistId);
-            var upcomingAppointmentsCount = await _context.Bookings
+            var servicesCount = await _context.UserServices
+                .Where(us => us.ArtistId == artistId)
+                .AsNoTracking()
+                .CountAsync();
+
+            var upcomingCount = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId
                             && b.AppointmentDate > DateTime.Now
                             && b.Status == BookingStatus.Confirmed)
+                .AsNoTracking()
                 .CountAsync();
 
+            // ─── MONTHLY EARNINGS CHART ───
+            var sixMonthsAgo = DateTime.Now.AddMonths(-5);
             var monthlyEarnings = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId
-                            && b.AppointmentDate.Month == DateTime.Now.Month
-                            && b.AppointmentDate.Year == DateTime.Now.Year
-                            && b.Status == BookingStatus.Confirmed)
-                .SumAsync(b => (decimal?)b.UserService.Price) ?? 0;
+                            && b.Status == BookingStatus.Confirmed
+                            && b.AppointmentDate >= sixMonthsAgo)
+                .GroupBy(b => new { b.AppointmentDate.Year, b.AppointmentDate.Month })
+                .Select(g => new
+                {
+                    Month = g.Key.Month,
+                    Year = g.Key.Year,
+                    Total = g.Sum(b => (decimal?)b.UserService.Price) ?? 0
+                })
+                .ToDictionaryAsync(k => $"{k.Year}-{k.Month:D2}", v => v.Total);
 
-            var chartData = new List<decimal>();
-            var chartLabels = new List<string>();
-            for (int i = 5; i >= 0; i--)
-            {
-                var monthDate = DateTime.Now.AddMonths(-i);
-                var monthSum = await _context.Bookings
-                    .Where(b => b.UserService.ArtistId == artistId
-                                && b.Status == BookingStatus.Confirmed
-                                && b.AppointmentDate.Month == monthDate.Month
-                                && b.AppointmentDate.Year == monthDate.Year)
-                    .SumAsync(b => (decimal?)b.UserService.Price) ?? 0;
-
-                chartData.Add(monthSum);
-                chartLabels.Add(monthDate.ToString("MMM"));
-            }
-
+            // ─── RECENT APPOINTMENTS ───
             var recentAppointments = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId)
                 .OrderByDescending(b => b.AppointmentDate)
@@ -113,13 +108,24 @@ namespace BeautyArtists.Controllers
                 })
                 .ToListAsync();
 
+            // ─── BUILD CHART DATA ───
+            var chartData = new List<decimal>();
+            var chartLabels = new List<string>();
+            for (int i = 5; i >= 0; i--)
+            {
+                var monthDate = DateTime.Now.AddMonths(-i);
+                var key = $"{monthDate.Year}-{monthDate.Month:D2}";
+                chartData.Add(monthlyEarnings.GetValueOrDefault(key, 0));
+                chartLabels.Add(monthDate.ToString("MMM"));
+            }
+
             var model = new ArtistDashboardViewModel
             {
-                ArtistName = artistName,
+                ArtistName = user.FullName ?? $"{user.FirstName} {user.LastName}".Trim() ?? user.Email ?? "Artist",
                 PortfolioItemsCount = portfolioCount,
                 ServicesCount = servicesCount,
-                UpcomingAppointments = upcomingAppointmentsCount,
-                MonthlyEarnings = monthlyEarnings,
+                UpcomingAppointments = upcomingCount,
+                MonthlyEarnings = chartData.Sum(),
                 RecentAppointments = recentAppointments,
                 MonthlyEarningsGraph = chartData,
                 MonthlyLabels = chartLabels
@@ -506,20 +512,52 @@ namespace BeautyArtists.Controllers
         // ═══════════════════════════════════════════════════════════
         // MY APPOINTMENTS
         // ═══════════════════════════════════════════════════════════
-        public async Task<IActionResult> MyAppointments()
+        public async Task<IActionResult> MyAppointments(
+        int page = 1,
+        int pageSize = 10,
+        string status = null,
+        DateTime? fromDate = null,
+        DateTime? toDate = null)
         {
             var artistId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(artistId)) return Challenge();
 
-            var myBookings = await _context.Bookings
+            var query = _context.Bookings
                 .Include(b => b.Customer)
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Service)
                 .Include(b => b.UserService.Artist)
-                .Where(b => b.UserService.ArtistId == artistId)
+                .Where(b => b.UserService.ArtistId == artistId);
+
+            // ─── FILTERS ───
+            if (!string.IsNullOrEmpty(status))
+            {
+                if (Enum.TryParse<BookingStatus>(status, true, out var statusEnum))
+                    query = query.Where(b => b.Status == statusEnum);
+            }
+
+            if (fromDate.HasValue)
+                query = query.Where(b => b.AppointmentDate >= fromDate.Value);
+
+            if (toDate.HasValue)
+                query = query.Where(b => b.AppointmentDate <= toDate.Value);
+
+            var totalCount = await query.CountAsync();
+
+            var bookings = await query
                 .OrderByDescending(b => b.AppointmentDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            return View(myBookings);
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            ViewBag.TotalCount = totalCount;
+            ViewBag.SelectedStatus = status;
+            ViewBag.FromDate = fromDate?.ToString("yyyy-MM-dd");
+            ViewBag.ToDate = toDate?.ToString("yyyy-MM-dd");
+
+            return View(bookings);
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -785,28 +823,15 @@ namespace BeautyArtists.Controllers
                     catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
 
                     // ─── SEND EMAIL ───
-                    if (booking.Customer != null && !string.IsNullOrEmpty(booking.Customer.Email))
+                    // ─── SEND EMAIL ───
+                    if (!string.IsNullOrEmpty(booking.Customer?.Email))
                     {
                         try
                         {
                             var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
                             string subject = "✅ Your Appointment Has Been Accepted!";
-                            string emailBody = $@"
-                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                        <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
-                        <p>Dear {booking.Customer.FirstName},</p>
-                        <p>Great news! The artist has ACCEPTED your appointment request.</p>
-                        <p><strong>Service:</strong> {booking.UserService?.Service?.Name ?? "your service"}</p>
-                        <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
-                        <p><strong>Service Price:</strong> R {booking.ServicePrice:N2}</p>
-                        <p><strong>Deposit Required:</strong> R {((booking.ServicePrice / 2) + booking.BookingFee):N2}</p>
-                        <div style='text-align: center; margin: 20px 0;'>
-                            <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR DEPOSIT NOW</a>
-                        </div>
-                        <p>Thank you for choosing Beauty Artists Hub!</p>
-                    </div>";
-
-                            await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
+                            string emailBody = BuildAcceptanceEmail(booking, depositUrl);
+                            await SendBookingStatusEmail(booking, subject, emailBody);
                         }
                         catch (Exception ex) { Console.WriteLine($"Email error: {ex.Message}"); }
                     }
@@ -969,7 +994,7 @@ namespace BeautyArtists.Controllers
                     <div style='text-align: center; margin: 20px 0;'>
                         <a href='{Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme)}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR 50% DEPOSIT NOW</a>
                     </div>
-                    <p>Thank you for choosing Beauty Artists Hub!</p>
+                    <p>Thank you for choosing RubiOr!</p>
                 </div>";
 
                 await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
@@ -982,34 +1007,64 @@ namespace BeautyArtists.Controllers
         // ═══════════════════════════════════════════════════════════
         // REVIEWS
         // ═══════════════════════════════════════════════════════════
-        public async Task<IActionResult> Reviews()
+        public async Task<IActionResult> Reviews(int page = 1, int pageSize = 10)
         {
-            var artistId = _userManager.GetUserId(User);
+            // ─── READ FILTER DIRECTLY FROM QUERY STRING ───
+            string rating = Request.Query["rating"].ToString();
 
-            var reviews = await _context.Reviews
+            // ─── LOG FOR DEBUG ───
+            Console.WriteLine($"🔍 Reviews filter - rating: '{rating}', page: {page}");
+
+            var artistId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(artistId)) return Challenge();
+
+            var query = _context.Reviews
                 .Include(r => r.Customer)
                 .Include(r => r.Booking)
                     .ThenInclude(b => b.UserService)
                         .ThenInclude(us => us.Service)
-                .Where(r => r.Booking.UserService.ArtistId == artistId)
+                .Where(r => r.Booking.UserService.ArtistId == artistId);
+
+            // ─── APPLY FILTER ───
+            if (!string.IsNullOrEmpty(rating) && int.TryParse(rating, out int ratingValue))
+            {
+                query = query.Where(r => r.Rating == ratingValue);
+            }
+
+            // ─── PAGINATION ───
+            var totalCount = await query.CountAsync();
+
+            var reviewData = await query
                 .OrderByDescending(r => r.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            // ─── STATS (ALL reviews, not filtered) ───
+            var allReviews = await _context.Reviews
+                .Include(r => r.Booking)
+                .Where(r => r.Booking.UserService.ArtistId == artistId)
                 .ToListAsync();
 
             var stats = new
             {
-                Total = reviews.Count,
-                Average = reviews.Any() ? reviews.Average(r => r.Rating) : 0,
-                FiveStar = reviews.Count(r => r.Rating == 5),
-                FourStar = reviews.Count(r => r.Rating == 4),
-                ThreeStar = reviews.Count(r => r.Rating == 3),
-                TwoStar = reviews.Count(r => r.Rating == 2),
-                OneStar = reviews.Count(r => r.Rating == 1)
+                Total = allReviews.Count,
+                Average = allReviews.Any() ? allReviews.Average(r => r.Rating) : 0,
+                FiveStar = allReviews.Count(r => r.Rating == 5),
+                FourStar = allReviews.Count(r => r.Rating == 4),
+                ThreeStar = allReviews.Count(r => r.Rating == 3),
+                TwoStar = allReviews.Count(r => r.Rating == 2),
+                OneStar = allReviews.Count(r => r.Rating == 1)
             };
 
             ViewBag.Stats = stats;
-            return View(reviews);
-        }
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            ViewBag.TotalCount = totalCount;
+            ViewBag.SelectedRating = rating;
 
+            return View(reviewData);
+        }
         // ═══════════════════════════════════════════════════════════
         // SUPPORT (Artist)
         // ═══════════════════════════════════════════════════════════
@@ -1119,6 +1174,44 @@ namespace BeautyArtists.Controllers
                 TempData["Error"] = "There was an issue submitting your report. Please try again or contact us directly.";
                 return RedirectToAction(nameof(Support));
             }
+        }
+        // ─── HELPER: Send email via communication service ───
+        private async Task SendBookingStatusEmail(Booking booking, string subject, string emailBody)
+        {
+            if (string.IsNullOrEmpty(booking.Customer?.Email)) return;
+
+            try
+            {
+                await _commService.SendDirectMessageEmailAsync(
+                    booking.UserService.ArtistId,
+                    booking.CustomerId,
+                    subject,
+                    emailBody
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Email error for booking {booking.Id}: {ex.Message}");
+            }
+        }
+
+        // ─── HELPER: Build acceptance email HTML ───
+        private string BuildAcceptanceEmail(Booking booking, string depositUrl)
+        {
+            return $@"
+    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+        <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
+        <p>Dear {booking.Customer?.FirstName},</p>
+        <p>Great news! The artist has ACCEPTED your appointment request.</p>
+        <p><strong>Service:</strong> {booking.UserService?.Service?.Name ?? "your service"}</p>
+        <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
+        <p><strong>Service Price:</strong> R {booking.ServicePrice:N2}</p>
+        <p><strong>Deposit Required (50% service + R5 fee):</strong> R {((booking.ServicePrice / 2) + booking.BookingFee):N2}</p>
+        <div style='text-align: center; margin: 20px 0;'>
+            <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR DEPOSIT NOW</a>
+        </div>
+        <p>Thank you for choosing RubiOr!</p>
+    </div>";
         }
 
         // ─── Helpers ───

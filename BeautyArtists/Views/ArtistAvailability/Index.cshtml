@@ -3,6 +3,10 @@
 @{
     ViewData["Title"] = "Manage Availability";
     Layout = "~/Views/Shared/_ArtistLayout.cshtml";
+
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var totalCount = ViewBag.TotalCount as int? ?? 0;
 }
 
 @section Styles {
@@ -68,12 +72,104 @@
             font-size: 0.9rem;
             margin-bottom: 5px;
         }
+
+        /* ─── PAGINATION ─── */
+        .pagination-wrapper {
+            margin-top: 30px;
+            padding-bottom: 20px;
+        }
+
+        .pagination-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: rgba(255,215,0,0.1);
+            border: 1px solid rgba(255,215,0,0.2);
+            border-radius: 8px;
+            color: #FFD700;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+            .pagination-btn:hover {
+                background: rgba(255,215,0,0.2);
+                border-color: #FFD700;
+            }
+
+        .pagination-current {
+            padding: 8px 14px;
+            background: #FFD700;
+            color: #000;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 0.85rem;
+        }
+
+        .pagination-page {
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+            .pagination-page:hover {
+                background: rgba(255,255,255,0.1);
+                color: #fff;
+            }
+
+        .pagination-ellipsis {
+            padding: 8px 8px;
+            color: rgba(255,255,255,0.2);
+            font-size: 0.85rem;
+        }
+
+        .pagination-info {
+            text-align: center;
+            margin-top: 12px;
+            color: rgba(255,255,255,0.3);
+            font-size: 0.75rem;
+        }
+
+            .pagination-info span {
+                color: #FFD700;
+            }
+
+        @@media (max-width: 768px) {
+            .pagination-container {
+                gap: 4px !important;
+            }
+
+            .pagination-btn {
+                padding: 6px 12px !important;
+                font-size: 0.7rem !important;
+            }
+
+            .pagination-page {
+                padding: 6px 10px !important;
+                font-size: 0.7rem !important;
+            }
+        }
     </style>
 }
 
 <div class="dashboard-header">
     <h2><i class="bi bi-calendar-check-fill"></i> ARTIST AVAILABILITY MENU</h2>
 </div>
+
 @if (TempData["Success"] != null)
 {
     <div class="alert alert-success alert-dismissible fade show m-3" role="alert" style="background: #1a5c1a; color: #FFD700; border: none;">
@@ -91,7 +187,7 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4 px-4">
-    <h4 class="text-white mb-0">Active Slots: <span style="color: #f0c808;">@Model.Count()</span></h4>
+    <h4 class="text-white mb-0">Active Slots: <span style="color: #f0c808;">@totalCount</span></h4>
     <button class="btn rounded-pill px-4 py-2" data-bs-toggle="modal" data-bs-target="#addAvailabilityModal"
             style="background: linear-gradient(45deg, #f0c808, #e50914); color: #000; font-weight: 700; border: none;">
         <i class="bi bi-plus-circle me-2"></i>+ ADD AVAILABILITY
@@ -146,6 +242,55 @@
         }
     }
 </div>
+
+@* ─── PAGINATION ─── *@
+@if (totalPages > 1)
+{
+    <div class="container px-4">
+        <div class="pagination-wrapper">
+            <div class="pagination-container">
+                @if (currentPage > 1)
+                {
+                    <a asp-action="Index" asp-route-page="@(currentPage - 1)" class="pagination-btn">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                }
+
+                <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                    @for (int i = 1; i <= totalPages; i++)
+                    {
+                        if (i == currentPage)
+                        {
+                            <span class="pagination-current">@i</span>
+                        }
+                        else if (i == 1 || i == totalPages || Math.Abs(i - currentPage) <= 2)
+                        {
+                            <a asp-action="Index" asp-route-page="@i" class="pagination-page">
+                                @i
+                            </a>
+                        }
+                        else if (i == currentPage - 3 || i == currentPage + 3)
+                        {
+                            <span class="pagination-ellipsis">…</span>
+                        }
+                    }
+                </div>
+
+                @if (currentPage < totalPages)
+                {
+                    <a asp-action="Index" asp-route-page="@(currentPage + 1)" class="pagination-btn">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                }
+            </div>
+            <div class="pagination-info">
+                Showing <span>@((currentPage - 1) * 10 + 1)</span>
+                - <span>@Math.Min(currentPage * 10, totalCount)</span>
+                of <span>@totalCount</span> slots
+            </div>
+        </div>
+    </div>
+}
 
 <div class="modal fade" id="addAvailabilityModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">

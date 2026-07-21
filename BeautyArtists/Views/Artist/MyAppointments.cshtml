@@ -5,11 +5,15 @@
     ViewData["Title"] = "My Appointments";
     Layout = "~/Views/Shared/_ArtistLayout.cshtml";
 
-    // ─── GET FILTER VALUES FROM QUERY STRING ───
-    var filterMonth = Context.Request.Query["filterMonth"].ToString();
-    var filterStatus = Context.Request.Query["filterStatus"].ToString();
-    var filterFrom = Context.Request.Query["filterFrom"].ToString();
-    var filterTo = Context.Request.Query["filterTo"].ToString();
+    // ─── GET FILTER VALUES FROM VIEWBAG (set by controller) ───
+    var filterMonth = ViewBag.SelectedMonth as string ?? "";
+    var filterStatus = ViewBag.SelectedStatus as string ?? "";
+    var filterFrom = ViewBag.FromDate as string ?? "";
+    var filterTo = ViewBag.ToDate as string ?? "";
+
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var totalCount = ViewBag.TotalCount as int? ?? 0;
 
     // ─── GENERATE MONTH LIST (January to December - NO YEARS) ───
     var months = new List<SelectListItem>();
@@ -22,35 +26,7 @@
         months.Add(new SelectListItem { Value = value, Text = text, Selected = value == filterMonth });
     }
 
-    // ─── APPLY FILTERS ───
-    var filteredBookings = Model.AsEnumerable();
-
-    if (!string.IsNullOrEmpty(filterMonth) && int.TryParse(filterMonth, out int monthNum))
-    {
-        filteredBookings = filteredBookings.Where(b => b.AppointmentDate.Month == monthNum);
-    }
-
-    if (!string.IsNullOrEmpty(filterStatus) && filterStatus != "all")
-    {
-        if (Enum.TryParse<BookingStatus>(filterStatus, true, out var status))
-        {
-            filteredBookings = filteredBookings.Where(b => b.Status == status);
-        }
-    }
-
-    if (!string.IsNullOrEmpty(filterFrom))
-    {
-        var fromDate = DateTime.ParseExact(filterFrom, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-        filteredBookings = filteredBookings.Where(b => b.AppointmentDate.Date >= fromDate.Date);
-    }
-
-    if (!string.IsNullOrEmpty(filterTo))
-    {
-        var toDate = DateTime.ParseExact(filterTo, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
-        filteredBookings = filteredBookings.Where(b => b.AppointmentDate.Date <= toDate.Date);
-    }
-
-    var bookingsList = filteredBookings.ToList();
+    var bookingsList = Model.ToList();
 
     // ─── COUNT ACTIVE FILTERS ───
     var activeFilterCount = 0;
@@ -471,6 +447,81 @@
                 color: #000;
             }
 
+        /* ─── PAGINATION ─── */
+        .pagination-wrapper {
+            margin-top: 30px;
+            padding-bottom: 20px;
+        }
+
+        .pagination-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: rgba(255,215,0,0.1);
+            border: 1px solid rgba(255,215,0,0.2);
+            border-radius: 8px;
+            color: #FFD700;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+            .pagination-btn:hover {
+                background: rgba(255,215,0,0.2);
+                border-color: #FFD700;
+            }
+
+        .pagination-current {
+            padding: 8px 14px;
+            background: #FFD700;
+            color: #000;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 0.85rem;
+        }
+
+        .pagination-page {
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+            .pagination-page:hover {
+                background: rgba(255,255,255,0.1);
+                color: #fff;
+            }
+
+        .pagination-ellipsis {
+            padding: 8px 8px;
+            color: rgba(255,255,255,0.2);
+            font-size: 0.85rem;
+        }
+
+        .pagination-info {
+            text-align: center;
+            margin-top: 12px;
+            color: rgba(255,255,255,0.3);
+            font-size: 0.75rem;
+        }
+
+            .pagination-info span {
+                color: #FFD700;
+            }
+
         @@media (max-width: 768px) {
             .filter-grid {
                 grid-template-columns: 1fr 1fr;
@@ -478,6 +529,20 @@
 
             .filter-actions {
                 grid-column: span 2;
+            }
+
+            .pagination-container {
+                gap: 4px !important;
+            }
+
+            .pagination-btn {
+                padding: 6px 12px !important;
+                font-size: 0.7rem !important;
+            }
+
+            .pagination-page {
+                padding: 6px 10px !important;
+                font-size: 0.7rem !important;
             }
         }
 
@@ -525,7 +590,7 @@
             <span class="arrow">▼</span>
         </button>
         <div class="results-count">
-            <span>@bookingsList.Count</span> appointment@(bookingsList.Count != 1 ? "s" : "") found
+            <span>@totalCount</span> appointment@(totalCount != 1 ? "s" : "") found
         </div>
     </div>
 
@@ -565,7 +630,7 @@
         <form method="get" asp-action="MyAppointments" class="filter-grid">
             <div class="filter-field">
                 <span class="filter-label">Month</span>
-                <select name="filterMonth" class="filter-select">
+                <select name="filterMonth" class="filter-select" id="filterMonth">
                     @foreach (var month in months)
                     {
                         <option value="@month.Value" selected="@(month.Selected ? "selected" : null)">@month.Text</option>
@@ -575,17 +640,17 @@
 
             <div class="filter-field">
                 <span class="filter-label">From Date</span>
-                <input type="date" name="filterFrom" class="filter-input" value="@filterFrom" />
+                <input type="date" name="filterFrom" class="filter-input" id="filterFrom" value="@filterFrom" />
             </div>
 
             <div class="filter-field">
                 <span class="filter-label">To Date</span>
-                <input type="date" name="filterTo" class="filter-input" value="@filterTo" />
+                <input type="date" name="filterTo" class="filter-input" id="filterTo" value="@filterTo" />
             </div>
 
             <div class="filter-field">
                 <span class="filter-label">Status</span>
-                <select name="filterStatus" class="filter-select">
+                <select name="filterStatus" class="filter-select" id="filterStatus">
                     <option value="all" selected="@(string.IsNullOrEmpty(filterStatus) || filterStatus == "all")">All Statuses</option>
                     <option value="Pending" selected="@(filterStatus == "Pending")">Pending</option>
                     <option value="Accepted" selected="@(filterStatus == "Accepted")">Accepted</option>
@@ -777,8 +842,8 @@
                                                 <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
                                                 <button type="submit" class="btn btn-success w-100 fw-bold"
                                                         onclick="document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
-                                                                                                                 var tInput = document.getElementById('transport-@item.Id');
-                                                                                                                 if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
+                                                                                                                                 var tInput = document.getElementById('transport-@item.Id');
+                                                                                                                                 if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
                                                     <i class="fas fa-check me-1"></i> ACCEPT
                                                 </button>
                                             </form>
@@ -829,6 +894,71 @@
             </div>
         }
     </div>
+
+    @* ─── 🔥 PAGINATION ─── *@
+    @if (totalPages > 1)
+    {
+        <div class="pagination-wrapper">
+            <div class="pagination-container">
+                @if (currentPage > 1)
+                {
+                    <a asp-action="MyAppointments"
+                       asp-route-page="@(currentPage - 1)"
+                       asp-route-filterMonth="@filterMonth"
+                       asp-route-filterStatus="@filterStatus"
+                       asp-route-filterFrom="@filterFrom"
+                       asp-route-filterTo="@filterTo"
+                       class="pagination-btn">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </a>
+                }
+
+                <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                    @for (int i = 1; i <= totalPages; i++)
+                    {
+                        if (i == currentPage)
+                        {
+                            <span class="pagination-current">@i</span>
+                        }
+                        else if (i == 1 || i == totalPages || Math.Abs(i - currentPage) <= 2)
+                        {
+                            <a asp-action="MyAppointments"
+                               asp-route-page="@i"
+                               asp-route-filterMonth="@filterMonth"
+                               asp-route-filterStatus="@filterStatus"
+                               asp-route-filterFrom="@filterFrom"
+                               asp-route-filterTo="@filterTo"
+                               class="pagination-page">
+                                @i
+                            </a>
+                        }
+                        else if (i == currentPage - 3 || i == currentPage + 3)
+                        {
+                            <span class="pagination-ellipsis">…</span>
+                        }
+                    }
+                </div>
+
+                @if (currentPage < totalPages)
+                {
+                    <a asp-action="MyAppointments"
+                       asp-route-page="@(currentPage + 1)"
+                       asp-route-filterMonth="@filterMonth"
+                       asp-route-filterStatus="@filterStatus"
+                       asp-route-filterFrom="@filterFrom"
+                       asp-route-filterTo="@filterTo"
+                       class="pagination-btn">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                }
+            </div>
+            <div class="pagination-info">
+                Showing <span>@((currentPage - 1) * 10 + 1)</span>
+                - <span>@Math.Min(currentPage * 10, totalCount)</span>
+                of <span>@totalCount</span> appointments
+            </div>
+        </div>
+    }
 </div>
 
 <script>
@@ -839,10 +969,10 @@
         // Check if any filters are active, if so keep open
         @if (hasFilters)
         {
-                    <text>
-                        filterBar.classList.add('open');
-                        toggleBtn.classList.add('open');
-                    </text>
+                <text>
+                    filterBar.classList.add('open');
+                    toggleBtn.classList.add('open');
+                </text>
         }
 
         toggleBtn.addEventListener('click', function() {

@@ -114,6 +114,9 @@
                     </div>
                     <div class="d-flex gap-2">
                         <a href="@Url.Action("ArtistServiceDetail", "Artist", new { id = item.Id })" class="btn btn-warning w-100 fw-bold">View Service</a>
+                        <button class="btn btn-outline-danger w-100 fw-bold delete-service" data-id="@item.Id">
+                            <i class="fas fa-trash-alt"></i> Delete
+                        </button>
                     </div>
                 </div>
             </div>

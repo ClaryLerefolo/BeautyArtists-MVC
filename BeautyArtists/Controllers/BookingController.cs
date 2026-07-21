@@ -406,62 +406,68 @@ namespace BeautyArtists.Controllers
 
                 var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
 
+                // ─── CORRECT PAYMENT BREAKDOWN ───
+                decimal serviceHalf = booking.ServicePrice / 2;
+                decimal depositAmount = serviceHalf + booking.BookingFee; // 50% service + full booking fee
+                decimal finalPayment = serviceHalf; // remaining 50% of service
+
                 string subject = "✅ Your Appointment Has Been Accepted!";
                 string emailBody = $@"
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-            <div style='text-align: center; margin-bottom: 20px;'>
-                <h1 style='color: #f0c808; margin: 0;'>✨ Appointment Accepted! ✨</h1>
-                <hr style='border-color: #f0c808;'>
-            </div>
-            
-            <p style='font-size: 16px;'>Dear <strong>{booking.Customer?.FirstName} {booking.Customer?.LastName}</strong>,</p>
-            
-            <p style='font-size: 14px; color: #ddd;'>Great news! The artist has <strong style='color: #28a745;'>ACCEPTED</strong> your appointment request.</p>
-            
-            <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-                <h3 style='color: #f0c808; margin-top: 0;'>📋 Booking Details</h3>
-                <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
-                <p><strong>Artist:</strong> {booking.UserService?.Artist?.FirstName} {booking.UserService?.Artist?.LastName}</p>
-                <p><strong>Date:</strong> {booking.AppointmentDate.ToString("dddd, MMMM dd, yyyy")}</p>
-                <p><strong>Time:</strong> {booking.AppointmentDate.ToString("hh:mm tt")}</p>
-                <p><strong>Location Type:</strong> {(booking.SelectedLocationType == LocationType.HouseCall ? "🏠 House Call" : "🏢 Walk-In")}</p>
-                {(booking.SelectedLocationType == LocationType.HouseCall && !string.IsNullOrEmpty(booking.HouseCallAddress) ? $"<p><strong>📍 Address:</strong> {booking.HouseCallAddress}</p>" : "")}
-            </div>
-            
-            <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-                <h3 style='color: #f0c808; margin-top: 0;'>💰 Payment Details</h3>
-                <p><strong>Service Price:</strong> R {booking.ServicePrice:N2}</p>
-                {(booking.TransportCost > 0 ? $"<p><strong>Transport Cost:</strong> R {booking.TransportCost:N2}</p>" : "")}
-                <p><strong>Total Amount:</strong> <span style='color: #f0c808; font-size: 18px;'>R {booking.TotalAmount:N2}</span></p>
-                <hr style='border-color: #333;'>
-                <p><strong>Deposit Required (50% of service + R5 booking fee):</strong> <span style='color: #ff6600;'>R {((booking.ServicePrice / 2) + booking.BookingFee):N2}</span></p>
-                <p><strong>Final Payment (remaining 50% of service):</strong> R {(booking.ServicePrice / 2):N2}</p>
-            </div>
-            
-            {(booking.ArtistNotes != null ? $@"
-            <div style='background: rgba(240, 200, 8, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f0c808;'>
-                <p style='margin: 0;'><strong>📝 Message from your artist:</strong></p>
-                <p style='margin: 5px 0 0 0; color: #ddd; font-style: italic;'>“{booking.ArtistNotes}”</p>
-            </div>" : "")}
-            
-            <div style='text-align: center; margin: 25px 0;'>
-                <a href='{depositUrl}' style='background: linear-gradient(45deg, #f0c808, #e50914); color: #000; padding: 14px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px; display: inline-block;'>
-                    💰 PAY YOUR DEPOSIT NOW
-                </a>
-            </div>
-            
-            <div style='background: rgba(229, 9, 20, 0.1); padding: 12px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #e50914;'>
-                <p style='margin: 0; font-size: 12px; color: #ff8888;'>
-                    <strong>⚠️ IMPORTANT:</strong> Your appointment is not confirmed until the deposit is paid. Please complete your payment as soon as possible.
-                </p>
-            </div>
-            
-            <hr style='border-color: #333; margin: 20px 0;'>
-            <p style='font-size: 11px; color: #666; text-align: center;'>
-                Need to reschedule or cancel? Please contact the artist directly through your dashboard.<br>
-                &copy; {DateTime.Now.Year} Beauty Artists Hub
-            </p>
-        </div>";
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+    <div style='text-align: center; margin-bottom: 20px;'>
+        <h1 style='color: #f0c808; margin: 0;'>✨ Appointment Accepted! ✨</h1>
+        <hr style='border-color: #f0c808;'>
+    </div>
+    
+    <p style='font-size: 16px;'>Dear <strong>{booking.Customer?.FirstName} {booking.Customer?.LastName}</strong>,</p>
+    
+    <p style='font-size: 14px; color: #ddd;'>Great news! The artist has <strong style='color: #28a745;'>ACCEPTED</strong> your appointment request.</p>
+    
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <h3 style='color: #f0c808; margin-top: 0;'>📋 Booking Details</h3>
+        <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
+        <p><strong>Artist:</strong> {booking.UserService?.Artist?.FirstName} {booking.UserService?.Artist?.LastName}</p>
+        <p><strong>Date:</strong> {booking.AppointmentDate.ToString("dddd, MMMM dd, yyyy")}</p>
+        <p><strong>Time:</strong> {booking.AppointmentDate.ToString("hh:mm tt")}</p>
+        <p><strong>Location Type:</strong> {(booking.SelectedLocationType == LocationType.HouseCall ? "🏠 House Call" : "🏢 Walk-In")}</p>
+        {(booking.SelectedLocationType == LocationType.HouseCall && !string.IsNullOrEmpty(booking.HouseCallAddress) ? $"<p><strong>📍 Address:</strong> {booking.HouseCallAddress}</p>" : "")}
+    </div>
+    
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <h3 style='color: #f0c808; margin-top: 0;'>💰 Payment Breakdown</h3>
+        <p><strong>Service Price:</strong> R {booking.ServicePrice:N2}</p>
+        {(booking.TransportCost > 0 ? $"<p><strong>Transport Cost:</strong> R {booking.TransportCost:N2}</p>" : "")}
+        <p><strong>Booking Fee (one-time):</strong> R {booking.BookingFee:N2}</p>
+        <p><strong>Total Amount:</strong> <span style='color: #f0c808; font-size: 18px;'>R {booking.TotalAmount:N2}</span></p>
+        <hr style='border-color: #333;'>
+        <p><strong>Deposit Required (50% of service + R5 booking fee):</strong> <span style='color: #ff6600;'>R {depositAmount:N2}</span></p>
+        <p><strong>Final Payment (remaining 50% of service):</strong> R {finalPayment:N2}</p>
+    </div>
+    
+    {(booking.ArtistNotes != null ? $@"
+    <div style='background: rgba(240, 200, 8, 0.1); padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #f0c808;'>
+        <p style='margin: 0;'><strong>📝 Message from your artist:</strong></p>
+        <p style='margin: 5px 0 0 0; color: #ddd; font-style: italic;'>“{booking.ArtistNotes}”</p>
+    </div>" : "")}
+    
+    <div style='text-align: center; margin: 25px 0;'>
+        <a href='{depositUrl}' style='background: linear-gradient(45deg, #f0c808, #e50914); color: #000; padding: 14px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px; display: inline-block;'>
+            💰 PAY YOUR DEPOSIT NOW
+        </a>
+    </div>
+    
+    <div style='background: rgba(229, 9, 20, 0.1); padding: 12px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #e50914;'>
+        <p style='margin: 0; font-size: 12px; color: #ff8888;'>
+            <strong>⚠️ IMPORTANT:</strong> Your appointment is not confirmed until the deposit is paid. Please complete your payment as soon as possible.
+        </p>
+    </div>
+    
+    <hr style='border-color: #333; margin: 20px 0;'>
+    <p style='font-size: 11px; color: #666; text-align: center;'>
+        Need to reschedule or cancel? Please contact the artist directly through your dashboard.<br>
+        &copy; {DateTime.Now.Year} RubiOr
+    </p>
+</div>";
 
                 if (client != null && !string.IsNullOrEmpty(client.Email))
                 {
@@ -500,15 +506,15 @@ namespace BeautyArtists.Controllers
 
                 string rejectSubject = "❌ Appointment Request Update";
                 string rejectBody = $@"
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #e50914; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-            <h2 style='color: #e50914; text-align: center;'>Appointment Not Accepted</h2>
-            <p>Dear {booking.Customer?.FirstName},</p>
-            <p>Unfortunately, your appointment request for <strong>{booking.UserService?.Service?.Name}</strong> on <strong>{booking.AppointmentDate:MMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> has been declined.</p>
-            {(artistNotes != null ? $"<p><strong>Reason:</strong> {artistNotes}</p>" : "")}
-            <p>Please try booking a different time slot or contact the artist directly.</p>
-            <hr>
-            <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
-        </div>";
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #e50914; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #e50914; text-align: center;'>Appointment Not Accepted</h2>
+    <p>Dear {booking.Customer?.FirstName},</p>
+    <p>Unfortunately, your appointment request for <strong>{booking.UserService?.Service?.Name}</strong> on <strong>{booking.AppointmentDate:MMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> has been declined.</p>
+    {(artistNotes != null ? $"<p><strong>Reason:</strong> {artistNotes}</p>" : "")}
+    <p>Please try booking a different time slot or contact the artist directly.</p>
+    <hr>
+    <p style='font-size: 12px; color: #666;'>RubiOr</p>
+</div>";
 
                 if (client != null && !string.IsNullOrEmpty(client.Email))
                 {
@@ -545,13 +551,13 @@ namespace BeautyArtists.Controllers
 
                 string completeSubject = "🎉 Service Completed! Thank You!";
                 string completeBody = $@"
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-            <h2 style='color: #28a745; text-align: center;'>Service Completed! 🎉</h2>
-            <p>Dear {booking.Customer?.FirstName},</p>
-            <p>Your <strong>{booking.UserService?.Service?.Name}</strong> appointment has been marked as completed.</p>
-            <p>We hope you had a great experience! Thank you for choosing Beauty Artists Hub!</p>
-            <p style='text-align: center; margin-top: 20px;'>✨ We hope to see you again soon! ✨</p>
-        </div>";
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #28a745; text-align: center;'>Service Completed! 🎉</h2>
+    <p>Dear {booking.Customer?.FirstName},</p>
+    <p>Your <strong>{booking.UserService?.Service?.Name}</strong> appointment has been marked as completed.</p>
+    <p>We hope you had a great experience! Thank you for choosing RubiOr!</p>
+    <p style='text-align: center; margin-top: 20px;'>✨ We hope to see you again soon! ✨</p>
+</div>";
 
                 if (client != null && !string.IsNullOrEmpty(client.Email))
                 {
@@ -574,7 +580,6 @@ namespace BeautyArtists.Controllers
 
                 TempData["Success"] = "Service marked as completed! Client has been notified.";
             }
-
 
             return RedirectToAction("MyAppointments", "Artist");
         }
@@ -694,7 +699,7 @@ namespace BeautyArtists.Controllers
     </div>
     <p>The client will pay the remaining 50% of the service price 2 days before the appointment.</p>
     <hr>
-    <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+    <p style='font-size: 12px; color: #666;'>RubiOr</p>
 </div>";
 
                     await _commService.SendDirectMessageEmailAsync(currentUser.Id, artist.Id, artistSubject, artistBody);
@@ -712,7 +717,7 @@ namespace BeautyArtists.Controllers
     <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>CONFIRMED</strong>.</p>
     <p>You will pay the remaining <strong>R {(booking.ServicePrice / 2):N2}</strong> 2 days before the appointment.</p>
     <hr>
-    <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+    <p style='font-size: 12px; color: #666;'>RubiOr</p>
 </div>";
 
                 await _commService.SendDirectMessageEmailAsync(artist?.Id, currentUser.Id, clientSubject, clientBody);
@@ -810,7 +815,7 @@ namespace BeautyArtists.Controllers
         </div>
         <p>This appointment is now <strong>FULLY PAID</strong>.</p>
         <hr>
-        <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+        <p style='font-size: 12px; color: #666;'>RubiOr</p>
     </div>";
 
                     await _commService.SendDirectMessageEmailAsync(currentUser.Id, artist.Id, artistSubject, artistBody);
@@ -823,9 +828,9 @@ namespace BeautyArtists.Controllers
     <p>Dear {currentUser.FirstName},</p>
     <p>Your final payment of <strong>R{remainingBalance:N2}</strong> has been received.</p>
     <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>FULLY PAID</strong>.</p>
-    <p>Thank you for choosing Beauty Artists Hub!</p>
+    <p>Thank you for choosing RubiOr!</p>
     <hr>
-    <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+    <p style='font-size: 12px; color: #666;'>RubiOr</p>
 </div>";
 
                 await _commService.SendDirectMessageEmailAsync(artist?.Id, currentUser.Id, clientSubject, clientBody);

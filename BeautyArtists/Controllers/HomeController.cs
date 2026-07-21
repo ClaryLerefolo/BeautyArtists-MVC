@@ -267,12 +267,10 @@ namespace BeautyArtists.Controllers
             return View(categories);
         }
 
-        
+
         //  VIEW SERVICE
         public async Task<IActionResult> ViewService(string artistId)
         {
-            ViewBag.Portfolios = await _context.PortfolioItems.AsNoTracking().ToListAsync();
-
             if (string.IsNullOrEmpty(artistId)) return NotFound();
 
             var artist = await _context.Users
@@ -289,6 +287,17 @@ namespace BeautyArtists.Controllers
                 .Include(us => us.Artist)
                 .AsNoTracking()
                 .ToListAsync();
+
+            // ??? GET REVIEWS FOR THIS ARTIST'S SERVICES ???
+            var userServiceIds = userServices.Select(us => us.Id).ToList();
+            var allReviews = new List<Review>();
+            if (userServiceIds.Any())
+            {
+                allReviews = await _context.Reviews
+                    .Where(r => r.Booking != null && userServiceIds.Contains(r.Booking.UserServiceId))
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
 
             ViewBag.Portfolios = await _context.Portfolios
                 .Include(p => p.Items)
@@ -326,6 +335,13 @@ namespace BeautyArtists.Controllers
                         ? $"{artist.FirstName} {artist.LastName}".Trim()
                         : artist.UserName ?? "Pro Artist",
                     ArtistId = us.ArtistId,
+                    // ?? RATINGS ??
+                    ReviewCount = allReviews.Count(r => r.Booking != null && r.Booking.UserServiceId == us.Id),
+                    AverageRating = allReviews
+                        .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
+                        .Select(r => (double)r.Rating)
+                        .DefaultIfEmpty(0)
+                        .Average()
                 }).ToList()
             };
 
@@ -428,50 +444,46 @@ namespace BeautyArtists.Controllers
 
                 var totalCount = await query.CountAsync();
 
-                var services = await query
+                // ??? Fetch paginated services WITH ratings computed in the same query ???
+                var servicesWithRatings = await query
                     .OrderByDescending(us => us.Id)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
+                    .Select(us => new
+                    {
+                        UserService = us,
+                        AverageRating = _context.Reviews
+                            .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
+                            .Average(r => (double?)r.Rating) ?? 0,
+                        ReviewCount = _context.Reviews
+                            .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
+                            .Count()
+                    })
                     .ToListAsync();
-
-                var serviceIds = services.Select(s => s.ServiceId).ToList();
-                var allReviews = new List<Review>();
-
-                if (serviceIds.Any())
-                {
-                    allReviews = await _context.Reviews
-                        .Where(r => r.Booking != null && serviceIds.Contains(r.ServiceId))
-                        .AsNoTracking()
-                        .ToListAsync();
-                }
 
                 var model = new ServiceListViewModel
                 {
                     Title = "All Services",
-                    Services = services.Select(us => new ServiceListViewModel.ServiceItem
+                    Services = servicesWithRatings.Select(x => new ServiceListViewModel.ServiceItem
                     {
-                        UserServiceId = us.Id,
-                        ServiceName = us.Service?.Name ?? "Unnamed",
-                        Description = us.CustomDescription ?? us.Service?.Description ?? "",
-                        Category = us.Service?.ServiceCategory?.Name ?? "Uncategorized",
-                        CategoryId = us.Service?.CategoryId ?? 0,
-                        Price = us.Price,
-                        ImagePath = us.ImagePath ?? us.Service?.ImagePath,
-                        ArtistName = !string.IsNullOrEmpty(us.Artist?.FirstName)
-                            ? $"{us.Artist.FirstName} {us.Artist.LastName}".Trim()
-                            : us.Artist?.UserName ?? "Pro Artist",
-                        ArtistId = us.ArtistId,
-                        City = us.Artist?.ArtistProfile?.City ?? "",
-                        Province = us.Artist?.ArtistProfile?.Province ?? "",
-                        ArtistLocation = !string.IsNullOrEmpty(us.Artist?.ArtistProfile?.City)
-                            ? $"{us.Artist.ArtistProfile.City}, {us.Artist.ArtistProfile.Province}"
-                            : us.Artist?.ArtistProfile?.Province ?? "",
-                        ReviewCount = allReviews.Count(r => r.Booking != null && r.ServiceId == us.ServiceId),
-                        AverageRating = allReviews
-                            .Where(r => r.Booking != null && r.ServiceId == us.ServiceId)
-                            .Select(r => (double)r.Rating)
-                            .DefaultIfEmpty(0)
-                            .Average()
+                        UserServiceId = x.UserService.Id,
+                        ServiceName = x.UserService.Service?.Name ?? "Unnamed",
+                        Description = x.UserService.CustomDescription ?? x.UserService.Service?.Description ?? "",
+                        Category = x.UserService.Service?.ServiceCategory?.Name ?? "Uncategorized",
+                        CategoryId = x.UserService.Service?.CategoryId ?? 0,
+                        Price = x.UserService.Price,
+                        ImagePath = x.UserService.ImagePath ?? x.UserService.Service?.ImagePath,
+                        ArtistName = !string.IsNullOrEmpty(x.UserService.Artist?.FirstName)
+                            ? $"{x.UserService.Artist.FirstName} {x.UserService.Artist.LastName}".Trim()
+                            : x.UserService.Artist?.UserName ?? "Pro Artist",
+                        ArtistId = x.UserService.ArtistId,
+                        City = x.UserService.Artist?.ArtistProfile?.City ?? "",
+                        Province = x.UserService.Artist?.ArtistProfile?.Province ?? "",
+                        ArtistLocation = !string.IsNullOrEmpty(x.UserService.Artist?.ArtistProfile?.City)
+                            ? $"{x.UserService.Artist.ArtistProfile.City}, {x.UserService.Artist.ArtistProfile.Province}"
+                            : x.UserService.Artist?.ArtistProfile?.Province ?? "",
+                        AverageRating = x.AverageRating,
+                        ReviewCount = x.ReviewCount
                     }).ToList(),
                     CurrentPage = page,
                     TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
@@ -482,7 +494,7 @@ namespace BeautyArtists.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? AllServices ERROR: {ex.Message}");
+                Console.WriteLine($"AllServices ERROR: {ex.Message}");
                 var emptyModel = new ServiceListViewModel
                 {
                     Title = "All Services",
@@ -549,72 +561,87 @@ namespace BeautyArtists.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Catalogue(string artistId, int categoryId)
         {
-            if (string.IsNullOrEmpty(artistId)) return NotFound();
-
-            var artistTask = _context.Users
-                .Include(u => u.ArtistProfile)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Id == artistId);
-
-            var categoryTask = _context.ServiceCategories
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == categoryId);
-
-            var userServicesTask = _context.UserServices
-                .Where(us => us.ArtistId == artistId
-                          && us.IsActive
-                          && us.Service.CategoryId == categoryId)
-                .Include(us => us.Service)
-                    .ThenInclude(s => s.ServiceCategory)
-                .Include(us => us.Artist)
-                .AsNoTracking()
-                .ToListAsync();
-
-            var portfoliosTask = _context.Portfolios
-                .Include(p => p.Items)
-                .Where(p => p.ArtistId == artistId)
-                .AsNoTracking()
-                .ToListAsync();
-
-            await Task.WhenAll(artistTask, categoryTask, userServicesTask, portfoliosTask);
-
-            var artist = await artistTask;
-            var category = await categoryTask;
-            var userServices = await userServicesTask;
-            var portfolios = await portfoliosTask;
-
-            if (artist == null || category == null) return NotFound();
-
-            ViewBag.Portfolios = portfolios;
-
-            var artistName = !string.IsNullOrEmpty(artist.FirstName)
-                ? $"{artist.FirstName} {artist.LastName}".Trim()
-                : artist.UserName ?? "Pro Artist";
-
-            var model = new ServiceListViewModel
+            try
             {
-                Title = $"{artistName} — {category.Name}",
-                ArtistId = artist.Id,
-                ArtistName = artistName,
-                ArtistLocation = !string.IsNullOrEmpty(artist.ArtistProfile?.City)
-                    ? $"{artist.ArtistProfile.City}, {artist.ArtistProfile.Province}"
-                    : artist.ArtistProfile?.Province ?? "",
-                ArtistProfilePicture = artist.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
-                Services = userServices.Select(us => new ServiceListViewModel.ServiceItem
-                {
-                    UserServiceId = us.Id,
-                    ServiceName = us.Service?.Name ?? "No Name",
-                    Description = us.CustomDescription ?? us.Service?.Description ?? "",
-                    Category = us.Service?.ServiceCategory?.Name ?? "Uncategorized",
-                    CategoryId = us.Service?.CategoryId ?? 0,
-                    Price = us.Price,
-                    ImagePath = us.ImagePath ?? us.Service?.ImagePath,
-                    ArtistName = artistName,
-                    ArtistId = us.ArtistId,
-                }).ToList()
-            };
+                if (string.IsNullOrEmpty(artistId)) return NotFound();
 
-            return View("Catalogue", model);
+                var artist = await _context.Users
+                    .Include(u => u.ArtistProfile)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.Id == artistId);
+
+                if (artist == null) return NotFound();
+
+                var category = await _context.ServiceCategories
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(c => c.Id == categoryId);
+
+                if (category == null) return NotFound();
+
+                var userServices = await _context.UserServices
+                    .Where(us => us.ArtistId == artistId
+                              && us.IsActive
+                              && us.Service != null
+                              && us.Service.CategoryId == categoryId)
+                    .Include(us => us.Service)
+                        .ThenInclude(s => s.ServiceCategory)
+                    .Include(us => us.Artist)
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                // ??? FETCH REVIEWS ???
+                var userServiceIds = userServices.Select(us => us.Id).ToList();
+                var allReviews = new List<Review>();
+                if (userServiceIds.Any())
+                {
+                    allReviews = await _context.Reviews
+                        .Where(r => r.Booking != null && userServiceIds.Contains(r.Booking.UserServiceId))
+                        .AsNoTracking()
+                        .ToListAsync();
+                }
+
+                var artistName = !string.IsNullOrEmpty(artist.FirstName)
+                    ? $"{artist.FirstName} {artist.LastName}".Trim()
+                    : artist.UserName ?? "Pro Artist";
+
+                var model = new ServiceListViewModel
+                {
+                    Title = $"{artistName} — {category.Name}",
+                    ArtistId = artist.Id,
+                    ArtistName = artistName,
+                    ArtistLocation = !string.IsNullOrEmpty(artist.ArtistProfile?.City)
+                        ? $"{artist.ArtistProfile.City}, {artist.ArtistProfile.Province}"
+                        : artist.ArtistProfile?.Province ?? "",
+                    ArtistProfilePicture = artist.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
+                    Services = userServices.Select(us => new ServiceListViewModel.ServiceItem
+                    {
+                        UserServiceId = us.Id,
+                        ServiceName = us.Service?.Name ?? "No Name",
+                        Description = us.CustomDescription ?? us.Service?.Description ?? "",
+                        Category = us.Service?.ServiceCategory?.Name ?? "Uncategorized",
+                        CategoryId = us.Service?.CategoryId ?? 0,
+                        Price = us.Price,
+                        ImagePath = us.ImagePath ?? us.Service?.ImagePath,
+                        ArtistName = artistName,
+                        ArtistId = us.ArtistId,
+                        // ?? RATINGS ??
+                        ReviewCount = allReviews.Count(r => r.Booking != null && r.Booking.UserServiceId == us.Id),
+                        AverageRating = allReviews
+                            .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
+                            .Select(r => (double)r.Rating)
+                            .DefaultIfEmpty(0)
+                            .Average()
+                    }).ToList()
+                };
+
+                return View("Catalogue", model);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"? Catalogue ERROR: {ex.Message}");
+                Console.WriteLine($"Stack: {ex.StackTrace}");
+                return StatusCode(500, "Something went wrong loading the catalogue. Please try again later.");
+            }
         }
 
         // ???????????????????????????????????????????????????????????
@@ -639,20 +666,23 @@ namespace BeautyArtists.Controllers
 
             var totalCount = await query.CountAsync();
 
-            var userServices = await query
+            // ??? Fetch with ratings computed inline ???
+            var servicesWithRatings = await query
                 .OrderByDescending(us => us.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
+                .Select(us => new
+                {
+                    UserService = us,
+                    AverageRating = _context.Reviews
+                        .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
+                        .Average(r => (double?)r.Rating) ?? 0,
+                    ReviewCount = _context.Reviews
+                        .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
+                        .Count()
+                })
                 .ToListAsync();
 
-            // Get reviews for these services
-            var serviceIds = userServices.Select(s => s.ServiceId).ToList();
-            var allReviews = await _context.Reviews
-                .Where(r => serviceIds.Contains(r.ServiceId))
-                .AsNoTracking()
-                .ToListAsync();
-
-            // Portfolio items
             ViewBag.Portfolios = await _context.PortfolioItems
                 .Where(pi => pi.CategoryId == categoryId)
                 .AsNoTracking()
@@ -662,27 +692,25 @@ namespace BeautyArtists.Controllers
             {
                 Title = $"Services in {category.Name}",
                 Category = category,
-                Services = userServices.Select(us => new ServiceListViewModel.ServiceItem
+                Services = servicesWithRatings.Select(x => new ServiceListViewModel.ServiceItem
                 {
-                    UserServiceId = us.Id,
-                    ServiceName = us.Service?.Name ?? "Unnamed",
-                    Description = us.CustomDescription ?? us.Service?.Description ?? "",
-                    Category = us.Service?.ServiceCategory?.Name ?? "Uncategorized",
-                    CategoryId = us.Service?.CategoryId ?? 0,
-                    Price = us.Price,
-                    ImagePath = us.ImagePath ?? us.Service?.ImagePath,
-                    ArtistName = !string.IsNullOrEmpty(us.Artist?.FirstName)
-                        ? $"{us.Artist.FirstName} {us.Artist.LastName}".Trim()
-                        : us.Artist?.UserName ?? "Pro Artist",
-                    ArtistId = us.ArtistId,
-                    City = us.Artist?.ArtistProfile?.City ?? "",
-                    ArtistLocation = !string.IsNullOrEmpty(us.Artist?.ArtistProfile?.City)
-                        ? $"{us.Artist.ArtistProfile.City}, {us.Artist.ArtistProfile.Province}"
-                        : us.Artist?.ArtistProfile?.Province ?? "",
-                    ReviewCount = allReviews.Count(r => r.ServiceId == us.ServiceId),
-                    AverageRating = allReviews.Where(r => r.ServiceId == us.ServiceId).Any()
-                        ? Math.Round(allReviews.Where(r => r.ServiceId == us.ServiceId).Average(r => r.Rating), 1)
-                        : 0
+                    UserServiceId = x.UserService.Id,
+                    ServiceName = x.UserService.Service?.Name ?? "Unnamed",
+                    Description = x.UserService.CustomDescription ?? x.UserService.Service?.Description ?? "",
+                    Category = x.UserService.Service?.ServiceCategory?.Name ?? "Uncategorized",
+                    CategoryId = x.UserService.Service?.CategoryId ?? 0,
+                    Price = x.UserService.Price,
+                    ImagePath = x.UserService.ImagePath ?? x.UserService.Service?.ImagePath,
+                    ArtistName = !string.IsNullOrEmpty(x.UserService.Artist?.FirstName)
+                        ? $"{x.UserService.Artist.FirstName} {x.UserService.Artist.LastName}".Trim()
+                        : x.UserService.Artist?.UserName ?? "Pro Artist",
+                    ArtistId = x.UserService.ArtistId,
+                    City = x.UserService.Artist?.ArtistProfile?.City ?? "",
+                    ArtistLocation = !string.IsNullOrEmpty(x.UserService.Artist?.ArtistProfile?.City)
+                        ? $"{x.UserService.Artist.ArtistProfile.City}, {x.UserService.Artist.ArtistProfile.Province}"
+                        : x.UserService.Artist?.ArtistProfile?.Province ?? "",
+                    AverageRating = x.AverageRating,
+                    ReviewCount = x.ReviewCount
                 }).ToList(),
                 CurrentPage = page,
                 TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),

@@ -23,7 +23,7 @@ namespace BeautyArtists.Services
             using (var message = new MailMessage())
             {
                 message.To.Add(new MailAddress(email));
-                message.From = new MailAddress(smtpSettings["FromAddress"], "Beauty Artists Hub");
+                message.From = new MailAddress(smtpSettings["FromAddress"], "RubiOr");
                 message.Subject = subject;
                 message.Body = htmlMessage;
                 message.IsBodyHtml = true;

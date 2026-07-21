@@ -454,7 +454,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     </div>
                     <p>This appointment is now <strong>CONFIRMED</strong>. The client will pay the remaining balance at least 2 days before the appointment.</p>
                     <hr>
-                    <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
                 </div>";
 
                 // To Client
@@ -466,9 +466,9 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     <p>Your deposit of <strong>R{depositAmount:N2}</strong> has been received.</p>
                     <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>CONFIRMED</strong>.</p>
                     <p><strong>Remaining Balance:</strong> R{(booking.TotalAmount / 2):N2} (to be paid at least 2 days before the appointment)</p>
-                    <p>Thank you for choosing Beauty Artists Hub!</p>
+                    <p>Thank you for choosing RubiOr!</p>
                     <hr>
-                    <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
                 </div>";
 
                 await _emailService.SendEmailAsync(artistEmail, artistSubject, artistBody);
@@ -520,7 +520,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     </div>
                     <p>This appointment is now <strong>FULLY PAID</strong>. You can mark it as completed after the service.</p>
                     <hr>
-                    <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
                 </div>";
 
                 // To Client
@@ -531,9 +531,9 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     <p>Dear {client.FirstName},</p>
                     <p>Your final payment of <strong>R{remainingBalance:N2}</strong> has been received.</p>
                     <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>FULLY PAID</strong>.</p>
-                    <p>Thank you for choosing Beauty Artists Hub!</p>
+                    <p>Thank you for choosing RubiOr!</p>
                     <hr>
-                    <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
                 </div>";
 
                 await _emailService.SendEmailAsync(artistEmail, artistSubject, artistBody);
@@ -585,7 +585,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     </div>
                     <p>This appointment is now <strong>CONFIRMED</strong> and <strong>FULLY PAID</strong>. You can mark it as completed after the service.</p>
                     <hr>
-                    <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
                 </div>";
 
                 // To Client
@@ -596,9 +596,9 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     <p>Dear {client.FirstName},</p>
                     <p>Your full payment of <strong>R{fullAmount:N2}</strong> has been received.</p>
                     <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>CONFIRMED</strong> and <strong>FULLY PAID</strong>.</p>
-                    <p>Thank you for choosing Beauty Artists Hub!</p>
+                    <p>Thank you for choosing RubiOr!</p>
                     <hr>
-                    <p style='font-size: 12px; color: #666;'>Beauty Artists Hub</p>
+                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
                 </div>";
 
                 await _emailService.SendEmailAsync(artistEmail, artistSubject, artistBody);

@@ -1,15 +1,37 @@
-﻿@model List<BeautyArtists.Models.Review>
+﻿@model IEnumerable<BeautyArtists.Models.Review>
 @{
     ViewData["Title"] = "Reviews";
     Layout = "~/Views/Shared/_ArtistLayout.cshtml";
     var stats = ViewBag.Stats;
+
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var totalCount = ViewBag.TotalCount as int? ?? 0;
+    var selectedRating = ViewBag.SelectedRating as string ?? "";
 }
 
 <style>
     .reviews-container {
-        max-width: 900px;
+        max-width: 1100px;
         margin: 0 auto;
+        padding: 0 15px;
     }
+
+    .dashboard-header {
+        background: linear-gradient(90deg, #e50914, #f0c808);
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        margin-bottom: 25px;
+    }
+
+        .dashboard-header h2 {
+            color: #000;
+            font-weight: 800;
+            text-transform: uppercase;
+            margin: 0;
+        }
 
     .stats-grid {
         display: grid;
@@ -24,7 +46,13 @@
         border-radius: 12px;
         padding: 15px;
         text-align: center;
+        transition: all 0.3s ease;
     }
+
+        .stat-card:hover {
+            border-color: #f0c808;
+            transform: translateY(-2px);
+        }
 
         .stat-card .num {
             font-size: 1.8rem;
@@ -39,13 +67,211 @@
             letter-spacing: 1px;
         }
 
+    /* ─── FILTER TOGGLE PILL ─── */
+    .filter-toggle-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+    }
+
+    .filter-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 18px;
+        border-radius: 999px;
+        background: rgba(255,215,0,0.08);
+        border: 1px solid rgba(255,215,0,0.3);
+        color: #FFD700;
+        font-weight: 700;
+        font-size: 0.78rem;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        transition: all 0.25s;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+        .filter-toggle-btn:hover {
+            background: rgba(255,215,0,0.15);
+            border-color: #FFD700;
+        }
+
+        .filter-toggle-btn .badge {
+            background: #FFD700;
+            color: #000;
+            font-size: 0.6rem;
+            font-weight: 900;
+            padding: 1px 7px;
+            border-radius: 50%;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .filter-toggle-btn .arrow {
+            transition: transform 0.3s ease;
+            display: inline-block;
+            font-size: 0.6rem;
+        }
+
+        .filter-toggle-btn.open .arrow {
+            transform: rotate(180deg);
+        }
+
+    /* ─── FILTER BAR ─── */
+    .filter-bar {
+        background: #0b0b0b;
+        border: 1px solid rgba(255,215,0,0.1);
+        border-radius: 14px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        overflow: hidden;
+        max-height: 0;
+        padding: 0 20px;
+        opacity: 0;
+        transition: max-height 0.4s ease, opacity 0.3s ease, padding 0.3s ease;
+    }
+
+        .filter-bar.open {
+            max-height: 300px;
+            padding: 16px 20px;
+            opacity: 1;
+        }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        align-items: end;
+    }
+
+    .filter-field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .filter-label {
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.3);
+    }
+
+    .filter-select {
+        background: rgba(255,255,255,0.04) !important;
+        border: 1px solid rgba(255,215,0,0.12) !important;
+        border-radius: 8px !important;
+        color: #fff !important;
+        padding: 8px 12px !important;
+        font-size: 0.8rem;
+        width: 100%;
+    }
+
+        .filter-select option {
+            background: #111;
+        }
+
+    .filter-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .btn-filter-apply {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #b30000, #FFD700);
+        color: #000;
+        font-weight: 800;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+    }
+
+        .btn-filter-apply:hover {
+            background: linear-gradient(135deg, #FFD700, #b30000);
+        }
+
+    .btn-filter-reset {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.1);
+        color: rgba(255,255,255,0.4);
+        font-weight: 700;
+        font-size: 0.7rem;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        text-decoration: none;
+        transition: all 0.2s;
+        width: 100%;
+        text-align: center;
+    }
+
+        .btn-filter-reset:hover {
+            background: rgba(255,255,255,0.08);
+            color: rgba(255,255,255,0.7);
+        }
+
+    .active-filters {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+
+    .filter-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 20px;
+        background: rgba(255,215,0,0.1);
+        border: 1px solid rgba(255,215,0,0.2);
+        color: rgba(255,215,0,0.8);
+    }
+
+    .results-count {
+        color: rgba(255,255,255,0.3);
+        font-size: 0.75rem;
+    }
+
+        .results-count span {
+            color: #FFD700;
+            font-weight: 800;
+        }
+
+    /* ─── REVIEW ITEMS ─── */
     .review-item {
         background: #0d0d0d;
         border: 1px solid #1a1a1a;
         border-radius: 12px;
         padding: 20px;
         margin-bottom: 15px;
+        transition: all 0.3s ease;
     }
+
+        .review-item:hover {
+            border-color: rgba(255,215,0,0.2);
+            transform: translateY(-2px);
+        }
 
         .review-item .stars {
             color: #f0c808;
@@ -69,6 +295,11 @@
             line-height: 1.5;
         }
 
+        .review-item .service-name {
+            color: #888;
+            font-size: 0.75rem;
+        }
+
     .empty-reviews {
         text-align: center;
         padding: 60px 20px;
@@ -79,10 +310,107 @@
             font-size: 3rem;
             margin-bottom: 15px;
         }
+
+    /* ─── PAGINATION ─── */
+    .pagination-wrapper {
+        margin-top: 30px;
+        padding-bottom: 20px;
+    }
+
+    .pagination-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .pagination-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: rgba(255,215,0,0.1);
+        border: 1px solid rgba(255,215,0,0.2);
+        border-radius: 8px;
+        color: #FFD700;
+        font-size: 0.8rem;
+        text-decoration: none;
+        transition: 0.2s;
+    }
+
+        .pagination-btn:hover {
+            background: rgba(255,215,0,0.2);
+            border-color: #FFD700;
+        }
+
+    .pagination-current {
+        padding: 8px 14px;
+        background: #FFD700;
+        color: #000;
+        border-radius: 8px;
+        font-weight: 800;
+        font-size: 0.85rem;
+    }
+
+    .pagination-page {
+        padding: 8px 14px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        color: rgba(255,255,255,0.6);
+        font-size: 0.85rem;
+        text-decoration: none;
+        transition: 0.2s;
+    }
+
+        .pagination-page:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+
+    .pagination-ellipsis {
+        padding: 8px 8px;
+        color: rgba(255,255,255,0.2);
+        font-size: 0.85rem;
+    }
+
+    .pagination-info {
+        text-align: center;
+        margin-top: 12px;
+        color: rgba(255,255,255,0.3);
+        font-size: 0.75rem;
+    }
+
+        .pagination-info span {
+            color: #FFD700;
+        }
+
+    @@media (max-width: 768px) {
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .pagination-container {
+            gap: 4px !important;
+        }
+
+        .pagination-btn {
+            padding: 6px 12px !important;
+            font-size: 0.7rem !important;
+        }
+
+        .pagination-page {
+            padding: 6px 10px !important;
+            font-size: 0.7rem !important;
+        }
+    }
 </style>
 
 <div class="reviews-container">
-    <h2 style="color: #f0c808; font-weight: 800; margin-bottom: 25px;">⭐ Client Reviews</h2>
+    <div class="dashboard-header">
+        <h2><i class="fas fa-star"></i> CLIENT REVIEWS</h2>
+    </div>
 
     @if (!Model.Any())
     {
@@ -113,10 +441,61 @@
             </div>
         </div>
 
+        @* ─── FILTER TOGGLE ─── *@
+        <div class="filter-toggle-wrapper">
+            <button class="filter-toggle-btn" id="filterToggleBtn">
+                <i class="fas fa-sliders-h"></i>
+                <span>Filters</span>
+                @if (!string.IsNullOrEmpty(selectedRating))
+                {
+                    <span class="badge">1</span>
+                }
+                <span class="arrow">▼</span>
+            </button>
+            <div class="results-count">
+                <span>@totalCount</span> review@(totalCount != 1 ? "s" : "") found
+            </div>
+        </div>
+
+        @* ─── ACTIVE FILTER PILLS ─── *@
+        @if (!string.IsNullOrEmpty(selectedRating))
+        {
+            <div class="active-filters">
+                <span class="filter-pill"><i class="bi bi-star-fill"></i> @selectedRating Star</span>
+            </div>
+        }
+
+        @* ─── FILTER BAR ─── *@
+        <div class="filter-bar" id="filterBar">
+            <form method="get" asp-action="Reviews" class="filter-grid">
+                <div class="filter-field">
+                    <span class="filter-label">Rating</span>
+                    <select name="rating" class="filter-select">
+                        <option value="">All Ratings</option>
+                        <option value="5" selected="@(selectedRating == "5")">⭐ 5 Stars</option>
+                        <option value="4" selected="@(selectedRating == "4")">⭐ 4 Stars</option>
+                        <option value="3" selected="@(selectedRating == "3")">⭐ 3 Stars</option>
+                        <option value="2" selected="@(selectedRating == "2")">⭐ 2 Stars</option>
+                        <option value="1" selected="@(selectedRating == "1")">⭐ 1 Star</option>
+                    </select>
+                </div>
+
+                <div class="filter-field" style="display:flex; gap:8px;">
+                    <button type="submit" class="btn-filter-apply">
+                        <i class="fas fa-search"></i> Apply
+                    </button>
+                    <a asp-action="Reviews" class="btn-filter-reset">
+                        <i class="fas fa-times"></i> Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        @* ─── REVIEW LIST ─── *@
         @foreach (var review in Model)
         {
             <div class="review-item">
-                <div class="d-flex justify-content-between align-items-start">
+                <div class="d-flex justify-content-between align-items-start flex-wrap">
                     <div>
                         <span class="client-name">@(review.Customer?.FirstName ?? "Client")</span>
                         <span class="review-date ms-2">@review.CreatedAt.ToString("MMM dd, yyyy")</span>
@@ -125,9 +504,85 @@
                 </div>
                 <div class="comment">@review.Comment</div>
                 <div class="mt-2">
-                    <small class="text-muted">Service: @review.Booking?.UserService?.Service?.Name</small>
+                    <small class="service-name">Service: @review.Booking?.UserService?.Service?.Name</small>
+                </div>
+            </div>
+        }
+
+        @* ─── PAGINATION ─── *@
+        @if (totalPages > 1)
+        {
+            <div class="pagination-wrapper">
+                <div class="pagination-container">
+                    @if (currentPage > 1)
+                    {
+                        <a asp-action="Reviews"
+                           asp-route-page="@(currentPage - 1)"
+                           asp-route-rating="@selectedRating"
+                           class="pagination-btn">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    }
+
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                        @for (int i = 1; i <= totalPages; i++)
+                        {
+                            if (i == currentPage)
+                            {
+                                <span class="pagination-current">@i</span>
+                            }
+                            else if (i == 1 || i == totalPages || Math.Abs(i - currentPage) <= 2)
+                            {
+                                <a asp-action="Reviews"
+                                   asp-route-page="@i"
+                                   asp-route-rating="@selectedRating"
+                                   class="pagination-page">
+                                    @i
+                                </a>
+                            }
+                            else if (i == currentPage - 3 || i == currentPage + 3)
+                            {
+                                <span class="pagination-ellipsis">…</span>
+                            }
+                        }
+                    </div>
+
+                    @if (currentPage < totalPages)
+                    {
+                        <a asp-action="Reviews"
+                           asp-route-page="@(currentPage + 1)"
+                           asp-route-rating="@selectedRating"
+                           class="pagination-btn">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    }
+                </div>
+                <div class="pagination-info">
+                    Showing <span>@((currentPage - 1) * 10 + 1)</span>
+                    - <span>@Math.Min(currentPage * 10, totalCount)</span>
+                    of <span>@totalCount</span> reviews
                 </div>
             </div>
         }
     }
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleBtn = document.getElementById('filterToggleBtn');
+        const filterBar = document.getElementById('filterBar');
+
+        // Check if any filters are active
+        var hasFilter = '@(!string.IsNullOrEmpty(selectedRating))' === 'True';
+
+        if (hasFilter) {
+            filterBar.classList.add('open');
+            toggleBtn.classList.add('open');
+        }
+
+        toggleBtn.addEventListener('click', function() {
+            filterBar.classList.toggle('open');
+            toggleBtn.classList.toggle('open');
+        });
+    });
+</script>
