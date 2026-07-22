@@ -513,11 +513,12 @@ namespace BeautyArtists.Controllers
         // MY APPOINTMENTS
         // ═══════════════════════════════════════════════════════════
         public async Task<IActionResult> MyAppointments(
-        int page = 1,
-        int pageSize = 10,
-        string status = null,
-        DateTime? fromDate = null,
-        DateTime? toDate = null)
+      int page = 1,
+      int pageSize = 10,
+      string filterStatus = null,
+      string filterFrom = null,
+      string filterTo = null,
+      string filterMonth = null)   // ← now matches the view
         {
             var artistId = _userManager.GetUserId(User);
             if (string.IsNullOrEmpty(artistId)) return Challenge();
@@ -529,19 +530,32 @@ namespace BeautyArtists.Controllers
                 .Include(b => b.UserService.Artist)
                 .Where(b => b.UserService.ArtistId == artistId);
 
-            // ─── FILTERS ───
-            if (!string.IsNullOrEmpty(status))
+            // ─── APPLY FILTERS ───
+
+            // Status filter
+            if (!string.IsNullOrEmpty(filterStatus) && filterStatus != "all")
             {
-                if (Enum.TryParse<BookingStatus>(status, true, out var statusEnum))
+                if (Enum.TryParse<BookingStatus>(filterStatus, true, out var statusEnum))
                     query = query.Where(b => b.Status == statusEnum);
             }
 
-            if (fromDate.HasValue)
-                query = query.Where(b => b.AppointmentDate >= fromDate.Value);
+            // Date range (parse the strings)
+            if (!string.IsNullOrEmpty(filterFrom) && DateTime.TryParse(filterFrom, out var fromDate))
+                query = query.Where(b => b.AppointmentDate >= fromDate);
 
-            if (toDate.HasValue)
-                query = query.Where(b => b.AppointmentDate <= toDate.Value);
+            if (!string.IsNullOrEmpty(filterTo) && DateTime.TryParse(filterTo, out var toDate))
+                query = query.Where(b => b.AppointmentDate <= toDate);
 
+            // Month filter (if provided)
+            if (!string.IsNullOrEmpty(filterMonth) && int.TryParse(filterMonth, out int month))
+            {
+                // Filter by month (current year or all years? We'll use current year for simplicity)
+                // Or you could filter by month regardless of year.
+                // Here we filter by the specific month across all years (or you can add year).
+                query = query.Where(b => b.AppointmentDate.Month == month);
+            }
+
+            // ─── PAGINATION ───
             var totalCount = await query.CountAsync();
 
             var bookings = await query
@@ -550,12 +564,14 @@ namespace BeautyArtists.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
+            // ─── VIEWBAG FOR THE VIEW ───
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = (int)Math.Ceiling((double)totalCount / pageSize);
             ViewBag.TotalCount = totalCount;
-            ViewBag.SelectedStatus = status;
-            ViewBag.FromDate = fromDate?.ToString("yyyy-MM-dd");
-            ViewBag.ToDate = toDate?.ToString("yyyy-MM-dd");
+            ViewBag.SelectedStatus = filterStatus;
+            ViewBag.FromDate = filterFrom;
+            ViewBag.ToDate = filterTo;
+            ViewBag.SelectedMonth = filterMonth;   // ← needed for the view's month dropdown
 
             return View(bookings);
         }
