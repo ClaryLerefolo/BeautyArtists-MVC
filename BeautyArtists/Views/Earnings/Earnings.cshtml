@@ -320,7 +320,7 @@
             margin-top: 2px;
         }
 
-        /* ── PAYMENT BREAKDOWN BAR ── */
+        /* ─── PAYMENT BREAKDOWN BAR ─── */
         .payment-breakdown {
             background: var(--dark-card);
             border-radius: 14px;
@@ -491,6 +491,97 @@
                 grid-column: span 1;
             }
         }
+
+        /* ─── PAGINATION ─── */
+        .pagination-wrapper {
+            margin-top: 30px;
+            padding-bottom: 20px;
+        }
+
+        .pagination-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: rgba(255,215,0,0.1);
+            border: 1px solid rgba(255,215,0,0.2);
+            border-radius: 8px;
+            color: #FFD700;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+            .pagination-btn:hover {
+                background: rgba(255,215,0,0.2);
+                border-color: #FFD700;
+            }
+
+        .pagination-current {
+            padding: 8px 14px;
+            background: #FFD700;
+            color: #000;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 0.85rem;
+        }
+
+        .pagination-page {
+            padding: 8px 14px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+            .pagination-page:hover {
+                background: rgba(255,255,255,0.1);
+                color: #fff;
+            }
+
+        .pagination-ellipsis {
+            padding: 8px 8px;
+            color: rgba(255,255,255,0.2);
+            font-size: 0.85rem;
+        }
+
+        .pagination-info {
+            text-align: center;
+            margin-top: 12px;
+            color: rgba(255,255,255,0.3);
+            font-size: 0.75rem;
+        }
+
+            .pagination-info span {
+                color: #FFD700;
+            }
+
+        @@media (max-width: 768px) {
+            .pagination-container {
+                gap: 4px !important;
+            }
+
+            .pagination-btn {
+                padding: 6px 12px !important;
+                font-size: 0.7rem !important;
+            }
+
+            .pagination-page {
+                padding: 6px 10px !important;
+                font-size: 0.7rem !important;
+            }
+        }
     </style>
 }
 
@@ -528,7 +619,7 @@
             <span class="arrow">▼</span>
         </button>
         <span style="color:rgba(255,255,255,0.3);font-size:0.75rem;">
-            <span style="color:#FFD700;font-weight:800;">@Model.History.Count</span> transactions
+            <span style="color:#FFD700;font-weight:800;">@ViewBag.TotalCount</span> transactions
         </span>
     </div>
 
@@ -663,7 +754,7 @@
             </div>
             <div class="breakdown-item">
                 <span class="label">Fully Paid</span>
-                <span class="value warning">@Model.History.Count(h => h.IsFullyPaid)</span>
+                <span class="value warning">@ViewBag.FullyPaidCount</span>
             </div>
             <div class="breakdown-item">
                 <span class="label">Your Earnings</span>
@@ -701,7 +792,7 @@
                 <i class="fas fa-history me-2" style="color:var(--gold)"></i>Transaction History
             </h5>
             <span style="font-size:0.72rem;color:rgba(255,255,255,0.25);">
-                @Model.History.Count record@(Model.History.Count != 1 ? "s" : "")
+                @ViewBag.TotalCount record@(ViewBag.TotalCount != 1 ? "s" : "")
             </span>
         </div>
 
@@ -766,6 +857,74 @@
                         </tr>
                     </tfoot>
                 </table>
+            </div>
+        }
+
+        @* ─── PAGINATION ─── *@
+        @if (ViewBag.TotalPages > 1)
+        {
+            <div class="pagination-wrapper">
+                <div class="pagination-container">
+                    @if (ViewBag.CurrentPage > 1)
+                    {
+                        <a asp-action="Earnings"
+                           asp-route-page="@(ViewBag.CurrentPage - 1)"
+                           asp-route-fromDate="@ViewBag.FromDate"
+                           asp-route-toDate="@ViewBag.ToDate"
+                           asp-route-statusFilter="@ViewBag.SelectedStatus"
+                           asp-route-serviceFilter="@ViewBag.SelectedService"
+                           asp-route-clientFilter="@ViewBag.SelectedClient"
+                           class="pagination-btn">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    }
+
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                        @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                        {
+                            if (i == ViewBag.CurrentPage)
+                            {
+                                <span class="pagination-current">@i</span>
+                            }
+                            else if (i == 1 || i == ViewBag.TotalPages || Math.Abs(i - ViewBag.CurrentPage) <= 2)
+                            {
+                                <a asp-action="Earnings"
+                                   asp-route-page="@i"
+                                   asp-route-fromDate="@ViewBag.FromDate"
+                                   asp-route-toDate="@ViewBag.ToDate"
+                                   asp-route-statusFilter="@ViewBag.SelectedStatus"
+                                   asp-route-serviceFilter="@ViewBag.SelectedService"
+                                   asp-route-clientFilter="@ViewBag.SelectedClient"
+                                   class="pagination-page">
+                                    @i
+                                </a>
+                            }
+                            else if (i == ViewBag.CurrentPage - 3 || i == ViewBag.CurrentPage + 3)
+                            {
+                                <span class="pagination-ellipsis">…</span>
+                            }
+                        }
+                    </div>
+
+                    @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+                    {
+                        <a asp-action="Earnings"
+                           asp-route-page="@(ViewBag.CurrentPage + 1)"
+                           asp-route-fromDate="@ViewBag.FromDate"
+                           asp-route-toDate="@ViewBag.ToDate"
+                           asp-route-statusFilter="@ViewBag.SelectedStatus"
+                           asp-route-serviceFilter="@ViewBag.SelectedService"
+                           asp-route-clientFilter="@ViewBag.SelectedClient"
+                           class="pagination-btn">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    }
+                </div>
+                <div class="pagination-info">
+                    Showing <span style="color: #FFD700;">@((ViewBag.CurrentPage - 1) * ViewBag.PageSize + 1)</span>
+                    - <span style="color: #FFD700;">@Math.Min(ViewBag.CurrentPage * ViewBag.PageSize, ViewBag.TotalCount)</span>
+                    of <span style="color: #FFD700;">@ViewBag.TotalCount</span> transactions
+                </div>
             </div>
         }
     </div>
