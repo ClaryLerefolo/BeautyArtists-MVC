@@ -33,6 +33,7 @@
             public double AverageRating { get; set; }
             public int ReviewCount { get; set; }
             public string? ArtistLocation { get; set; }
+            public decimal ClientPrice => Price * 1.15m;
         }
     }
 }

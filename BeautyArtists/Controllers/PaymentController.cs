@@ -20,6 +20,12 @@ namespace BeautyArtists.Controllers
         private readonly INotificationService _notificationService;
         private readonly IEmailService _emailService;
 
+        // ─── NEW PRICING HELPERS ───
+        private decimal ClientPrice(Booking b) => b.ServicePrice * 1.15m;
+        private decimal DepositAmount(Booking b) => (ClientPrice(b) / 2) + b.BookingFee;
+        private decimal FinalAmount(Booking b) => ClientPrice(b) / 2;
+        private decimal ClientTotal(Booking b) => ClientPrice(b) + b.BookingFee;
+
         public PaymentController(
             IPaymentService paymentService,
             ApplicationDbContext context,
@@ -36,29 +42,29 @@ namespace BeautyArtists.Controllers
             _emailService = emailService;
         }
 
-      [Authorize]
-[HttpPost]
-[ValidateAntiForgeryToken]
-public async Task<IActionResult> InitiatePayment(int bookingId, string email, decimal amount)
-{
-    try
-    {
-        var booking = await _context.Bookings
-            .Include(b => b.UserService)
-                .ThenInclude(us => us.Artist)
-            .FirstOrDefaultAsync(b => b.Id == bookingId && b.CustomerId == _userManager.GetUserId(User));
-
-        if (booking == null)
+        [Authorize]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> InitiatePayment(int bookingId, string email, decimal amount)
         {
-            TempData["Error"] = "Booking not found.";
-            return RedirectToAction("MyBookings", "Booking");
-        }
+            try
+            {
+                var booking = await _context.Bookings
+                    .Include(b => b.UserService)
+                        .ThenInclude(us => us.Artist)
+                    .FirstOrDefaultAsync(b => b.Id == bookingId && b.CustomerId == _userManager.GetUserId(User));
 
-        if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
-        {
-            TempData["Error"] = "This booking is already confirmed or paid.";
-            return RedirectToAction("MyBookings", "Booking");
-        }
+                if (booking == null)
+                {
+                    TempData["Error"] = "Booking not found.";
+                    return RedirectToAction("MyBookings", "Booking");
+                }
+
+                if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
+                {
+                    TempData["Error"] = "This booking is already confirmed or paid.";
+                    return RedirectToAction("MyBookings", "Booking");
+                }
 
                 // ─── GET ARTIST'S SUBACCOUNT CODE ───
                 string subaccount = null;
@@ -69,12 +75,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
 
                     if (artistProfile != null && !string.IsNullOrEmpty(artistProfile.SubaccountCode))
                     {
-                        // In test mode, skip dummy subaccount
-                        if (artistProfile.SubaccountCode.StartsWith("TEST_SUBACCOUNT_"))
-                        {
-                            subaccount = null;
-                        }
-                        else
+                        if (!artistProfile.SubaccountCode.StartsWith("TEST_SUBACCOUNT_"))
                         {
                             subaccount = artistProfile.SubaccountCode;
                         }
@@ -83,27 +84,27 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
 
                 var result = await _paymentService.InitializePayment(email, amount, bookingId, subaccount);
 
-        if (!result.success)
-        {
-            TempData["Error"] = $"Payment initialization failed: {result.message}";
-            return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
-        }
+                if (!result.success)
+                {
+                    TempData["Error"] = $"Payment initialization failed: {result.message}";
+                    return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
+                }
 
-        if (string.IsNullOrEmpty(result.authorizationUrl))
-        {
-            TempData["Error"] = "Payment gateway returned an invalid response. Please try again.";
-            return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
-        }
+                if (string.IsNullOrEmpty(result.authorizationUrl))
+                {
+                    TempData["Error"] = "Payment gateway returned an invalid response. Please try again.";
+                    return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
+                }
 
-        return Redirect(result.authorizationUrl);
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"InitiatePayment Exception: {ex.Message}");
-        TempData["Error"] = $"An error occurred: {ex.Message}";
-        return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
-    }
-}
+                return Redirect(result.authorizationUrl);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"InitiatePayment Exception: {ex.Message}");
+                TempData["Error"] = $"An error occurred: {ex.Message}";
+                return RedirectToAction("CheckoutDeposit", "Booking", new { id = bookingId });
+            }
+        }
 
         [Authorize]
         [HttpPost]
@@ -129,14 +130,10 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                if (booking.TotalAmount == 0)
-                {
-                    TempData["Error"] = "This booking has already been fully paid.";
-                    return RedirectToAction("MyBookings", "Booking");
-                }
+                // ─── COMPUTE FINAL AMOUNT FROM NEW PRICING ───
+                decimal finalAmount = FinalAmount(booking);
 
-                decimal remainingBalance = booking.TotalAmount / 2;
-                if (remainingBalance <= 0)
+                if (finalAmount <= 0 || booking.FinalPaymentPaid >= finalAmount)
                 {
                     TempData["Error"] = "No remaining balance to pay.";
                     return RedirectToAction("MyBookings", "Booking");
@@ -149,7 +146,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ─── 🔥 FIX: GET SUBACCOUNT (SKIP DUMMY IN TEST MODE) ───
+                // ─── GET SUBACCOUNT ───
                 string subaccount = null;
                 if (booking.UserService?.Artist != null)
                 {
@@ -158,16 +155,12 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
 
                     if (artistProfile != null && !string.IsNullOrEmpty(artistProfile.SubaccountCode))
                     {
-                        // ─── SKIP DUMMY TEST SUBACCOUNT ───
                         if (!artistProfile.SubaccountCode.StartsWith("TEST_SUBACCOUNT_"))
-                        {
                             subaccount = artistProfile.SubaccountCode;
-                        }
                     }
                 }
 
-                // ─── INITIALIZE PAYMENT WITH SUBACCOUNT ───
-                var result = await _paymentService.InitializePayment(email, remainingBalance, bookingId, subaccount);
+                var result = await _paymentService.InitializePayment(email, finalAmount, bookingId, subaccount);
 
                 if (!result.success)
                 {
@@ -190,6 +183,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                 return RedirectToAction("CheckoutFinalPayment", "Booking", new { id = bookingId });
             }
         }
+
         [HttpGet]
         [Route("Payment/PaymentCallback")]
         public async Task<IActionResult> PaymentCallback(string reference, string trxref)
@@ -233,73 +227,21 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ── If payment already marked success, handle gracefully ──
-                if (payment.Status == "success")
-                {
-                    // Check if deposit was not recorded yet
-                    if (!booking.IsDepositPaid && booking.DepositPaid == 0)
-                    {
-                        // Determine if this was a deposit or full payment
-                        bool isFull = payment.Amount >= booking.TotalAmount;
-
-                        if (isFull)
-                        {
-                            booking.DepositPaid = payment.Amount;
-                            booking.DepositPaidDate = DateTime.UtcNow;
-                            booking.IsDepositPaid = true;
-                            booking.FinalPaymentPaid = 0;
-                            booking.Status = BookingStatus.Confirmed;
-                            await _context.SaveChangesAsync();
-
-                            await SendFullPaymentEmails(booking, payment.Amount);
-                            TempData["Success"] = "Full payment successful! Your appointment is now confirmed and fully paid.";
-                        }
-                        else
-                        {
-                            booking.DepositPaid = payment.Amount;
-                            booking.DepositPaidDate = DateTime.UtcNow;
-                            booking.IsDepositPaid = true;
-                            booking.Status = BookingStatus.Confirmed;
-                            await _context.SaveChangesAsync();
-
-                            await SendDepositEmails(booking, payment.Amount);
-                            TempData["Success"] = "Deposit successful! Your appointment is now confirmed.";
-                        }
-                        return RedirectToAction("MyBookings", "Booking");
-                    }
-
-                    // Check for final payment (if deposit already paid and no final payment recorded)
-                    if (booking.IsDepositPaid && booking.FinalPaymentPaid == 0 && payment.Amount > 0)
-                    {
-                        decimal remainingBalance = booking.ServicePrice / 2;
-                        booking.FinalPaymentPaid = remainingBalance;
-                        booking.FinalPaidDate = DateTime.UtcNow;
-                        await _context.SaveChangesAsync();
-
-                        await SendFinalPaymentEmails(booking, remainingBalance);
-                        TempData["Success"] = "Final payment successful! Your appointment is now fully paid.";
-                        return RedirectToAction("MyBookings", "Booking");
-                    }
-
-                    // If already fully paid
-                    TempData["Success"] = "Payment already processed.";
-                    return RedirectToAction("MyBookings", "Booking");
-                }
-
-                // ── FRESH PAYMENT ──
+                // ─── MARK PAYMENT AS SUCCESSFUL ───
                 payment.Status = "success";
                 payment.PaidAt = DateTime.UtcNow;
                 payment.PaymentMethod = result.data.channel;
+                await _context.SaveChangesAsync();
 
-                // 🔥 Check if this is a deposit (booking fee paid in full with deposit)
+                // ─── DETERMINE PAYMENT TYPE ───
                 bool isDeposit = !booking.IsDepositPaid;
-                bool isFullPayment = payment.Amount >= booking.TotalAmount;
+                bool isFullPayment = payment.Amount >= ClientTotal(booking); // client total = marked‑up + fee
 
                 if (isDeposit)
                 {
                     if (isFullPayment)
                     {
-                        // Full payment (last-minute)
+                        // ─── Full payment (last‑minute) ───
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -312,7 +254,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     }
                     else
                     {
-                        // Deposit = 50% of service price + FULL booking fee
+                        // ─── Normal deposit ───
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -362,13 +304,13 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                 }
                 else
                 {
-                    // ── Final Payment ──
-                    decimal remainingBalance = booking.ServicePrice / 2;
-                    booking.FinalPaymentPaid = remainingBalance;
+                    // ─── Final Payment ───
+                    decimal finalAmount = FinalAmount(booking);
+                    booking.FinalPaymentPaid = finalAmount;
                     booking.FinalPaidDate = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
 
-                    await SendFinalPaymentEmails(booking, remainingBalance);
+                    await SendFinalPaymentEmails(booking, finalAmount);
 
                     // ─── SEND IN-APP NOTIFICATION ───
                     if (User.Identity.IsAuthenticated)
@@ -412,7 +354,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
         }
 
         // ============================================================
-        // 📧 EMAIL HELPERS
+        // 📧 EMAIL HELPERS (UPDATED WITH NEW PRICING)
         // ============================================================
 
         private async Task SendDepositEmails(Booking booking, decimal depositAmount)
@@ -438,19 +380,22 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     return;
                 }
 
+                decimal clientServicePrice = ClientPrice(booking);
+                decimal finalAmount = FinalAmount(booking);
+
                 // To Artist
                 string artistSubject = "💰 Deposit Payment Received – Appointment Confirmed!";
                 string artistBody = $@"
                 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
                     <h2 style='color: #f0c808; text-align: center;'>Deposit Received! ✅</h2>
                     <p>Dear {artist.FirstName},</p>
-                    <p>The client <strong>{client.FirstName} {client.LastName}</strong> has paid the 50% deposit of <strong>R{depositAmount:N2}</strong> for:</p>
+                    <p>The client <strong>{client.FirstName} {client.LastName}</strong> has paid the deposit of <strong>R{depositAmount:N2}</strong> for:</p>
                     <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                         <p><strong>Service:</strong> {serviceName}</p>
                         <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
                         <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
                         <p><strong>Deposit Received:</strong> R{depositAmount:N2}</p>
-                        <p><strong>Remaining Balance:</strong> R{(booking.TotalAmount / 2):N2}</p>
+                        <p><strong>Remaining Balance:</strong> R{finalAmount:N2}</p>
                     </div>
                     <p>This appointment is now <strong>CONFIRMED</strong>. The client will pay the remaining balance at least 2 days before the appointment.</p>
                     <hr>
@@ -464,8 +409,11 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     <h2 style='color: #28a745; text-align: center;'>Deposit Paid! 🎉</h2>
                     <p>Dear {client.FirstName},</p>
                     <p>Your deposit of <strong>R{depositAmount:N2}</strong> has been received.</p>
+                    <p><strong>Deposit Breakdown:</strong></p>
+                    <p>50% of service price: R{(clientServicePrice / 2):N2}</p>
+                    <p style='color: #f0c808;'>Booking Fee: R{booking.BookingFee:N2}</p>
                     <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>CONFIRMED</strong>.</p>
-                    <p><strong>Remaining Balance:</strong> R{(booking.TotalAmount / 2):N2} (to be paid at least 2 days before the appointment)</p>
+                    <p><strong>Remaining Balance:</strong> R{finalAmount:N2} (to be paid at least 2 days before the appointment)</p>
                     <p>Thank you for choosing RubiOr!</p>
                     <hr>
                     <p style='font-size: 12px; color: #666;'>RubiOr</p>
@@ -482,7 +430,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
             }
         }
 
-        private async Task SendFinalPaymentEmails(Booking booking, decimal remainingBalance)
+        private async Task SendFinalPaymentEmails(Booking booking, decimal finalAmount)
         {
             try
             {
@@ -505,18 +453,22 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                     return;
                 }
 
+                decimal clientServicePrice = ClientPrice(booking);
+                decimal depositPaid = booking.DepositPaid;
+
                 // To Artist
                 string artistSubject = "💰 Final Payment Received – Appointment Fully Paid!";
                 string artistBody = $@"
                 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
                     <h2 style='color: #28a745; text-align: center;'>Final Payment Received! ✅</h2>
                     <p>Dear {artist.FirstName},</p>
-                    <p>The client <strong>{client.FirstName} {client.LastName}</strong> has paid the remaining balance of <strong>R{remainingBalance:N2}</strong> for:</p>
+                    <p>The client <strong>{client.FirstName} {client.LastName}</strong> has paid the remaining balance of <strong>R{finalAmount:N2}</strong> for:</p>
                     <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
                         <p><strong>Service:</strong> {serviceName}</p>
                         <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
                         <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-                        <p><strong>Total Paid:</strong> <span style='color: #28a745;'>R {(booking.UserService?.Price ?? 0):N2}</span></p>
+                        <p><strong>Total Received:</strong> R{(depositPaid + finalAmount):N2}</p>
+                        <p><strong>Your Earnings (service price):</strong> R{booking.ServicePrice:N2}</p>
                     </div>
                     <p>This appointment is now <strong>FULLY PAID</strong>. You can mark it as completed after the service.</p>
                     <hr>
@@ -529,7 +481,7 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
                     <h2 style='color: #28a745; text-align: center;'>Final Payment Confirmed! 🎉</h2>
                     <p>Dear {client.FirstName},</p>
-                    <p>Your final payment of <strong>R{remainingBalance:N2}</strong> has been received.</p>
+                    <p>Your final payment of <strong>R{finalAmount:N2}</strong> has been received.</p>
                     <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>FULLY PAID</strong>.</p>
                     <p>Thank you for choosing RubiOr!</p>
                     <hr>
@@ -547,7 +499,6 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
             }
         }
 
-        // ── New: Full Payment Emails ──
         private async Task SendFullPaymentEmails(Booking booking, decimal fullAmount)
         {
             try
@@ -582,6 +533,8 @@ public async Task<IActionResult> InitiatePayment(int bookingId, string email, de
                         <p><strong>Service:</strong> {serviceName}</p>
                         <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
                         <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
+                        <p><strong>Total Received:</strong> R{fullAmount:N2}</p>
+                        <p><strong>Your Earnings (service price):</strong> R{booking.ServicePrice:N2}</p>
                     </div>
                     <p>This appointment is now <strong>CONFIRMED</strong> and <strong>FULLY PAID</strong>. You can mark it as completed after the service.</p>
                     <hr>

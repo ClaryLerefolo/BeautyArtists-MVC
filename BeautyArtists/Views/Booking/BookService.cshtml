@@ -174,9 +174,11 @@
                 <div class="book-summary-row"><span>Date &amp; Time</span><strong id="summarySlot">—</strong></div>
 
                 <!-- 🔥 PRICE BLOCK MOVED HERE INSIDE SUMMARY -->
+                <!-- 🔥 PRICE BLOCK WITH 15% MARKUP -->
+                <!-- 🔥 PRICE BLOCK – SIMPLIFIED -->
                 <div class="book-summary-row book-summary-total">
-                    <span>Service Price</span>
-                    <strong>R @Model.Price.ToString("N0")</strong>
+                    <span>Service Price <span style="font-size:0.7rem;color:rgba(255,215,0,0.4);"></span></span>
+                    <strong>R @((Model.Price * 1.15m).ToString("N0"))</strong>
                 </div>
                 <div class="book-summary-row" style="border-bottom: 1px solid rgba(255,215,0,0.15);">
                     <span style="color: rgba(255,215,0,0.5);">Booking Fee</span>
@@ -184,9 +186,8 @@
                 </div>
                 <div class="book-summary-row book-summary-total" style="border-bottom: none; padding-bottom: 0;">
                     <span style="color: #FFD700; font-weight: 800;">Total You Pay</span>
-                    <strong style="color: #FFD700; font-size: 1.2rem;">R @Model.ClientTotal.ToString("N0")</strong>
+                    <strong style="color: #FFD700; font-size: 1.2rem;">R @((Model.Price * 1.15m + Model.BookingFee).ToString("N0"))</strong>
                 </div>
-
                 <div class="travel-cost-disclaimer" id="travelDisclaimer" style="display:none">ℹ️ <em>Transport costs for house calls are calculated and added by your artist when reviewing the request.</em></div>
             </div>
 

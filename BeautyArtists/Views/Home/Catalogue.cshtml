@@ -50,7 +50,7 @@
                 </div>
                 <div class="cat-stat-divider"></div>
                 <div class="cat-stat">
-                    <span class="cat-stat-num">R @minPrice.ToString("N0")</span>
+                    <span class="cat-stat-num">R @((minPrice * 1.15m).ToString("N0"))</span>
                     <span class="cat-stat-label">FROM</span>
                 </div>
             </div>
@@ -91,7 +91,8 @@
                                  alt="@service.ServiceName"
                                  onerror="this.src='/images/service-default.jpg'">
                             <div class="cat-card-img-overlay"></div>
-                            <div class="cat-price-tag">R @service.Price.ToString("N0")</div>
+                            @* ─── PRICE TAG (MARKED UP FOR CLIENT) ─── *@
+                            <div class="cat-price-tag">R @((service.Price * 1.15m).ToString("N0"))</div>
                             <div class="cat-category-tag">@service.Category</div>
                         </div>
 
@@ -366,21 +367,15 @@
     }
 
     @@media (max-width: 992px) {
-        .cat-grid
-
-    {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
+        .cat-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 
     @@media (max-width: 576px) {
-        .cat-grid
-
-    {
-        grid-template-columns: 1fr;
-    }
-
+        .cat-grid {
+            grid-template-columns: 1fr;
+        }
     }
 
     /* ── CARD ── */

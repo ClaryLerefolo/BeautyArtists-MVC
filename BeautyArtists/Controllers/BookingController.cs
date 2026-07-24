@@ -135,13 +135,15 @@ namespace BeautyArtists.Controllers
                 : userService.Artist?.UserName ?? "Pro Artist";
 
             decimal bookingFee = BOOKING_FEE;
-            decimal clientTotal = userService.Price + bookingFee;
+            decimal servicePrice = userService.Price; // artist's price
+            decimal clientServicePrice = servicePrice * 1.15m; // marked up for client
+            decimal clientTotal = clientServicePrice + bookingFee;
 
             var model = new BookingViewModel
             {
                 UserServiceId = userServiceId,
                 ServiceName = userService.Service?.Name,
-                Price = userService.Price,
+                Price = servicePrice,
                 BookingFee = bookingFee,
                 ClientTotal = clientTotal,
                 ArtistName = artistName,
@@ -234,8 +236,7 @@ namespace BeautyArtists.Controllers
                         model.ServiceName = userService.Service?.Name;
                         model.Price = userService.Price;
                         model.BookingFee = BOOKING_FEE;
-                        model.ClientTotal = userService.Price + BOOKING_FEE;
-                        model.ArtistId = userService.ArtistId;
+                        model.ClientTotal = (userService.Price * 1.15m) + BOOKING_FEE; model.ArtistId = userService.ArtistId;
                         model.ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
                             ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
                             : userService.Artist?.UserName ?? "Pro Artist";
@@ -619,7 +620,11 @@ namespace BeautyArtists.Controllers
             var daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
             var isLastMinute = daysUntilAppointment < 2;
 
-            var depositAmount = isLastMinute ? booking.TotalAmount : (booking.ServicePrice / 2) + booking.BookingFee;
+            // ─── NEW PRICING ───
+            decimal clientServicePrice = booking.ServicePrice * 1.15m; // marked‑up price
+
+            // If last minute, client pays the full total (including booking fee and marked‑up service)
+            var depositAmount = isLastMinute ? booking.TotalAmount : (clientServicePrice / 2) + booking.BookingFee;
 
             var model = new CheckoutViewModel
             {
@@ -661,8 +666,15 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                decimal depositAmount = (booking.ServicePrice / 2) + booking.BookingFee;
-                decimal artistShareOfDeposit = (booking.ServicePrice / 2) * (1 - COMMISSION_RATE);
+                // ─── NEW PRICING ───
+                decimal clientServicePrice = booking.ServicePrice * 1.15m;
+                decimal depositAmount = (clientServicePrice / 2) + booking.BookingFee; // matches CheckoutDeposit
+
+                // Artist gets 85% of half of their original price (since we take 15% commission)
+                // The deposit includes the booking fee, which is 100% platform revenue.
+                // So artist's share is only from the service portion: half of their price, minus commission.
+                decimal servicePortionOfDeposit = booking.ServicePrice / 2;
+                decimal artistShareOfDeposit = servicePortionOfDeposit * (1 - COMMISSION_RATE);
 
                 booking.DepositPaid = depositAmount;
                 booking.DepositPaidDate = DateTime.UtcNow;
@@ -695,9 +707,9 @@ namespace BeautyArtists.Controllers
         <p><strong>Service:</strong> {serviceName}</p>
         <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
         <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-        <p><strong>Your Cut (85%):</strong> R {artistShareOfDeposit:N2}</p>
+        <p><strong>Your Cut (85% of service half):</strong> R {artistShareOfDeposit:N2}</p>
     </div>
-    <p>The client will pay the remaining 50% of the service price 2 days before the appointment.</p>
+    <p>The client will pay the remaining half of the marked‑up price 2 days before the appointment.</p>
     <hr>
     <p style='font-size: 12px; color: #666;'>RubiOr</p>
 </div>";
@@ -712,10 +724,10 @@ namespace BeautyArtists.Controllers
     <p>Dear {currentUser.FirstName},</p>
     <p>Your deposit of <strong>R{depositAmount:N2}</strong> has been received.</p>
     <p><strong>Deposit Breakdown:</strong></p>
-    <p style='padding-left: 20px;'>50% of Service Price: R {(booking.ServicePrice / 2):N2}</p>
+    <p style='padding-left: 20px;'>50% of Marked‑up Service Price: R {(clientServicePrice / 2):N2}</p>
     <p style='padding-left: 20px; color: #f0c808;'>+ Booking Fee: R {booking.BookingFee:N2}</p>
     <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>CONFIRMED</strong>.</p>
-    <p>You will pay the remaining <strong>R {(booking.ServicePrice / 2):N2}</strong> 2 days before the appointment.</p>
+    <p>You will pay the remaining <strong>R {(clientServicePrice / 2):N2}</strong> 2 days before the appointment.</p>
     <hr>
     <p style='font-size: 12px; color: #666;'>RubiOr</p>
 </div>";
@@ -767,7 +779,12 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                decimal remainingBalance = booking.ServicePrice / 2;
+                // ─── NEW PRICING ───
+                decimal clientServicePrice = booking.ServicePrice * 1.15m;
+                decimal remainingBalance = clientServicePrice / 2;
+
+                // If we're in last‑minute scenario, the remaining might be different; but ProcessFinalPayment only called when not last minute? 
+                // We'll still compute as above.
 
                 if (remainingBalance <= 0)
                 {
@@ -778,13 +795,26 @@ namespace BeautyArtists.Controllers
                 double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
                 if (daysUntilAppointment < 2)
                 {
-                    TempData["Error"] = "Final payment must be cleared at least 2 days before the appointment.";
-                    return RedirectToAction("MyBookings");
+                    // In last‑minute, the client should have paid full in deposit, so this shouldn't be called.
+                    // But if it is, we charge the full remaining.
+                    decimal totalRemaining = booking.TotalAmount - booking.DepositPaid;
+                    if (totalRemaining > 0)
+                        remainingBalance = totalRemaining;
+                    else
+                    {
+                        TempData["Error"] = "This booking has already been fully paid.";
+                        return RedirectToAction("MyBookings");
+                    }
                 }
 
                 booking.FinalPaymentPaid = remainingBalance;
                 booking.FinalPaidDate = DateTime.UtcNow;
-                booking.ArtistTotalEarned += remainingBalance * (1 - COMMISSION_RATE);
+
+                // Artist earns 85% of the remaining service portion (half of their price)
+                decimal servicePortionOfFinal = booking.ServicePrice / 2;
+                decimal artistShareOfFinal = servicePortionOfFinal * (1 - COMMISSION_RATE);
+                booking.ArtistTotalEarned += artistShareOfFinal;
+
                 await _context.SaveChangesAsync();
 
                 var artist = booking.UserService?.Artist;
@@ -811,7 +841,7 @@ namespace BeautyArtists.Controllers
             <p><strong>Service:</strong> {serviceName}</p>
             <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
             <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-            <p><strong>Your Total Cut (85%):</strong> R {booking.ArtistTotalEarned:N2}</p>
+            <p><strong>Your Total Cut (85% of full service):</strong> R {booking.ArtistTotalEarned:N2}</p>
         </div>
         <p>This appointment is now <strong>FULLY PAID</strong>.</p>
         <hr>
@@ -1084,14 +1114,17 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                decimal remainingBalance = booking.ServicePrice / 2;
-
                 if (!booking.IsDepositPaid)
                 {
                     TempData["Error"] = "Please pay the deposit first.";
                     return RedirectToAction("MyBookings");
                 }
 
+                // ─── NEW PRICING ───
+                decimal clientServicePrice = booking.ServicePrice * 1.15m;
+                decimal remainingBalance = clientServicePrice / 2; // remaining half of marked‑up service price
+
+                // If final payment is already covered (should not happen but safe)
                 if (booking.FinalPaymentPaid >= remainingBalance || remainingBalance <= 0)
                 {
                     TempData["Error"] = "This booking has already been fully paid.";
@@ -1103,6 +1136,7 @@ namespace BeautyArtists.Controllers
 
                 if (isLastMinute)
                 {
+                    // If last minute, the client must pay the full remaining amount (including any shortfall)
                     decimal totalRemaining = booking.TotalAmount - booking.DepositPaid;
                     if (totalRemaining > 0)
                     {

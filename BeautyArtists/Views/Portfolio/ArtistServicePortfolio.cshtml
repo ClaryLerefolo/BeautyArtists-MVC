@@ -19,7 +19,8 @@
                 <p class="text-white-50 fs-6">by <span class="text-gold">@Model.ArtistName</span></p>
                 <p class="text-light" style="font-size:0.9rem;">@Model.ServiceDescription</p>
                 <div class="d-flex align-items-center gap-3 mt-2 flex-wrap">
-                    <span class="price-badge">R @Model.ServicePrice.ToString("N0")</span>
+                    <span class="price-badge">R @((Model.ServicePrice * 1.15m).ToString("N0"))</span>
+             
                     <a asp-controller="Booking" asp-action="BookService"
                        asp-route-userServiceId="@Model.UserServiceId"
                        class="booknow-small">

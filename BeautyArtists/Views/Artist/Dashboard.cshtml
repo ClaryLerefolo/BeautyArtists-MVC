@@ -12,7 +12,6 @@
         box-sizing: border-box;
     }
 
-    /* UNIFORM RESPONSIVE STATS GRID */
     .stats-card-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -21,7 +20,6 @@
         box-sizing: border-box;
     }
 
-    /* CARDS & HOVER GLOW */
     .stat-glow-card {
         background: #0d0d0d;
         border-radius: 18px;
@@ -80,7 +78,6 @@
         font-size: 1.4rem;
     }
 
-    /* LOWER SECTION GRID (TABLE & CHART) */
     .dashboard-lower-grid {
         display: grid;
         grid-template-columns: 1fr;
@@ -111,7 +108,6 @@
         font-weight: 600;
     }
 
-    /* COMPACT TABLE STYLE */
     .beauty-table-compact {
         width: 100%;
         border-collapse: separate;
@@ -145,7 +141,6 @@
                 border-radius: 0 8px 8px 0;
             }
 
-    /* ─── STATUS PILLS ─── */
     .status-pill {
         padding: 3px 10px;
         border-radius: 20px;
@@ -209,60 +204,50 @@
             margin: 0;
         }
 
-    /* MEDIA QUERIES */
     @@media (min-width: 650px) {
-        .stats-card-grid
+        .stats-card-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
 
-    {
-        grid-template-columns: repeat(4, 1fr);
-        gap: 15px;
-    }
+        .stat-glow-card {
+            padding: 30px 10px;
+        }
 
-    .stat-glow-card {
-        padding: 30px 10px;
-    }
-
-    .stat-num {
-        font-size: 2.8rem;
-    }
-
+        .stat-num {
+            font-size: 2.8rem;
+        }
     }
 
     @@media (min-width: 992px) {
-        .dashboard-lower-grid
-
-    {
-        grid-template-columns: 1.5fr 1fr;
-    }
-
+        .dashboard-lower-grid {
+            grid-template-columns: 1.5fr 1fr;
+        }
     }
 
     @@media (max-width: 400px) {
-        .stat-num
+        .stat-num {
+            font-size: 1.6rem;
+        }
 
-    {
-        font-size: 1.6rem;
-    }
+        .orb-red-gold {
+            width: 40px;
+            height: 40px;
+            font-size: 1rem;
+        }
 
-    .orb-red-gold {
-        width: 40px;
-        height: 40px;
-        font-size: 1rem;
-    }
+        .stat-glow-card {
+            padding: 12px 6px;
+        }
 
-    .stat-glow-card {
-        padding: 12px 6px;
-    }
+        .beauty-table-compact td {
+            font-size: 0.7rem;
+            padding: 6px 8px;
+        }
 
-    .beauty-table-compact td {
-        font-size: 0.7rem;
-        padding: 6px 8px;
-    }
-
-    .beauty-table-compact th {
-        font-size: 0.6rem;
-    }
-
+        .beauty-table-compact th {
+            font-size: 0.6rem;
+        }
     }
 </style>
 
@@ -289,7 +274,7 @@
         <div class="stat-glow-card">
             <div class="orb-red-gold"><i class="bi bi-wallet2"></i></div>
             <div class="stat-num">R @Model.MonthlyEarnings.ToString("N0")</div>
-            <div class="stat-tag">This Month's Earnings</div>
+            <div class="stat-tag">Your Earnings This Month</div>
         </div>
     </div>
 
@@ -357,7 +342,6 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // ─── EARNINGS CHART ───
         @if (Model.MonthlyEarningsGraph != null && Model.MonthlyEarningsGraph.Any() && Model.MonthlyEarningsGraph.Sum() > 0)
         {
                 <text>
@@ -417,7 +401,6 @@
                         }
                     });
 
-                    // ─── RESIZE HANDLER ───
                     window.addEventListener('resize', function() {
                         chart.resize();
                     });

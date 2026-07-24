@@ -101,14 +101,14 @@
             @* Price *@
             <div class="sl-filter-group">
                 <label class="sl-filter-label">
-                    Max Price: <span id="priceLabel" style="color:#FFD700">R @maxPrice.ToString("N0")</span>
+                    Max Price: <span id="priceLabel" style="color:#FFD700">R @((maxPrice * 1.15m).ToString("N0"))</span>
                 </label>
                 <input type="range" class="sl-price-slider" id="filterPrice"
                        min="0" max="@maxPrice.ToString("F0")"
                        value="@maxPrice.ToString("F0")" step="50" />
                 <div class="sl-price-range-labels">
                     <span>R 0</span>
-                    <span>R @maxPrice.ToString("N0")</span>
+                    <span>R @((maxPrice * 1.15m).ToString("N0"))</span>
                 </div>
             </div>
 
@@ -219,9 +219,13 @@
                                     </div>
                                 }
 
-                                <p class="price mb-4" style="color:#FFD700;font-size:1.4rem;font-weight:800;">
-                                    R @service.Price
-                                </p>
+                                @* ─── PRICE DISPLAY (MARKED UP FOR CLIENT) ─── *@
+                                <div class="mb-2">
+                                    <p class="price" style="color:#FFD700;font-size:1.4rem;font-weight:800;margin:0;">
+                                        R @((service.Price * 1.15m).ToString("N0"))
+                                    </p>
+                              
+                                </div>
 
                                 <div class="d-grid gap-2">
                                     <a asp-controller="Portfolio" asp-action="ArtistServicePortfolio"
@@ -751,9 +755,10 @@
             catSel.addEventListener('change', applyFilters);
 
             priceEl.addEventListener('input', function() {
-                priceLabel.textContent = 'R ' + parseInt(this.value).toLocaleString('en-ZA');
-                applyFilters();
-            });
+            var clientPrice = parseFloat(this.value) * 1.15;
+            priceLabel.textContent = 'R ' + clientPrice.toLocaleString('en-ZA', { maximumFractionDigits: 0 });
+            applyFilters();
+        });
 
             document.getElementById('filterReset').addEventListener('click', resetFilters);
             window.resetFilters = resetFilters;

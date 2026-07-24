@@ -50,12 +50,12 @@
         <span class="visually-hidden">Next</span>
     </button>
 </header>
+
 <section class="py-5 bg-black">
     <div class="container text-center">
         <h2 class="text-gold fw-normal mb-5 mt-3" style="letter-spacing: 2px; font-size: 1.8rem;">EXPLORE BY CATEGORY</h2>
 
         <div class="row g-3 justify-content-center">
-            @* 'g-3' for tighter gaps, 'justify-content-center' for layout balance *@
             @foreach (var cat in Model.Categories)
             {
                 <div class="col-lg-3 col-md-4 col-sm-6 mb-2">
@@ -76,8 +76,7 @@
     </div>
 </section>
 
-
-
+@* ─── FEATURED SERVICES ─── *@
 <section class="py-5" style="background-color: #1a1c20;">
     <div class="container text-center">
         <h2 class="text-gold fw-bold mb-5" style="font-size: 2rem;">Featured Services</h2>
@@ -92,12 +91,9 @@
 
                             <div style="height: 220px; overflow: hidden; position: relative;">
                                 @{
-                                    // 1. Identify which path to use (Artist upload vs Admin template)
                                     var imgUrl = !string.IsNullOrEmpty(userService.ImagePath)
                                     ? userService.ImagePath
                                     : userService.Service?.ImagePath;
-
-                                    // 2. Clean the path to ensure ASP.NET handles the ~/ correctly
                                     var cleanPath = imgUrl?.TrimStart('/');
                                 }
 
@@ -107,8 +103,9 @@
                                      alt="@userService.Service?.Name"
                                      onerror="this.src='/images/placeholder.jpg';">
 
+                                @* ─── PRICE: CLIENT PRICE (MARKED UP) ─── *@
                                 <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: #f0c808; padding: 5px 15px; border-radius: 20px; font-weight: bold; border: 1px solid #f0c808;">
-                                    R @userService.Price
+                                    R @((userService.Price * 1.15m).ToString("N0"))
                                 </div>
                             </div>
 
@@ -116,9 +113,11 @@
                                 <h5 class="text-gold fw-bold mb-1">@userService.Service?.Name</h5>
                                 <p class="text-white-50 small mb-2">By: @(userService.Artist?.UserName ?? "Pro Artist")</p>
 
-                                <p class="text-muted small mb-4" style="height: 40px; overflow: hidden;">
+                                <p class="text-muted small mb-2" style="height: 40px; overflow: hidden;">
                                     @(userService.CustomDescription ?? userService.Service?.Description)
                                 </p>
+
+                            
 
                                 <a href="@Url.Action("ViewService", "Home", new { artistId = userService.ArtistId })"
                                    class="text-gold fw-bold text-decoration-none small" style="letter-spacing: 1px;">
@@ -144,6 +143,7 @@
         </div>
     </div>
 </section>
+
 @* ─── TOP RATED SERVICES ─── *@
 @if (Model.TopRatedServices != null && Model.TopRatedServices.Any())
 {
@@ -173,9 +173,12 @@
                                      class="w-100 h-100" style="object-fit: cover;"
                                      alt="@service.Service?.Name"
                                      onerror="this.src='/images/placeholder.jpg';" />
+
+                                @* ─── PRICE: CLIENT PRICE (MARKED UP) ─── *@
                                 <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: #f0c808; padding: 5px 15px; border-radius: 20px; border: 1px solid #f0c808; font-weight: bold;">
-                                    R @service.Price
+                                    R @((service.Price * 1.15m).ToString("N0"))
                                 </div>
+
                                 <div style="position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.7); color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 0.8rem;">
                                     <span style="color: #FFD700;">
                                         @for (int i = 1; i <= 5; i++)
@@ -201,9 +204,15 @@
                             <div class="card-body text-start p-4">
                                 <h5 class="text-gold fw-bold mb-1">@service.Service?.Name</h5>
                                 <p class="text-white-50 small mb-2">By: @(service.Artist?.UserName ?? "Pro Artist")</p>
-                                <p class="text-muted small mb-4" style="height: 40px; overflow: hidden;">
+
+                                <p class="text-muted small mb-2" style="height: 40px; overflow: hidden;">
                                     @(service.CustomDescription ?? service.Service?.Description)
                                 </p>
+
+                                <small style="display:block; color: rgba(255,255,255,0.2); font-size: 0.6rem; margin-bottom: 10px;">
+                                    <i class="fas fa-info-circle"></i> Includes 15% platform fee
+                                </small>
+
                                 <a href="@Url.Action("ViewService", "Home", new { artistId = service.ArtistId })"
                                    class="text-gold fw-bold text-decoration-none small" style="letter-spacing: 1px;">
                                     VIEW ARTIST <i class="fas fa-arrow-right ms-1"></i>
@@ -224,13 +233,12 @@
 }
 
 <style>
-
     .hero-slide {
         height: 88vh;
         background-size: cover;
-        background-position: center top; /* ← top anchors faces/subjects */
+        background-position: center top;
         background-repeat: no-repeat;
-        background-attachment: fixed; /* ← parallax effect, stops overlap */
+        background-attachment: fixed;
         position: relative;
         display: flex;
         align-items: center;
@@ -239,11 +247,9 @@
     .hero-overlay {
         position: absolute;
         inset: 0;
-        background: linear-gradient( to right, rgba(0,0,0,0.85) 0%, /* ← dark on left where text is */
-        rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.2) 100% /* ← lighter on right to show image */
-        );
+        background: linear-gradient( to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.5) 50%, rgba(0,0,0,0.2) 100% );
     }
-    /* Full Black Background & Luxury Gold */
+
     .bg-black {
         background-color: #000 !important;
     }
@@ -256,28 +262,25 @@
         border: 1.2px solid #f0c808 !important;
     }
 
-    @* Slightly thinner border for small cards *@
-    /* THE FIX: Constrained Height & Controlled Grid */
     .category-card {
-        height: 190px; /* <--- CRITICAL: Set a fixed, SMALL height to constrain the cards (vs 280px before) */
+        height: 190px;
         transition: all 0.3s ease;
     }
 
     .category-img {
         width: 100%;
         height: 100%;
-        object-fit: cover; /* Keeps image quality high while fitting the small space */
+        object-fit: cover;
         transition: transform 0.5s ease;
     }
 
-    /* THE OVERLAY: Centered Text with dark tint */
     .category-overlay {
         position: absolute;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.45); /* Darkens image for legibility */
+        background: rgba(0, 0, 0, 0.45);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -288,117 +291,50 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 1.2px;
-        font-size: 1.1rem; /* <--- CRITICAL: Constrained font size to match small card (vs display/h3 before) */
+        font-size: 1.1rem;
         text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
         z-index: 2;
     }
 
-    /* HOVER EFFECTS: Pop the gold border and zoom image slightly */
     .category-link:hover .category-card {
-        transform: translateY(-3px); /* Subtle lift instead of large scale zoom */
+        transform: translateY(-3px);
         box-shadow: 0 0 15px rgba(240, 200, 8, 0.3);
     }
 
     .category-link:hover .category-overlay {
-        background: rgba(0, 0, 0, 0.25); /* Brightens slightly on hover */
+        background: rgba(0, 0, 0, 0.25);
     }
 
     .category-link:hover .category-img {
-        transform: scale(1.08); /* Minimal zoom */
+        transform: scale(1.08);
     }
 
-    /* Removes the default link blue color/underline */
     .category-link {
         text-decoration: none !important;
     }
-</style>
 
-<style>
-    /* Full Black Background */
-    .bg-black {
-        background-color: #000 !important;
-    }
-
-    /* The Luxury Gold */
-    .text-gold {
-        color: #f0c808 !important;
-    }
-
-    .border-gold {
-        border: 1.5px solid #f0c808 !important;
-    }
-
-    /* Category Card Container */
-    .category-card {
-        height: 280px; /* Fixed height for consistent grid */
-        transition: all 0.4s ease;
-    }
-
-    .category-img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        transition: transform 0.6s ease;
-    }
-
-    /* THE OVERLAY: Centered Text & Darkening effect */
-    .category-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.4); /* Darkens image like your 1st ref */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: background 0.3s ease;
-    }
-
-    .category-title {
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        text-shadow: 2px 2px 10px rgba(0,0,0,0.8);
-        z-index: 2;
-    }
-
-    /* HOVER EFFECTS: Pop the gold border and zoom image slightly */
-    .category-link:hover .category-card {
-        transform: scale(1.02);
-        box-shadow: 0 0 20px rgba(240, 200, 8, 0.4);
-    }
-
-    .category-link:hover .category-overlay {
-        background: rgba(0, 0, 0, 0.2); /* Brightens slightly on hover */
-    }
-
-    .category-link:hover .category-img {
-        transform: scale(1.1);
-    }
-
-    /* Removes the default link blue color/underline */
-    .category-link {
-        text-decoration: none !important;
-    }
-</style>
-
-<style>
-    .text-gold { color: #f0c808 !important; }
     .btn-outline-gold {
         color: #f0c808;
         border: 2px solid #f0c808;
         transition: 0.3s;
     }
-    .btn-outline-gold:hover {
-        background-color: #f0c808;
-        color: #000;
-        box-shadow: 0 0 15px rgba(240, 200, 8, 0.4);
+
+        .btn-outline-gold:hover {
+            background-color: #f0c808;
+            color: #000;
+            box-shadow: 0 0 15px rgba(240, 200, 8, 0.4);
+        }
+
+    .card {
+        transition: transform 0.3s ease;
     }
-    .card { transition: transform 0.3s ease; }
-    .card:hover { transform: translateY(-10px); }
+
+        .card:hover {
+            transform: translateY(-10px);
+        }
 </style>
-<!-- Testimonials Carousel -->
+
+@* ─── TESTIMONIALS ─── *@
 @if (Model.Testimonials?.Any() == true)
 {
     <section class="py-5 bg-dark">
