@@ -43,14 +43,12 @@
 
                         <!-- 🔥 PAYMENT BREAKDOWN (NEW PRICING) -->
                         <div style="background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                            <p><strong>Service Price (incl. platform fee):</strong> R @clientServicePrice.ToString("N2")</p>
+                            <p><strong>Service Price:</strong> R @clientServicePrice.ToString("N2")</p>
                             <p><strong>Booking Fee:</strong> R @Model.Booking.BookingFee.ToString("N2") <span style="color: #28a745;">(Already Paid)</span></p>
                             <hr style="border-color: #333;">
                             <p><strong>Deposit Already Paid (50%):</strong> <span style="color: #ff6600;">R @depositPaidHalf.ToString("N2")</span></p>
                             <p><strong>Remaining Balance (50%):</strong> <span style="color: @headerColor; font-size: 1.3rem;">R @Model.DepositAmount.ToString("N2")</span></p>
-                            <p style="font-size: 0.7rem; color: rgba(255,255,255,0.3);">
-                                This is the remaining 50% of the marked‑up service price.
-                            </p>
+                            
                         </div>
 
                         <p><strong>Final Amount Due:</strong> <span style="color: @headerColor; font-size: 1.5rem;">R @Model.DepositAmount.ToString("N2")</span></p>
