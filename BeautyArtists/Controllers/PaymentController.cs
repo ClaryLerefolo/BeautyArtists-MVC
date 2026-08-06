@@ -23,22 +23,11 @@ namespace BeautyArtists.Controllers
         private const decimal BOOKING_FEE = 5.00m;
 
         // ─── CORRECT PRICING HELPERS ───
-        // What client pays for the service (artist price + 15% markup)
         private decimal ClientServicePrice(Booking b) => b.ServicePrice * 1.15m;
-
-        // What client pays total (service + booking fee)
         private decimal ClientTotal(Booking b) => ClientServicePrice(b) + b.BookingFee;
-
-        // Deposit = 50% of artist's price + booking fee (R5)
         private decimal DepositAmount(Booking b) => (b.ServicePrice / 2) + b.BookingFee;
-
-        // Final = remaining 50% of artist's price (for artist's records)
         private decimal FinalAmount(Booking b) => b.ServicePrice / 2;
-
-        // ✅ NEW: Client's final payment (marked-up price / 2)
         private decimal ClientFinalAmount(Booking b) => ClientServicePrice(b) / 2;
-
-        // Full payment = client total (for last minute bookings)
         private decimal FullPaymentAmount(Booking b) => ClientTotal(b);
 
         public PaymentController(
@@ -81,7 +70,6 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ─── GET ARTIST'S SUBACCOUNT CODE ───
                 string subaccount = null;
                 if (booking.UserService?.Artist != null)
                 {
@@ -145,7 +133,6 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ─── ✅ FIXED: COMPUTE FINAL AMOUNT USING MARKED-UP PRICE ───
                 decimal finalAmount = ClientFinalAmount(booking);
 
                 if (finalAmount <= 0 || booking.FinalPaymentPaid >= finalAmount)
@@ -161,7 +148,6 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ─── GET SUBACCOUNT ───
                 string subaccount = null;
                 if (booking.UserService?.Artist != null)
                 {
@@ -220,7 +206,6 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // Load payment record with all needed includes
                 var payment = await _context.Payments
                     .Include(p => p.Booking)
                         .ThenInclude(b => b.UserService)
@@ -242,13 +227,11 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ─── MARK PAYMENT AS SUCCESSFUL ───
                 payment.Status = "success";
                 payment.PaidAt = DateTime.UtcNow;
                 payment.PaymentMethod = result.data.channel;
                 await _context.SaveChangesAsync();
 
-                // ─── DETERMINE PAYMENT TYPE ───
                 bool isDeposit = !booking.IsDepositPaid;
                 bool isFullPayment = payment.Amount >= FullPaymentAmount(booking);
 
@@ -256,7 +239,6 @@ namespace BeautyArtists.Controllers
                 {
                     if (isFullPayment)
                     {
-                        // ─── Full payment (last‑minute) ───
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -269,7 +251,6 @@ namespace BeautyArtists.Controllers
                     }
                     else
                     {
-                        // ─── Normal deposit ───
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -280,7 +261,6 @@ namespace BeautyArtists.Controllers
                         TempData["Success"] = "Deposit successful! Your appointment is now confirmed.";
                     }
 
-                    // ─── SEND IN-APP NOTIFICATIONS ───
                     if (User.Identity.IsAuthenticated)
                     {
                         var currentUser = await _userManager.FindByIdAsync(booking.CustomerId);
@@ -319,8 +299,6 @@ namespace BeautyArtists.Controllers
                 }
                 else
                 {
-                    // ─── Final Payment ───
-                    // ✅ FIXED: Use client marked-up amount for client's final payment
                     decimal finalAmount = ClientFinalAmount(booking);
                     booking.FinalPaymentPaid = finalAmount;
                     booking.FinalPaidDate = DateTime.UtcNow;
@@ -369,7 +347,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ============================================================
-        // 📧 EMAIL HELPERS
+        // 📧 EMAIL HELPERS - FIXED
         // ============================================================
 
         private async Task SendDepositEmails(Booking booking, decimal depositAmount)
@@ -395,8 +373,8 @@ namespace BeautyArtists.Controllers
                     return;
                 }
 
-                decimal clientServicePrice = ClientServicePrice(booking);
-                decimal finalAmount = FinalAmount(booking);
+                // ✅ FIXED: Use ClientFinalAmount for remaining balance
+                decimal finalAmount = ClientFinalAmount(booking);  // R5.75
 
                 // To Artist
                 string artistSubject = "💰 Deposit Payment Received – Appointment Confirmed!";
