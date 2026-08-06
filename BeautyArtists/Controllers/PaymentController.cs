@@ -32,11 +32,8 @@ namespace BeautyArtists.Controllers
         // Deposit = 50% of artist's price + booking fee (R5)
         private decimal DepositAmount(Booking b) => (b.ServicePrice / 2) + b.BookingFee;
 
-        // Final = remaining 50% of artist's price (for artist's records)
+        // Final = remaining 50% of artist's price
         private decimal FinalAmount(Booking b) => b.ServicePrice / 2;
-
-        // ✅ NEW: Client's final payment (marked-up price / 2)
-        private decimal ClientFinalAmount(Booking b) => ClientServicePrice(b) / 2;
 
         // Full payment = client total (for last minute bookings)
         private decimal FullPaymentAmount(Booking b) => ClientTotal(b);
@@ -145,8 +142,8 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ─── ✅ FIXED: COMPUTE FINAL AMOUNT USING MARKED-UP PRICE ───
-                decimal finalAmount = ClientFinalAmount(booking);
+                // ─── COMPUTE FINAL AMOUNT ───
+                decimal finalAmount = FinalAmount(booking);
 
                 if (finalAmount <= 0 || booking.FinalPaymentPaid >= finalAmount)
                 {
@@ -250,13 +247,14 @@ namespace BeautyArtists.Controllers
 
                 // ─── DETERMINE PAYMENT TYPE ───
                 bool isDeposit = !booking.IsDepositPaid;
-                bool isFullPayment = payment.Amount >= FullPaymentAmount(booking);
+                bool isFullPayment = payment.Amount >= FullPaymentAmount(booking); // client total = marked‑up + fee
 
                 if (isDeposit)
                 {
                     if (isFullPayment)
                     {
                         // ─── Full payment (last‑minute) ───
+                        // Client pays full amount (marked up service + booking fee)
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -270,6 +268,7 @@ namespace BeautyArtists.Controllers
                     else
                     {
                         // ─── Normal deposit ───
+                        // Deposit = 50% of artist's price + booking fee
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -320,14 +319,15 @@ namespace BeautyArtists.Controllers
                 else
                 {
                     // ─── Final Payment ───
-                    // ✅ FIXED: Use client marked-up amount for client's final payment
-                    decimal finalAmount = ClientFinalAmount(booking);
+                    // Final = remaining 50% of artist's price
+                    decimal finalAmount = FinalAmount(booking);
                     booking.FinalPaymentPaid = finalAmount;
                     booking.FinalPaidDate = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
 
                     await SendFinalPaymentEmails(booking, finalAmount);
 
+                    // ─── SEND IN-APP NOTIFICATION ───
                     if (User.Identity.IsAuthenticated)
                     {
                         await _notificationService.CreateNotificationAsync(
