@@ -8,6 +8,11 @@ namespace BeautyArtists.Models.ViewModels
         public int CurrentPage { get; set; } = 1;
         public int TotalPages { get; set; } = 1;
         public int TotalCount { get; set; } = 0;
+        public int PageSize { get; set; } = 10; // ✅ Added
+
+        // Optional: Helper properties for the view
+        public int StartIndex => (CurrentPage - 1) * PageSize + 1;
+        public int EndIndex => Math.Min(CurrentPage * PageSize, TotalCount);
     }
 
     public class BookingWithReviewStatus

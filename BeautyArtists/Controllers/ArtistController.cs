@@ -55,7 +55,6 @@ namespace BeautyArtists.Controllers
 
             var artistId = user.Id;
 
-            // ─── GET COUNTS (SEQUENTIALLY) ───
             var portfolioCount = await _context.PortfolioItems
                 .Where(p => p.ArtistId == artistId)
                 .AsNoTracking()
@@ -73,7 +72,6 @@ namespace BeautyArtists.Controllers
                 .AsNoTracking()
                 .CountAsync();
 
-            // ─── MONTHLY EARNINGS CHART ───
             var sixMonthsAgo = DateTime.Now.AddMonths(-5);
             var monthlyEarnings = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId
@@ -88,7 +86,6 @@ namespace BeautyArtists.Controllers
                 })
                 .ToDictionaryAsync(k => $"{k.Year}-{k.Month:D2}", v => v.Total);
 
-            // ─── RECENT APPOINTMENTS ───
             var recentAppointments = await _context.Bookings
                 .Where(b => b.UserService.ArtistId == artistId)
                 .OrderByDescending(b => b.AppointmentDate)
@@ -108,7 +105,6 @@ namespace BeautyArtists.Controllers
                 })
                 .ToListAsync();
 
-            // ─── BUILD CHART DATA ───
             var chartData = new List<decimal>();
             var chartLabels = new List<string>();
             for (int i = 5; i >= 0; i--)
@@ -175,7 +171,6 @@ namespace BeautyArtists.Controllers
             var profile = await _context.ArtistProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
             if (profile == null) return NotFound();
 
-            // Update basic fields
             profile.FullName = updatedProfile.FullName ?? profile.FullName;
             profile.Bio = updatedProfile.Bio ?? profile.Bio;
             profile.YearsExperience = updatedProfile.YearsExperience;
@@ -187,7 +182,6 @@ namespace BeautyArtists.Controllers
             profile.TwitterUrl = updatedProfile.TwitterUrl ?? profile.TwitterUrl;
             profile.TikTokUrl = updatedProfile.TikTokUrl ?? profile.TikTokUrl;
 
-            // ── NEW: Studio address fields (for walk‑in) ──
             profile.StudioAddress = updatedProfile.StudioAddress ?? profile.StudioAddress;
             profile.StudioCity = updatedProfile.StudioCity ?? profile.StudioCity;
             profile.StudioProvince = updatedProfile.StudioProvince ?? profile.StudioProvince;
@@ -195,7 +189,6 @@ namespace BeautyArtists.Controllers
             profile.StudioLatitude = updatedProfile.StudioLatitude ?? profile.StudioLatitude;
             profile.StudioLongitude = updatedProfile.StudioLongitude ?? profile.StudioLongitude;
 
-            // Handle profile picture
             if (ProfilePicture != null && ProfilePicture.Length > 0)
             {
                 var uploadsFolder = Path.Combine(_env.WebRootPath, "uploads/profile_pictures");
@@ -513,12 +506,12 @@ namespace BeautyArtists.Controllers
         // MY APPOINTMENTS
         // ═══════════════════════════════════════════════════════════
         public async Task<IActionResult> MyAppointments(
-      int page = 1,
-      int pageSize = 10,
-      string filterStatus = null,
-      string filterFrom = null,
-      string filterTo = null,
-      string filterMonth = null)   // ← now matches the view
+            int page = 1,
+            int pageSize = 10,
+            string filterStatus = null,
+            string filterFrom = null,
+            string filterTo = null,
+            string filterMonth = null)
         {
             var artistId = _userManager.GetUserId(User);
             if (string.IsNullOrEmpty(artistId)) return Challenge();
@@ -530,32 +523,23 @@ namespace BeautyArtists.Controllers
                 .Include(b => b.UserService.Artist)
                 .Where(b => b.UserService.ArtistId == artistId);
 
-            // ─── APPLY FILTERS ───
-
-            // Status filter
             if (!string.IsNullOrEmpty(filterStatus) && filterStatus != "all")
             {
                 if (Enum.TryParse<BookingStatus>(filterStatus, true, out var statusEnum))
                     query = query.Where(b => b.Status == statusEnum);
             }
 
-            // Date range (parse the strings)
             if (!string.IsNullOrEmpty(filterFrom) && DateTime.TryParse(filterFrom, out var fromDate))
                 query = query.Where(b => b.AppointmentDate >= fromDate);
 
             if (!string.IsNullOrEmpty(filterTo) && DateTime.TryParse(filterTo, out var toDate))
                 query = query.Where(b => b.AppointmentDate <= toDate);
 
-            // Month filter (if provided)
             if (!string.IsNullOrEmpty(filterMonth) && int.TryParse(filterMonth, out int month))
             {
-                // Filter by month (current year or all years? We'll use current year for simplicity)
-                // Or you could filter by month regardless of year.
-                // Here we filter by the specific month across all years (or you can add year).
                 query = query.Where(b => b.AppointmentDate.Month == month);
             }
 
-            // ─── PAGINATION ───
             var totalCount = await query.CountAsync();
 
             var bookings = await query
@@ -564,14 +548,13 @@ namespace BeautyArtists.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
-            // ─── VIEWBAG FOR THE VIEW ───
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = (int)Math.Ceiling((double)totalCount / pageSize);
             ViewBag.TotalCount = totalCount;
             ViewBag.SelectedStatus = filterStatus;
             ViewBag.FromDate = filterFrom;
             ViewBag.ToDate = filterTo;
-            ViewBag.SelectedMonth = filterMonth;   // ← needed for the view's month dropdown
+            ViewBag.SelectedMonth = filterMonth;
 
             return View(bookings);
         }
@@ -628,7 +611,6 @@ namespace BeautyArtists.Controllers
             TempData["Success"] = $"Transport cost of R{transportCost:N2} added successfully!";
             return RedirectToAction("MyAppointments");
         }
-
         // ═══════════════════════════════════════════════════════════
         // BANKING
         // ═══════════════════════════════════════════════════════════
@@ -641,7 +623,7 @@ namespace BeautyArtists.Controllers
 
             if (profile == null) return NotFound();
 
-            var banks = GetTestBanks();
+            var banks = await GetBanksAsync();
 
             var model = new BankingViewModel
             {
@@ -664,7 +646,7 @@ namespace BeautyArtists.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Banking(BankingViewModel model)
         {
-            var banks = GetTestBanks();
+            var banks = await GetBanksAsync();
             model.Banks = banks.Select(b => new SelectListItem
             {
                 Value = b.Code,
@@ -680,6 +662,7 @@ namespace BeautyArtists.Controllers
 
             if (profile == null) return NotFound();
 
+            // ─── Validate bank account ───
             var validationResult = await _paystackService.ValidateBankAccountAsync(
                 model.BankCode, model.AccountNumber);
 
@@ -689,17 +672,35 @@ namespace BeautyArtists.Controllers
                 return View(model);
             }
 
-            model.AccountHolderName = validationResult.AccountHolderName;
+            // ✅ CORRECT: Use artist's input for ZAR, validation result for others
+            string accountHolderName;
+            if (string.IsNullOrEmpty(validationResult.AccountHolderName))
+            {
+                // ZAR case - use what artist typed
+                accountHolderName = model.AccountHolderName;
+            }
+            else
+            {
+                // Other currencies - use validated name
+                accountHolderName = validationResult.AccountHolderName;
+            }
+
+            if (string.IsNullOrEmpty(accountHolderName))
+            {
+                ModelState.AddModelError("AccountHolderName", "Account holder name is required.");
+                return View(model);
+            }
 
             var bankName = banks.FirstOrDefault(b => b.Code == model.BankCode)?.Name ?? "";
 
+            // ─── Save bank details ───
             profile.BankName = bankName;
             profile.BankCode = model.BankCode;
-            profile.AccountHolderName = validationResult.AccountHolderName;
+            profile.AccountHolderName = accountHolderName;
             profile.IsBankAccountVerified = true;
             profile.BankAccountVerifiedDate = DateTime.UtcNow;
 
-            bool isTestMode = _configuration["Paystack:Mode"]?.ToLower() != "live";
+            bool isTestMode = _configuration["Paystack:Mode"]?.ToLower() == "test";
 
             if (isTestMode)
             {
@@ -710,29 +711,70 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction(nameof(Banking));
             }
 
+            // ─── LIVE MODE: Create subaccount ───
             var businessName = profile.FullName ?? user.Email ?? "Artist";
             var subaccountResult = await _paystackService.CreateSubaccountAsync(
                 email: user.Email,
                 bankCode: model.BankCode,
                 accountNumber: model.AccountNumber,
                 businessName: businessName,
-                percentageCharge: 15m
+                percentageCharge: 0m
             );
 
             if (!subaccountResult.Success)
             {
                 ModelState.AddModelError("", subaccountResult.Message);
-                model.AccountHolderName = validationResult.AccountHolderName;
                 return View(model);
             }
 
             profile.SubaccountCode = subaccountResult.SubaccountCode;
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = $"✅ Bank account verified! Welcome aboard, {validationResult.AccountHolderName}. " +
-                $"Subaccount: {subaccountResult.SubaccountCode}";
+            TempData["Success"] = $"✅ Bank account verified! Welcome aboard, {accountHolderName}.";
 
             return RedirectToAction("Profile", "Artist");
+        }
+
+        private async Task<List<Bank>> GetBanksAsync()
+        {
+            try
+            {
+                var banks = await _paystackService.GetBanksAsync();
+                if (banks != null && banks.Any())
+                    return banks;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ Failed to fetch banks from API: {ex.Message}");
+            }
+
+            bool isTestMode = _configuration["Paystack:Mode"]?.ToLower() == "test";
+
+            if (isTestMode)
+            {
+                return new List<Bank>
+        {
+            new Bank { Name = "ABSA (Test)", Code = "000003" },
+            new Bank { Name = "Capitec (Test)", Code = "000002" },
+            new Bank { Name = "FNB (Test)", Code = "000001" },
+            new Bank { Name = "Standard Bank (Test)", Code = "000004" }
+        };
+            }
+
+            // ✅ CORRECT SOUTH AFRICAN BANK CODES - PERMANENT
+            return new List<Bank>
+    {
+        new Bank { Name = "ABSA", Code = "632005" },
+        new Bank { Name = "Capitec", Code = "470010" },
+        new Bank { Name = "FNB", Code = "250655" },
+        new Bank { Name = "Nedbank", Code = "198765" },
+        new Bank { Name = "Standard Bank", Code = "051001" },
+        new Bank { Name = "Bank Zero", Code = "679000" },
+        new Bank { Name = "Discovery Bank", Code = "679000" },
+        new Bank { Name = "TymeBank", Code = "678910" },
+        new Bank { Name = "African Bank", Code = "430000" },
+        new Bank { Name = "Investec", Code = "580105" }
+    };
         }
 
         [HttpGet]
@@ -747,19 +789,8 @@ namespace BeautyArtists.Controllers
             {
                 success = result.Success,
                 message = result.Message,
-                accountHolderName = result.AccountHolderName
+                accountHolderName = result.AccountHolderName  // Empty for ZAR
             });
-        }
-
-        private List<Bank> GetTestBanks()
-        {
-            return new List<Bank>
-            {
-                new Bank { Name = "ABSA (Test)", Code = "000003" },
-                new Bank { Name = "Capitec (Test)", Code = "000002" },
-                new Bank { Name = "FNB (Test)", Code = "000001" },
-                new Bank { Name = "Standard Bank (Test)", Code = "000004" }
-            };
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -788,7 +819,6 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction(nameof(MyAppointments));
                 }
 
-                // 🔥 FIX: Check if UserService exists
                 if (booking.UserService == null)
                 {
                     TempData["Error"] = "This booking has missing service details. Please contact support.";
@@ -797,7 +827,6 @@ namespace BeautyArtists.Controllers
 
                 booking.ArtistNotes = artistNotes;
 
-                // ── Walk‑in bookings go to confirmation step ──
                 if (newStatus == BookingStatus.Accepted && booking.SelectedLocationType == LocationType.WalkIn)
                 {
                     return RedirectToAction(nameof(ConfirmAcceptWalkIn), new { bookingId = bookingId });
@@ -821,7 +850,6 @@ namespace BeautyArtists.Controllers
                     if (booking.AvailabilitySlot != null) booking.AvailabilitySlot.IsBooked = true;
                     await _context.SaveChangesAsync();
 
-                    // ─── SEND IN-APP NOTIFICATION ───
                     try
                     {
                         if (!string.IsNullOrEmpty(booking.CustomerId))
@@ -838,8 +866,6 @@ namespace BeautyArtists.Controllers
                     }
                     catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
 
-                    // ─── SEND EMAIL ───
-                    // ─── SEND EMAIL ───
                     if (!string.IsNullOrEmpty(booking.Customer?.Email))
                     {
                         try
@@ -886,6 +912,7 @@ namespace BeautyArtists.Controllers
                 }
                 else if (newStatus == BookingStatus.Completed)
                 {
+                    // ✅ CORRECT: Client MUST pay in full before completion
                     decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
                     if (totalPaid < booking.TotalAmount)
                     {
@@ -997,21 +1024,28 @@ namespace BeautyArtists.Controllers
 
             if (!string.IsNullOrEmpty(booking.Customer?.Email))
             {
+                // ─── CORRECT CALCULATIONS ───
+                decimal servicePrice = booking.ServicePrice;                     // R100
+                decimal bookingFee = booking.BookingFee;                         // R5
+                decimal clientServicePrice = servicePrice * 1.15m;               // R115 (marked up)
+                decimal clientTotal = clientServicePrice + bookingFee;           // R120
+                decimal depositAmount = (servicePrice / 2) + bookingFee;         // R55
+
                 string subject = "✅ Your Walk‑in Appointment Has Been Accepted!";
                 string emailBody = $@"
-                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                    <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
-                    <p>Dear {booking.Customer.FirstName},</p>
-                    <p>Great news! The artist has ACCEPTED your walk‑in appointment request.</p>
-                    <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
-                    <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
-                    <p><strong>Total Amount:</strong> R {booking.TotalAmount:N2}</p>
-                    <p><strong>Deposit Required (50%):</strong> R {(booking.TotalAmount / 2):N2}</p>
-                    <div style='text-align: center; margin: 20px 0;'>
-                        <a href='{Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme)}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR 50% DEPOSIT NOW</a>
-                    </div>
-                    <p>Thank you for choosing RubiOr!</p>
-                </div>";
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
+    <p>Dear {booking.Customer.FirstName},</p>
+    <p>Great news! The artist has ACCEPTED your walk‑in appointment request.</p>
+    <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
+    <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
+    <p><strong>Total Amount:</strong> R {clientTotal:N2}</p>
+    <p><strong>Deposit Required:</strong> R {depositAmount:N2}</p>
+    <div style='text-align: center; margin: 20px 0;'>
+        <a href='{Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme)}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR DEPOSIT NOW</a>
+    </div>
+    <p>Thank you for choosing RubiOr!</p>
+</div>";
 
                 await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
             }
@@ -1025,10 +1059,8 @@ namespace BeautyArtists.Controllers
         // ═══════════════════════════════════════════════════════════
         public async Task<IActionResult> Reviews(int page = 1, int pageSize = 10)
         {
-            // ─── READ FILTER DIRECTLY FROM QUERY STRING ───
             string rating = Request.Query["rating"].ToString();
 
-            // ─── LOG FOR DEBUG ───
             Console.WriteLine($"🔍 Reviews filter - rating: '{rating}', page: {page}");
 
             var artistId = _userManager.GetUserId(User);
@@ -1041,13 +1073,11 @@ namespace BeautyArtists.Controllers
                         .ThenInclude(us => us.Service)
                 .Where(r => r.Booking.UserService.ArtistId == artistId);
 
-            // ─── APPLY FILTER ───
             if (!string.IsNullOrEmpty(rating) && int.TryParse(rating, out int ratingValue))
             {
                 query = query.Where(r => r.Rating == ratingValue);
             }
 
-            // ─── PAGINATION ───
             var totalCount = await query.CountAsync();
 
             var reviewData = await query
@@ -1056,7 +1086,6 @@ namespace BeautyArtists.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
-            // ─── STATS (ALL reviews, not filtered) ───
             var allReviews = await _context.Reviews
                 .Include(r => r.Booking)
                 .Where(r => r.Booking.UserService.ArtistId == artistId)
@@ -1081,6 +1110,7 @@ namespace BeautyArtists.Controllers
 
             return View(reviewData);
         }
+
         // ═══════════════════════════════════════════════════════════
         // SUPPORT (Artist)
         // ═══════════════════════════════════════════════════════════
@@ -1191,7 +1221,8 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction(nameof(Support));
             }
         }
-        // ─── HELPER: Send email via communication service ───
+
+        // ─── HELPERS ───
         private async Task SendBookingStatusEmail(Booking booking, string subject, string emailBody)
         {
             if (string.IsNullOrEmpty(booking.Customer?.Email)) return;
@@ -1211,7 +1242,6 @@ namespace BeautyArtists.Controllers
             }
         }
 
-        // ─── HELPER: Build acceptance email HTML ───
         private string BuildAcceptanceEmail(Booking booking, string depositUrl)
         {
             return $@"
@@ -1230,7 +1260,6 @@ namespace BeautyArtists.Controllers
     </div>";
         }
 
-        // ─── Helpers ───
         private bool IsValidEmail(string email)
         {
             try

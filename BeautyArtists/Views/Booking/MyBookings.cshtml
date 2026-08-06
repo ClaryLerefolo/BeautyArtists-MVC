@@ -172,11 +172,13 @@
             @foreach (var item in Model.Bookings)
             {
                 var booking = item.Booking;
-                // ─── NEW PRICING ───
-                var clientServicePrice = booking.ServicePrice * 1.15m; // marked‑up price
-                var depositAmount = (clientServicePrice / 2) + booking.BookingFee;
-                var finalAmount = clientServicePrice / 2;
-                var totalAmount = clientServicePrice + booking.BookingFee + (booking.TransportCost > 0 ? booking.TransportCost : 0);
+
+                // ─── ✅ CORRECT PRICING ───
+                var artistPrice = booking.ServicePrice;                    // R100
+                var clientServicePrice = artistPrice * 1.15m;              // R115 (marked up for client)
+                var depositAmount = (artistPrice / 2) + booking.BookingFee; // R55
+                var finalAmount = artistPrice / 2;                         // R50
+                var totalAmount = clientServicePrice + booking.BookingFee + (booking.TransportCost > 0 ? booking.TransportCost : 0); // R120
 
                 string statusClass = booking.Status switch
                 {
@@ -205,16 +207,16 @@
                     _ => booking.Status.ToString().ToUpper()
                 };
 
-                string artistName = booking.UserService?.Artist?.ArtistProfile?.FullName
-                ?? (!string.IsNullOrEmpty(booking.UserService?.Artist?.FirstName)
+                string artistName = !string.IsNullOrEmpty(booking.UserService?.Artist?.FirstName)
                 ? $"{booking.UserService.Artist.FirstName} {booking.UserService.Artist.LastName}".Trim()
-                : booking.UserService?.Artist?.UserName ?? "Pro Artist");
+                : booking.UserService?.Artist?.UserName ?? "Pro Artist";
 
                 // ── Payment status ──
                 bool isFullyPaid = (booking.DepositPaid + booking.FinalPaymentPaid) >= totalAmount;
                 bool hasDeposit = booking.DepositPaid > 0;
                 string paymentStatusText = isFullyPaid ? "Fully Paid" : (hasDeposit ? "Deposit Paid" : "Unpaid");
                 string paymentStatusColor = isFullyPaid ? "#28a745" : (hasDeposit ? "#ffc107" : "#6c757d");
+
                 // ── Days until appointment ──
                 double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
                 bool isLastMinute = daysUntilAppointment < 2;
@@ -409,16 +411,17 @@
 
                         @* ── RIGHT: PRICE + ACTIONS ── *@
                         <div class="mb-card-right">
+                            <!-- 🔥 CORRECT PRICING (Artist price + markup) -->
                             <div class="mb-amount">
-                                <span class="mb-amount-label">Service Price</span>
-                                <span class="mb-amount-value" style="color: #fff; font-size: 1.2rem;">R @clientServicePrice.ToString("N0")</span>
-                                <span style="display: block; font-size: 0.65rem; color: rgba(255,215,0,0.5);">+ R @booking.BookingFee.ToString("N0") booking fee</span>
+                                <span class="mb-amount-label">Total</span>
+                                <span class="mb-amount-value">R @totalAmount.ToString("N0")</span>
                                 @if (booking.TransportCost > 0)
                                 {
-                                    <span style="display: block; font-size: 0.65rem; color: rgba(255,215,0,0.5);">+ R @booking.TransportCost.ToString("N0") transport</span>
+                                    <span style="display: block; font-size: 0.6rem; color: rgba(255,215,0,0.4);">
+                                        + R @booking.TransportCost.ToString("N0") transport
+                                    </span>
                                 }
-                                <span class="mb-amount-label" style="margin-top: 4px;">Total</span>
-                                <span class="mb-amount-value">R @totalAmount.ToString("N0")</span>
+                              
                             </div>
 
                             <div class="mb-actions">
@@ -451,6 +454,7 @@
                                 @* ── PAYMENT BUTTONS FOR CONFIRMED STATUS ── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
                                 {
+                                    // ✅ CORRECT: Use marked-up price for remaining balance
                                     decimal remainingBalance = clientServicePrice - (booking.DepositPaid > 0 ? (clientServicePrice / 2) : 0);
 
                                     if (remainingBalance < 0) remainingBalance = 0;

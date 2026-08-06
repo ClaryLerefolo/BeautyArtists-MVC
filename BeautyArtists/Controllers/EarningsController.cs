@@ -15,6 +15,7 @@ namespace BeautyArtists.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private const decimal COMMISSION_RATE = 0.15m;
+        private const decimal BOOKING_FEE = 5.00m;
 
         public EarningsController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
         {
@@ -26,6 +27,7 @@ namespace BeautyArtists.Controllers
         private decimal GetArtistEarnings(Booking b)
         {
             // Artist earns 100% of their service price when fully paid
+            // Platform adds 15% on top for the client, artist gets full amount
             if (b.Status == Booking.BookingStatus.Completed)
                 return b.ServicePrice;
 
@@ -41,20 +43,6 @@ namespace BeautyArtists.Controllers
                 earned += b.ServicePrice / 2;
 
             return Math.Min(earned, b.ServicePrice);
-        }
-
-        private decimal GetPlatformCommission(Booking b)
-        {
-            // Platform takes 15% of the artist's price
-            if (b.Status == Booking.BookingStatus.Completed)
-                return b.ServicePrice * COMMISSION_RATE;
-
-            decimal commission = 0m;
-            if (b.IsDepositPaid)
-                commission += (b.ServicePrice / 2) * COMMISSION_RATE;
-            if (b.FinalPaymentPaid > 0)
-                commission += (b.ServicePrice / 2) * COMMISSION_RATE;
-            return commission;
         }
 
         public async Task<IActionResult> Earnings(
@@ -141,25 +129,27 @@ namespace BeautyArtists.Controllers
                 .Take(pageSize)
                 .ToList();
 
-            // ─── HISTORY (artist‑centric) ───
+            // ─── ✅ FIXED HISTORY (ONLY what artist sees) ───
             var history = paginatedBookings.Select(b => new EarningsHistoryItem
             {
                 BookingId = b.Id,
                 Date = b.AppointmentDate,
                 ClientName = $"{b.Customer?.FirstName} {b.Customer?.LastName}" ?? "Unknown",
                 ServiceName = b.UserService?.Service?.Name ?? "Service",
-                OriginalPrice = b.ServicePrice,                      // Artist's price
-                YourEarnings = GetArtistEarnings(b),                 // What they've earned
-                PlatformFee = GetPlatformCommission(b),              // Platform cut
-                TipAmount = 0m,
+
+                // ✅ FIXED: Artist sees their service price
+                OriginalPrice = b.ServicePrice,  // ← This was 0m! Now shows artist's price
+
+                // ─── ARTIST ONLY SEES THESE ───
+                YourEarnings = GetArtistEarnings(b),
+                DepositPaid = b.IsDepositPaid ? b.ServicePrice / 2 : 0m,
+                FinalPaymentPaid = b.FinalPaymentPaid > 0 ? b.ServicePrice / 2 : 0m,
+                IsFullyPaid = (b.DepositPaid - b.BookingFee) + b.FinalPaymentPaid >= b.ServicePrice,
                 Status = b.Status.ToString(),
 
-                // ─── ARTIST'S PORTION ONLY ───
-                DepositPaid = b.IsDepositPaid ? b.ServicePrice / 2 : 0m,   // Half of artist's price
-                FinalPaymentPaid = b.FinalPaymentPaid > 0 ? b.ServicePrice / 2 : 0m, // Other half
-                IsFullyPaid = (b.DepositPaid + b.FinalPaymentPaid) >= b.ServicePrice,
-
-                // ─── HIDDEN FROM ARTIST ───
+                // ─── HIDDEN FROM ARTIST (set to 0 or hidden) ───
+                PlatformFee = 0m,
+                TipAmount = 0m,
                 BookingFee = 0m,
                 ClientTotalPaid = 0m,
                 PlatformTotalEarnings = 0m,
@@ -177,10 +167,14 @@ namespace BeautyArtists.Controllers
                 RepeatClientRate = 0,
                 UtilizationRate = 0,
                 TopServices = topServices,
-                TotalDeposits = history.Sum(h => h.DepositPaid),       // Artist's deposit total
-                TotalFinalPayments = history.Sum(h => h.FinalPaymentPaid), // Artist's final total
+                TotalDeposits = history.Sum(h => h.DepositPaid),
+                TotalFinalPayments = history.Sum(h => h.FinalPaymentPaid),
                 History = history,
+
+                // ─── ARTIST ONLY SEES THESE ───
                 TotalArtistGross = totalLifetimeEarnings,
+
+                // ─── HIDDEN FROM ARTIST ───
                 TotalPlatformLifetimeEarnings = 0m,
                 TotalBookingFeesCollected = 0m,
                 TotalCommissionCollected = 0m,
@@ -198,7 +192,7 @@ namespace BeautyArtists.Controllers
             return View(model);
         }
 
-        // ─── CSV DOWNLOAD ───
+        // ─── CSV DOWNLOAD (ONLY what artist sees) ───
         [HttpGet("Earnings/DownloadCsv")]
         public async Task<IActionResult> DownloadCsv(DateTime? fromDate, DateTime? toDate, string? statusFilter = null, string? serviceFilter = null, string? clientFilter = null)
         {
@@ -219,7 +213,9 @@ namespace BeautyArtists.Controllers
             var bookings = await bookingsQuery.OrderByDescending(b => b.AppointmentDate).ToListAsync();
 
             var csv = new StringBuilder();
-            csv.AppendLine("Date,Client,Service,Service Price,Deposit (Artist Share),Final Payment (Artist Share),Your Earnings,Platform Fee,Status");
+
+            // ─── CSV HEADERS (ONLY what artist sees) ───
+            csv.AppendLine("Date,Client,Service,Service Price,Deposit Received,Final Payment Received,Total Earnings,Status");
 
             foreach (var b in bookings)
             {
@@ -227,7 +223,6 @@ namespace BeautyArtists.Controllers
                 var serviceName = (b.UserService?.Service?.Name ?? "Service").Replace("\"", "\"\"");
 
                 decimal artistEarnings = GetArtistEarnings(b);
-                decimal platformFee = GetPlatformCommission(b);
                 decimal depositShare = b.IsDepositPaid ? b.ServicePrice / 2 : 0m;
                 decimal finalShare = b.FinalPaymentPaid > 0 ? b.ServicePrice / 2 : 0m;
 
@@ -238,7 +233,6 @@ namespace BeautyArtists.Controllers
                               $"\"R{depositShare:N2}\"," +
                               $"\"R{finalShare:N2}\"," +
                               $"\"R{artistEarnings:N2}\"," +
-                              $"\"R{platformFee:N2}\"," +
                               $"\"{b.Status}\"");
             }
 

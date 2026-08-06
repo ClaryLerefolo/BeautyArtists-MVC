@@ -620,11 +620,10 @@ namespace BeautyArtists.Controllers
             var daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
             var isLastMinute = daysUntilAppointment < 2;
 
-            // ─── NEW PRICING ───
-            decimal clientServicePrice = booking.ServicePrice * 1.15m; // marked‑up price
-
-            // If last minute, client pays the full total (including booking fee and marked‑up service)
-            var depositAmount = isLastMinute ? booking.TotalAmount : (clientServicePrice / 2) + booking.BookingFee;
+            // ─── DEPOSIT AMOUNT ───
+            // Deposit = 50% of ServicePrice + R5 booking fee
+            // If last minute, client pays full amount
+            var depositAmount = isLastMinute ? booking.TotalAmount : (booking.ServicePrice / 2) + 5.00m;
 
             var model = new CheckoutViewModel
             {
@@ -666,79 +665,17 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                // ─── NEW PRICING ───
-                decimal clientServicePrice = booking.ServicePrice * 1.15m;
-                decimal depositAmount = (clientServicePrice / 2) + booking.BookingFee; // matches CheckoutDeposit
+                // ─── DEPOSIT AMOUNT ───
+                decimal depositAmount = (booking.ServicePrice / 2) + 5.00m;
 
-                // Artist gets 85% of half of their original price (since we take 15% commission)
-                // The deposit includes the booking fee, which is 100% platform revenue.
-                // So artist's share is only from the service portion: half of their price, minus commission.
-                decimal servicePortionOfDeposit = booking.ServicePrice / 2;
-                decimal artistShareOfDeposit = servicePortionOfDeposit * (1 - COMMISSION_RATE);
-
-                booking.DepositPaid = depositAmount;
-                booking.DepositPaidDate = DateTime.UtcNow;
-                booking.IsDepositPaid = true;
-                booking.ArtistTotalEarned = artistShareOfDeposit;
-                await _context.SaveChangesAsync();
-
-                // ── Send notifications ──
-                var artist = booking.UserService?.Artist;
-                var serviceName = booking.UserService?.Service?.Name ?? "your service";
-
-                await _notificationService.CreateNotificationAsync(
-                    booking.UserService.ArtistId,
-                    "Deposit Received! 💰",
-                    $"{currentUser.FirstName} has paid the deposit for {serviceName}.",
-                    "deposit_paid",
-                    booking.Id.ToString(),
-                    Url.Action("MyAppointments", "Artist")
-                );
-
-                if (artist != null && !string.IsNullOrEmpty(artist.Email))
+                // ✅ REDIRECT TO PAYMENT CONTROLLER FOR REAL PAYMENT
+                // PaymentController will handle PayStack and send all emails
+                return RedirectToAction("InitiatePayment", "Payment", new
                 {
-                    string artistSubject = "💰 Deposit Received!";
-                    string artistBody = $@"
-<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-    <h2 style='color: #f0c808; text-align: center;'>Deposit Received! ✅</h2>
-    <p>Dear {artist.FirstName},</p>
-    <p>The client <strong>{currentUser.FirstName} {currentUser.LastName}</strong> has paid the deposit of <strong>R{depositAmount:N2}</strong> for:</p>
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p><strong>Service:</strong> {serviceName}</p>
-        <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
-        <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-        <p><strong>Your Cut (85% of service half):</strong> R {artistShareOfDeposit:N2}</p>
-    </div>
-    <p>The client will pay the remaining half of the marked‑up price 2 days before the appointment.</p>
-    <hr>
-    <p style='font-size: 12px; color: #666;'>RubiOr</p>
-</div>";
-
-                    await _commService.SendDirectMessageEmailAsync(currentUser.Id, artist.Id, artistSubject, artistBody);
-                }
-
-                string clientSubject = "✅ Deposit Confirmed!";
-                string clientBody = $@"
-<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-    <h2 style='color: #28a745; text-align: center;'>Deposit Confirmed! 🎉</h2>
-    <p>Dear {currentUser.FirstName},</p>
-    <p>Your deposit of <strong>R{depositAmount:N2}</strong> has been received.</p>
-    <p><strong>Deposit Breakdown:</strong></p>
-    <p style='padding-left: 20px;'>50% of Marked‑up Service Price: R {(clientServicePrice / 2):N2}</p>
-    <p style='padding-left: 20px; color: #f0c808;'>+ Booking Fee: R {booking.BookingFee:N2}</p>
-    <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>CONFIRMED</strong>.</p>
-    <p>You will pay the remaining <strong>R {(clientServicePrice / 2):N2}</strong> 2 days before the appointment.</p>
-    <hr>
-    <p style='font-size: 12px; color: #666;'>RubiOr</p>
-</div>";
-
-                await _commService.SendDirectMessageEmailAsync(artist?.Id, currentUser.Id, clientSubject, clientBody);
-
-                booking.Status = BookingStatus.Confirmed;
-                await _context.SaveChangesAsync();
-
-                TempData["Success"] = "Deposit paid! Your appointment is now confirmed.";
-                return RedirectToAction("MyBookings");
+                    bookingId = id,
+                    email = currentUser.Email,
+                    amount = depositAmount
+                });
             }
             catch (Exception ex)
             {
@@ -747,7 +684,6 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings");
             }
         }
-
         // ══════════════════════════════════
         //  POST: Booking/ProcessFinalPayment
         // ══════════════════════════════════
@@ -779,12 +715,9 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                // ─── NEW PRICING ───
+                // ─── CORRECT: Use marked-up price for remaining balance ───
                 decimal clientServicePrice = booking.ServicePrice * 1.15m;
                 decimal remainingBalance = clientServicePrice / 2;
-
-                // If we're in last‑minute scenario, the remaining might be different; but ProcessFinalPayment only called when not last minute? 
-                // We'll still compute as above.
 
                 if (remainingBalance <= 0)
                 {
@@ -792,86 +725,17 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
-                if (daysUntilAppointment < 2)
+                return RedirectToAction("InitiateFinalPayment", "Payment", new
                 {
-                    // In last‑minute, the client should have paid full in deposit, so this shouldn't be called.
-                    // But if it is, we charge the full remaining.
-                    decimal totalRemaining = booking.TotalAmount - booking.DepositPaid;
-                    if (totalRemaining > 0)
-                        remainingBalance = totalRemaining;
-                    else
-                    {
-                        TempData["Error"] = "This booking has already been fully paid.";
-                        return RedirectToAction("MyBookings");
-                    }
-                }
-
-                booking.FinalPaymentPaid = remainingBalance;
-                booking.FinalPaidDate = DateTime.UtcNow;
-
-                // Artist earns 85% of the remaining service portion (half of their price)
-                decimal servicePortionOfFinal = booking.ServicePrice / 2;
-                decimal artistShareOfFinal = servicePortionOfFinal * (1 - COMMISSION_RATE);
-                booking.ArtistTotalEarned += artistShareOfFinal;
-
-                await _context.SaveChangesAsync();
-
-                var artist = booking.UserService?.Artist;
-                var serviceName = booking.UserService?.Service?.Name ?? "your service";
-
-                await _notificationService.CreateNotificationAsync(
-                    booking.UserService.ArtistId,
-                    "Final Payment Received! 💵",
-                    $"{currentUser.FirstName} has paid the remaining balance for {serviceName}.",
-                    "payment_received",
-                    booking.Id.ToString(),
-                    Url.Action("MyAppointments", "Artist")
-                );
-
-                if (artist != null && !string.IsNullOrEmpty(artist.Email))
-                {
-                    string artistSubject = "💰 Final Payment Received – Appointment Fully Paid!";
-                    string artistBody = $@"
-    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-        <h2 style='color: #28a745; text-align: center;'>Final Payment Received! ✅</h2>
-        <p>Dear {artist.FirstName},</p>
-        <p>The client <strong>{currentUser.FirstName} {currentUser.LastName}</strong> has paid the remaining balance of <strong>R{remainingBalance:N2}</strong> for:</p>
-        <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-            <p><strong>Service:</strong> {serviceName}</p>
-            <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
-            <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-            <p><strong>Your Total Cut (85% of full service):</strong> R {booking.ArtistTotalEarned:N2}</p>
-        </div>
-        <p>This appointment is now <strong>FULLY PAID</strong>.</p>
-        <hr>
-        <p style='font-size: 12px; color: #666;'>RubiOr</p>
-    </div>";
-
-                    await _commService.SendDirectMessageEmailAsync(currentUser.Id, artist.Id, artistSubject, artistBody);
-                }
-
-                string clientSubject = "✅ Final Payment Confirmed!";
-                string clientBody = $@"
-<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-    <h2 style='color: #28a745; text-align: center;'>Final Payment Confirmed! 🎉</h2>
-    <p>Dear {currentUser.FirstName},</p>
-    <p>Your final payment of <strong>R{remainingBalance:N2}</strong> has been received.</p>
-    <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>FULLY PAID</strong>.</p>
-    <p>Thank you for choosing RubiOr!</p>
-    <hr>
-    <p style='font-size: 12px; color: #666;'>RubiOr</p>
-</div>";
-
-                await _commService.SendDirectMessageEmailAsync(artist?.Id, currentUser.Id, clientSubject, clientBody);
-
-                TempData["Success"] = "Final payment cleared! Your appointment is now fully paid.";
-                return RedirectToAction("MyBookings");
+                    bookingId = id,
+                    email = currentUser.Email,
+                    amount = remainingBalance
+                });
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"ProcessFinalPayment error: {ex.Message}");
-                TempData["Error"] = "An error occurred while processing your payment. Please try again.";
+                TempData["Error"] = "An error occurred. Please try again.";
                 return RedirectToAction("MyBookings");
             }
         }
@@ -1120,31 +984,11 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                // ─── NEW PRICING ───
+                // ─── CORRECT: Use marked-up price for remaining balance ───
                 decimal clientServicePrice = booking.ServicePrice * 1.15m;
-                decimal remainingBalance = clientServicePrice / 2; // remaining half of marked‑up service price
+                decimal remainingBalance = clientServicePrice / 2;
 
-                // If final payment is already covered (should not happen but safe)
                 if (booking.FinalPaymentPaid >= remainingBalance || remainingBalance <= 0)
-                {
-                    TempData["Error"] = "This booking has already been fully paid.";
-                    return RedirectToAction("MyBookings");
-                }
-
-                double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
-                bool isLastMinute = daysUntilAppointment < 2;
-
-                if (isLastMinute)
-                {
-                    // If last minute, the client must pay the full remaining amount (including any shortfall)
-                    decimal totalRemaining = booking.TotalAmount - booking.DepositPaid;
-                    if (totalRemaining > 0)
-                    {
-                        remainingBalance = totalRemaining;
-                    }
-                }
-
-                if (remainingBalance <= 0)
                 {
                     TempData["Error"] = "This booking has already been fully paid.";
                     return RedirectToAction("MyBookings");

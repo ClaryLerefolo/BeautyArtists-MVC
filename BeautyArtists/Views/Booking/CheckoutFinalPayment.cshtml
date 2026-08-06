@@ -3,73 +3,96 @@
     ViewData["Title"] = "Complete Final Payment";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
-    // ── NEW PRICING ──
-    var clientServicePrice = Model.Booking.ServicePrice * 1.15m; // marked‑up service price
-    var depositPaidHalf = clientServicePrice / 2; // 50% of marked‑up price (deposit already paid)
-    var remainingHalf = clientServicePrice / 2; // remaining 50%
-
-    // ── Check if booking is last minute (≤ 2 days away) ──
-    var daysUntilAppointment = (Model.Booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
-    var isLastMinute = daysUntilAppointment < 2;
-    var paymentLabel = isLastMinute ? "Pay Now (Full Amount)" : "Pay Final Balance";
-    var headerTitle = isLastMinute ? "Final Payment – Full Amount" : "Complete Final Payment";
-    var headerColor = isLastMinute ? "#f0c808" : "#28a745";
-    var buttonGradient = isLastMinute ? "linear-gradient(135deg, #f0c808, #e50914)" : "linear-gradient(135deg, #28a745, #1e7e34)";
+    var artistPrice = Model.Booking.ServicePrice;
+    var clientServicePrice = artistPrice * 1.15m;
+    var depositAmount = (clientServicePrice / 2) + 5.00m;
+    var finalAmount = clientServicePrice / 2;
+    var clientTotal = clientServicePrice + 5.00m;
 }
 
 <div class="container mt-5">
     <div class="row justify-content-center">
         <div class="col-md-6">
-            <div class="card" style="background: #0b0b0b; border: 1px solid rgba(@(isLastMinute ? "240,200,8" : "40,167,69"), 0.3);">
-                <div class="card-header text-center" style="border-bottom-color: rgba(@(isLastMinute ? "240,200,8" : "40,167,69"), 0.2);">
-                    <h3 style="color: @headerColor;">@headerTitle</h3>
+            <div class="card" style="background: #0b0b0b; border: 1px solid rgba(40, 167, 69, 0.3);">
+                <div class="card-header text-center" style="border-bottom-color: rgba(40,167,69,0.1);">
+                    <h3 style="color: #28a745;">💵 Final Payment</h3>
                     <p style="color: #fff;">Booking #@Model.Booking.Id</p>
-                    @if (isLastMinute)
-                    {
-                        <p style="color: #ffc107; font-size: 0.9rem;">
-                            <i class="fas fa-clock me-1"></i> Appointment is within 2 days – full payment required now.
-                        </p>
-                    }
+                    <p style="color: #28a745; font-size: 0.9rem;">
+                        <i class="fas fa-check-circle me-1"></i> Deposit already paid
+                    </p>
                 </div>
                 <div class="card-body">
+
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i> @TempData["Error"]
+                        </div>
+                    }
+
                     <div class="booking-summary mb-4">
-                        <h4 style="color: @headerColor;">Booking Summary</h4>
-                        <hr style="border-color: rgba(@(isLastMinute ? "240,200,8" : "40,167,69"), 0.2);">
+                        <h4 style="color: #28a745;">Booking Summary</h4>
+                        <hr style="border-color: rgba(40,167,69,0.2);">
                         <p><strong>Service:</strong> @Model.Booking.UserService?.Service?.Name</p>
                         <p><strong>Artist:</strong> @Model.Booking.UserService?.Artist?.FirstName @Model.Booking.UserService?.Artist?.LastName</p>
                         <p><strong>Date:</strong> @Model.Booking.AppointmentDate.ToString("MMMM dd, yyyy")</p>
                         <p><strong>Time:</strong> @Model.Booking.AppointmentDate.ToString("hh:mm tt")</p>
-                        <hr style="border-color: rgba(@(isLastMinute ? "240,200,8" : "40,167,69"), 0.2);">
+                        <hr style="border-color: rgba(40,167,69,0.2);">
 
-                        <!-- 🔥 PAYMENT BREAKDOWN (NEW PRICING) -->
-                        <div style="background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                            <p><strong>Service Price:</strong> R @clientServicePrice.ToString("N2")</p>
-                            <p><strong>Booking Fee:</strong> R @Model.Booking.BookingFee.ToString("N2") <span style="color: #28a745;">(Already Paid)</span></p>
-                            <hr style="border-color: #333;">
-                            <p><strong>Deposit Already Paid (50%):</strong> <span style="color: #ff6600;">R @depositPaidHalf.ToString("N2")</span></p>
-                            <p><strong>Remaining Balance (50%):</strong> <span style="color: @headerColor; font-size: 1.3rem;">R @Model.DepositAmount.ToString("N2")</span></p>
-                            
+                        <div style="background: #1a1a1a; padding: 12px 15px; border-radius: 8px; margin: 10px 0;">
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between;">
+                                <span style="color: rgba(255,255,255,0.6);">Service Price</span>
+                                <span style="color: #fff;">R @clientServicePrice.ToString("N2")</span>
+                            </p>
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between;">
+                                <span style="color: rgba(255,255,255,0.6);">Booking Fee</span>
+                                <span style="color: #FFD700;">R 5.00 <span style="color: #28a745; font-size: 0.7rem;">(Already Paid)</span></span>
+                            </p>
+                            <hr style="border-color: rgba(40,167,69,0.2); margin: 8px 0;">
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between;">
+                                <span style="color: rgba(255,255,255,0.6);">Deposit Already Paid (50%)</span>
+                                <span style="color: #ff6600;">R @depositAmount.ToString("N2")</span>
+                            </p>
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between;">
+                                <span style="color: rgba(255,255,255,0.6);">Remaining Balance (50%)</span>
+                                <span style="color: #ff6600;">R @finalAmount.ToString("N2")</span>
+                            </p>
+                            <hr style="border-color: rgba(40,167,69,0.2); margin: 8px 0;">
+                            <p style="margin: 6px 0 0 0; display: flex; justify-content: space-between; font-size: 1.2rem;">
+                                <strong style="color: #fff;">Final Amount Due</strong>
+                                <strong style="color: #28a745; font-size: 1.8rem; font-weight: 800;">R @finalAmount.ToString("N2")</strong>
+                            </p>
                         </div>
-
-                        <p><strong>Final Amount Due:</strong> <span style="color: @headerColor; font-size: 1.5rem;">R @Model.DepositAmount.ToString("N2")</span></p>
-                        @if (isLastMinute)
-                        {
-                            <p class="text-warning small mt-2"><i class="fas fa-info-circle me-1"></i> This is the full amount – no further payment required.</p>
-                        }
                     </div>
 
                     <form method="post" asp-action="InitiateFinalPayment" asp-controller="Payment">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="bookingId" value="@Model.Booking.Id" />
                         <input type="hidden" name="email" value="@Model.UserEmail" />
-                        <input type="hidden" name="amount" value="@Model.DepositAmount" />
+                        <input type="hidden" name="amount" value="@finalAmount" />
 
-                        <button type="submit" class="btn w-100 py-3" style="background: @buttonGradient; color: @(isLastMinute ? "#000" : "#fff"); font-weight: 800; border-radius: 999px; border: none;">
-                            💳 @paymentLabel – R @Model.DepositAmount.ToString("N2")
+                        <button type="submit" class="btn w-100 py-3" style="background: linear-gradient(135deg, #28a745, #1a7a34); color: #fff; font-weight: 800; border-radius: 999px; border: none; transition: all 0.3s;">
+                            💳 Pay Final – R @finalAmount.ToString("N2")
                         </button>
                     </form>
+
+                    <div class="text-center mt-3">
+                        <p style="color: rgba(255,255,255,0.2); font-size: 0.7rem;">
+                            <i class="fas fa-lock me-1"></i> Secure payment via Paystack
+                        </p>
+                        <a asp-controller="Booking" asp-action="MyBookings" style="color: rgba(255,255,255,0.2); font-size: 0.8rem; text-decoration: none;">
+                            ← Back to My Bookings
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 0 30px rgba(40,167,69,0.3);
+    }
+</style>

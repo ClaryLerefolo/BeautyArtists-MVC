@@ -4,7 +4,7 @@ using BeautyArtists.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using OfficeOpenXml; // Required: Install-Package EPPlus
+using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using System.ComponentModel;
 using System.Text;
@@ -15,14 +15,12 @@ namespace BeautyArtists.Controllers
     public class RevenueController : Controller
     {
         private readonly ApplicationDbContext _context;
-        private const decimal COMMISSION_RATE = 0.15m;
+        private const decimal COMMISSION_RATE = 0.15m;  // 15% markup added to client
         private const decimal BOOKING_FEE = 5.00m;
 
         public RevenueController(ApplicationDbContext context)
         {
             _context = context;
-            // Set License for EPPlus (Excel Library) - KEEP AS IS
-            // OfficeOpenXml.ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
         }
 
         // ── SHARED: build filtered bookings ──
@@ -60,7 +58,7 @@ namespace BeautyArtists.Controllers
             return await query.OrderByDescending(b => b.AppointmentDate).ToListAsync();
         }
 
-        // ── MAP to report items ──
+        // ── MAP to report items using ViewModel (NOT internal class) ──
         private List<BookingReportItem> MapToReportItems(List<Booking> bookings)
         {
             return bookings.Select(b => new BookingReportItem
@@ -74,16 +72,19 @@ namespace BeautyArtists.Controllers
                 ServiceName = b.UserService?.Service?.Name ?? "—",
                 Province = b.UserService?.Artist?.ArtistProfile?.Province ?? "—",
                 Status = b.Status.ToString(),
-                // 🔥 FIX: Artist's 85% cut for completed bookings
+
+                // ✅ FIX: Artist gets 100% of their price
                 Amount = b.Status == Booking.BookingStatus.Completed
-                    ? b.ServicePrice * (1 - COMMISSION_RATE)
+                    ? b.ServicePrice  // 100% - NO commission taken!
                     : 0m,
-                // 🔥 NEW: Detailed breakdown for admin
-                ServicePrice = b.ServicePrice,
-                BookingFee = b.BookingFee,
-                ClientTotal = b.TotalAmount,
-                PlatformCommission = b.ServicePrice * COMMISSION_RATE,
-                ArtistNet = b.ServicePrice * (1 - COMMISSION_RATE)
+
+                // ✅ CORRECT BREAKDOWN:
+                ServicePrice = b.ServicePrice,                      // Artist's price (100%)
+                BookingFee = b.BookingFee,                          // R5 (platform earns)
+                ClientTotal = (b.ServicePrice * 1.15m) + b.BookingFee, // Client pays marked up + fee
+                PlatformMarkup = b.ServicePrice * COMMISSION_RATE,  // 15% added on top (platform earns)
+                ArtistNet = b.ServicePrice,                         // Artist gets 100%
+                PlatformEarnings = (b.ServicePrice * COMMISSION_RATE) + b.BookingFee  // Platform earns markup + fee
             }).ToList();
         }
 
@@ -133,26 +134,26 @@ namespace BeautyArtists.Controllers
                 FilterFrom = filterFrom,
                 FilterTo = filterTo,
 
-                // 🔥 FIX: Artist's 85% cut for completed bookings
+                // ✅ FIX: Artist gets 100% for completed bookings
                 TotalRevenue = allBookings
                     .Where(b => b.Status == Booking.BookingStatus.Completed)
-                    .Sum(b => b.ServicePrice * (1 - COMMISSION_RATE)),
+                    .Sum(b => b.ServicePrice),  // 100%
 
                 MonthRevenue = allBookings
                     .Where(b => b.Status == Booking.BookingStatus.Completed
                              && b.AppointmentDate.Month == now.Month
                              && b.AppointmentDate.Year == now.Year)
-                    .Sum(b => b.ServicePrice * (1 - COMMISSION_RATE)),
+                    .Sum(b => b.ServicePrice),  // 100%
 
                 WeekRevenue = allBookings
                     .Where(b => b.Status == Booking.BookingStatus.Completed
                              && b.AppointmentDate >= now.AddDays(-7))
-                    .Sum(b => b.ServicePrice * (1 - COMMISSION_RATE)),
+                    .Sum(b => b.ServicePrice),  // 100%
 
                 TotalBookings = allBookings.Count,
                 CompletedBookings = allBookings.Count(b => b.Status == Booking.BookingStatus.Completed),
 
-                // 🔥 FIX: Top Services use artist's 85% cut
+                // ✅ FIX: Top Services use artist's 100%
                 TopServices = filtered
                     .GroupBy(b => b.UserService?.Service?.Name ?? "Unknown")
                     .Select(g => new ServiceRevenueItem
@@ -160,11 +161,11 @@ namespace BeautyArtists.Controllers
                         ServiceName = g.Key,
                         BookingCount = g.Count(),
                         TotalRevenue = g.Where(b => b.Status == Booking.BookingStatus.Completed)
-                                        .Sum(b => b.ServicePrice * (1 - COMMISSION_RATE))
+                                        .Sum(b => b.ServicePrice)  // 100%
                     })
                     .OrderByDescending(s => s.TotalRevenue).Take(8).ToList(),
 
-                // 🔥 FIX: Top Artists use artist's 85% cut
+                // ✅ FIX: Top Artists use artist's 100%
                 TopArtists = filtered
                     .GroupBy(b => b.UserService?.ArtistId ?? "unknown")
                     .Select(g => new ArtistRevenueItem
@@ -175,11 +176,11 @@ namespace BeautyArtists.Controllers
                         Province = g.First().UserService?.Artist?.ArtistProfile?.Province ?? "—",
                         BookingCount = g.Count(),
                         TotalRevenue = g.Where(b => b.Status == Booking.BookingStatus.Completed)
-                                        .Sum(b => b.ServicePrice * (1 - COMMISSION_RATE))
+                                        .Sum(b => b.ServicePrice)  // 100%
                     })
                     .OrderByDescending(a => a.TotalRevenue).Take(8).ToList(),
 
-                // 🔥 FIX: Bookings by Province use artist's 85% cut
+                // ✅ FIX: Bookings by Province use artist's 100%
                 BookingsByProvince = filtered
                     .GroupBy(b => b.UserService?.Artist?.ArtistProfile?.Province ?? "Unknown")
                     .Select(g => new ProvinceBookingItem
@@ -187,11 +188,11 @@ namespace BeautyArtists.Controllers
                         Province = g.Key,
                         BookingCount = g.Count(),
                         TotalRevenue = g.Where(b => b.Status == Booking.BookingStatus.Completed)
-                                        .Sum(b => b.ServicePrice * (1 - COMMISSION_RATE))
+                                        .Sum(b => b.ServicePrice)  // 100%
                     })
                     .OrderByDescending(p => p.TotalRevenue).ToList(),
 
-                // 🔥 FIX: Monthly Trend use artist's 85% cut
+                // ✅ FIX: Monthly Trend use artist's 100%
                 MonthlyTrend = allBookings
                     .Where(b => b.AppointmentDate >= now.AddMonths(-11))
                     .GroupBy(b => new { b.AppointmentDate.Year, b.AppointmentDate.Month })
@@ -200,7 +201,7 @@ namespace BeautyArtists.Controllers
                         Month = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMM yyyy"),
                         BookingCount = g.Count(),
                         TotalRevenue = g.Where(b => b.Status == Booking.BookingStatus.Completed)
-                                        .Sum(b => b.ServicePrice * (1 - COMMISSION_RATE))
+                                        .Sum(b => b.ServicePrice)  // 100%
                     })
                     .OrderBy(m => m.Month).ToList(),
 
@@ -238,14 +239,15 @@ namespace BeautyArtists.Controllers
             sb.AppendLine($"Filters:,\"{(filters.Any() ? string.Join(" | ", filters) : "None")}\"");
             sb.AppendLine($"Total Records:,{items.Count}");
             sb.AppendLine($"Total Artist Revenue:,R {items.Sum(i => i.ArtistNet):N2}");
-            sb.AppendLine($"Total Platform Commission:,R {items.Sum(i => i.PlatformCommission):N2}");
+            sb.AppendLine($"Total Platform Markup (15%):,R {items.Sum(i => i.PlatformMarkup):N2}");
             sb.AppendLine($"Total Booking Fees:,R {items.Sum(i => i.BookingFee):N2}");
+            sb.AppendLine($"Total Platform Earnings:,R {items.Sum(i => i.PlatformEarnings):N2}");
             sb.AppendLine();
-            sb.AppendLine("Booking ID,Date,Time,Client,Artist,Service,Province,Status,Service Price,Booking Fee,Client Total,Artist Net (85%),Platform Commission (15%)");
+            sb.AppendLine("Booking ID,Date,Time,Client,Artist,Service,Province,Status,Service Price (Artist),Markup (15%),Booking Fee,Client Total,Artist Net,Platform Earnings");
 
             foreach (var item in items)
             {
-                sb.AppendLine($"{item.BookingId},\"{item.AppointmentDate:dd MMM yyyy}\",\"{item.AppointmentDate:HH:mm}\",\"{item.ClientName}\",\"{item.ArtistName}\",\"{item.ServiceName}\",\"{item.Province}\",{item.Status},{item.ServicePrice:N2},{item.BookingFee:N2},{item.ClientTotal:N2},{item.ArtistNet:N2},{item.PlatformCommission:N2}");
+                sb.AppendLine($"{item.BookingId},\"{item.AppointmentDate:dd MMM yyyy}\",\"{item.AppointmentDate:HH:mm}\",\"{item.ClientName}\",\"{item.ArtistName}\",\"{item.ServiceName}\",\"{item.Province}\",{item.Status},{item.ServicePrice:N2},{item.PlatformMarkup:N2},{item.BookingFee:N2},{item.ClientTotal:N2},{item.ArtistNet:N2},{item.PlatformEarnings:N2}");
             }
 
             return File(Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", $"Report_{DateTime.Now:yyyyMMdd}.csv");
@@ -276,7 +278,7 @@ namespace BeautyArtists.Controllers
                 sheet.Cells["A2"].Value = $"Generated: {DateTime.Now:dd MMM yyyy HH:mm}";
 
                 // Column Headers
-                string[] headers = { "Booking ID", "Date", "Time", "Client", "Artist", "Service", "Province", "Status", "Service Price", "Booking Fee", "Client Total", "Artist Net (85%)", "Platform Commission (15%)" };
+                string[] headers = { "Booking ID", "Date", "Time", "Client", "Artist", "Service", "Province", "Status", "Service Price (Artist)", "Markup (15%)", "Booking Fee", "Client Total", "Artist Net", "Platform Earnings" };
                 for (int i = 0; i < headers.Length; i++)
                 {
                     var cell = sheet.Cells[4, i + 1];
@@ -299,14 +301,16 @@ namespace BeautyArtists.Controllers
                     sheet.Cells[row, 8].Value = item.Status;
                     sheet.Cells[row, 9].Value = item.ServicePrice;
                     sheet.Cells[row, 9].Style.Numberformat.Format = "R #,##0.00";
-                    sheet.Cells[row, 10].Value = item.BookingFee;
+                    sheet.Cells[row, 10].Value = item.PlatformMarkup;
                     sheet.Cells[row, 10].Style.Numberformat.Format = "R #,##0.00";
-                    sheet.Cells[row, 11].Value = item.ClientTotal;
+                    sheet.Cells[row, 11].Value = item.BookingFee;
                     sheet.Cells[row, 11].Style.Numberformat.Format = "R #,##0.00";
-                    sheet.Cells[row, 12].Value = item.ArtistNet;
+                    sheet.Cells[row, 12].Value = item.ClientTotal;
                     sheet.Cells[row, 12].Style.Numberformat.Format = "R #,##0.00";
-                    sheet.Cells[row, 13].Value = item.PlatformCommission;
+                    sheet.Cells[row, 13].Value = item.ArtistNet;
                     sheet.Cells[row, 13].Style.Numberformat.Format = "R #,##0.00";
+                    sheet.Cells[row, 14].Value = item.PlatformEarnings;
+                    sheet.Cells[row, 14].Style.Numberformat.Format = "R #,##0.00";
                     row++;
                 }
 
@@ -331,17 +335,18 @@ namespace BeautyArtists.Controllers
             sb.Append("<h1 style='color:#b30000;'>BEAUTY IN RED AND GOLD</h1>");
             sb.Append($"<p><b>Report Generated:</b> {DateTime.Now:dd MMM yyyy HH:mm}</p>");
             sb.Append("<table border='1' cellspacing='0' cellpadding='5' style='width:100%; border-collapse:collapse;'>");
-            sb.Append("<tr style='background-color:gold;'><th>ID</th><th>Date</th><th>Client</th><th>Artist</th><th>Service</th><th>Service Price</th><th>Booking Fee</th><th>Artist Net</th></tr>");
+            sb.Append("<tr style='background-color:gold;'><th>ID</th><th>Date</th><th>Client</th><th>Artist</th><th>Service</th><th>Service Price</th><th>Markup</th><th>Booking Fee</th><th>Artist Net</th><th>Platform Earnings</th></tr>");
 
             foreach (var item in items)
             {
-                sb.Append($"<tr><td>{item.BookingId}</td><td>{item.AppointmentDate:dd MMM yyyy}</td><td>{item.ClientName}</td><td>{item.ArtistName}</td><td>{item.ServiceName}</td><td>R {item.ServicePrice:N2}</td><td>R {item.BookingFee:N2}</td><td>R {item.ArtistNet:N2}</td></tr>");
+                sb.Append($"<tr><td>{item.BookingId}</td><td>{item.AppointmentDate:dd MMM yyyy}</td><td>{item.ClientName}</td><td>{item.ArtistName}</td><td>{item.ServiceName}</td><td>R {item.ServicePrice:N2}</td><td>R {item.PlatformMarkup:N2}</td><td>R {item.BookingFee:N2}</td><td>R {item.ArtistNet:N2}</td><td>R {item.PlatformEarnings:N2}</td></tr>");
             }
 
             sb.Append("</table>");
             sb.Append($"<br/><p><b>Total Artist Revenue:</b> R {items.Where(i => i.Status == "Completed").Sum(i => i.ArtistNet):N2}</p>");
-            sb.Append($"<p><b>Total Platform Commission:</b> R {items.Where(i => i.Status == "Completed").Sum(i => i.PlatformCommission):N2}</p>");
+            sb.Append($"<p><b>Total Platform Markup (15%):</b> R {items.Where(i => i.Status == "Completed").Sum(i => i.PlatformMarkup):N2}</p>");
             sb.Append($"<p><b>Total Booking Fees:</b> R {items.Where(i => i.Status == "Completed").Sum(i => i.BookingFee):N2}</p>");
+            sb.Append($"<p><b>Total Platform Earnings:</b> R {items.Where(i => i.Status == "Completed").Sum(i => i.PlatformEarnings):N2}</p>");
             sb.Append("</body></html>");
 
             return File(Encoding.UTF8.GetBytes(sb.ToString()), "application/msword", $"Report_{DateTime.Now:yyyyMMdd}.doc");
@@ -356,10 +361,10 @@ namespace BeautyArtists.Controllers
             sb.Append("<div style='text-align:center; font-family:sans-serif;'>");
             sb.Append("<h1 style='color:red;'>BEAUTY IN RED AND GOLD</h1><h2>Revenue Report</h2>");
             sb.Append("<table style='width:100%; border:1px solid black; border-collapse:collapse;'>");
-            sb.Append("<tr style='background-color:gold;'><th>Date</th><th>Client</th><th>Service</th><th>Service Price</th><th>Booking Fee</th><th>Artist Net</th></tr>");
+            sb.Append("<tr style='background-color:gold;'><th>Date</th><th>Client</th><th>Service</th><th>Service Price</th><th>Markup</th><th>Booking Fee</th><th>Artist Net</th><th>Platform Earnings</th></tr>");
             foreach (var item in items)
             {
-                sb.Append($"<tr><td style='border:1px solid black;'>{item.AppointmentDate:dd/MM/yyyy}</td><td style='border:1px solid black;'>{item.ClientName}</td><td style='border:1px solid black;'>{item.ServiceName}</td><td style='border:1px solid black;'>R {item.ServicePrice:N2}</td><td style='border:1px solid black;'>R {item.BookingFee:N2}</td><td style='border:1px solid black;'>R {item.ArtistNet:N2}</td></tr>");
+                sb.Append($"<tr><td style='border:1px solid black;'>{item.AppointmentDate:dd/MM/yyyy}</td><td style='border:1px solid black;'>{item.ClientName}</td><td style='border:1px solid black;'>{item.ServiceName}</td><td style='border:1px solid black;'>R {item.ServicePrice:N2}</td><td style='border:1px solid black;'>R {item.PlatformMarkup:N2}</td><td style='border:1px solid black;'>R {item.BookingFee:N2}</td><td style='border:1px solid black;'>R {item.ArtistNet:N2}</td><td style='border:1px solid black;'>R {item.PlatformEarnings:N2}</td></tr>");
             }
             sb.Append("</table></div>");
 

@@ -19,12 +19,24 @@ namespace BeautyArtists.Controllers
         private readonly ICommunicationService _commService;
         private readonly INotificationService _notificationService;
         private readonly IEmailService _emailService;
+        private const decimal COMMISSION_RATE = 0.15m;
+        private const decimal BOOKING_FEE = 5.00m;
 
-        // ─── NEW PRICING HELPERS ───
-        private decimal ClientPrice(Booking b) => b.ServicePrice * 1.15m;
-        private decimal DepositAmount(Booking b) => (ClientPrice(b) / 2) + b.BookingFee;
-        private decimal FinalAmount(Booking b) => ClientPrice(b) / 2;
-        private decimal ClientTotal(Booking b) => ClientPrice(b) + b.BookingFee;
+        // ─── CORRECT PRICING HELPERS ───
+        // What client pays for the service (artist price + 15% markup)
+        private decimal ClientServicePrice(Booking b) => b.ServicePrice * 1.15m;
+
+        // What client pays total (service + booking fee)
+        private decimal ClientTotal(Booking b) => ClientServicePrice(b) + b.BookingFee;
+
+        // Deposit = 50% of artist's price + booking fee (R5)
+        private decimal DepositAmount(Booking b) => (b.ServicePrice / 2) + b.BookingFee;
+
+        // Final = remaining 50% of artist's price
+        private decimal FinalAmount(Booking b) => b.ServicePrice / 2;
+
+        // Full payment = client total (for last minute bookings)
+        private decimal FullPaymentAmount(Booking b) => ClientTotal(b);
 
         public PaymentController(
             IPaymentService paymentService,
@@ -130,7 +142,7 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                // ─── COMPUTE FINAL AMOUNT FROM NEW PRICING ───
+                // ─── COMPUTE FINAL AMOUNT ───
                 decimal finalAmount = FinalAmount(booking);
 
                 if (finalAmount <= 0 || booking.FinalPaymentPaid >= finalAmount)
@@ -235,13 +247,14 @@ namespace BeautyArtists.Controllers
 
                 // ─── DETERMINE PAYMENT TYPE ───
                 bool isDeposit = !booking.IsDepositPaid;
-                bool isFullPayment = payment.Amount >= ClientTotal(booking); // client total = marked‑up + fee
+                bool isFullPayment = payment.Amount >= FullPaymentAmount(booking); // client total = marked‑up + fee
 
                 if (isDeposit)
                 {
                     if (isFullPayment)
                     {
                         // ─── Full payment (last‑minute) ───
+                        // Client pays full amount (marked up service + booking fee)
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -255,6 +268,7 @@ namespace BeautyArtists.Controllers
                     else
                     {
                         // ─── Normal deposit ───
+                        // Deposit = 50% of artist's price + booking fee
                         booking.DepositPaid = payment.Amount;
                         booking.DepositPaidDate = DateTime.UtcNow;
                         booking.IsDepositPaid = true;
@@ -305,6 +319,7 @@ namespace BeautyArtists.Controllers
                 else
                 {
                     // ─── Final Payment ───
+                    // Final = remaining 50% of artist's price
                     decimal finalAmount = FinalAmount(booking);
                     booking.FinalPaymentPaid = finalAmount;
                     booking.FinalPaidDate = DateTime.UtcNow;
@@ -354,7 +369,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ============================================================
-        // 📧 EMAIL HELPERS (UPDATED WITH NEW PRICING)
+        // 📧 EMAIL HELPERS
         // ============================================================
 
         private async Task SendDepositEmails(Booking booking, decimal depositAmount)
@@ -367,7 +382,7 @@ namespace BeautyArtists.Controllers
 
                 if (artist == null || client == null)
                 {
-                    Console.WriteLine($"❌ Deposit emails: Artist or client is null. ArtistId: {artist?.Id}, ClientId: {client?.Id}");
+                    Console.WriteLine($"❌ Deposit emails: Artist or client is null.");
                     return;
                 }
 
@@ -376,11 +391,11 @@ namespace BeautyArtists.Controllers
 
                 if (string.IsNullOrEmpty(artistEmail) || string.IsNullOrEmpty(clientEmail))
                 {
-                    Console.WriteLine($"❌ Deposit emails: Missing email. ArtistEmail={artistEmail}, ClientEmail={clientEmail}");
+                    Console.WriteLine($"❌ Deposit emails: Missing email.");
                     return;
                 }
 
-                decimal clientServicePrice = ClientPrice(booking);
+                decimal clientServicePrice = ClientServicePrice(booking);
                 decimal finalAmount = FinalAmount(booking);
 
                 // To Artist
@@ -397,7 +412,7 @@ namespace BeautyArtists.Controllers
                         <p><strong>Deposit Received:</strong> R{depositAmount:N2}</p>
                         <p><strong>Remaining Balance:</strong> R{finalAmount:N2}</p>
                     </div>
-                    <p>This appointment is now <strong>CONFIRMED</strong>. The client will pay the remaining balance at least 2 days before the appointment.</p>
+                    <p>This appointment is now <strong>CONFIRMED</strong>.</p>
                     <hr>
                     <p style='font-size: 12px; color: #666;'>RubiOr</p>
                 </div>";
@@ -410,7 +425,7 @@ namespace BeautyArtists.Controllers
                     <p>Dear {client.FirstName},</p>
                     <p>Your deposit of <strong>R{depositAmount:N2}</strong> has been received.</p>
                     <p><strong>Deposit Breakdown:</strong></p>
-                    <p>50% of service price: R{(clientServicePrice / 2):N2}</p>
+                    <p>50% of service price: R{(booking.ServicePrice / 2):N2}</p>
                     <p style='color: #f0c808;'>Booking Fee: R{booking.BookingFee:N2}</p>
                     <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>CONFIRMED</strong>.</p>
                     <p><strong>Remaining Balance:</strong> R{finalAmount:N2} (to be paid at least 2 days before the appointment)</p>
@@ -422,7 +437,7 @@ namespace BeautyArtists.Controllers
                 await _emailService.SendEmailAsync(artistEmail, artistSubject, artistBody);
                 await _emailService.SendEmailAsync(clientEmail, clientSubject, clientBody);
 
-                Console.WriteLine($"✅ Deposit emails sent to artist: {artistEmail} and client: {clientEmail}");
+                Console.WriteLine($"✅ Deposit emails sent.");
             }
             catch (Exception ex)
             {
@@ -440,7 +455,7 @@ namespace BeautyArtists.Controllers
 
                 if (artist == null || client == null)
                 {
-                    Console.WriteLine($"❌ Final emails: Artist or client is null. ArtistId: {artist?.Id}, ClientId: {client?.Id}");
+                    Console.WriteLine($"❌ Final emails: Artist or client is null.");
                     return;
                 }
 
@@ -449,11 +464,10 @@ namespace BeautyArtists.Controllers
 
                 if (string.IsNullOrEmpty(artistEmail) || string.IsNullOrEmpty(clientEmail))
                 {
-                    Console.WriteLine($"❌ Final emails: Missing email. ArtistEmail={artistEmail}, ClientEmail={clientEmail}");
+                    Console.WriteLine($"❌ Final emails: Missing email.");
                     return;
                 }
 
-                decimal clientServicePrice = ClientPrice(booking);
                 decimal depositPaid = booking.DepositPaid;
 
                 // To Artist
@@ -468,9 +482,9 @@ namespace BeautyArtists.Controllers
                         <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
                         <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
                         <p><strong>Total Received:</strong> R{(depositPaid + finalAmount):N2}</p>
-                        <p><strong>Your Earnings (service price):</strong> R{booking.ServicePrice:N2}</p>
+                        <p><strong>Your Earnings:</strong> R{booking.ServicePrice:N2}</p>
                     </div>
-                    <p>This appointment is now <strong>FULLY PAID</strong>. You can mark it as completed after the service.</p>
+                    <p>This appointment is now <strong>FULLY PAID</strong>.</p>
                     <hr>
                     <p style='font-size: 12px; color: #666;'>RubiOr</p>
                 </div>";
@@ -491,7 +505,7 @@ namespace BeautyArtists.Controllers
                 await _emailService.SendEmailAsync(artistEmail, artistSubject, artistBody);
                 await _emailService.SendEmailAsync(clientEmail, clientSubject, clientBody);
 
-                Console.WriteLine($"✅ Final emails sent to artist: {artistEmail} and client: {clientEmail}");
+                Console.WriteLine($"✅ Final emails sent.");
             }
             catch (Exception ex)
             {
@@ -509,7 +523,7 @@ namespace BeautyArtists.Controllers
 
                 if (artist == null || client == null)
                 {
-                    Console.WriteLine($"❌ Full payment emails: Artist or client is null. ArtistId: {artist?.Id}, ClientId: {client?.Id}");
+                    Console.WriteLine($"❌ Full payment emails: Artist or client is null.");
                     return;
                 }
 
@@ -518,7 +532,7 @@ namespace BeautyArtists.Controllers
 
                 if (string.IsNullOrEmpty(artistEmail) || string.IsNullOrEmpty(clientEmail))
                 {
-                    Console.WriteLine($"❌ Full payment emails: Missing email. ArtistEmail={artistEmail}, ClientEmail={clientEmail}");
+                    Console.WriteLine($"❌ Full payment emails: Missing email.");
                     return;
                 }
 
@@ -533,10 +547,9 @@ namespace BeautyArtists.Controllers
                         <p><strong>Service:</strong> {serviceName}</p>
                         <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
                         <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-                        <p><strong>Total Received:</strong> R{fullAmount:N2}</p>
-                        <p><strong>Your Earnings (service price):</strong> R{booking.ServicePrice:N2}</p>
+                        <p><strong>Your Earnings:</strong> R{booking.ServicePrice:N2}</p>
                     </div>
-                    <p>This appointment is now <strong>CONFIRMED</strong> and <strong>FULLY PAID</strong>. You can mark it as completed after the service.</p>
+                    <p>This appointment is now <strong>CONFIRMED</strong> and <strong>FULLY PAID</strong>.</p>
                     <hr>
                     <p style='font-size: 12px; color: #666;'>RubiOr</p>
                 </div>";
@@ -557,7 +570,7 @@ namespace BeautyArtists.Controllers
                 await _emailService.SendEmailAsync(artistEmail, artistSubject, artistBody);
                 await _emailService.SendEmailAsync(clientEmail, clientSubject, clientBody);
 
-                Console.WriteLine($"✅ Full payment emails sent to artist: {artistEmail} and client: {clientEmail}");
+                Console.WriteLine($"✅ Full payment emails sent.");
             }
             catch (Exception ex)
             {

@@ -20,6 +20,8 @@ namespace BeautyArtists.Services
         private readonly IConfiguration _config;
         private readonly ApplicationDbContext _context;
         private readonly HttpClient _httpClient;
+        private const decimal COMMISSION_RATE = 0.15m;
+        private const decimal BOOKING_FEE = 5.00m;
 
         public PaymentService(IConfiguration config, ApplicationDbContext context, IHttpClientFactory httpClientFactory)
         {
@@ -29,7 +31,15 @@ namespace BeautyArtists.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _config["Paystack:SecretKey"]);
         }
 
-        // ─── 🔥 FIXED: Determine if deposit or final payment ───
+        // ─── HELPER: What client pays total (artist price + 15% markup + booking fee) ───
+        private decimal ClientTotal(Booking b) => (b.ServicePrice * (1 + COMMISSION_RATE)) + b.BookingFee;
+
+        // ─── HELPER: Deposit amount (50% of artist price + booking fee) ───
+        private decimal DepositAmount(Booking b) => (b.ServicePrice / 2) + b.BookingFee;
+
+        // ─── HELPER: Final amount (remaining 50% of artist price) ───
+        private decimal FinalAmount(Booking b) => b.ServicePrice / 2;
+
         public async Task<(bool success, string message, string authorizationUrl, string reference)> InitializePayment(
             string email,
             decimal amount,
@@ -41,16 +51,34 @@ namespace BeautyArtists.Services
                 int amountInCents = (int)(amount * 100);
                 string reference = GenerateReference();
 
-                // ─── 🔥 FETCH BOOKING TO DETERMINE PAYMENT TYPE ───
+                // ─── FETCH BOOKING ───
                 var booking = await _context.Bookings.FirstOrDefaultAsync(b => b.Id == bookingId);
                 if (booking == null)
                 {
                     return (false, "Booking not found", null, null);
                 }
 
-                // Determine if this is a deposit or final payment
+                // ─── DETERMINE PAYMENT TYPE ───
+                // Deposit = 50% of artist price + booking fee
+                decimal depositAmount = DepositAmount(booking);
+
+                // Client total = artist price + 15% markup + booking fee
+                decimal clientTotal = ClientTotal(booking);
+
+                // Is this a deposit payment?
                 bool isDeposit = !booking.IsDepositPaid;
-                bool isFullPayment = amount >= booking.TotalAmount;
+
+                // Is this a full payment (last minute)? Check if amount equals client total
+                bool isFullPayment = Math.Abs(amount - clientTotal) < 0.01m;
+
+                // Log for debugging
+                Console.WriteLine($"📊 Booking {bookingId}:");
+                Console.WriteLine($"   ServicePrice: R{booking.ServicePrice}");
+                Console.WriteLine($"   DepositAmount: R{depositAmount}");
+                Console.WriteLine($"   ClientTotal: R{clientTotal}");
+                Console.WriteLine($"   Amount Paid: R{amount}");
+                Console.WriteLine($"   IsDeposit: {isDeposit}");
+                Console.WriteLine($"   IsFullPayment: {isFullPayment}");
 
                 var request = new PaystackInitRequest
                 {
@@ -75,7 +103,7 @@ namespace BeautyArtists.Services
 
                 if (result != null && result.status && result.data != null)
                 {
-                    // ─── 🔥 SAVE PAYMENT WITH CORRECT IsDeposit FLAG ───
+                    // ─── SAVE PAYMENT ───
                     var payment = new Payment
                     {
                         BookingId = bookingId,
@@ -83,8 +111,8 @@ namespace BeautyArtists.Services
                         Amount = amount,
                         Reference = reference,
                         Status = "pending",
-                        IsDeposit = isDeposit,          // ✅ TRUE for deposit, FALSE for final payment
-                        IsFullPayment = isFullPayment,  // ✅ TRUE if full payment (last minute)
+                        IsDeposit = isDeposit,
+                        IsFullPayment = isFullPayment,
                         PaymentMethod = "pending",
                         PhoneNumber = ""
                     };

@@ -245,7 +245,7 @@ namespace BeautyArtists.Services
                 string subject = messageSubject;
                 string body = isHtmlContent ? messageBody : $@"
         <div style='font-family: Arial, sans-serif; max-width: 600px; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-            <h3 style='color: #f0c808; margin-top:0;'>Message via Beauty in Red and Gold</h3>
+            <h3 style='color: #f0c808; margin-top:0;'>Message via RubiOr</h3>
             <p style='font-size: 12px; color: #888;'>From: {sender.FirstName} {sender.LastName}</p>
             <hr style='border: 0; border-top: 1px solid #333; margin: 15px 0;' />
             <p style='white-space: pre-line; line-height: 1.6;'>{messageBody}</p>

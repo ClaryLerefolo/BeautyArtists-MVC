@@ -17,7 +17,7 @@ namespace BeautyArtists.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _hostEnvironment;
-        private const decimal COMMISSION_RATE = 0.15m;
+        private const decimal COMMISSION_RATE = 0.15m;  // 15% markup added to client
         private const decimal BOOKING_FEE = 5.00m;
 
         public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment hostEnvironment)
@@ -35,9 +35,13 @@ namespace BeautyArtists.Controllers
                 TotalArtists = await _userManager.GetUsersInRoleAsync("Artist").ContinueWith(t => t.Result.Count),
                 TotalCustomers = await _userManager.GetUsersInRoleAsync("Client").ContinueWith(t => t.Result.Count),
                 TotalBookings = await _context.Bookings.CountAsync(),
+
+                // ✅ FIX: Artist gets 100% of their price
                 TotalRevenue = await _context.Bookings
                     .Where(b => b.Status == BookingStatus.Completed)
-                    .SumAsync(b => b.ServicePrice * (1 - COMMISSION_RATE)),
+                    .SumAsync(b => b.ServicePrice),  // 100% - NO commission taken!
+
+                // ✅ FIX: Artist gets 100% of their price
                 RevenuePerArtist = await _context.Bookings
                     .Where(b => b.Status == BookingStatus.Completed)
                     .Include(b => b.UserService)
@@ -47,7 +51,7 @@ namespace BeautyArtists.Controllers
                     {
                         ArtistId = g.Key,
                         ArtistName = g.Select(b => b.UserService.Artist.FirstName + " " + b.UserService.Artist.LastName).FirstOrDefault(),
-                        TotalRevenue = g.Sum(b => b.ServicePrice * (1 - COMMISSION_RATE))
+                        TotalRevenue = g.Sum(b => b.ServicePrice)  // 100% - NO commission taken!
                     })
                     .ToListAsync()
             };

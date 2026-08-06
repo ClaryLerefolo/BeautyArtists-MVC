@@ -17,6 +17,9 @@
                     <p class="text-muted small mt-1 mb-0">
                         Your banking info is used to receive payouts via Paystack.
                     </p>
+                    <p class="text-warning small mt-1 mb-0" style="font-size: 0.75rem;">
+                        💡 You receive <strong>100%</strong> of your service price. Platform fee is added to the client.
+                    </p>
                 </div>
 
                 <div class="card-body">
@@ -28,7 +31,14 @@
                         </div>
                     }
 
-                    <!-- ─── 🔥 VERIFIED STATE ─── -->
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i> @TempData["Error"]
+                        </div>
+                    }
+
+                    <!-- ─── ✅ VERIFIED STATE ─── -->
                     @if (Model.IsBankAccountVerified && !string.IsNullOrEmpty(Model.SubaccountCode))
                     {
                         <div class="alert alert-success" style="border-left: 4px solid #28a745; background: rgba(40,167,69,0.08);">
@@ -51,6 +61,12 @@
                                             <code style="background: #1a1a1a; padding: 2px 8px; border-radius: 4px; color: #FFD700;">@Model.SubaccountCode</code>
                                         </p>
                                     }
+                                    <div class="mt-2" style="background: rgba(255,215,0,0.05); padding: 8px 12px; border-radius: 6px; border-left: 2px solid #FFD700;">
+                                        <p style="margin: 0; font-size: 0.8rem; color: rgba(255,255,255,0.6);">
+                                            💡 You receive <strong style="color: #FFD700;">100%</strong> of your service price. 
+                                            Platform fee is added to the client's total.
+                                        </p>
+                                    </div>
                                     <div class="mt-3 d-flex gap-2 flex-wrap">
                                         <a href="@Url.Action("Profile", "Artist")" class="btn btn-success" style="background: #28a745; color: #fff; padding: 8px 20px; border-radius: 8px; text-decoration: none;">
                                             ← Back to Profile
@@ -63,12 +79,11 @@
                             </div>
                         </div>
 
-                        <!-- ─── HIDDEN EDIT FORM (shown on button click) ─── -->
+                        <!-- ─── HIDDEN EDIT FORM ─── -->
                         <div id="editForm" style="display: none; border-top: 1px solid rgba(255,215,0,0.1); padding-top: 20px; margin-top: 20px;">
                             <h4 style="color: #FFD700;">Update Banking Details</h4>
                             <p class="text-muted small">Changing your bank details requires re‑verification.</p>
-                            <!-- Reuse the same form fields (will work with the same POST action) -->
-                            <form method="post" asp-action="Banking" id="bankingForm">
+                            <form method="post" asp-action="Banking" id="editBankingForm">
                                 @Html.AntiForgeryToken()
                                 <div asp-validation-summary="All" class="alert alert-danger" style="display: none;"></div>
 
@@ -100,20 +115,31 @@
                                            id="editAccountNumber" />
                                     <div class="form-text text-muted">South African bank account number (8-13 digits).</div>
                                     <span asp-validation-for="AccountNumber" class="text-danger small"></span>
+                                    <div id="editValidationStatus" class="mt-2"></div>
                                 </div>
 
+                                <!-- ✅ FIXED: Account Holder Name is EDITABLE -->
                                 <div class="mb-3">
-                                    <label class="form-label text-warning">Account Holder Name</label>
-                                    <input asp-for="AccountHolderName" class="form-control bg-dark text-white border-secondary"
-                                           placeholder="Will auto-fill after validation" readonly id="editAccountHolderName" />
-                                    <div class="form-text text-muted">This will be auto-filled after validation.</div>
+                                    <label class="form-label text-warning">Account Holder Name <span class="text-danger">*</span></label>
+                                    <input asp-for="AccountHolderName" 
+                                           class="form-control bg-dark text-white border-secondary"
+                                           placeholder="Enter the account holder's full name" 
+                                           id="editAccountHolderName" />
+                                    <div class="form-text text-muted">
+                                        <span>Enter the full name as it appears on the bank account.</span>
+                                    </div>
+                                    <span asp-validation-for="AccountHolderName" class="text-danger small"></span>
                                 </div>
 
                                 <div class="alert alert-info small">
                                     <i class="fas fa-info-circle me-2"></i>
                                     Your bank account will be verified with Paystack to ensure accurate payouts.
                                     <strong>This is a one-time process.</strong>
-                                    <br /><strong>Test Mode:</strong> Use account number <strong>0000000000</strong>
+                                    <hr style="border-color: rgba(255,215,0,0.1);">
+                                    <p style="margin: 5px 0 0 0; color: #FFD700;">
+                                        💡 <strong>You receive 100% of your service price.</strong> 
+                                        A 15% platform fee is added to the client's total.
+                                    </p>
                                 </div>
 
                                 <button type="submit" class="btn btn-warning w-100 py-2 fw-bold">
@@ -125,7 +151,7 @@
                     }
                     else
                     {
-                        <!-- ─── FIRST‑TIME SETUP (full form) ─── -->
+                        <!-- ─── FIRST‑TIME SETUP ─── -->
                         <div class="alert alert-secondary">
                             <i class="fas fa-info-circle me-2"></i>
                             No banking details saved yet. Please complete the form below.
@@ -163,16 +189,20 @@
                                        id="AccountNumber" />
                                 <div class="form-text text-muted">South African bank account number (8-13 digits).</div>
                                 <span asp-validation-for="AccountNumber" class="text-danger small"></span>
-
-                                <!-- ─── VALIDATION STATUS ─── -->
                                 <div id="validationStatus" class="mt-2"></div>
                             </div>
 
+                            <!-- ✅ FIXED: Account Holder Name is EDITABLE -->
                             <div class="mb-3">
-                                <label class="form-label text-warning">Account Holder Name</label>
-                                <input asp-for="AccountHolderName" class="form-control bg-dark text-white border-secondary"
-                                       placeholder="Will auto-fill after validation" readonly id="AccountHolderName" />
-                                <div class="form-text text-muted">This will be auto-filled after validation.</div>
+                                <label class="form-label text-warning">Account Holder Name <span class="text-danger">*</span></label>
+                                <input asp-for="AccountHolderName" 
+                                       class="form-control bg-dark text-white border-secondary"
+                                       placeholder="Enter the account holder's full name" 
+                                       id="AccountHolderName" />
+                                <div class="form-text text-muted">
+                                    <span>Enter the full name as it appears on the bank account.</span>
+                                </div>
+                                <span asp-validation-for="AccountHolderName" class="text-danger small"></span>
                             </div>
 
                             <div class="alert alert-info small">
@@ -180,6 +210,11 @@
                                 Your bank account will be verified with Paystack to ensure accurate payouts.
                                 <strong>This is a one-time process.</strong>
                                 <br /><strong>Test Mode:</strong> Use account number <strong>0000000000</strong>
+                                <hr style="border-color: rgba(255,215,0,0.1);">
+                                <p style="margin: 5px 0 0 0; color: #FFD700;">
+                                    💡 <strong>You receive 100% of your service price.</strong> 
+                                    A 15% platform fee is added to the client's total.
+                                </p>
                             </div>
 
                             <button type="submit" class="btn btn-warning w-100 py-2 fw-bold">
@@ -197,6 +232,9 @@
                     <i class="fas fa-lock me-1"></i> Your banking details are securely processed by Paystack.
                     We only store your subaccount reference.
                 </p>
+                <p class="mb-0 mt-1" style="color: rgba(255,215,0,0.3);">
+                    💰 You receive 100% of your service price. Platform fee is added to the client.
+                </p>
             </div>
 
         </div>
@@ -207,7 +245,6 @@
     <partial name="_ValidationScriptsPartial" />
 
     <script>
-        // ─── TOGGLE EDIT FORM ───
         function toggleEditForm() {
             var editForm = document.getElementById('editForm');
             if (editForm.style.display === 'none') {
@@ -217,74 +254,11 @@
             }
         }
 
-        // ─── VALIDATION FOR THE MAIN FORM (first time) ───
         $(document).ready(function() {
             var isVerified = @(Model.IsBankAccountVerified ? "true" : "false");
 
-            // Only attach validation if this is the first-time form (not the edit form)
-            if (!isVerified) {
-                $('#AccountNumber').on('blur', function() {
-                    var bankCode = $('#BankCode').val();
-                    var accountNumber = $(this).val();
-
-                    if (bankCode && accountNumber && accountNumber.length >= 8) {
-                        validateAccount(bankCode, accountNumber);
-                    } else {
-                        $('#validationStatus').html('');
-                    }
-                });
-
-                $('#BankCode').on('change', function() {
-                    var bankCode = $(this).val();
-                    var accountNumber = $('#AccountNumber').val();
-
-                    if (bankCode && accountNumber && accountNumber.length >= 8) {
-                        validateAccount(bankCode, accountNumber);
-                    } else {
-                        $('#validationStatus').html('');
-                    }
-                });
-            }
-
-            // If the edit form exists (verified state), attach validation to its fields
-            if (isVerified) {
-                $('#editAccountNumber').on('blur', function() {
-                    var bankCode = $('#editBankCode').val();
-                    var accountNumber = $(this).val();
-
-                    if (bankCode && accountNumber && accountNumber.length >= 8) {
-                        validateAccount(bankCode, accountNumber, 'edit');
-                    } else {
-                        $('#validationStatus').html('');
-                    }
-                });
-
-                $('#editBankCode').on('change', function() {
-                    var bankCode = $(this).val();
-                    var accountNumber = $('#editAccountNumber').val();
-
-                    if (bankCode && accountNumber && accountNumber.length >= 8) {
-                        validateAccount(bankCode, accountNumber, 'edit');
-                    } else {
-                        $('#validationStatus').html('');
-                    }
-                });
-            }
-
-            function validateAccount(bankCode, accountNumber, prefix) {
-                // The AJAX call uses the same endpoint; we can target the validation status div by a specific id.
-                // For simplicity, we'll reuse the same #validationStatus div.
-                // If the edit form is shown, the status should be shown inside the edit form.
-                // Better to use a single status div, but we'll show it in the main container.
-                var statusDiv = $('#validationStatus');
-                if (prefix === 'edit') {
-                    statusDiv = $('#editForm #validationStatus');
-                    // If it doesn't exist, create one for the edit form.
-                    if (statusDiv.length === 0) {
-                        $('#editForm .alert-info').before('<div id="editValidationStatus" class="mt-2"></div>');
-                        statusDiv = $('#editValidationStatus');
-                    }
-                }
+            function validateAccount(bankCode, accountNumber, statusId, targetId) {
+                var statusDiv = $(statusId);
                 $.ajax({
                     url: '/Artist/ValidateAccount',
                     type: 'GET',
@@ -295,26 +269,71 @@
                     success: function(response) {
                         if (response.success) {
                             statusDiv.html(
-                                '<span class="text-success">✅ Account verified: ' + response.accountHolderName + '</span>'
+                                '<span class="text-success">✅ Account verified</span>'
                             );
-                            if (prefix === 'edit') {
-                                $('#editAccountHolderName').val(response.accountHolderName);
-                            } else {
-                                $('#AccountHolderName').val(response.accountHolderName);
+                            // ✅ For ZAR, response.accountHolderName will be empty
+                            // We keep the artist's input
+                            if (response.accountHolderName) {
+                                $(targetId).val(response.accountHolderName);
                             }
                         } else {
                             statusDiv.html(
                                 '<span class="text-danger">❌ ' + response.message + '</span>'
                             );
-                            if (prefix === 'edit') {
-                                $('#editAccountHolderName').val('');
-                            } else {
-                                $('#AccountHolderName').val('');
-                            }
                         }
                     },
                     error: function() {
                         statusDiv.html('<span class="text-danger">❌ Validation error</span>');
+                    }
+                });
+            }
+
+            // ─── MAIN FORM ───
+            if (!isVerified) {
+                $('#AccountNumber').on('blur', function() {
+                    var bankCode = $('#BankCode').val();
+                    var accountNumber = $(this).val();
+
+                    if (bankCode && accountNumber && accountNumber.length >= 8) {
+                        validateAccount(bankCode, accountNumber, '#validationStatus', '#AccountHolderName');
+                    } else {
+                        $('#validationStatus').html('');
+                    }
+                });
+
+                $('#BankCode').on('change', function() {
+                    var bankCode = $(this).val();
+                    var accountNumber = $('#AccountNumber').val();
+
+                    if (bankCode && accountNumber && accountNumber.length >= 8) {
+                        validateAccount(bankCode, accountNumber, '#validationStatus', '#AccountHolderName');
+                    } else {
+                        $('#validationStatus').html('');
+                    }
+                });
+            }
+
+            // ─── EDIT FORM ───
+            if (isVerified) {
+                $('#editAccountNumber').on('blur', function() {
+                    var bankCode = $('#editBankCode').val();
+                    var accountNumber = $(this).val();
+
+                    if (bankCode && accountNumber && accountNumber.length >= 8) {
+                        validateAccount(bankCode, accountNumber, '#editValidationStatus', '#editAccountHolderName');
+                    } else {
+                        $('#editValidationStatus').html('');
+                    }
+                });
+
+                $('#editBankCode').on('change', function() {
+                    var bankCode = $(this).val();
+                    var accountNumber = $('#editAccountNumber').val();
+
+                    if (bankCode && accountNumber && accountNumber.length >= 8) {
+                        validateAccount(bankCode, accountNumber, '#editValidationStatus', '#editAccountHolderName');
+                    } else {
+                        $('#editValidationStatus').html('');
                     }
                 });
             }

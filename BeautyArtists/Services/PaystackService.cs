@@ -6,26 +6,56 @@ using BeautyArtists.Models.ViewModels;
 
 namespace BeautyArtists.Services
 {
+    public interface IPaystackService
+    {
+        Task<BankValidationResult> ValidateBankAccountAsync(string bankCode, string accountNumber);
+        Task<SubaccountCreationResult> CreateSubaccountAsync(string email, string bankCode, string accountNumber, string businessName, decimal percentageCharge = 15m);
+        Task<List<Bank>> GetBanksAsync();
+    }
+
+    public class Bank
+    {
+        public string Name { get; set; }
+        public string Code { get; set; }
+    }
+
+    public class BankValidationResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public string AccountHolderName { get; set; }
+    }
+
+    public class SubaccountCreationResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public string SubaccountCode { get; set; }
+        public string AccountHolderName { get; set; }
+    }
+
     public class PaystackService : IPaystackService
     {
         private readonly HttpClient _httpClient;
         private readonly string _secretKey;
         private readonly bool _isTestMode;
         private readonly ILogger<PaystackService> _logger;
+        private readonly string _currency;
 
         public PaystackService(HttpClient httpClient, IConfiguration configuration, ILogger<PaystackService> logger)
         {
             _httpClient = httpClient;
             _secretKey = configuration["Paystack:SecretKey"] ?? throw new Exception("Paystack Secret Key is missing");
-            _isTestMode = configuration["Paystack:Mode"]?.ToLower() != "live";
+            _isTestMode = configuration["Paystack:Mode"]?.ToLower() == "test";
+            _currency = configuration["Paystack:Currency"] ?? "ZAR";
             _logger = logger;
             _httpClient.BaseAddress = new Uri("https://api.paystack.co/");
             _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_secretKey}");
 
             Console.WriteLine($"🔍 Paystack Mode: {(_isTestMode ? "TEST" : "LIVE")}");
+            Console.WriteLine($"🔍 Currency: {_currency}");
         }
 
-        // ─── GET BANKS ───
         public async Task<List<Bank>> GetBanksAsync()
         {
             try
@@ -33,6 +63,8 @@ namespace BeautyArtists.Services
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                 var response = await _httpClient.GetAsync("bank?country=south-africa", cts.Token);
                 var json = await response.Content.ReadAsStringAsync();
+
+                Console.WriteLine($"🔍 Banks API Response: {json}");
 
                 var result = JsonSerializer.Deserialize<PaystackBankResponse>(json);
 
@@ -57,31 +89,25 @@ namespace BeautyArtists.Services
 
         private List<Bank> GetFallbackBanks()
         {
-            if (_isTestMode)
-            {
-                return new List<Bank>
-                {
-                    new Bank { Name = "ABSA (Test)", Code = "000003" },
-                    new Bank { Name = "Capitec (Test)", Code = "000002" },
-                    new Bank { Name = "FNB (Test)", Code = "000001" },
-                    new Bank { Name = "Standard Bank (Test)", Code = "000004" }
-                };
-            }
-
+            // ✅ CORRECT SOUTH AFRICAN BANK CODES - PERMANENT
             return new List<Bank>
             {
-                new Bank { Name = "ABSA", Code = "585001" },
-                new Bank { Name = "Capitec", Code = "585010" },
-                new Bank { Name = "FNB", Code = "585012" },
-                new Bank { Name = "Nedbank", Code = "585013" },
-                new Bank { Name = "Standard Bank", Code = "585014" }
+                new Bank { Name = "ABSA", Code = "632005" },
+                new Bank { Name = "Capitec", Code = "470010" },
+                new Bank { Name = "FNB", Code = "250655" },
+                new Bank { Name = "Nedbank", Code = "198765" },
+                new Bank { Name = "Standard Bank", Code = "051001" },
+                new Bank { Name = "Bank Zero", Code = "679000" },
+                new Bank { Name = "Discovery Bank", Code = "679000" },
+                new Bank { Name = "TymeBank", Code = "678910" },
+                new Bank { Name = "African Bank", Code = "430000" },
+                new Bank { Name = "Investec", Code = "580105" }
             };
         }
 
-        // ─── VALIDATE BANK ACCOUNT ───
         public async Task<BankValidationResult> ValidateBankAccountAsync(string bankCode, string accountNumber)
         {
-            // ─── 🔥 TEST MODE: ALWAYS SUCCEED ───
+            // ─── TEST MODE ───
             if (_isTestMode)
             {
                 Console.WriteLine($"🔍 TEST MODE: Bypassing validation for {bankCode}/{accountNumber}");
@@ -93,7 +119,20 @@ namespace BeautyArtists.Services
                 };
             }
 
-            // ─── LIVE MODE: REAL VALIDATION ───
+            // ─── ZAR: Skip validation, return EMPTY AccountHolderName ───
+            // Paystack bank/resolve does NOT support ZAR
+            if (_currency == "ZAR")
+            {
+                Console.WriteLine($"🔍 ZAR MODE: Skipping bank validation for {bankCode}/{accountNumber}");
+                return new BankValidationResult
+                {
+                    Success = true,
+                    Message = "ZAR bank account - validation skipped",
+                    AccountHolderName = ""  // ← EMPTY! Artist will fill this in
+                };
+            }
+
+            // ─── Other currencies (NGN, USD, GHS, KES) ───
             try
             {
                 var url = $"bank/resolve?account_number={accountNumber}&bank_code={bankCode}";
@@ -132,7 +171,6 @@ namespace BeautyArtists.Services
             }
         }
 
-        // ─── CREATE SUBACCOUNT ───
         public async Task<SubaccountCreationResult> CreateSubaccountAsync(
             string email,
             string bankCode,
@@ -148,7 +186,8 @@ namespace BeautyArtists.Services
                     bank_code = bankCode,
                     account_number = accountNumber,
                     percentage_charge = (float)percentageCharge,
-                    description = $"Subaccount for {businessName} (Email: {email})"
+                    description = $"Subaccount for {businessName} (Email: {email})",
+                    currency = _currency
                 };
 
                 var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
