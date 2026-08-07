@@ -31,13 +31,9 @@ namespace BeautyArtists.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _config["Paystack:SecretKey"]);
         }
 
-        // ─── HELPER: What client pays total (artist price + 15% markup + booking fee) ───
+        // ─── HELPERS ───
         private decimal ClientTotal(Booking b) => (b.ServicePrice * (1 + COMMISSION_RATE)) + b.BookingFee;
-
-        // ─── HELPER: Deposit amount (50% of artist price + booking fee) ───
         private decimal DepositAmount(Booking b) => (b.ServicePrice / 2) + b.BookingFee;
-
-        // ─── HELPER: Final amount (remaining 50% of artist price) ───
         private decimal FinalAmount(Booking b) => b.ServicePrice / 2;
 
         public async Task<(bool success, string message, string authorizationUrl, string reference)> InitializePayment(
@@ -51,47 +47,46 @@ namespace BeautyArtists.Services
                 int amountInCents = (int)(amount * 100);
                 string reference = GenerateReference();
 
-                // ─── FETCH BOOKING ───
-                var booking = await _context.Bookings.FirstOrDefaultAsync(b => b.Id == bookingId);
+                // ─── FETCH BOOKING WITH ARTIST DETAILS ───
+                var booking = await _context.Bookings
+                    .Include(b => b.UserService)
+                        .ThenInclude(us => us.Artist)
+                            .ThenInclude(a => a.ArtistProfile)
+                    .FirstOrDefaultAsync(b => b.Id == bookingId);
+
                 if (booking == null)
                 {
                     return (false, "Booking not found", null, null);
                 }
 
                 // ─── DETERMINE PAYMENT TYPE ───
-                // Deposit = 50% of artist price + booking fee
                 decimal depositAmount = DepositAmount(booking);
-
-                // Client total = artist price + 15% markup + booking fee
                 decimal clientTotal = ClientTotal(booking);
-
-                // Is this a deposit payment?
                 bool isDeposit = !booking.IsDepositPaid;
-
-                // Is this a full payment (last minute)? Check if amount equals client total
                 bool isFullPayment = Math.Abs(amount - clientTotal) < 0.01m;
 
-                // Log for debugging
                 Console.WriteLine($"📊 Booking {bookingId}:");
                 Console.WriteLine($"   ServicePrice: R{booking.ServicePrice}");
-                Console.WriteLine($"   DepositAmount: R{depositAmount}");
-                Console.WriteLine($"   ClientTotal: R{clientTotal}");
                 Console.WriteLine($"   Amount Paid: R{amount}");
                 Console.WriteLine($"   IsDeposit: {isDeposit}");
                 Console.WriteLine($"   IsFullPayment: {isFullPayment}");
 
-                var request = new PaystackInitRequest
+                // ─── BUILD REQUEST PAYLOAD ───
+                var requestPayload = new
                 {
                     email = email,
                     amount = amountInCents,
                     currency = "ZAR",
                     reference = reference,
                     callback_url = _config["Paystack:CallbackUrl"],
-                    subaccount = subaccount,
-                    transaction_charge = 0
+                    // ─── 🔥 SPLIT PAYMENT CONFIG ───
+                    split = BuildSplitObject(booking, amount)
                 };
 
-                var json = JsonConvert.SerializeObject(request);
+                var json = JsonConvert.SerializeObject(requestPayload, new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore
+                });
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
                 var response = await _httpClient.PostAsync("https://api.paystack.co/transaction/initialize", content);
@@ -129,6 +124,57 @@ namespace BeautyArtists.Services
                 Console.WriteLine($"InitializePayment Exception: {ex.Message}");
                 return (false, $"Error: {ex.Message}", null, null);
             }
+        }
+
+        // ─── 🔥 BUILD SPLIT OBJECT ───
+        private object BuildSplitObject(Booking booking, decimal amount)
+        {
+            // Get the artist's subaccount code
+            var artistSubaccount = booking.UserService?.Artist?.ArtistProfile?.SubaccountCode;
+
+            // If no subaccount, return null (no split)
+            if (string.IsNullOrEmpty(artistSubaccount) || artistSubaccount.StartsWith("TEST_SUBACCOUNT_"))
+            {
+                Console.WriteLine($"⚠️ No valid subaccount for artist {booking.UserService?.ArtistId}. Skipping split.");
+                return null;
+            }
+
+            // Calculate artist's share (100% of their service price)
+            // For deposit: artist gets 50% of their price
+            // For final/full: artist gets 100% of their price
+            decimal artistShare;
+            bool isDeposit = !booking.IsDepositPaid;
+            bool isFullPayment = Math.Abs(amount - ClientTotal(booking)) < 0.01m;
+
+            if (isDeposit && !isFullPayment)
+            {
+                // Deposit = 50% of artist price
+                artistShare = booking.ServicePrice / 2;
+            }
+            else
+            {
+                // Final or full payment = 100% of artist price
+                artistShare = booking.ServicePrice;
+            }
+
+            // Convert to cents
+            int artistShareInCents = (int)(artistShare * 100);
+
+            Console.WriteLine($"💰 Split: Artist subaccount {artistSubaccount} gets R{artistShare}");
+
+            return new
+            {
+                type = "flat",
+                bearer_type = "account", // Platform pays the fee
+                subaccounts = new[]
+                {
+                    new
+                    {
+                        subaccount = artistSubaccount,
+                        share = artistShareInCents
+                    }
+                }
+            };
         }
 
         public async Task<(bool success, string message, PaystackVerifyData data)> VerifyPayment(string reference)
