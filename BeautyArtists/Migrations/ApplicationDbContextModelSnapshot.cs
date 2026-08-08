@@ -22,6 +22,21 @@ namespace BeautyInRedAndGold.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("ArtistProfileService", b =>
+                {
+                    b.Property<int>("ArtistProfilesId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ServicesId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ArtistProfilesId", "ServicesId");
+
+                    b.HasIndex("ServicesId");
+
+                    b.ToTable("ArtistServices", (string)null);
+                });
+
             modelBuilder.Entity("BeautyArtists.Models.ActivityLog", b =>
                 {
                     b.Property<int>("Id")
@@ -48,7 +63,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ArtistId");
 
-                    b.ToTable("ActivityLogs");
+                    b.ToTable("ActivityLogs", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ApplicationUser", b =>
@@ -57,9 +72,6 @@ namespace BeautyInRedAndGold.Migrations
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<int>("AccessFailedCount")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ArtistProfileId")
                         .HasColumnType("int");
 
                     b.Property<string>("ConcurrencyStamp")
@@ -119,8 +131,6 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ArtistProfileId");
-
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
@@ -178,7 +188,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ServiceId");
 
-                    b.ToTable("Appointments");
+                    b.ToTable("Appointments", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ArtistAvailability", b =>
@@ -209,7 +219,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ArtistId");
 
-                    b.ToTable("ArtistAvailabilities");
+                    b.ToTable("ArtistAvailabilities", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ArtistProfile", b =>
@@ -305,7 +315,7 @@ namespace BeautyInRedAndGold.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("ArtistProfiles");
+                    b.ToTable("ArtistProfiles", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Booking", b =>
@@ -323,17 +333,13 @@ namespace BeautyInRedAndGold.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("ArtistNetAmount")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("ArtistNotes")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("ArtistTotalEarned")
-                        .ValueGeneratedOnAdd()
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)")
-                        .HasDefaultValue(0m);
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int?>("AvailabilitySlotId")
                         .HasColumnType("int");
@@ -394,18 +400,15 @@ namespace BeautyInRedAndGold.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<decimal>("PlatformCommission")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("PlatformEarnings")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("SelectedLocationType")
                         .HasColumnType("int");
 
                     b.Property<decimal>("ServicePrice")
-                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("Status")
@@ -432,7 +435,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("UserServiceId");
 
-                    b.ToTable("Bookings");
+                    b.ToTable("Bookings", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ChatMessage", b =>
@@ -476,7 +479,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("SenderId");
 
-                    b.ToTable("ChatMessages");
+                    b.ToTable("ChatMessages", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.HeroBanner", b =>
@@ -489,22 +492,19 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.Property<string>("ImagePath")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Subtitle")
                         .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("HeroBanners");
+                    b.ToTable("HeroBanners", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Notification", b =>
@@ -558,7 +558,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Notifications");
+                    b.ToTable("Notifications", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Payment", b =>
@@ -584,8 +584,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsDeposit")
                         .HasColumnType("bit");
@@ -612,7 +611,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("BookingId");
 
-                    b.ToTable("Payments");
+                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Portfolio", b =>
@@ -644,7 +643,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ArtistId");
 
-                    b.ToTable("Portfolios");
+                    b.ToTable("Portfolios", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.PortfolioImage", b =>
@@ -666,7 +665,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("PortfolioId");
 
-                    b.ToTable("PortfolioImages");
+                    b.ToTable("PortfolioImages", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.PortfolioItem", b =>
@@ -744,7 +743,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("UserServiceId");
 
-                    b.ToTable("PortfolioItems");
+                    b.ToTable("PortfolioItems", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Review", b =>
@@ -783,7 +782,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ServiceId");
 
-                    b.ToTable("Reviews");
+                    b.ToTable("Reviews", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Service", b =>
@@ -809,8 +808,8 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<int>("Duration")
                         .HasColumnType("int");
@@ -834,7 +833,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("CategoryId");
 
-                    b.ToTable("Services");
+                    b.ToTable("Services", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ServiceCategory", b =>
@@ -847,8 +846,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.Property<string>("CoverImagePath")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("IconName")
                         .HasMaxLength(100)
@@ -861,7 +859,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ServiceCategories");
+                    b.ToTable("ServiceCategories", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ServiceImage", b =>
@@ -883,7 +881,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("UserServiceId");
 
-                    b.ToTable("ServiceImages");
+                    b.ToTable("ServiceImages", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.SupportReport", b =>
@@ -911,7 +909,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SupportReports");
+                    b.ToTable("SupportReports", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Testimonial", b =>
@@ -939,7 +937,7 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Testimonials");
+                    b.ToTable("Testimonials", (string)null);
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.UserService", b =>
@@ -956,9 +954,6 @@ namespace BeautyInRedAndGold.Migrations
                     b.Property<string>("ArtistId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
-
-                    b.Property<int?>("ArtistProfileId")
-                        .HasColumnType("int");
 
                     b.Property<string>("CustomDescription")
                         .HasColumnType("nvarchar(max)");
@@ -984,11 +979,9 @@ namespace BeautyInRedAndGold.Migrations
 
                     b.HasIndex("ArtistId");
 
-                    b.HasIndex("ArtistProfileId");
-
                     b.HasIndex("ServiceId");
 
-                    b.ToTable("UserServices");
+                    b.ToTable("UserServices", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -1128,6 +1121,21 @@ namespace BeautyInRedAndGold.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("ArtistProfileService", b =>
+                {
+                    b.HasOne("BeautyArtists.Models.ArtistProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ArtistProfilesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BeautyArtists.Models.Service", null)
+                        .WithMany()
+                        .HasForeignKey("ServicesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("BeautyArtists.Models.ActivityLog", b =>
                 {
                     b.HasOne("BeautyArtists.Models.ApplicationUser", "Artist")
@@ -1137,15 +1145,6 @@ namespace BeautyInRedAndGold.Migrations
                         .IsRequired();
 
                     b.Navigation("Artist");
-                });
-
-            modelBuilder.Entity("BeautyArtists.Models.ApplicationUser", b =>
-                {
-                    b.HasOne("BeautyArtists.Models.ArtistProfile", "ArtistProfile")
-                        .WithMany()
-                        .HasForeignKey("ArtistProfileId");
-
-                    b.Navigation("ArtistProfile");
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.Appointment", b =>
@@ -1181,7 +1180,7 @@ namespace BeautyInRedAndGold.Migrations
             modelBuilder.Entity("BeautyArtists.Models.ArtistProfile", b =>
                 {
                     b.HasOne("BeautyArtists.Models.ApplicationUser", "User")
-                        .WithOne()
+                        .WithOne("ArtistProfile")
                         .HasForeignKey("BeautyArtists.Models.ArtistProfile", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1244,7 +1243,7 @@ namespace BeautyInRedAndGold.Migrations
                     b.HasOne("BeautyArtists.Models.Booking", "Booking")
                         .WithMany()
                         .HasForeignKey("BookingId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Booking");
@@ -1307,13 +1306,13 @@ namespace BeautyInRedAndGold.Migrations
                     b.HasOne("BeautyArtists.Models.Booking", "Booking")
                         .WithMany()
                         .HasForeignKey("BookingId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("BeautyArtists.Models.ApplicationUser", "Customer")
                         .WithMany()
                         .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("BeautyArtists.Models.Service", "Service")
@@ -1334,7 +1333,7 @@ namespace BeautyInRedAndGold.Migrations
                     b.HasOne("BeautyArtists.Models.ServiceCategory", "ServiceCategory")
                         .WithMany("Services")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("ServiceCategory");
@@ -1363,12 +1362,8 @@ namespace BeautyInRedAndGold.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("BeautyArtists.Models.ArtistProfile", null)
-                        .WithMany("UserServices")
-                        .HasForeignKey("ArtistProfileId");
-
                     b.HasOne("BeautyArtists.Models.Service", "Service")
-                        .WithMany("UserServices")
+                        .WithMany()
                         .HasForeignKey("ServiceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1431,11 +1426,9 @@ namespace BeautyInRedAndGold.Migrations
 
             modelBuilder.Entity("BeautyArtists.Models.ApplicationUser", b =>
                 {
-                    b.Navigation("UserServices");
-                });
+                    b.Navigation("ArtistProfile")
+                        .IsRequired();
 
-            modelBuilder.Entity("BeautyArtists.Models.ArtistProfile", b =>
-                {
                     b.Navigation("UserServices");
                 });
 
@@ -1447,8 +1440,6 @@ namespace BeautyInRedAndGold.Migrations
             modelBuilder.Entity("BeautyArtists.Models.Service", b =>
                 {
                     b.Navigation("Reviews");
-
-                    b.Navigation("UserServices");
                 });
 
             modelBuilder.Entity("BeautyArtists.Models.ServiceCategory", b =>

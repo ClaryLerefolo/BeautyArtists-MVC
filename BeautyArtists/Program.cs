@@ -42,11 +42,14 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
-// ??? AUTHENTICATION & AUTHORIZATION ???
+// ??? ? AUTHENTICATION & AUTHORIZATION (MOVED TO CORRECT PLACE) ???
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 
-// ??? SERVICES ???
+
+//builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
+
+// ??? OTHER SERVICES ???
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
 
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
@@ -55,19 +58,8 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IChatService, ChatService>();
-
-// ??? ? FIXED: Register PaystackService with HttpClient ???
-builder.Services.AddScoped<IPaystackService, PaystackService>();
-builder.Services.AddHttpClient<PaystackService>(client =>
-{
-    // Base address is set in PaystackService constructor
-    // No need to set it here
-});
-
-// ??? GENERIC HTTP CLIENT ???
+builder.Services.AddHttpClient<IPaystackService, PaystackService>();
 builder.Services.AddHttpClient();
-
-// ??? RAZOR PAGES ???
 builder.Services.AddRazorPages()
     .AddRazorPagesOptions(options =>
     {
@@ -75,23 +67,19 @@ builder.Services.AddRazorPages()
         options.Conventions.AddAreaPageRoute("Identity", "/Account/RegisterClient", "/Identity/Account/RegisterClient");
         options.Conventions.AddAreaPageRoute("Identity", "/Account/RegisterArtist", "/Identity/Account/RegisterArtist");
     });
-
-// ??? FILE UPLOAD CONFIG ???
 builder.Services.Configure<FormOptions>(options =>
 {
     options.ValueLengthLimit = int.MaxValue;
     options.MultipartBodyLengthLimit = int.MaxValue;
     options.MultipartHeadersLengthLimit = int.MaxValue;
 });
-
 builder.Services.Configure<IISServerOptions>(options =>
 {
     options.MaxRequestBodySize = int.MaxValue;
 });
-
 var app = builder.Build();
 
-// ??? SEED ROLES AND DEMO USERS ???
+// Seed Roles and Demo Users On Startup
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
@@ -175,7 +163,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// ??? CONFIGURE HTTP PIPELINE ???
+// Configure HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
@@ -191,7 +179,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// ??? AUTHENTICATION & AUTHORIZATION ???
+//AUTHENTICATION & AUTHORIZATION (KEEP HERE)
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -199,5 +187,6 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
+//app.MapHub<ChatHub>("/chatHub");
 
 app.Run();

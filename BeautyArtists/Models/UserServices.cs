@@ -32,6 +32,7 @@ namespace BeautyArtists.Models
 
         public bool IsActive { get; set; } = true;
         public decimal ClientPrice => Price * 1.15m; // 15% markup
+        public ICollection<Booking> Bookings { get; set; }
     }
 }
 
