@@ -86,7 +86,6 @@ namespace BeautyArtists.Models
         public DateTime? DepositPaidDate { get; set; }
         public DateTime? FinalPaidDate { get; set; }
         public bool IsLocationShared { get; set; } = false;
-        public ICollection<Review> Reviews { get; set; }
 
         // Enum to represent different booking statuses
         public BookingStatus Status { get; set; }
