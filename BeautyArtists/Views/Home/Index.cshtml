@@ -111,7 +111,7 @@
 
                             <div class="card-body text-start p-4">
                                 <h5 class="text-gold fw-bold mb-1">@userService.Service?.Name</h5>
-                                <p class="text-white-50 small mb-2">By: @(userService.Artist?.UserName ?? "Pro Artist")</p>
+                                <p class="text-white-50 small mb-2">By: @(userService.Artist?.FullName ?? "Pro Artist")</p>
 
                                 <p class="text-muted small mb-2" style="height: 40px; overflow: hidden;">
                                     @(userService.CustomDescription ?? userService.Service?.Description)
@@ -203,7 +203,7 @@
 
                             <div class="card-body text-start p-4">
                                 <h5 class="text-gold fw-bold mb-1">@service.Service?.Name</h5>
-                                <p class="text-white-50 small mb-2">By: @(service.Artist?.UserName ?? "Pro Artist")</p>
+                                <p class="text-white-50 small mb-2">By: @(service.Artist?.FullName ?? "Pro Artist")</p>
 
                                 <p class="text-muted small mb-2" style="height: 40px; overflow: hidden;">
                                     @(service.CustomDescription ?? service.Service?.Description)
