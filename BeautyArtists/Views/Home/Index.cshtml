@@ -136,16 +136,15 @@
                 </div>
             }
         </div>
-    </div>
-</section>
-<div class="mt-5">
+
+        @* ─── ✅ VIEW ALL SERVICES BUTTON (NOW CENTERED) ─── *@
+        <div class="text-center mt-5">
             <a href="@Url.Action("AllServices", "Home")" class="btn btn-outline-gold rounded-pill px-5 py-2 fw-bold">
                 View All Services
             </a>
         </div>
     </div>
 </section>
-
 @* ─── TOP RATED SERVICES ─── *@
 @if (Model.TopRatedServices != null && Model.TopRatedServices.Any())
 {
