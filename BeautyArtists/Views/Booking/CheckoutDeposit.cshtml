@@ -6,12 +6,17 @@
     var headerColor = Model.IsLastMinute ? "#f0c808" : "#FFD700";
     var buttonGradient = Model.IsLastMinute ? "linear-gradient(135deg, #f0c808, #e50914)" : "linear-gradient(135deg, #f0c808, #e50914)";
 
+    // ─── CALCULATE CLIENT PRICES ───
     var artistPrice = Model.Booking.ServicePrice;
-    var clientServicePrice = artistPrice * 1.15m;
-    var depositAmount = (clientServicePrice / 2) + 5.00m;   // ✅ R10.75 (NOT R10.00!)
-    var clientTotal = clientServicePrice + 5.00m;
+    var markedUpPrice = artistPrice + (artistPrice * 0.04m);  // 4% markup
+    var bookingFee = 5.00m;
+    var clientTotal = markedUpPrice + bookingFee;
+
+    // ─── ✅ CORRECT DEPOSIT CALCULATION ───
+    // Deposit = 50% of marked up price + booking fee
+    var depositAmount = (markedUpPrice / 2) + bookingFee;  // R88.20
+    var remainingBalance = markedUpPrice / 2;               // R83.20
     var amountDue = Model.IsLastMinute ? clientTotal : depositAmount;
-    var remainingBalance = clientServicePrice / 2;  // ✅ FIXED: Use marked-up price
 }
 
 <div class="container mt-5">
@@ -46,57 +51,32 @@
                         <p><strong>Time:</strong> @Model.Booking.AppointmentDate.ToString("hh:mm tt")</p>
                         <hr style="border-color: rgba(240,200,8,0.2);">
 
-                        <!-- ─── PRICE BREAKDOWN ─── -->
+                        <!-- ─── CLEAN PRICE BREAKDOWN - CLIENT ONLY ─── -->
                         <div style="background: #1a1a1a; padding: 12px 15px; border-radius: 8px; margin: 10px 0;">
 
-                            <!-- Service Price (marked up) -->
+                            <!-- Service Price (with markup included) -->
                             <p style="margin: 4px 0; display: flex; justify-content: space-between;">
                                 <span style="color: rgba(255,255,255,0.6);">Service Price</span>
-                                <span style="color: #fff;">R @clientServicePrice.ToString("N2")</span>
+                                <span style="color: #fff;">R @markedUpPrice.ToString("N2")</span>
                             </p>
 
                             <!-- Booking Fee -->
                             <p style="margin: 4px 0; display: flex; justify-content: space-between;">
                                 <span style="color: rgba(255,255,255,0.6);">Booking Fee</span>
-                                <span style="color: #FFD700;">R 5.00</span>
+                                <span style="color: #FFD700;">R @bookingFee.ToString("N2")</span>
                             </p>
 
                             <hr style="border-color: rgba(240,200,8,0.2); margin: 8px 0;">
 
-                            <!-- Service Total -->
+                            <!-- Total Client Pays -->
                             <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.2rem;">
-                                <span style="color: #fff; font-weight: 600;">Service Total</span>
+                                <span style="color: #fff; font-weight: 600;">Total</span>
                                 <span style="color: #FFD700; font-weight: 800;">R @clientTotal.ToString("N2")</span>
                             </p>
-
-                            <hr style="border-color: rgba(240,200,8,0.2); margin: 8px 0;">
-
-                            <!-- ─── DEPOSIT ─── -->
-                            @if (!Model.IsLastMinute)
-                            {
-                                <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.1rem;">
-                                    <strong style="color: #fff;">Deposit Due</strong>
-                                    <strong style="color: #ff6600;">R @depositAmount.ToString("N2")</strong>
-                                </p>
-                                <p style="margin: 2px 0 0 0; font-size: 0.75rem; color: rgba(255,255,255,0.3); display: flex; justify-content: space-between;">
-                                    <span>Remaining Balance</span>
-                                    <span>R @remainingBalance.ToString("N2")</span>
-                                </p>
-                                <p style="margin: 2px 0 0 0; font-size: 0.7rem; color: rgba(255,215,0,0.3);">
-                                    ⏰ Due 2 days before appointment
-                                </p>
-                            }
-                            else
-                            {
-                                <p style="margin: 6px 0 0 0; display: flex; justify-content: space-between; font-size: 1.1rem;">
-                                    <strong style="color: #fff;">Amount Due</strong>
-                                    <strong style="color: #ff6600;">R @clientTotal.ToString("N2")</strong>
-                                </p>
-                            }
                         </div>
 
                         <!-- ─── AMOUNT DUE ─── -->
-                        <p style="font-size: 1.2rem;">
+                        <p style="font-size: 1.2rem; margin-top: 16px;">
                             <strong>Amount Due:</strong>
                             <span style="color: #ff6600; font-size: 1.8rem; font-weight: 800;">
                                 R @amountDue.ToString("N2")

@@ -3,6 +3,9 @@
 @{
     ViewData["Title"] = $"{Model.ArtistName} — {Model.ServiceName} Portfolio";
     Layout = "~/Views/Shared/_Layout.cshtml";
+
+    // ─── ✅ CORRECT PRICING: 4% markup (NO booking fee shown here) ───
+    var markedUpPrice = Model.ServicePrice + (Model.ServicePrice * 0.04m);
 }
 
 <section class="py-5 bg-black" style="min-height:100vh;">
@@ -19,8 +22,7 @@
                 <p class="text-white-50 fs-6">by <span class="text-gold">@Model.ArtistName</span></p>
                 <p class="text-light" style="font-size:0.9rem;">@Model.ServiceDescription</p>
                 <div class="d-flex align-items-center gap-3 mt-2 flex-wrap">
-                    <span class="price-badge">R @((Model.ServicePrice * 1.15m).ToString("N0"))</span>
-             
+                    <span class="price-badge">R @markedUpPrice.ToString("N0")</span>
                     <a asp-controller="Booking" asp-action="BookService"
                        asp-route-userServiceId="@Model.UserServiceId"
                        class="booknow-small">
@@ -77,7 +79,7 @@
                 </div>
             }
 
-            @* ---- VIDEOS SECTION (FIXED) ---- *@
+            @* ---- VIDEOS SECTION ---- *@
             if (videos.Any())
             {
                 <h4 class="text-gold mb-3" style="letter-spacing:1.5px; font-size:1.1rem;">
@@ -95,7 +97,6 @@
                                  onclick="openLightbox(this)"
                                  style="cursor:pointer;border-radius:10px;overflow:hidden;height:180px;background:#000;">
 
-                                <!-- Video thumbnail (shows first frame) -->
                                 <video style="width:100%;height:100%;object-fit:cover;"
                                        muted
                                        playsinline
@@ -103,7 +104,6 @@
                                     <source src="@item.MediaUrl" type="video/mp4" />
                                 </video>
 
-                                <!-- Gold play overlay -->
                                 <div class="play-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.2);pointer-events:none;">
                                     <i class="bi bi-play-circle-fill" style="font-size:3rem;color:#FFD700;opacity:0.9;text-shadow:0 0 20px rgba(0,0,0,0.9);"></i>
                                 </div>
@@ -165,7 +165,6 @@
         color: #FFD700 !important;
     }
 
-    /* ── PRICE BADGE ── */
     .price-badge {
         display: inline-block;
         background: rgba(0,0,0,0.75);
@@ -247,7 +246,6 @@
         background: rgba(0,0,0,0.1);
     }
 
-    /* ── Lightbox Styles ── */
     .lightbox-overlay {
         display: none;
         position: fixed;

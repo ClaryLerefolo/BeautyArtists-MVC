@@ -21,6 +21,8 @@ namespace BeautyArtists.Models.ViewModels
         public string? InstagramUrl { get; set; }
         public int YearsExperience { get; set; }
         public string? Bio { get; set; }
+        public double AverageRating { get; set; }
+        public int ReviewCount { get; set; }
 
     }
 }

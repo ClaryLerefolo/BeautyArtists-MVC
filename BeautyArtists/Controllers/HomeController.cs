@@ -4,14 +4,11 @@ using BeautyArtists.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Build.Framework;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 using System.Net;
 using System.Net.Mail;
-
 
 namespace BeautyArtists.Controllers
 {
@@ -22,6 +19,13 @@ namespace BeautyArtists.Controllers
         private readonly IConfiguration _configuration;
         private readonly IWebHostEnvironment _env;
 
+        // ??? ? NEW FEE STRUCTURE ???
+        private const decimal CLIENT_MARKUP = 0.04m;      // 4% added to client
+        private const decimal BOOKING_FEE = 5.00m;        // R5 booking fee
+        private const decimal COMMISSION_NEW = 0.10m;      // 10% for new clients
+        private const decimal COMMISSION_REPEAT = 15.00m;  // R15 for repeat clients
+        private const decimal MIN_COMMISSION = 8.00m;      // Minimum R8 safeguard
+
         public HomeController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IConfiguration configuration, IWebHostEnvironment env)
         {
             _context = context;
@@ -30,12 +34,42 @@ namespace BeautyArtists.Controllers
             _env = env;
         }
 
-        // ???????????????????????????????????????????????????????????
+        // ??? HELPER: Calculate client total ???
+        private decimal GetClientTotal(decimal servicePrice)
+        {
+            // Client pays: Artist Price + 4% markup + R5 booking fee
+            var markedUpPrice = servicePrice + (servicePrice * CLIENT_MARKUP);
+            return markedUpPrice + BOOKING_FEE;
+        }
+
+        // ??? HELPER: Get client-friendly price display ???
+        private string GetClientPriceDisplay(decimal servicePrice)
+        {
+            var clientTotal = GetClientTotal(servicePrice);
+            return $"R {clientTotal:N2}";
+        }
+
+        // ??? HELPER: Get breakdown for display ???
+        private PriceBreakdown GetPriceBreakdown(decimal servicePrice)
+        {
+            var markup = servicePrice * CLIENT_MARKUP;
+            var clientTotal = servicePrice + markup + BOOKING_FEE;
+
+            return new PriceBreakdown
+            {
+                ArtistPrice = servicePrice,
+                PlatformMarkup = markup,
+                BookingFee = BOOKING_FEE,
+                ClientTotal = clientTotal,
+                MarkupPercentage = CLIENT_MARKUP * 100
+            };
+        }
+
+        // ???????????????????????????????????????????????????????????????
         //  INDEX - Homepage with banners, categories, featured & top rated
-        // ???????????????????????????????????????????????????????????
+        // ???????????????????????????????????????????????????????????????
         public async Task<IActionResult> Index()
         {
-            // ?? FIX: Run queries sequentially (DbContext is NOT thread-safe)
             var banners = await _context.HeroBanners.AsNoTracking().ToListAsync();
             var categories = await _context.ServiceCategories.AsNoTracking().ToListAsync();
             var testimonials = await _context.Testimonials.AsNoTracking().ToListAsync();
@@ -91,9 +125,9 @@ namespace BeautyArtists.Controllers
             return View(model);
         }
 
-        // ???????????????????????????????????????????????????????????
+        // ???????????????????????????????????????????????????????????????
         //  SUPPORT
-        // ???????????????????????????????????????????????????????????
+        // ???????????????????????????????????????????????????????????????
         public IActionResult Support()
         {
             return View();
@@ -257,7 +291,9 @@ namespace BeautyArtists.Controllers
             }
         }
 
+        // ???????????????????????????????????????????????????????????????
         //  CATEGORIES
+        // ???????????????????????????????????????????????????????????????
         public async Task<IActionResult> Categories()
         {
             var categories = await _context.ServiceCategories
@@ -267,8 +303,9 @@ namespace BeautyArtists.Controllers
             return View(categories);
         }
 
-
-        //  VIEW SERVICE
+        // ???????????????????????????????????????????????????????????????
+        //  VIEW SERVICE - ? FIXED with client price display
+        // ???????????????????????????????????????????????????????????????
         public async Task<IActionResult> ViewService(string artistId)
         {
             if (string.IsNullOrEmpty(artistId)) return NotFound();
@@ -288,7 +325,6 @@ namespace BeautyArtists.Controllers
                 .AsNoTracking()
                 .ToListAsync();
 
-            // ??? GET REVIEWS FOR THIS ARTIST'S SERVICES ???
             var userServiceIds = userServices.Select(us => us.Id).ToList();
             var allReviews = new List<Review>();
             if (userServiceIds.Any())
@@ -322,34 +358,40 @@ namespace BeautyArtists.Controllers
                     ? $"{artist.ArtistProfile.City}, {artist.ArtistProfile.Province}"
                     : artist.ArtistProfile?.Province ?? "",
                 ArtistProfilePicture = artist.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
-                Services = groupedServices.Select(us => new ServiceListViewModel.ServiceItem
-                {
-                    UserServiceId = us.Id,
-                    ServiceName = us.Service?.ServiceCategory?.Name ?? us.Service?.Name ?? "No Name",
-                    Description = us.CustomDescription ?? us.Service?.Description ?? "",
-                    Category = us.Service?.ServiceCategory?.Name ?? "Uncategorized",
-                    CategoryId = us.Service?.CategoryId ?? 0,
-                    Price = us.Price,
-                    ImagePath = us.ImagePath ?? us.Service?.ImagePath,
-                    ArtistName = !string.IsNullOrEmpty(artist.FirstName)
-                        ? $"{artist.FirstName} {artist.LastName}".Trim()
-                        : artist.UserName ?? "Pro Artist",
-                    ArtistId = us.ArtistId,
-                    // ?? RATINGS ??
-                    ReviewCount = allReviews.Count(r => r.Booking != null && r.Booking.UserServiceId == us.Id),
-                    AverageRating = allReviews
-                        .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
-                        .Select(r => (double)r.Rating)
-                        .DefaultIfEmpty(0)
-                        .Average()
+                Services = groupedServices.Select(us => {
+                    // ? FIXED: Calculate client price with 4% markup
+                    var breakdown = GetPriceBreakdown(us.Price);
+
+                    return new ServiceListViewModel.ServiceItem
+                    {
+                        UserServiceId = us.Id,
+                        ServiceName = us.Service?.ServiceCategory?.Name ?? us.Service?.Name ?? "No Name",
+                        Description = us.CustomDescription ?? us.Service?.Description ?? "",
+                        Category = us.Service?.ServiceCategory?.Name ?? "Uncategorized",
+                        CategoryId = us.Service?.CategoryId ?? 0,
+                        Price = us.Price,
+                       
+                        ImagePath = us.ImagePath ?? us.Service?.ImagePath,
+                        ArtistName = !string.IsNullOrEmpty(artist.FirstName)
+                            ? $"{artist.FirstName} {artist.LastName}".Trim()
+                            : artist.UserName ?? "Pro Artist",
+                        ArtistId = us.ArtistId,
+                        ReviewCount = allReviews.Count(r => r.Booking != null && r.Booking.UserServiceId == us.Id),
+                        AverageRating = allReviews
+                            .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
+                            .Select(r => (double)r.Rating)
+                            .DefaultIfEmpty(0)
+                            .Average()
+                    };
                 }).ToList()
             };
 
             return View("ServiceList", model);
         }
 
-        //  TOP RATED
-        // 
+        // ???????????????????????????????????????????????????????????????
+        //  TOP RATED - ? FIXED with client price display
+        // ???????????????????????????????????????????????????????????????
         public async Task<IActionResult> TopRated()
         {
             try
@@ -364,7 +406,6 @@ namespace BeautyArtists.Controllers
                     .Where(us => us.IsActive)
                     .AsNoTracking();
 
-                // ??? Get services with review aggregates ???
                 var servicesWithReviews = await query
                     .Select(us => new
                     {
@@ -376,34 +417,39 @@ namespace BeautyArtists.Controllers
                             .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
                             .Count()
                     })
-                    .Where(x => x.ReviewCount >= 3)   // only services with at least 3 reviews
+                    .Where(x => x.ReviewCount >= 3)
                     .OrderByDescending(x => x.AverageRating)
                     .ThenByDescending(x => x.ReviewCount)
                     .ToListAsync();
 
                 Console.WriteLine($"TopRated: Found {servicesWithReviews.Count} services with 3+ reviews");
 
-                // ??? Build the view model ???
                 var model = new ServiceListViewModel
                 {
                     Title = "Top Rated Services",
-                    Services = servicesWithReviews.Select(x => new ServiceListViewModel.ServiceItem
-                    {
-                        UserServiceId = x.UserService.Id,
-                        ServiceName = x.UserService.Service?.Name ?? "Unnamed",
-                        Description = x.UserService.CustomDescription ?? x.UserService.Service?.Description ?? "",
-                        Category = x.UserService.Service?.ServiceCategory?.Name ?? "Uncategorized",
-                        CategoryId = x.UserService.Service?.CategoryId ?? 0,
-                        Price = x.UserService.Price,
-                        ImagePath = x.UserService.ImagePath ?? x.UserService.Service?.ImagePath,
-                        ArtistName = !string.IsNullOrEmpty(x.UserService.Artist?.FirstName)
-                            ? $"{x.UserService.Artist.FirstName} {x.UserService.Artist.LastName}".Trim()
-                            : x.UserService.Artist?.UserName ?? "Pro Artist",
-                        ArtistId = x.UserService.ArtistId,
-                        City = x.UserService.Artist?.ArtistProfile?.City ?? "Unknown",
-                        Province = x.UserService.Artist?.ArtistProfile?.Province ?? "",
-                        AverageRating = x.AverageRating,
-                        ReviewCount = x.ReviewCount
+                    Services = servicesWithReviews.Select(x => {
+                        var breakdown = GetPriceBreakdown(x.UserService.Price);
+
+                        return new ServiceListViewModel.ServiceItem
+                        {
+                            UserServiceId = x.UserService.Id,
+                            ServiceName = x.UserService.Service?.Name ?? "Unnamed",
+                            Description = x.UserService.CustomDescription ?? x.UserService.Service?.Description ?? "",
+                            Category = x.UserService.Service?.ServiceCategory?.Name ?? "Uncategorized",
+                            CategoryId = x.UserService.Service?.CategoryId ?? 0,
+                            Price = x.UserService.Price,
+                            // ? NEW: Client-facing price with markup
+                         
+                            ImagePath = x.UserService.ImagePath ?? x.UserService.Service?.ImagePath,
+                            ArtistName = !string.IsNullOrEmpty(x.UserService.Artist?.FirstName)
+                                ? $"{x.UserService.Artist.FirstName} {x.UserService.Artist.LastName}".Trim()
+                                : x.UserService.Artist?.UserName ?? "Pro Artist",
+                            ArtistId = x.UserService.ArtistId,
+                            City = x.UserService.Artist?.ArtistProfile?.City ?? "Unknown",
+                            Province = x.UserService.Artist?.ArtistProfile?.Province ?? "",
+                            AverageRating = x.AverageRating,
+                            ReviewCount = x.ReviewCount
+                        };
                     }).ToList(),
                     CurrentPage = 1,
                     TotalPages = 1,
@@ -429,7 +475,10 @@ namespace BeautyArtists.Controllers
                 return View("ServiceList", emptyModel);
             }
         }
-        //  ALL SERVICES (with pagination)
+
+        // ???????????????????????????????????????????????????????????????
+        //  ALL SERVICES - ? FIXED with client price display
+        // ???????????????????????????????????????????????????????????????
         public async Task<IActionResult> AllServices(int page = 1, int pageSize = 12)
         {
             try
@@ -444,7 +493,6 @@ namespace BeautyArtists.Controllers
 
                 var totalCount = await query.CountAsync();
 
-                // ??? Fetch paginated services WITH ratings computed in the same query ???
                 var servicesWithRatings = await query
                     .OrderByDescending(us => us.Id)
                     .Skip((page - 1) * pageSize)
@@ -464,26 +512,31 @@ namespace BeautyArtists.Controllers
                 var model = new ServiceListViewModel
                 {
                     Title = "All Services",
-                    Services = servicesWithRatings.Select(x => new ServiceListViewModel.ServiceItem
-                    {
-                        UserServiceId = x.UserService.Id,
-                        ServiceName = x.UserService.Service?.Name ?? "Unnamed",
-                        Description = x.UserService.CustomDescription ?? x.UserService.Service?.Description ?? "",
-                        Category = x.UserService.Service?.ServiceCategory?.Name ?? "Uncategorized",
-                        CategoryId = x.UserService.Service?.CategoryId ?? 0,
-                        Price = x.UserService.Price,
-                        ImagePath = x.UserService.ImagePath ?? x.UserService.Service?.ImagePath,
-                        ArtistName = !string.IsNullOrEmpty(x.UserService.Artist?.FirstName)
-                            ? $"{x.UserService.Artist.FirstName} {x.UserService.Artist.LastName}".Trim()
-                            : x.UserService.Artist?.UserName ?? "Pro Artist",
-                        ArtistId = x.UserService.ArtistId,
-                        City = x.UserService.Artist?.ArtistProfile?.City ?? "",
-                        Province = x.UserService.Artist?.ArtistProfile?.Province ?? "",
-                        ArtistLocation = !string.IsNullOrEmpty(x.UserService.Artist?.ArtistProfile?.City)
-                            ? $"{x.UserService.Artist.ArtistProfile.City}, {x.UserService.Artist.ArtistProfile.Province}"
-                            : x.UserService.Artist?.ArtistProfile?.Province ?? "",
-                        AverageRating = x.AverageRating,
-                        ReviewCount = x.ReviewCount
+                    Services = servicesWithRatings.Select(x => {
+                        var breakdown = GetPriceBreakdown(x.UserService.Price);
+
+                        return new ServiceListViewModel.ServiceItem
+                        {
+                            UserServiceId = x.UserService.Id,
+                            ServiceName = x.UserService.Service?.Name ?? "Unnamed",
+                            Description = x.UserService.CustomDescription ?? x.UserService.Service?.Description ?? "",
+                            Category = x.UserService.Service?.ServiceCategory?.Name ?? "Uncategorized",
+                            CategoryId = x.UserService.Service?.CategoryId ?? 0,
+                            Price = x.UserService.Price,
+                         
+                            ImagePath = x.UserService.ImagePath ?? x.UserService.Service?.ImagePath,
+                            ArtistName = !string.IsNullOrEmpty(x.UserService.Artist?.FirstName)
+                                ? $"{x.UserService.Artist.FirstName} {x.UserService.Artist.LastName}".Trim()
+                                : x.UserService.Artist?.UserName ?? "Pro Artist",
+                            ArtistId = x.UserService.ArtistId,
+                            City = x.UserService.Artist?.ArtistProfile?.City ?? "",
+                            Province = x.UserService.Artist?.ArtistProfile?.Province ?? "",
+                            ArtistLocation = !string.IsNullOrEmpty(x.UserService.Artist?.ArtistProfile?.City)
+                                ? $"{x.UserService.Artist.ArtistProfile.City}, {x.UserService.Artist.ArtistProfile.Province}"
+                                : x.UserService.Artist?.ArtistProfile?.Province ?? "",
+                            AverageRating = x.AverageRating,
+                            ReviewCount = x.ReviewCount
+                        };
                     }).ToList(),
                     CurrentPage = page,
                     TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
@@ -507,7 +560,9 @@ namespace BeautyArtists.Controllers
             }
         }
 
+        // ???????????????????????????????????????????????????????????????
         //  BROWSE ARTISTS
+        // ???????????????????????????????????????????????????????????????
         [Route("Home/Artists")]
         [Route("Home/BrowseArtists")]
         public async Task<IActionResult> BrowseArtists(int page = 1, int pageSize = 12)
@@ -528,25 +583,56 @@ namespace BeautyArtists.Controllers
                 .Take(pageSize)
                 .ToListAsync();
 
-            var model = artists.Select(a => new BrowseArtistViewModel
+            var model = new List<BrowseArtistViewModel>();
+
+            foreach (var a in artists)
             {
-                ArtistId = a.Id,
-                FullName = !string.IsNullOrEmpty(a.FirstName)
-                    ? $"{a.FirstName} {a.LastName}".Trim()
-                    : a.ArtistProfile?.FullName ?? a.UserName ?? a.Email,
-                Province = a.ArtistProfile?.Province ?? "Unknown",
-                City = a.ArtistProfile?.City ?? "",
-                ProfilePictureUrl = a.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
-                ContactInfo = a.ArtistProfile?.ContactInfo,
-                InstagramUrl = a.ArtistProfile?.InstagramUrl,
-                YearsExperience = a.ArtistProfile?.YearsExperience ?? 0,
-                Bio = a.ArtistProfile?.Bio,
-                Services = a.UserServices
-                    .Where(us => us.IsActive)
-                    .Take(3)
-                    .Select(us => us.Service?.Name ?? "Unnamed Service")
-                    .ToList()
-            }).ToList();
+                // ??? ? NEW: Calculate average rating for this artist ???
+                double averageRating = 0;
+                int reviewCount = 0;
+
+                // Get all UserService IDs for this artist
+                var userServiceIds = a.UserServices?.Select(us => us.Id).ToList() ?? new List<int>();
+
+                if (userServiceIds.Any())
+                {
+                    // Get all reviews for this artist's services
+                    var reviews = await _context.Reviews
+                        .Where(r => r.Booking != null && userServiceIds.Contains(r.Booking.UserServiceId))
+                        .AsNoTracking()
+                        .ToListAsync();
+
+                    reviewCount = reviews.Count;
+
+                    if (reviewCount > 0)
+                    {
+                        averageRating = reviews.Average(r => (double)r.Rating);
+                    }
+                }
+
+                model.Add(new BrowseArtistViewModel
+                {
+                    ArtistId = a.Id,
+                    FullName = !string.IsNullOrEmpty(a.FirstName)
+                        ? $"{a.FirstName} {a.LastName}".Trim()
+                        : a.ArtistProfile?.FullName ?? a.UserName ?? a.Email,
+                    Province = a.ArtistProfile?.Province ?? "Unknown",
+                    City = a.ArtistProfile?.City ?? "",
+                    ProfilePictureUrl = a.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
+                    ContactInfo = a.ArtistProfile?.ContactInfo,
+                    InstagramUrl = a.ArtistProfile?.InstagramUrl,
+                    YearsExperience = a.ArtistProfile?.YearsExperience ?? 0,
+                    Bio = a.ArtistProfile?.Bio,
+                    Services = a.UserServices
+                        .Where(us => us.IsActive)
+                        .Take(3)
+                        .Select(us => us.Service?.Name ?? "Unnamed Service")
+                        .ToList(),
+                    // ??? ? NEW: Set rating properties ???
+                    AverageRating = averageRating,
+                    ReviewCount = reviewCount
+                });
+            }
 
             ViewBag.CurrentPage = page;
             ViewBag.TotalPages = (int)Math.Ceiling((double)totalCount / pageSize);
@@ -555,9 +641,9 @@ namespace BeautyArtists.Controllers
             return View("BrowseArtists", model);
         }
 
-        // ???????????????????????????????????????????????????????????
-        //  CATALOGUE
-        // ???????????????????????????????????????????????????????????
+        // ???????????????????????????????????????????????????????????????
+        //  CATALOGUE - ? FIXED with client price display
+        // ???????????????????????????????????????????????????????????????
         [AllowAnonymous]
         public async Task<IActionResult> Catalogue(string artistId, int categoryId)
         {
@@ -589,7 +675,6 @@ namespace BeautyArtists.Controllers
                     .AsNoTracking()
                     .ToListAsync();
 
-                // ??? FETCH REVIEWS ???
                 var userServiceIds = userServices.Select(us => us.Id).ToList();
                 var allReviews = new List<Review>();
                 if (userServiceIds.Any())
@@ -613,24 +698,28 @@ namespace BeautyArtists.Controllers
                         ? $"{artist.ArtistProfile.City}, {artist.ArtistProfile.Province}"
                         : artist.ArtistProfile?.Province ?? "",
                     ArtistProfilePicture = artist.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png",
-                    Services = userServices.Select(us => new ServiceListViewModel.ServiceItem
-                    {
-                        UserServiceId = us.Id,
-                        ServiceName = us.Service?.Name ?? "No Name",
-                        Description = us.CustomDescription ?? us.Service?.Description ?? "",
-                        Category = us.Service?.ServiceCategory?.Name ?? "Uncategorized",
-                        CategoryId = us.Service?.CategoryId ?? 0,
-                        Price = us.Price,
-                        ImagePath = us.ImagePath ?? us.Service?.ImagePath,
-                        ArtistName = artistName,
-                        ArtistId = us.ArtistId,
-                        // ?? RATINGS ??
-                        ReviewCount = allReviews.Count(r => r.Booking != null && r.Booking.UserServiceId == us.Id),
-                        AverageRating = allReviews
-                            .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
-                            .Select(r => (double)r.Rating)
-                            .DefaultIfEmpty(0)
-                            .Average()
+                    Services = userServices.Select(us => {
+                        var breakdown = GetPriceBreakdown(us.Price);
+
+                        return new ServiceListViewModel.ServiceItem
+                        {
+                            UserServiceId = us.Id,
+                            ServiceName = us.Service?.Name ?? "No Name",
+                            Description = us.CustomDescription ?? us.Service?.Description ?? "",
+                            Category = us.Service?.ServiceCategory?.Name ?? "Uncategorized",
+                            CategoryId = us.Service?.CategoryId ?? 0,
+                            Price = us.Price,
+                          
+                            ImagePath = us.ImagePath ?? us.Service?.ImagePath,
+                            ArtistName = artistName,
+                            ArtistId = us.ArtistId,
+                            ReviewCount = allReviews.Count(r => r.Booking != null && r.Booking.UserServiceId == us.Id),
+                            AverageRating = allReviews
+                                .Where(r => r.Booking != null && r.Booking.UserServiceId == us.Id)
+                                .Select(r => (double)r.Rating)
+                                .DefaultIfEmpty(0)
+                                .Average()
+                        };
                     }).ToList()
                 };
 
@@ -638,15 +727,15 @@ namespace BeautyArtists.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"? Catalogue ERROR: {ex.Message}");
+                Console.WriteLine($"Catalogue ERROR: {ex.Message}");
                 Console.WriteLine($"Stack: {ex.StackTrace}");
                 return StatusCode(500, "Something went wrong loading the catalogue. Please try again later.");
             }
         }
 
-        // ???????????????????????????????????????????????????????????
-        //  CATEGORY SERVICES (with pagination)
-        // ???????????????????????????????????????????????????????????
+        // ???????????????????????????????????????????????????????????????
+        //  CATEGORY SERVICES - ? FIXED with client price display
+        // ???????????????????????????????????????????????????????????????
         [Route("Home/CategoryServices/{categoryId}")]
         public async Task<IActionResult> CategoryServices(int categoryId, int page = 1, int pageSize = 12)
         {
@@ -666,7 +755,6 @@ namespace BeautyArtists.Controllers
 
             var totalCount = await query.CountAsync();
 
-            // ??? Fetch with ratings computed inline ???
             var servicesWithRatings = await query
                 .OrderByDescending(us => us.Id)
                 .Skip((page - 1) * pageSize)
@@ -692,25 +780,30 @@ namespace BeautyArtists.Controllers
             {
                 Title = $"Services in {category.Name}",
                 Category = category,
-                Services = servicesWithRatings.Select(x => new ServiceListViewModel.ServiceItem
-                {
-                    UserServiceId = x.UserService.Id,
-                    ServiceName = x.UserService.Service?.Name ?? "Unnamed",
-                    Description = x.UserService.CustomDescription ?? x.UserService.Service?.Description ?? "",
-                    Category = x.UserService.Service?.ServiceCategory?.Name ?? "Uncategorized",
-                    CategoryId = x.UserService.Service?.CategoryId ?? 0,
-                    Price = x.UserService.Price,
-                    ImagePath = x.UserService.ImagePath ?? x.UserService.Service?.ImagePath,
-                    ArtistName = !string.IsNullOrEmpty(x.UserService.Artist?.FirstName)
-                        ? $"{x.UserService.Artist.FirstName} {x.UserService.Artist.LastName}".Trim()
-                        : x.UserService.Artist?.UserName ?? "Pro Artist",
-                    ArtistId = x.UserService.ArtistId,
-                    City = x.UserService.Artist?.ArtistProfile?.City ?? "",
-                    ArtistLocation = !string.IsNullOrEmpty(x.UserService.Artist?.ArtistProfile?.City)
-                        ? $"{x.UserService.Artist.ArtistProfile.City}, {x.UserService.Artist.ArtistProfile.Province}"
-                        : x.UserService.Artist?.ArtistProfile?.Province ?? "",
-                    AverageRating = x.AverageRating,
-                    ReviewCount = x.ReviewCount
+                Services = servicesWithRatings.Select(x => {
+                    var breakdown = GetPriceBreakdown(x.UserService.Price);
+
+                    return new ServiceListViewModel.ServiceItem
+                    {
+                        UserServiceId = x.UserService.Id,
+                        ServiceName = x.UserService.Service?.Name ?? "Unnamed",
+                        Description = x.UserService.CustomDescription ?? x.UserService.Service?.Description ?? "",
+                        Category = x.UserService.Service?.ServiceCategory?.Name ?? "Uncategorized",
+                        CategoryId = x.UserService.Service?.CategoryId ?? 0,
+                        Price = x.UserService.Price,
+                    
+                        ImagePath = x.UserService.ImagePath ?? x.UserService.Service?.ImagePath,
+                        ArtistName = !string.IsNullOrEmpty(x.UserService.Artist?.FirstName)
+                            ? $"{x.UserService.Artist.FirstName} {x.UserService.Artist.LastName}".Trim()
+                            : x.UserService.Artist?.UserName ?? "Pro Artist",
+                        ArtistId = x.UserService.ArtistId,
+                        City = x.UserService.Artist?.ArtistProfile?.City ?? "",
+                        ArtistLocation = !string.IsNullOrEmpty(x.UserService.Artist?.ArtistProfile?.City)
+                            ? $"{x.UserService.Artist.ArtistProfile.City}, {x.UserService.Artist.ArtistProfile.Province}"
+                            : x.UserService.Artist?.ArtistProfile?.Province ?? "",
+                        AverageRating = x.AverageRating,
+                        ReviewCount = x.ReviewCount
+                    };
                 }).ToList(),
                 CurrentPage = page,
                 TotalPages = (int)Math.Ceiling((double)totalCount / pageSize),
@@ -719,5 +812,15 @@ namespace BeautyArtists.Controllers
 
             return View("ServiceList", model);
         }
+    }
+
+    // ??? ? NEW: Price Breakdown Helper Class ???
+    public class PriceBreakdown
+    {
+        public decimal ArtistPrice { get; set; }
+        public decimal PlatformMarkup { get; set; }
+        public decimal BookingFee { get; set; }
+        public decimal ClientTotal { get; set; }
+        public decimal MarkupPercentage { get; set; }
     }
 }

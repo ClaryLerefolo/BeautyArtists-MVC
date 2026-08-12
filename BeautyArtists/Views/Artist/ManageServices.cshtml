@@ -126,12 +126,17 @@
                                 <span style="color:#f0c808; font-weight:600;">Your Price:</span>
                                 <span style="color:#fff; font-weight:800;">R @item.Price.ToString("N2")</span>
                             </div>
+                            <!-- ✅ FIXED: 4% markup, NOT 15% -->
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+                                <span style="color:rgba(255,215,0,0.4); font-size:0.7rem;">Platform Fee (4%):</span>
+                                <span style="color:#ff6600; font-weight:600; font-size:0.85rem;">R @((item.Price * 0.04m).ToString("N2"))</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
                                 <span style="color:rgba(255,215,0,0.4); font-size:0.7rem;">Client pays:</span>
-                                <span style="color:#FFD700; font-weight:600; font-size:0.85rem;">R @((item.Price * 1.15m).ToString("N2"))</span>
+                                <span style="color:#FFD700; font-weight:600; font-size:0.85rem;">R @((item.Price * 1.04m).ToString("N2"))</span>
                             </div>
                             <small style="display:block; margin-top:4px; color:rgba(255,255,255,0.2); font-size:0.6rem; text-align:right;">
-                                <i class="fas fa-info-circle"></i> Includes 15% platform fee
+                                <i class="fas fa-info-circle"></i>4% platform fee added to client. A platform fee (10% for new clients or R15 for repeat clients) is deducted from your earnings.
                             </small>
                         </div>
                     </div>
@@ -187,8 +192,9 @@
                         <div class="col-md-6">
                             <label class="input-label">Your Price (R) – <span style="color:#fff; font-weight:400;">What you earn</span></label>
                             <input type="number" name="Price" id="add_Price" class="form-control" step="0.01" required />
+                            <!-- ✅ FIXED: 4% markup -->
                             <small style="color:rgba(255,255,255,0.2); display:block; margin-top:4px; font-size:0.65rem;">
-                                <i class="fas fa-info-circle"></i> Clients will pay <span style="color:#FFD700;">15% more</span> to cover platform fees.
+                                <i class="fas fa-info-circle"></i> Clients will pay <span style="color:#FFD700;">4% more</span> for platform fees. You receive 100% of your price.
                             </small>
                         </div>
                         <div class="col-md-6">
@@ -236,8 +242,9 @@
                         <div class="col-md-6">
                             <label class="input-label">Your Price (R) – <span style="color:#fff; font-weight:400;">What you earn</span></label>
                             <input type="number" name="Price" id="edit_Price" class="form-control" step="0.01" required />
+                            <!-- ✅ FIXED: 4% markup -->
                             <small style="color:rgba(255,255,255,0.2); display:block; margin-top:4px; font-size:0.65rem;">
-                                <i class="fas fa-info-circle"></i> Clients will pay <span style="color:#FFD700;">15% more</span> to cover platform fees.
+                                <i class="fas fa-info-circle"></i> Clients will pay <span style="color:#FFD700;">4% more</span> for platform fees. You receive 100% of your price.
                             </small>
                         </div>
                         <div class="col-md-6">

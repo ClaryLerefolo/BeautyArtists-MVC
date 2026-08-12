@@ -50,7 +50,11 @@
                 </div>
                 <div class="cat-stat-divider"></div>
                 <div class="cat-stat">
-                    <span class="cat-stat-num">R @((minPrice * 1.15m).ToString("N0"))</span>
+                    @{
+                        // ✅ FIXED: Calculate client price with 4% markup + R5
+                        var clientMinPrice = minPrice + (minPrice * 0.04m) + 5.00m;
+                    }
+                    <span class="cat-stat-num">R @clientMinPrice.ToString("N0")</span>
                     <span class="cat-stat-label">FROM</span>
                 </div>
             </div>
@@ -84,6 +88,9 @@
                     : "/images/service-default.jpg";
                     string cleanPath = imgUrl.TrimStart('/');
 
+                    // ✅ FIXED: Calculate client price with 4% markup + R5
+                    var clientPrice = service.Price + (service.Price * 0.04m) + 5.00m;
+
                     <div class="cat-card">
                         <div class="cat-card-img-wrap">
                             <img src="@Url.Content("~/" + cleanPath)"
@@ -91,8 +98,8 @@
                                  alt="@service.ServiceName"
                                  onerror="this.src='/images/service-default.jpg'">
                             <div class="cat-card-img-overlay"></div>
-                            @* ─── PRICE TAG (MARKED UP FOR CLIENT) ─── *@
-                            <div class="cat-price-tag">R @((service.Price * 1.15m).ToString("N0"))</div>
+                            @* ─── ✅ FIXED: PRICE TAG (CLIENT PRICE) ─── *@
+                            <div class="cat-price-tag">R @clientPrice.ToString("N0")</div>
                             <div class="cat-category-tag">@service.Category</div>
                         </div>
 

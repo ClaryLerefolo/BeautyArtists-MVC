@@ -19,8 +19,16 @@ namespace BeautyArtists.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ICommunicationService _commService;
         private readonly INotificationService _notificationService;
+
+        // ─── PRICING CONSTANTS ───
         private const decimal COMMISSION_RATE = 0.15m;
         private const decimal BOOKING_FEE = 5.00m;
+
+        // ─── NEW PRICING CONSTANTS ───
+        private const decimal CLIENT_MARKUP_RATE = 0.04m;      // 4% markup for client
+        private const decimal NEW_CLIENT_COMMISSION = 0.10m;   // 10% for new clients
+        private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m; // R15 for repeat clients
+        private const decimal MIN_PLATFORM_FEE = 8.00m;        // Safeguard: min R8
 
         public BookingController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ICommunicationService commService, INotificationService notificationService)
         {
@@ -135,8 +143,10 @@ namespace BeautyArtists.Controllers
                 : userService.Artist?.UserName ?? "Pro Artist";
 
             decimal bookingFee = BOOKING_FEE;
-            decimal servicePrice = userService.Price; // artist's price
-            decimal clientServicePrice = servicePrice * 1.15m; // marked up for client
+            decimal servicePrice = userService.Price;
+
+            // ✅ NEW: Client pays marked-up price (4% markup)
+            decimal clientServicePrice = servicePrice * (1 + CLIENT_MARKUP_RATE);
             decimal clientTotal = clientServicePrice + bookingFee;
 
             var model = new BookingViewModel
@@ -236,7 +246,7 @@ namespace BeautyArtists.Controllers
                         model.ServiceName = userService.Service?.Name;
                         model.Price = userService.Price;
                         model.BookingFee = BOOKING_FEE;
-                        model.ClientTotal = (userService.Price * 1.15m) + BOOKING_FEE; model.ArtistId = userService.ArtistId;
+                        model.ClientTotal = (userService.Price * (1 + CLIENT_MARKUP_RATE)) + BOOKING_FEE; model.ArtistId = userService.ArtistId;
                         model.ArtistName = !string.IsNullOrEmpty(userService.Artist?.FirstName)
                             ? $"{userService.Artist.FirstName} {userService.Artist.LastName}".Trim()
                             : userService.Artist?.UserName ?? "Pro Artist";
@@ -259,13 +269,14 @@ namespace BeautyArtists.Controllers
                     fullAddress = string.Join(", ", parts);
                 }
 
-                // ── CALCULATE FEES & SPLITS ──
+                // ─── ✅ NEW: CALCULATE FEES ───
                 decimal bookingFee = BOOKING_FEE;
                 decimal servicePrice = model.Price;
-                decimal clientTotal = servicePrice + bookingFee;
-                decimal platformCommission = servicePrice * COMMISSION_RATE;
-                decimal platformEarnings = bookingFee + platformCommission;
-                decimal artistNetAmount = servicePrice * (1 - COMMISSION_RATE);
+                decimal clientServicePrice = servicePrice * (1 + CLIENT_MARKUP_RATE);
+                decimal clientTotal = clientServicePrice + bookingFee;
+                decimal platformCommission = servicePrice * NEW_CLIENT_COMMISSION;  // 10% for new clients (adjusted later in PaymentService)
+                decimal platformEarnings = (clientServicePrice - servicePrice) + bookingFee;  // Markup + Booking fee
+                decimal artistNetAmount = servicePrice;
 
                 // ── CREATE BOOKING ──
                 var booking = new Booking
@@ -407,10 +418,12 @@ namespace BeautyArtists.Controllers
 
                 var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
 
-                // ─── CORRECT PAYMENT BREAKDOWN ───
-                decimal serviceHalf = booking.ServicePrice / 2;
-                decimal depositAmount = serviceHalf + booking.BookingFee; // 50% service + full booking fee
-                decimal finalPayment = serviceHalf; // remaining 50% of service
+                // ─── ✅ NEW: CALCULATE WITH NEW PRICING ───
+                decimal servicePrice = booking.ServicePrice;
+                bool isNewClient = await IsNewClient(booking.CustomerId, booking.UserService.ArtistId);
+                decimal artistPayout = CalculateArtistPayout(servicePrice, isNewClient);
+                decimal depositAmount = (artistPayout / 2) + booking.BookingFee;
+                decimal finalPayment = artistPayout / 2;
 
                 string subject = "✅ Your Appointment Has Been Accepted!";
                 string emailBody = $@"
@@ -436,13 +449,15 @@ namespace BeautyArtists.Controllers
     
     <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
         <h3 style='color: #f0c808; margin-top: 0;'>💰 Payment Breakdown</h3>
-        <p><strong>Service Price:</strong> R {booking.ServicePrice:N2}</p>
+        <p><strong>Service Price:</strong> R {servicePrice:N2}</p>
         {(booking.TransportCost > 0 ? $"<p><strong>Transport Cost:</strong> R {booking.TransportCost:N2}</p>" : "")}
         <p><strong>Booking Fee (one-time):</strong> R {booking.BookingFee:N2}</p>
+        <p><strong>Platform Fee ({(isNewClient ? "10%" : "R15")}):</strong> R {(servicePrice - artistPayout):N2}</p>
+        <p><strong>Artist Receives:</strong> R {artistPayout:N2}</p>
         <p><strong>Total Amount:</strong> <span style='color: #f0c808; font-size: 18px;'>R {booking.TotalAmount:N2}</span></p>
         <hr style='border-color: #333;'>
-        <p><strong>Deposit Required (50% of service + R5 booking fee):</strong> <span style='color: #ff6600;'>R {depositAmount:N2}</span></p>
-        <p><strong>Final Payment (remaining 50% of service):</strong> R {finalPayment:N2}</p>
+        <p><strong>Deposit Required:</strong> <span style='color: #ff6600;'>R {depositAmount:N2}</span></p>
+        <p><strong>Final Payment:</strong> R {finalPayment:N2}</p>
     </div>
     
     {(booking.ArtistNotes != null ? $@"
@@ -472,12 +487,16 @@ namespace BeautyArtists.Controllers
 
                 if (client != null && !string.IsNullOrEmpty(client.Email))
                 {
-                    await _commService.SendDirectMessageEmailAsync(
-                        booking.UserService?.ArtistId,
-                        booking.CustomerId,
-                        subject,
-                        emailBody
-                    );
+                    var artistId = booking.UserService?.ArtistId;
+                    if (!string.IsNullOrEmpty(artistId))
+                    {
+                        await _commService.SendDirectMessageEmailAsync(
+                            artistId,
+                            booking.CustomerId,
+                            subject,
+                            emailBody
+                        );
+                    }
                 }
 
                 await _notificationService.CreateNotificationAsync(
@@ -519,12 +538,16 @@ namespace BeautyArtists.Controllers
 
                 if (client != null && !string.IsNullOrEmpty(client.Email))
                 {
-                    await _commService.SendDirectMessageEmailAsync(
-                        booking.UserService?.ArtistId,
-                        booking.CustomerId,
-                        rejectSubject,
-                        rejectBody
-                    );
+                    var artistId = booking.UserService?.ArtistId;
+                    if (!string.IsNullOrEmpty(artistId))
+                    {
+                        await _commService.SendDirectMessageEmailAsync(
+                            artistId,
+                            booking.CustomerId,
+                            rejectSubject,
+                            rejectBody
+                        );
+                    }
                 }
 
                 await _notificationService.CreateNotificationAsync(
@@ -562,12 +585,16 @@ namespace BeautyArtists.Controllers
 
                 if (client != null && !string.IsNullOrEmpty(client.Email))
                 {
-                    await _commService.SendDirectMessageEmailAsync(
-                        booking.UserService?.ArtistId,
-                        booking.CustomerId,
-                        completeSubject,
-                        completeBody
-                    );
+                    var artistId = booking.UserService?.ArtistId;
+                    if (!string.IsNullOrEmpty(artistId))
+                    {
+                        await _commService.SendDirectMessageEmailAsync(
+                            artistId,
+                            booking.CustomerId,
+                            completeSubject,
+                            completeBody
+                        );
+                    }
                 }
 
                 await _notificationService.CreateNotificationAsync(
@@ -620,10 +647,16 @@ namespace BeautyArtists.Controllers
             var daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
             var isLastMinute = daysUntilAppointment < 2;
 
-            // ─── DEPOSIT AMOUNT ───
-            // Deposit = 50% of ServicePrice + R5 booking fee
-            // If last minute, client pays full amount
-            var depositAmount = isLastMinute ? booking.TotalAmount : (booking.ServicePrice / 2) + 5.00m;
+            // ─── ✅ NEW: CHECK IF NEW CLIENT ───
+            bool isNewClient = await IsNewClient(currentUser.Id, booking.UserService.ArtistId);
+            decimal artistPayout = CalculateArtistPayout(booking.ServicePrice, isNewClient);
+            decimal platformFee = booking.ServicePrice - artistPayout;
+            decimal clientMarkup = booking.ServicePrice * CLIENT_MARKUP_RATE;
+
+            // ─── ✅ NEW: DEPOSIT AMOUNT ───
+            var depositAmount = isLastMinute
+                ? booking.TotalAmount
+                : (artistPayout / 2) + 5.00m;
 
             var model = new CheckoutViewModel
             {
@@ -631,7 +664,12 @@ namespace BeautyArtists.Controllers
                 DepositAmount = depositAmount,
                 UserEmail = currentUser.Email,
                 UserName = $"{currentUser.FirstName} {currentUser.LastName}",
-                IsLastMinute = isLastMinute
+                IsLastMinute = isLastMinute,
+                IsNewClient = isNewClient,
+                ArtistPayout = artistPayout,
+                PlatformFee = platformFee,
+                ClientMarkup = clientMarkup,
+                BookingFee = booking.BookingFee
             };
 
             return View(model);
@@ -665,11 +703,11 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                // ─── DEPOSIT AMOUNT ───
-                decimal depositAmount = (booking.ServicePrice / 2) + 5.00m;
+                // ─── ✅ NEW: DEPOSIT AMOUNT ───
+                bool isNewClient = await IsNewClient(currentUser.Id, booking.UserService.ArtistId);
+                decimal artistPayout = CalculateArtistPayout(booking.ServicePrice, isNewClient);
+                decimal depositAmount = (artistPayout / 2) + 5.00m;
 
-                // ✅ REDIRECT TO PAYMENT CONTROLLER FOR REAL PAYMENT
-                // PaymentController will handle PayStack and send all emails
                 return RedirectToAction("InitiatePayment", "Payment", new
                 {
                     bookingId = id,
@@ -684,6 +722,7 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("MyBookings");
             }
         }
+
         // ══════════════════════════════════
         //  POST: Booking/ProcessFinalPayment
         // ══════════════════════════════════
@@ -715,9 +754,10 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                // ─── CORRECT: Use marked-up price for remaining balance ───
-                decimal clientServicePrice = booking.ServicePrice * 1.15m;
-                decimal remainingBalance = clientServicePrice / 2;
+                // ─── ✅ NEW: FINAL AMOUNT ───
+                bool isNewClient = await IsNewClient(currentUser.Id, booking.UserService.ArtistId);
+                decimal artistPayout = CalculateArtistPayout(booking.ServicePrice, isNewClient);
+                decimal remainingBalance = artistPayout / 2;
 
                 if (remainingBalance <= 0)
                 {
@@ -984,9 +1024,12 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings");
                 }
 
-                // ─── CORRECT: Use marked-up price for remaining balance ───
-                decimal clientServicePrice = booking.ServicePrice * 1.15m;
-                decimal remainingBalance = clientServicePrice / 2;
+                // ─── ✅ NEW: FINAL AMOUNT ───
+                bool isNewClient = await IsNewClient(currentUser.Id, booking.UserService.ArtistId);
+                decimal artistPayout = CalculateArtistPayout(booking.ServicePrice, isNewClient);
+                decimal platformFee = booking.ServicePrice - artistPayout;
+                decimal clientMarkup = booking.ServicePrice * CLIENT_MARKUP_RATE;
+                decimal remainingBalance = artistPayout / 2;
 
                 if (booking.FinalPaymentPaid >= remainingBalance || remainingBalance <= 0)
                 {
@@ -999,7 +1042,12 @@ namespace BeautyArtists.Controllers
                     Booking = booking,
                     DepositAmount = remainingBalance,
                     UserEmail = currentUser.Email,
-                    UserName = $"{currentUser.FirstName} {currentUser.LastName}"
+                    UserName = $"{currentUser.FirstName} {currentUser.LastName}",
+                    IsNewClient = isNewClient,
+                    ArtistPayout = artistPayout,
+                    PlatformFee = platformFee,
+                    ClientMarkup = clientMarkup,
+                    BookingFee = booking.BookingFee
                 };
 
                 return View("CheckoutFinalPayment", model);
@@ -1027,7 +1075,6 @@ namespace BeautyArtists.Controllers
             var currentUser = await _userManager.GetUserAsync(User);
             if (currentUser == null) return Challenge();
 
-            // ─── BASE QUERY ──────────────────────────────────────────────
             var query = _context.Bookings
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Service)
@@ -1037,9 +1084,6 @@ namespace BeautyArtists.Controllers
                 .Where(b => b.CustomerId == currentUser.Id && b.UserService != null)
                 .AsNoTracking();
 
-            // ─── APPLY FILTERS ──────────────────────────────────────────
-
-            // Month filter (format "yyyy-MM")
             if (!string.IsNullOrEmpty(month) &&
                 DateTime.TryParseExact(month, "yyyy-MM",
                     System.Globalization.CultureInfo.InvariantCulture,
@@ -1051,22 +1095,17 @@ namespace BeautyArtists.Controllers
                 query = query.Where(b => b.AppointmentDate >= start && b.AppointmentDate <= end);
             }
 
-            // Date range (start)
             if (startDate.HasValue)
                 query = query.Where(b => b.AppointmentDate >= startDate.Value);
 
-            // Date range (end)
             if (endDate.HasValue)
                 query = query.Where(b => b.AppointmentDate <= endDate.Value);
 
-            // Status filter
             if (!string.IsNullOrEmpty(status) &&
                 Enum.TryParse<BookingStatus>(status, true, out var statusEnum))
             {
                 query = query.Where(b => b.Status == statusEnum);
             }
-
-            // ─── PAGINATION ──────────────────────────────────────────────
 
             var totalCount = await query.CountAsync();
 
@@ -1075,8 +1114,6 @@ namespace BeautyArtists.Controllers
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
-
-            // ─── REVIEW CHECK ────────────────────────────────────────────
 
             var bookingIds = bookings.Select(b => b.Id).ToList();
             var reviewedBookingIds = new List<int>();
@@ -1088,8 +1125,6 @@ namespace BeautyArtists.Controllers
                     .Distinct()
                     .ToListAsync();
             }
-
-            // ─── BUILD VIEW MODEL ───────────────────────────────────────
 
             var model = new MyBookingsViewModel
             {
@@ -1108,14 +1143,39 @@ namespace BeautyArtists.Controllers
                 TotalCount = totalCount
             };
 
-            // ─── PASS FILTER VALUES TO VIEWBAG (for UI) ──────────────
-
             ViewBag.SelectedMonth = month;
             ViewBag.StartDate = startDate;
             ViewBag.EndDate = endDate;
             ViewBag.SelectedStatus = status;
 
             return View(model);
+        }
+
+        // ─── HELPER: Check if client is new to this artist ───
+        private async Task<bool> IsNewClient(string customerId, string artistId)
+        {
+            // Check if this customer has any completed or confirmed bookings with this artist
+            var existingBookings = await _context.Bookings
+                .Where(b => b.CustomerId == customerId
+                            && b.UserService.ArtistId == artistId
+                            && b.Status != BookingStatus.Cancelled
+                            && b.Status != BookingStatus.Rejected)
+                .AnyAsync();
+
+            return !existingBookings;  // True = new client, False = repeat client
+        }
+
+        // ─── HELPER: Calculate artist payout ───
+        private decimal CalculateArtistPayout(decimal artistPrice, bool isNewClient)
+        {
+            decimal platformFee = isNewClient
+                ? artistPrice * NEW_CLIENT_COMMISSION  // 10% for new clients
+                : REPEAT_CLIENT_FLAT_FEE;               // R15 for repeat clients
+
+            // Safeguard: platform gets at least R8
+            platformFee = Math.Max(platformFee, MIN_PLATFORM_FEE);
+
+            return artistPrice - platformFee;
         }
     }
 }

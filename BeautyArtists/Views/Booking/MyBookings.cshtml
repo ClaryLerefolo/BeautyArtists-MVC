@@ -73,6 +73,14 @@
             </div>
         </div>
     }
+    @if (TempData["Error"] != null)
+    {
+        <div class="container mt-4">
+            <div class="mb-alert-error">
+                <span>⚠</span> @TempData["Error"]
+            </div>
+        </div>
+    }
 
     @* ── FILTER PILL + PANEL ── *@
     <div class="container mt-4">
@@ -173,12 +181,19 @@
             {
                 var booking = item.Booking;
 
-                // ─── ✅ CORRECT PRICING ───
-                var artistPrice = booking.ServicePrice;                    // R100
-                var clientServicePrice = artistPrice * 1.15m;              // R115 (marked up for client)
-                var depositAmount = (artistPrice / 2) + booking.BookingFee; // R55
-                var finalAmount = artistPrice / 2;                         // R50
-                var totalAmount = clientServicePrice + booking.BookingFee + (booking.TransportCost > 0 ? booking.TransportCost : 0); // R120
+                // ─── ✅ CORRECT NEW PRICING (4% markup) ───
+                var artistPrice = booking.ServicePrice;                         // R160
+                var clientMarkup = artistPrice * 0.04m;                         // R6.40 (4%)
+                var clientServicePrice = artistPrice + clientMarkup;            // R166.40
+                var bookingFee = booking.BookingFee;                           // R5
+                var totalAmount = clientServicePrice + bookingFee + (booking.TransportCost > 0 ? booking.TransportCost : 0); // R171.40 + transport
+                var depositAmount = (clientServicePrice / 2) + bookingFee;      // R88.20
+                var finalAmount = clientServicePrice / 2;                      // R83.20
+
+                // ─── PAYMENT STATUS ───
+                decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
+                bool isFullyPaid = totalPaid >= totalAmount;
+                bool hasDeposit = booking.DepositPaid > 0;
 
                 string statusClass = booking.Status switch
                 {
@@ -211,9 +226,6 @@
                 ? $"{booking.UserService.Artist.FirstName} {booking.UserService.Artist.LastName}".Trim()
                 : booking.UserService?.Artist?.UserName ?? "Pro Artist";
 
-                // ── Payment status ──
-                bool isFullyPaid = (booking.DepositPaid + booking.FinalPaymentPaid) >= totalAmount;
-                bool hasDeposit = booking.DepositPaid > 0;
                 string paymentStatusText = isFullyPaid ? "Fully Paid" : (hasDeposit ? "Deposit Paid" : "Unpaid");
                 string paymentStatusColor = isFullyPaid ? "#28a745" : (hasDeposit ? "#ffc107" : "#6c757d");
 
@@ -411,7 +423,7 @@
 
                         @* ── RIGHT: PRICE + ACTIONS ── *@
                         <div class="mb-card-right">
-                            <!-- 🔥 CORRECT PRICING (Artist price + markup) -->
+                            <!-- ✅ CORRECT NEW PRICING (4% markup) -->
                             <div class="mb-amount">
                                 <span class="mb-amount-label">Total</span>
                                 <span class="mb-amount-value">R @totalAmount.ToString("N0")</span>
@@ -421,7 +433,6 @@
                                         + R @booking.TransportCost.ToString("N0") transport
                                     </span>
                                 }
-                              
                             </div>
 
                             <div class="mb-actions">
@@ -454,8 +465,7 @@
                                 @* ── PAYMENT BUTTONS FOR CONFIRMED STATUS ── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed)
                                 {
-                                    // ✅ CORRECT: Use marked-up price for remaining balance
-                                    decimal remainingBalance = clientServicePrice - (booking.DepositPaid > 0 ? (clientServicePrice / 2) : 0);
+                                    decimal remainingBalance = totalAmount - booking.DepositPaid;
 
                                     if (remainingBalance < 0) remainingBalance = 0;
 

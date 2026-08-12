@@ -582,6 +582,54 @@
                 font-size: 0.7rem !important;
             }
         }
+
+        /* ─── Fee type badge ─── */
+        .fee-badge {
+            font-size: 0.55rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            display: inline-block;
+        }
+
+            .fee-badge.new-client {
+                background: rgba(255,215,0,0.15);
+                color: #FFD700;
+                border: 1px solid rgba(255,215,0,0.3);
+            }
+
+            .fee-badge.repeat-client {
+                background: rgba(40,167,69,0.15);
+                color: #28a745;
+                border: 1px solid rgba(40,167,69,0.3);
+            }
+
+        /* ─── Amount styling ─── */
+        .amount-service {
+            color: #ffffff;
+            font-weight: 700;
+        }
+
+        .amount-platform {
+            color: #ff6600;
+            font-weight: 700;
+        }
+
+        .amount-artist {
+            color: var(--gold);
+            font-weight: 700;
+        }
+
+        .amount-deposit {
+            color: #17a2b8;
+            font-weight: 700;
+        }
+
+        .amount-final {
+            color: #28a745;
+            font-weight: 700;
+        }
     </style>
 }
 
@@ -811,25 +859,52 @@
                         <tr style="font-size:0.65rem;letter-spacing:2px;text-transform:uppercase;color:rgba(240,200,8,0.5)">
                             <th>Date</th>
                             <th>Client</th>
+                            <th>Type</th>
                             <th>Service</th>
                             <th class="text-end">Service Price</th>
+                            <th class="text-end">Platform Fee</th>
+                            <th class="text-end">Artist Payout</th>
                             <th class="text-end">Deposit</th>
                             <th class="text-end">Final</th>
-                            <th class="text-end">Earnings</th>
                             <th class="text-center">Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach (var item in Model.History)
                         {
+                            // ─── ✅ FIXED: USE IsNewClient FROM THE MODEL ───
+                            var isNewClient = item.IsNewClient;
+
+                            decimal platformFee;
+                            if (isNewClient)
+                            {
+                                platformFee = item.OriginalPrice * 0.10m;
+                                if (platformFee < 8.00m) platformFee = 8.00m;
+                            }
+                            else
+                            {
+                                platformFee = 15.00m;
+                            }
+
                             <tr>
                                 <td style="color:rgba(255,255,255,0.4)">@item.Date.ToString("dd MMM yyyy")</td>
                                 <td style="color:#fff;font-weight:600">@item.ClientName</td>
+                                <td>
+                                    @if (isNewClient)
+                                    {
+                                        <span class="fee-badge new-client">⭐ NEW</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="fee-badge repeat-client">🔄 REPEAT</span>
+                                    }
+                                </td>
                                 <td style="color:rgba(255,255,255,0.6)">@item.ServiceName</td>
-                                <td class="text-end fw-bold" style="color:#fff;">R @item.OriginalPrice.ToString("N2")</td>
-                                <td class="text-end" style="color:#17a2b8;">R @item.DepositPaid.ToString("N2")</td>
-                                <td class="text-end" style="color:#28a745;">R @item.FinalPaymentPaid.ToString("N2")</td>
-                                <td class="text-end fw-bold" style="color:var(--gold)">R @item.YourEarnings.ToString("N2")</td>
+                                <td class="text-end amount-service">R @item.OriginalPrice.ToString("N2")</td>
+                                <td class="text-end amount-platform">R @platformFee.ToString("N2")</td>
+                                <td class="text-end amount-artist">R @item.YourEarnings.ToString("N2")</td>
+                                <td class="text-end amount-deposit">R @item.DepositPaid.ToString("N2")</td>
+                                <td class="text-end amount-final">R @item.FinalPaymentPaid.ToString("N2")</td>
                                 <td class="text-center">
                                     @if (item.IsFullyPaid)
                                     {
@@ -853,7 +928,7 @@
                             <td class="text-end" style="color:var(--gold);font-size:0.9rem;font-weight:900;padding:12px;">
                                 R @Model.History.Sum(h => h.YourEarnings).ToString("N2")
                             </td>
-                            <td></td>
+                            <td colspan="3"></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -968,10 +1043,10 @@
 
             @if (hasFilters)
             {
-                    <text>
-                        filterBar.classList.add('open');
-                        toggleBtn.classList.add('open');
-                    </text>
+                                <text>
+                                    filterBar.classList.add('open');
+                                    toggleBtn.classList.add('open');
+                                </text>
             }
 
             toggleBtn.addEventListener('click', function() {

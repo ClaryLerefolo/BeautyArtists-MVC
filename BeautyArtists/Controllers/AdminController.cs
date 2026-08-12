@@ -17,14 +17,54 @@ namespace BeautyArtists.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _hostEnvironment;
-        private const decimal COMMISSION_RATE = 0.15m;  // 15% markup added to client
+
+        // ─── ✅ NEW PRICING CONSTANTS ───
+        private const decimal CLIENT_MARKUP_RATE = 0.04m;      // 4% markup for client
         private const decimal BOOKING_FEE = 5.00m;
+        private const decimal NEW_CLIENT_COMMISSION = 0.10m;   // 10% for new clients
+        private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m; // R15 for repeat clients
+        private const decimal MIN_PLATFORM_FEE = 8.00m;        // Safeguard: min R8
 
         public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment hostEnvironment)
         {
             _context = context;
             _userManager = userManager;
             _hostEnvironment = hostEnvironment;
+        }
+
+        // ─── HELPER: Check if client is new ───
+        private async Task<bool> IsNewClient(string customerId, string artistId)
+        {
+            var existingBookings = await _context.Bookings
+                .Where(b => b.CustomerId == customerId
+                            && b.UserService.ArtistId == artistId
+                            && b.Status != BookingStatus.Cancelled
+                            && b.Status != BookingStatus.Rejected)
+                .AnyAsync();
+
+            return !existingBookings;
+        }
+
+        // ─── HELPER: Calculate platform fee ───
+        private decimal GetPlatformFee(decimal servicePrice, bool isNewClient)
+        {
+            var platformFee = isNewClient
+                ? servicePrice * NEW_CLIENT_COMMISSION
+                : REPEAT_CLIENT_FLAT_FEE;
+
+            return Math.Max(platformFee, MIN_PLATFORM_FEE);
+        }
+
+        // ─── HELPER: Calculate artist payout ───
+        private decimal GetArtistPayout(decimal servicePrice, bool isNewClient)
+        {
+            return servicePrice - GetPlatformFee(servicePrice, isNewClient);
+        }
+
+        // ─── HELPER: Calculate client total ───
+        private decimal GetClientTotal(decimal servicePrice)
+        {
+            return (servicePrice * (1 + CLIENT_MARKUP_RATE)) + BOOKING_FEE;
         }
 
         public async Task<IActionResult> Index()
@@ -36,27 +76,67 @@ namespace BeautyArtists.Controllers
                 TotalCustomers = await _userManager.GetUsersInRoleAsync("Client").ContinueWith(t => t.Result.Count),
                 TotalBookings = await _context.Bookings.CountAsync(),
 
-                // ✅ FIX: Artist gets 100% of their price
-                TotalRevenue = await _context.Bookings
-                    .Where(b => b.Status == BookingStatus.Completed)
-                    .SumAsync(b => b.ServicePrice),  // 100% - NO commission taken!
-
-                // ✅ FIX: Artist gets 100% of their price
-                RevenuePerArtist = await _context.Bookings
-                    .Where(b => b.Status == BookingStatus.Completed)
-                    .Include(b => b.UserService)
-                    .ThenInclude(us => us.Artist)
-                    .GroupBy(b => b.UserService.ArtistId)
-                    .Select(g => new AdminDashboardViewModel.ArtistRevenue
-                    {
-                        ArtistId = g.Key,
-                        ArtistName = g.Select(b => b.UserService.Artist.FirstName + " " + b.UserService.Artist.LastName).FirstOrDefault(),
-                        TotalRevenue = g.Sum(b => b.ServicePrice)  // 100% - NO commission taken!
-                    })
-                    .ToListAsync()
+                // ─── ✅ FIXED: CORRECT PLATFORM EARNINGS ───
+                TotalRevenue = await CalculateTotalPlatformEarnings(),
+                RevenuePerArtist = await CalculateRevenuePerArtist()
             };
 
             return View("Index", model);
+        }
+
+        // ─── ✅ NEW: Calculate total platform earnings ───
+        private async Task<decimal> CalculateTotalPlatformEarnings()
+        {
+            var completedBookings = await _context.Bookings
+                .Include(b => b.UserService)
+                .Where(b => b.Status == BookingStatus.Completed)
+                .ToListAsync();
+
+            decimal total = 0m;
+            foreach (var booking in completedBookings)
+            {
+                bool isNew = await IsNewClient(booking.CustomerId, booking.UserService.ArtistId);
+                decimal platformFee = GetPlatformFee(booking.ServicePrice, isNew);
+                decimal markup = booking.ServicePrice * CLIENT_MARKUP_RATE;
+                total += markup + platformFee + booking.BookingFee;
+            }
+
+            return total;
+        }
+
+        // ─── ✅ NEW: Calculate revenue per artist ───
+        private async Task<List<AdminDashboardViewModel.ArtistRevenue>> CalculateRevenuePerArtist()
+        {
+            var completedBookings = await _context.Bookings
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                .Where(b => b.Status == BookingStatus.Completed)
+                .ToListAsync();
+
+            var result = new Dictionary<string, AdminDashboardViewModel.ArtistRevenue>();
+
+            foreach (var booking in completedBookings)
+            {
+                var artistId = booking.UserService.ArtistId;
+                var artistName = $"{booking.UserService.Artist.FirstName} {booking.UserService.Artist.LastName}".Trim();
+
+                if (!result.ContainsKey(artistId))
+                {
+                    result[artistId] = new AdminDashboardViewModel.ArtistRevenue
+                    {
+                        ArtistId = artistId,
+                        ArtistName = artistName,
+                        TotalRevenue = 0m
+                    };
+                }
+
+                bool isNew = await IsNewClient(booking.CustomerId, artistId);
+                decimal platformFee = GetPlatformFee(booking.ServicePrice, isNew);
+                decimal markup = booking.ServicePrice * CLIENT_MARKUP_RATE;
+                result[artistId].TotalRevenue += markup + platformFee + booking.BookingFee;
+            }
+
+            return result.Values.ToList();
         }
 
         public async Task<IActionResult> ManageUsers(string search)
@@ -400,6 +480,48 @@ namespace BeautyArtists.Controllers
             await LogActivity(booking.UserService.ArtistId, $"ADMIN OVERRIDE: Forced status to {newStatus}");
 
             TempData["Success"] = "Booking status successfully overridden by Admin.";
+            return RedirectToAction(nameof(ManageBookings));
+        }
+
+        // ─── ✅ NEW: ADMIN RESCHEDULE - NO 24-HOUR RESTRICTION ───
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AdminReschedule(int bookingId, int newSlotId)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.AvailabilitySlot)
+                .FirstOrDefaultAsync(b => b.Id == bookingId);
+
+            if (booking == null) return NotFound();
+
+            var newSlot = await _context.ArtistAvailabilities
+                .FirstOrDefaultAsync(a => a.Id == newSlotId && !a.IsBooked);
+
+            if (newSlot == null)
+            {
+                TempData["Error"] = "The selected slot is no longer available.";
+                return RedirectToAction(nameof(ManageBookings));
+            }
+
+            // ─── ✅ NO 24-HOUR RESTRICTION FOR ADMIN ───
+            // Release old slot
+            if (booking.AvailabilitySlotId.HasValue)
+            {
+                var oldSlot = await _context.ArtistAvailabilities
+                    .FirstOrDefaultAsync(a => a.Id == booking.AvailabilitySlotId.Value);
+                if (oldSlot != null) oldSlot.IsBooked = false;
+            }
+
+            // Assign new slot
+            booking.AppointmentDate = newSlot.AvailableDate.Add(newSlot.StartTime);
+            booking.AvailabilitySlotId = newSlot.Id;
+            newSlot.IsBooked = true;
+
+            await _context.SaveChangesAsync();
+
+            await LogActivity(booking.UserService.ArtistId, $"ADMIN RESCHEDULE: Moved booking to {newSlot.AvailableDate:yyyy-MM-dd} at {newSlot.StartTime:hh\\:mm}");
+
+            TempData["Success"] = $"Booking rescheduled successfully to {newSlot.AvailableDate:MMM dd} at {newSlot.StartTime:hh\\:mm}";
             return RedirectToAction(nameof(ManageBookings));
         }
 

@@ -48,6 +48,7 @@ namespace BeautyArtists.Models.ViewModels
         public DateTime Date { get; set; }
         public string ClientName { get; set; } = string.Empty;
         public string ServiceName { get; set; } = string.Empty;
+        public bool IsNewClient { get; set; }
 
         // ============================================================
         // EXISTING FIELDS

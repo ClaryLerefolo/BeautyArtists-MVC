@@ -508,13 +508,11 @@
         border-left: 3px solid #ff4444;
     }
 </style>
-
 @section Scripts {
     <script>
         const artistId = '@Model.ArtistId';
         let selectedSlot = null;
 
-        // 🔥 FIXED: Use the correct endpoint from your BookingController
         fetch(`/Booking/GetArtistAvailability?artistId=${artistId}`)
             .then(res => {
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -532,8 +530,9 @@
                 grid.style.display = 'grid';
 
                 slots.forEach(slot => {
-                    // 🔥 FIXED: Use the exact format from your API
-                    const dateDisplay = new Date(slot.date + 'T00:00:00').toLocaleDateString('en-US', {
+                    // ─── ✅ FIXED: Parse date correctly ───
+                    const dateObj = new Date(slot.date + 'T00:00:00');
+                    const dateDisplay = dateObj.toLocaleDateString('en-ZA', {
                         weekday: 'short',
                         month: 'short',
                         day: 'numeric'
@@ -598,7 +597,6 @@
             if (!valid) e.preventDefault();
         });
 
-        // Hide reason error when user starts typing
         document.getElementById('rescheduleReason').addEventListener('input', function() {
             if (this.value.trim()) {
                 document.getElementById('reasonError').style.display = 'none';

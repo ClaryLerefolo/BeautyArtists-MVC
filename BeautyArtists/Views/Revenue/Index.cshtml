@@ -8,7 +8,6 @@
     var maxMonth = Model.MonthlyTrend.Any() ? Model.MonthlyTrend.Max(m => m.TotalRevenue) : 1;
 
     // Build query string to pass filters to download link
-    // 1. Build the query string
     var qs = new System.Text.StringBuilder("?");
     if (!string.IsNullOrEmpty(Model.FilterProvince)) qs.Append($"filterProvince={Uri.EscapeDataString(Model.FilterProvince)}&");
     if (!string.IsNullOrEmpty(Model.FilterArtistId)) qs.Append($"filterArtistId={Uri.EscapeDataString(Model.FilterArtistId)}&");
@@ -17,12 +16,8 @@
     if (Model.FilterFrom.HasValue) qs.Append($"filterFrom={Model.FilterFrom.Value:yyyy-MM-dd}&");
     if (Model.FilterTo.HasValue) qs.Append($"filterTo={Model.FilterTo.Value:yyyy-MM-dd}&");
 
-    // 2. Define downloadUrl so your existing CSV button doesn't throw an error
     var downloadUrl = "/Revenue/DownloadCsv" + qs.ToString().TrimEnd('&');
-
-    // 3. Define the helper for the NEW buttons (Excel, PDF, Word)
-    string getDownloadUrl(string format) => $"/Revenue/DownloadReport{qs}format={format}";
-}
+    string getDownloadUrl(string format) => $"/Revenue/Download{format}" + qs.ToString().TrimEnd('&');
 }
 
 @section Styles {
@@ -38,7 +33,7 @@
             position: absolute;
             right: 0;
             background-color: #111;
-            min-width: 160px;
+            min-width: 180px;
             box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.5);
             z-index: 100;
             border: 1px solid rgba(255,215,0,0.2);
@@ -65,6 +60,7 @@
         .rv-dropdown:hover .rv-dropdown-content {
             display: block;
         }
+
         .rv-eyebrow {
             font-size: 0.6rem;
             font-weight: 700;
@@ -171,6 +167,15 @@
         .rv-stat.revenue .rv-stat-icon {
             background: rgba(0,200,83,0.08);
             color: #00c853;
+        }
+
+        .rv-stat.platform .rv-stat-num {
+            color: #FFD700;
+        }
+
+        .rv-stat.platform .rv-stat-icon {
+            background: rgba(255,215,0,0.08);
+            color: #FFD700;
         }
 
         /* FILTER BAR */
@@ -455,7 +460,7 @@
         .rv-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 700px;
+            min-width: 900px;
         }
 
             .rv-table thead tr {
@@ -464,21 +469,30 @@
 
             .rv-table th {
                 padding: 10px 16px;
-                font-size: 0.65rem;
+                font-size: 0.6rem;
                 font-weight: 700;
-                letter-spacing: 2px;
+                letter-spacing: 1.5px;
                 text-transform: uppercase;
                 color: rgba(255,215,0,0.4);
                 border-bottom: 1px solid rgba(255,215,0,0.07);
+                text-align: left;
             }
+
+                .rv-table th.text-end {
+                    text-align: right;
+                }
 
             .rv-table td {
                 padding: 11px 16px;
-                font-size: 0.8rem;
+                font-size: 0.78rem;
                 color: rgba(255,255,255,0.6);
                 border-bottom: 1px solid rgba(255,255,255,0.04);
                 vertical-align: middle;
             }
+
+                .rv-table td.text-end {
+                    text-align: right;
+                }
 
             .rv-table tr:last-child td {
                 border-bottom: none;
@@ -506,6 +520,11 @@
         .rv-amount {
             color: #00c853;
             font-weight: 800;
+        }
+
+        .rv-platform-fee {
+            color: #ff6600;
+            font-weight: 700;
         }
 
         .rv-province-badge {
@@ -572,7 +591,6 @@
                 margin-bottom: 10px;
             }
 
-        /* Active filter pills */
         .rv-active-filters {
             display: flex;
             gap: 8px;
@@ -592,28 +610,55 @@
             border: 1px solid rgba(255,215,0,0.2);
             color: rgba(255,215,0,0.8);
         }
+
+        .rv-client-type {
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+
+            .rv-client-type.new {
+                background: rgba(255,215,0,0.12);
+                color: #FFD700;
+                border: 1px solid rgba(255,215,0,0.2);
+            }
+
+            .rv-client-type.repeat {
+                background: rgba(40,167,69,0.12);
+                color: #28a745;
+                border: 1px solid rgba(40,167,69,0.2);
+            }
+
+        .rv-fee-breakdown {
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.25);
+            display: block;
+            line-height: 1.3;
+        }
     </style>
 }
 
 <span class="rv-eyebrow">Administration</span>
 <h1 class="rv-heading">Revenue &amp; Reports</h1>
 
-@* ── STAT CARDS ── *@
+@* ── ✅ NEW PLATFORM STAT CARDS ── *@
 <div class="rv-stats">
     <div class="rv-stat revenue">
         <div class="rv-stat-icon"><i class="bi bi-currency-exchange"></i></div>
         <span class="rv-stat-num">R @Model.TotalRevenue.ToString("N0")</span>
-        <span class="rv-stat-label">Total Revenue</span>
+        <span class="rv-stat-label">Artist Payouts</span>
+    </div>
+    <div class="rv-stat platform">
+        <div class="rv-stat-icon"><i class="bi bi-piggy-bank"></i></div>
+        <span class="rv-stat-num">R @Model.TotalPlatformEarnings.ToString("N0")</span>
+        <span class="rv-stat-label">Platform Earnings</span>
     </div>
     <div class="rv-stat revenue">
-        <div class="rv-stat-icon"><i class="bi bi-calendar-month"></i></div>
-        <span class="rv-stat-num">R @Model.MonthRevenue.ToString("N0")</span>
-        <span class="rv-stat-label">This Month</span>
-    </div>
-    <div class="rv-stat revenue">
-        <div class="rv-stat-icon"><i class="bi bi-calendar-week"></i></div>
-        <span class="rv-stat-num">R @Model.WeekRevenue.ToString("N0")</span>
-        <span class="rv-stat-label">This Week</span>
+        <div class="rv-stat-icon"><i class="bi bi-people"></i></div>
+        <span class="rv-stat-num">R @Model.TotalClientPaid.ToString("N0")</span>
+        <span class="rv-stat-label">Client Total Paid</span>
     </div>
     <div class="rv-stat">
         <div class="rv-stat-icon"><i class="bi bi-calendar-check-fill"></i></div>
@@ -624,6 +669,26 @@
         <div class="rv-stat-icon"><i class="bi bi-check-circle-fill"></i></div>
         <span class="rv-stat-num">@Model.CompletedBookings</span>
         <span class="rv-stat-label">Completed</span>
+    </div>
+</div>
+
+@* ── FEE BREAKDOWN ROW ── *@
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;">
+    <div style="background:#0b0b0b;border-radius:10px;padding:12px 16px;border:1px solid rgba(255,215,0,0.05);">
+        <span style="font-size:0.55rem;text-transform:uppercase;color:rgba(255,255,255,0.2);letter-spacing:1px;">4% Markup</span>
+        <div style="font-size:1.2rem;font-weight:800;color:#FFD700;">R @Model.TotalMarkupEarned.ToString("N0")</div>
+    </div>
+    <div style="background:#0b0b0b;border-radius:10px;padding:12px 16px;border:1px solid rgba(255,215,0,0.05);">
+        <span style="font-size:0.55rem;text-transform:uppercase;color:rgba(255,255,255,0.2);letter-spacing:1px;">10% / R15 Commission</span>
+        <div style="font-size:1.2rem;font-weight:800;color:#ff6600;">R @Model.TotalCommissionEarned.ToString("N0")</div>
+    </div>
+    <div style="background:#0b0b0b;border-radius:10px;padding:12px 16px;border:1px solid rgba(255,215,0,0.05);">
+        <span style="font-size:0.55rem;text-transform:uppercase;color:rgba(255,255,255,0.2);letter-spacing:1px;">Booking Fees (R5)</span>
+        <div style="font-size:1.2rem;font-weight:800;color:#17a2b8;">R @Model.TotalBookingFeesEarned.ToString("N0")</div>
+    </div>
+    <div style="background:#0b0b0b;border-radius:10px;padding:12px 16px;border:1px solid rgba(255,215,0,0.05);">
+        <span style="font-size:0.55rem;text-transform:uppercase;color:rgba(255,255,255,0.2);letter-spacing:1px;">Month Revenue</span>
+        <div style="font-size:1.2rem;font-weight:800;color:#00c853;">R @Model.MonthRevenue.ToString("N0")</div>
     </div>
 </div>
 
@@ -859,9 +924,9 @@
                     Export Report <i class="bi bi-chevron-down ms-1" style="font-size: 0.6rem;"></i>
                 </a>
                 <div class="rv-dropdown-content">
-                    <a href="@getDownloadUrl("pdf")" class="rv-dropdown-item"><i class="bi bi-file-pdf me-2 text-danger"></i> PDF Document</a>
-                    <a href="@getDownloadUrl("excel")" class="rv-dropdown-item"><i class="bi bi-file-excel me-2 text-success"></i> Excel Sheet</a>
-                    <a href="@getDownloadUrl("word")" class="rv-dropdown-item"><i class="bi bi-file-word me-2 text-primary"></i> Word Doc</a>
+                    <a href="@getDownloadUrl("Pdf")" class="rv-dropdown-item"><i class="bi bi-file-pdf me-2 text-danger"></i> PDF Document</a>
+                    <a href="@getDownloadUrl("Excel")" class="rv-dropdown-item"><i class="bi bi-file-excel me-2 text-success"></i> Excel Sheet</a>
+                    <a href="@getDownloadUrl("Word")" class="rv-dropdown-item"><i class="bi bi-file-word me-2 text-primary"></i> Word Doc</a>
                     <hr style="margin: 0; border-color: rgba(255,215,0,0.1);" />
                     <a href="@downloadUrl" class="rv-dropdown-item"><i class="bi bi-filetype-csv me-2" style="color: #00c853;"></i> CSV (Legacy)</a>
                 </div>
@@ -884,11 +949,16 @@
                         <th>#</th>
                         <th>Date</th>
                         <th>Client</th>
+                        <th>Type</th>
                         <th>Artist</th>
                         <th>Service</th>
                         <th>Province</th>
+                        <th class="text-end">Service Price</th>
+                        <th class="text-end">4% Markup</th>
+                        <th class="text-end">Platform Fee</th>
+                        <th class="text-end">Artist Net</th>
+                        <th class="text-end">Platform Earnings</th>
                         <th>Status</th>
-                        <th>Amount</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -903,20 +973,47 @@
                                 </span>
                             </td>
                             <td class="rv-client">@b.ClientName</td>
+                            <td>
+                                @if (b.ClientType == "New")
+                                {
+                                    <span class="rv-client-type new">⭐ New</span>
+                                }
+                                else
+                                {
+                                    <span class="rv-client-type repeat">🔄 Repeat</span>
+                                }
+                            </td>
                             <td class="rv-artist">@b.ArtistName</td>
                             <td>@b.ServiceName</td>
                             <td><span class="rv-province-badge">@b.Province</span></td>
+                            <td class="text-end" style="color:#fff;">R @b.ServicePrice.ToString("N2")</td>
+                            <td class="text-end" style="color:#FFD700;">R @b.ClientMarkup.ToString("N2")</td>
+                            <td class="text-end" style="color:#ff6600;">R @b.PlatformFee.ToString("N2")</td>
+                            <td class="text-end rv-amount">R @b.ArtistNet.ToString("N2")</td>
+                            <td class="text-end" style="color:#FFD700;font-weight:700;">R @b.PlatformEarnings.ToString("N2")</td>
                             <td><span class="rv-status-badge rv-status-@b.Status">@b.Status</span></td>
-                            <td class="rv-amount">R @b.Amount.ToString("N0")</td>
                         </tr>
                     }
                 </tbody>
                 <tfoot>
-                    <tr style="border-top:1px solid rgba(255,215,0,0.1);">
-                        <td colspan="7" style="padding:12px 16px;font-size:0.75rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,0.3);">Total</td>
-                        <td style="padding:12px 16px;font-size:0.9rem;font-weight:900;color:#00c853;">
-                            R @Model.FilteredBookings.Sum(b => b.Amount).ToString("N0")
+                    <tr style="border-top:2px solid rgba(255,215,0,0.2);">
+                        <td colspan="7" style="padding:12px 16px;font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);">Totals</td>
+                        <td class="text-end" style="padding:12px 16px;font-size:0.85rem;font-weight:800;color:#fff;">
+                            R @Model.FilteredBookings.Sum(b => b.ServicePrice).ToString("N2")
                         </td>
+                        <td class="text-end" style="padding:12px 16px;font-size:0.85rem;font-weight:800;color:#FFD700;">
+                            R @Model.FilteredBookings.Sum(b => b.ClientMarkup).ToString("N2")
+                        </td>
+                        <td class="text-end" style="padding:12px 16px;font-size:0.85rem;font-weight:800;color:#ff6600;">
+                            R @Model.FilteredBookings.Sum(b => b.PlatformFee).ToString("N2")
+                        </td>
+                        <td class="text-end" style="padding:12px 16px;font-size:0.9rem;font-weight:900;color:#00c853;">
+                            R @Model.FilteredBookings.Sum(b => b.ArtistNet).ToString("N2")
+                        </td>
+                        <td class="text-end" style="padding:12px 16px;font-size:0.9rem;font-weight:900;color:#FFD700;">
+                            R @Model.FilteredBookings.Sum(b => b.PlatformEarnings).ToString("N2")
+                        </td>
+                        <td></td>
                     </tr>
                 </tfoot>
             </table>

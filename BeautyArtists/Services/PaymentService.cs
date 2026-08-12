@@ -20,7 +20,7 @@ namespace BeautyArtists.Services
         private readonly IConfiguration _config;
         private readonly ApplicationDbContext _context;
         private readonly HttpClient _httpClient;
-        private const decimal COMMISSION_RATE = 0.15m;
+        private const decimal CLIENT_MARKUP_RATE = 0.04m;  // 4% markup for client
         private const decimal BOOKING_FEE = 5.00m;
 
         public PaymentService(IConfiguration config, ApplicationDbContext context, IHttpClientFactory httpClientFactory)
@@ -32,9 +32,10 @@ namespace BeautyArtists.Services
         }
 
         // ─── HELPERS ───
-        private decimal ClientTotal(Booking b) => (b.ServicePrice * (1 + COMMISSION_RATE)) + b.BookingFee;
-        private decimal DepositAmount(Booking b) => (b.ServicePrice / 2) + b.BookingFee;
-        private decimal FinalAmount(Booking b) => b.ServicePrice / 2;
+        private decimal ClientServicePrice(Booking b) => b.ServicePrice * (1 + CLIENT_MARKUP_RATE);
+        private decimal ClientTotal(Booking b) => ClientServicePrice(b) + b.BookingFee;
+        private decimal DepositAmount(Booking b) => (ClientServicePrice(b) / 2) + b.BookingFee;
+        private decimal FinalAmount(Booking b) => ClientServicePrice(b) / 2;
 
         public async Task<(bool success, string message, string authorizationUrl, string reference)> InitializePayment(
             string email,
@@ -79,7 +80,6 @@ namespace BeautyArtists.Services
                     currency = "ZAR",
                     reference = reference,
                     callback_url = _config["Paystack:CallbackUrl"],
-                    // ─── 🔥 SPLIT PAYMENT CONFIG ───
                     split = BuildSplitObject(booking, amount)
                 };
 
@@ -126,7 +126,7 @@ namespace BeautyArtists.Services
             }
         }
 
-        // ─── 🔥 BUILD SPLIT OBJECT ───
+        // ─── BUILD SPLIT OBJECT ───
         private object BuildSplitObject(Booking booking, decimal amount)
         {
             // Get the artist's subaccount code
@@ -139,33 +139,37 @@ namespace BeautyArtists.Services
                 return null;
             }
 
-            // Calculate artist's share (100% of their service price)
-            // For deposit: artist gets 50% of their price
-            // For final/full: artist gets 100% of their price
+            // Calculate artist's share
+            // For deposit: artist gets 50% of client service price (booking fee goes to platform)
+            // For final/full: artist gets 100% of client service price
             decimal artistShare;
             bool isDeposit = !booking.IsDepositPaid;
             bool isFullPayment = Math.Abs(amount - ClientTotal(booking)) < 0.01m;
 
+            decimal clientServicePrice = ClientServicePrice(booking);
+
             if (isDeposit && !isFullPayment)
             {
-                // Deposit = 50% of artist price
-                artistShare = booking.ServicePrice / 2;
+                // Deposit = 50% of client service price (booking fee goes to platform)
+                artistShare = clientServicePrice / 2;
             }
             else
             {
-                // Final or full payment = 100% of artist price
-                artistShare = booking.ServicePrice;
+                // Final or full payment = 100% of client service price
+                artistShare = clientServicePrice;
             }
 
             // Convert to cents
             int artistShareInCents = (int)(artistShare * 100);
 
             Console.WriteLine($"💰 Split: Artist subaccount {artistSubaccount} gets R{artistShare}");
+            Console.WriteLine($"   Client Service Price: R{clientServicePrice}");
+            Console.WriteLine($"   IsDeposit: {isDeposit}, IsFullPayment: {isFullPayment}");
 
             return new
             {
                 type = "flat",
-                bearer_type = "account", // Platform pays the fee
+                bearer_type = "account",
                 subaccounts = new[]
                 {
                     new
