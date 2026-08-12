@@ -86,6 +86,9 @@
             {
                 foreach (var userService in Model.FeaturedServices)
                 {
+                    // ─── ✅ FIXED: 4% markup (NO booking fee shown here) ───
+                    var markedUpPrice = userService.Price + (userService.Price * 0.04m);
+
                     <div class="col-lg-4 col-md-6 mb-4">
                         <div class="card h-100 border-0 shadow-lg" style="border-radius: 15px; overflow: hidden; background-color: #121212;">
 
@@ -103,9 +106,9 @@
                                      alt="@userService.Service?.Name"
                                      onerror="this.src='/images/placeholder.jpg';">
 
-                                @* ─── PRICE: CLIENT PRICE (MARKED UP) ─── *@
+                                @* ─── ✅ FIXED: 4% markup (NO booking fee) ─── *@
                                 <div style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: #f0c808; padding: 5px 15px; border-radius: 20px; font-weight: bold; border: 1px solid #f0c808;">
-                                    R @((userService.Price * 1.15m).ToString("N0"))
+                                    R @markedUpPrice.ToString("N0")
                                 </div>
                             </div>
 
@@ -116,8 +119,6 @@
                                 <p class="text-muted small mb-2" style="height: 40px; overflow: hidden;">
                                     @(userService.CustomDescription ?? userService.Service?.Description)
                                 </p>
-
-                            
 
                                 <a href="@Url.Action("ViewService", "Home", new { artistId = userService.ArtistId })"
                                    class="text-gold fw-bold text-decoration-none small" style="letter-spacing: 1px;">
@@ -135,8 +136,9 @@
                 </div>
             }
         </div>
-
-        <div class="mt-5">
+    </div>
+</section>
+<div class="mt-5">
             <a href="@Url.Action("AllServices", "Home")" class="btn btn-outline-gold rounded-pill px-5 py-2 fw-bold">
                 View All Services
             </a>
