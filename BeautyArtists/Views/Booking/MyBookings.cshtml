@@ -181,14 +181,14 @@
             {
                 var booking = item.Booking;
 
-                // ─── ✅ CORRECT NEW PRICING (4% markup) ───
-                var artistPrice = booking.ServicePrice;                         // R160
-                var clientMarkup = artistPrice * 0.04m;                         // R6.40 (4%)
-                var clientServicePrice = artistPrice + clientMarkup;            // R166.40
-                var bookingFee = booking.BookingFee;                           // R5
-                var totalAmount = clientServicePrice + bookingFee + (booking.TransportCost > 0 ? booking.TransportCost : 0); // R171.40 + transport
-                var depositAmount = (clientServicePrice / 2) + bookingFee;      // R88.20
-                var finalAmount = clientServicePrice / 2;                      // R83.20
+                // ─── USE STORED VALUES FROM BOOKING ───
+                var totalAmount = booking.TotalAmount;
+                var depositAmount = booking.DepositAmount;
+                var finalAmount = booking.FinalAmount;
+                var cardFee = booking.CardProcessingFee;
+                var bookingFee = booking.BookingFee;
+                var artistPayout = booking.ArtistNetAmount;
+                var servicePrice = booking.ServicePrice;
 
                 // ─── PAYMENT STATUS ───
                 decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
@@ -203,6 +203,9 @@
                     BeautyArtists.Models.Booking.BookingStatus.Completed => "status-completed",
                     BeautyArtists.Models.Booking.BookingStatus.Cancelled => "status-cancelled",
                     BeautyArtists.Models.Booking.BookingStatus.Rejected => "status-rejected",
+                    BeautyArtists.Models.Booking.BookingStatus.Disputed => "status-disputed",
+                    BeautyArtists.Models.Booking.BookingStatus.InReview => "status-inreview",
+                    BeautyArtists.Models.Booking.BookingStatus.Resolved => "status-resolved",
                     _ => "status-pending"
                 };
                 string statusIcon = booking.Status switch
@@ -213,12 +216,18 @@
                     BeautyArtists.Models.Booking.BookingStatus.Completed => "⭐",
                     BeautyArtists.Models.Booking.BookingStatus.Cancelled => "❌",
                     BeautyArtists.Models.Booking.BookingStatus.Rejected => "🚫",
+                    BeautyArtists.Models.Booking.BookingStatus.Disputed => "⚠️",
+                    BeautyArtists.Models.Booking.BookingStatus.InReview => "🔍",
+                    BeautyArtists.Models.Booking.BookingStatus.Resolved => "⚖️",
                     _ => "⏳"
                 };
                 string statusDisplay = booking.Status switch
                 {
                     BeautyArtists.Models.Booking.BookingStatus.Accepted => "ACCEPTED - AWAITING DEPOSIT",
                     BeautyArtists.Models.Booking.BookingStatus.Rejected => "REJECTED",
+                    BeautyArtists.Models.Booking.BookingStatus.Disputed => "DISPUTED",
+                    BeautyArtists.Models.Booking.BookingStatus.InReview => "IN REVIEW",
+                    BeautyArtists.Models.Booking.BookingStatus.Resolved => "RESOLVED",
                     _ => booking.Status.ToString().ToUpper()
                 };
 
@@ -226,12 +235,34 @@
                 ? $"{booking.UserService.Artist.FirstName} {booking.UserService.Artist.LastName}".Trim()
                 : booking.UserService?.Artist?.UserName ?? "Pro Artist";
 
-                string paymentStatusText = isFullyPaid ? "Fully Paid" : (hasDeposit ? "Deposit Paid" : "Unpaid");
-                string paymentStatusColor = isFullyPaid ? "#28a745" : (hasDeposit ? "#ffc107" : "#6c757d");
-
                 // ── Days until appointment ──
                 double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
-                bool isLastMinute = daysUntilAppointment < 2;
+                bool isLastMinute = daysUntilAppointment < 2 && !isFullyPaid;
+
+                // ── Payment status text for display ──
+                string paymentStatusText;
+                string paymentStatusColor;
+
+                if (isLastMinute && !isFullyPaid && (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted || booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed))
+                {
+                    paymentStatusText = "⚠️ LAST MINUTE - FULL PAYMENT REQUIRED";
+                    paymentStatusColor = "#ff6b6b";
+                }
+                else if (isFullyPaid)
+                {
+                    paymentStatusText = "Fully Paid";
+                    paymentStatusColor = "#28a745";
+                }
+                else if (hasDeposit)
+                {
+                    paymentStatusText = "Deposit Paid";
+                    paymentStatusColor = "#ffc107";
+                }
+                else
+                {
+                    paymentStatusText = "Unpaid";
+                    paymentStatusColor = "#6c757d";
+                }
 
                 <div class="mb-card @(booking.Status == BeautyArtists.Models.Booking.BookingStatus.Cancelled || booking.Status == BeautyArtists.Models.Booking.BookingStatus.Rejected ? "mb-card-cancelled" : "")">
 
@@ -283,26 +314,84 @@
 
                                 @* ── PAYMENT STATUS ── *@
                                 <div class="mb-meta-item" style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
-                                    <span style="color: @paymentStatusColor; font-weight: 700;">
-                                        @paymentStatusText
-                                    </span>
-                                    @if (isFullyPaid)
+                                    @if (isLastMinute && !isFullyPaid && (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted || booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed))
                                     {
-                                        <span style="color: #28a745;">✅</span>
-                                    }
-                                    else if (hasDeposit)
-                                    {
-                                        <span style="color: #ffc107;">💰</span>
+                                        <span style="color: #ff6b6b; font-weight: 700;">
+                                            ⚠️ LAST MINUTE - FULL PAYMENT REQUIRED
+                                        </span>
+                                        <span style="color: #ff6b6b; font-size: 0.65rem; display: block; margin-top: 2px;">
+                                            Appointment within 2 days - full amount must be paid
+                                        </span>
                                     }
                                     else
                                     {
-                                        <span style="color: #6c757d;">⏳</span>
-                                    }
-                                    @if (isLastMinute && !isFullyPaid)
-                                    {
-                                        <span style="color: #ff6b6b; font-size: 0.7rem; margin-left: 6px;">(⚠️ Last Minute)</span>
+                                        <span style="color: @paymentStatusColor; font-weight: 700;">
+                                            @paymentStatusText
+                                        </span>
+                                        @if (isFullyPaid)
+                                        {
+                                            <span style="color: #28a745;">✅</span>
+                                        }
+                                        else if (hasDeposit)
+                                        {
+                                            <span style="color: #ffc107;">💰</span>
+                                            <span style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-left: 4px;">
+                                                (R @booking.DepositPaid.ToString("N2") paid)
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span style="color: #6c757d;">⏳</span>
+                                        }
                                     }
                                 </div>
+
+                                @* ─── ✅ CONFIRMATION PROMPT ─── *@
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed
+                                                        && booking.ConfirmationPromptSentAt != null
+                                                        && !booking.IsCompleted
+                                                        && !booking.IsDisputed)
+                                {
+                                    <div style="background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.3); border-radius: 8px; padding: 12px 16px; margin-top: 10px;">
+                                        <p style="margin: 0; color: #FFD700; font-size: 0.8rem; font-weight: 600;">
+                                            Please confirm if your service was completed.
+                                        </p>
+                                        <div style="display: flex; gap: 8px; margin-top: 8px;">
+                                            <a asp-controller="Booking" asp-action="ConfirmCompletion" asp-route-id="@booking.Id"
+                                               style="padding: 6px 16px; background: #28a745; color: #fff; font-weight: 700; font-size: 0.75rem; border: none; border-radius: 6px; text-decoration: none;">
+                                                Confirm
+                                            </a>
+                                            @if (booking.AutoConfirmAt.HasValue)
+                                            {
+                                                <span style="color: rgba(255,255,255,0.3); font-size: 0.7rem; align-self: center;">
+                                                    Auto-confirms in: @((booking.AutoConfirmAt.Value - DateTime.UtcNow).ToString(@"hh\:mm"))
+                                                </span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+
+                                @* ─── ✅ DISPUTE STATUS ─── *@
+                                @if (booking.IsDisputed)
+                                {
+                                    <div style="background: rgba(229, 9, 20, 0.12); border: 1px solid #e50914; border-radius: 8px; padding: 8px 12px; margin-top: 10px;">
+                                        <span style="color: #e50914; font-weight: 700; font-size: 0.75rem;">
+                                            ⚠️ Disputed — Under review
+                                        </span>
+                                        @if (!string.IsNullOrEmpty(booking.DisputeReason))
+                                        {
+                                            <p style="margin: 2px 0 0 0; color: rgba(255,255,255,0.3); font-size: 0.65rem;">
+                                                Reason: @booking.DisputeReason
+                                            </p>
+                                        }
+                                        @if (!string.IsNullOrEmpty(booking.DisputeDescription))
+                                        {
+                                            <p style="margin: 2px 0 0 0; color: rgba(255,255,255,0.2); font-size: 0.6rem; font-style: italic;">
+                                                "@booking.DisputeDescription"
+                                            </p>
+                                        }
+                                    </div>
+                                }
 
                                 @* ── STUDIO LOCATION (Walk‑in, location shared, deposit paid) ── *@
                                 @if (item.Booking.SelectedLocationType == BeautyArtists.Models.LocationType.WalkIn
@@ -379,7 +468,7 @@
                                             <circle cx="7" cy="19" r="2" />
                                             <circle cx="17" cy="19" r="2" />
                                         </svg>
-                                        Transport Cost: <strong>R @booking.TransportCost.ToString("N0")</strong>
+                                        Transport Cost: <strong>R @booking.TransportCost.ToString("N2")</strong>
                                     </div>
                                 }
 
@@ -423,16 +512,23 @@
 
                         @* ── RIGHT: PRICE + ACTIONS ── *@
                         <div class="mb-card-right">
-                            <!-- ✅ CORRECT NEW PRICING (4% markup) -->
+                            <!-- ✅ CORRECT PRICING BREAKDOWN -->
                             <div class="mb-amount">
                                 <span class="mb-amount-label">Total</span>
-                                <span class="mb-amount-value">R @totalAmount.ToString("N0")</span>
+                                <span class="mb-amount-value">R @totalAmount.ToString("N2")</span>
                                 @if (booking.TransportCost > 0)
                                 {
                                     <span style="display: block; font-size: 0.6rem; color: rgba(255,215,0,0.4);">
-                                        + R @booking.TransportCost.ToString("N0") transport
+                                        + R @booking.TransportCost.ToString("N2") transport
                                     </span>
                                 }
+                            </div>
+
+                            <!-- ─── SHOW DEPOSIT & FINAL BREAKDOWN ─── -->
+                            <div style="font-size: 0.6rem; color: rgba(255,255,255,0.3); text-align: center; border-bottom: 1px solid rgba(255,215,0,0.1); padding-bottom: 6px;">
+                                <span>Deposit: R @depositAmount.ToString("N2")</span>
+                                <span style="margin: 0 6px;">|</span>
+                                <span>Final: R @finalAmount.ToString("N2")</span>
                             </div>
 
                             <div class="mb-actions">
@@ -445,7 +541,7 @@
                                            asp-action="CheckoutDeposit"
                                            asp-route-id="@booking.Id"
                                            class="mb-btn-deposit" style="background: linear-gradient(135deg, #f0c808, #e50914); color: #000;">
-                                            ⚠️ Pay Full Amount – R @totalAmount.ToString("N0")
+                                            ⚠️ Pay Full Amount – R @totalAmount.ToString("N2")
                                         </a>
                                         <span class="text-muted small" style="font-size:0.65rem; text-align:center; display:block; color:#ff6b6b;">
                                             ⚠️ Appointment within 2 days – full amount required
@@ -457,8 +553,11 @@
                                            asp-action="CheckoutDeposit"
                                            asp-route-id="@booking.Id"
                                            class="mb-btn-deposit">
-                                            💰 PAY 50% DEPOSIT – R @depositAmount.ToString("N0")
+                                            💰 PAY DEPOSIT – R @depositAmount.ToString("N2")
                                         </a>
+                                        <span style="font-size:0.55rem; text-align:center; display:block; color:rgba(255,255,255,0.2);">
+                                            Includes card fee & booking fee | Final: R @finalAmount.ToString("N2")
+                                        </span>
                                     }
                                 }
 
@@ -483,7 +582,7 @@
                                                asp-action="CheckoutFinalPayment"
                                                asp-route-id="@booking.Id"
                                                class="mb-btn-final" style="background: linear-gradient(135deg, #f0c808, #e50914); color: #000;">
-                                                ⚠️ Pay Now – R @remainingBalance.ToString("N0")
+                                                ⚠️ Pay Now – R @remainingBalance.ToString("N2")
                                             </a>
                                             <span class="text-muted small" style="font-size:0.65rem; text-align:center; display:block; color:#ff6b6b;">
                                                 ⚠️ Appointment within 2 days – full amount required
@@ -495,7 +594,7 @@
                                                asp-action="CheckoutFinalPayment"
                                                asp-route-id="@booking.Id"
                                                class="mb-btn-final">
-                                                💳 Pay Remaining – R @remainingBalance.ToString("N0")
+                                                💳 Pay Remaining – R @remainingBalance.ToString("N2")
                                             </a>
                                         }
                                     }
@@ -549,6 +648,33 @@
                                 {
                                     <div class="alert alert-danger text-center mb-0" style="background: rgba(255,50,50,0.1); border: 1px solid #ff5555; color: #ff5555; font-size: 0.7rem; padding: 6px 10px;">
                                         <strong>Reason:</strong> @booking.ArtistNotes
+                                    </div>
+                                }
+
+                                @* ── DISPUTED STATUS - SHOW INFO ── *@
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Disputed || booking.Status == BeautyArtists.Models.Booking.BookingStatus.InReview)
+                                {
+                                    <div class="alert alert-warning text-center mb-0" style="background: rgba(229, 9, 20, 0.08); border: 1px solid #e50914; color: #e50914; font-size: 0.7rem; padding: 6px 10px;">
+                                        ⚠️ This booking is under review. Please wait for admin resolution.
+                                    </div>
+                                }
+
+                                @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Resolved)
+                                {
+                                    <div class="alert alert-success text-center mb-0" style="background: rgba(40, 167, 69, 0.08); border: 1px solid #28a745; color: #28a745; font-size: 0.7rem; padding: 6px 10px;">
+                                        ✅ This dispute has been resolved.
+                                        @if (booking.AdminResolution == "refund_to_client")
+                                        {
+                                            <text>Refund issued to you.</text>
+                                        }
+                                        else if (booking.AdminResolution == "release_to_artist")
+                                        {
+                                            <text>Funds released to artist.</text>
+                                        }
+                                        else if (booking.AdminResolution == "partial_split")
+                                        {
+                                            <text>Partial refund issued.</text>
+                                        }
                                     </div>
                                 }
                             </div>
@@ -676,7 +802,6 @@
 </script>
 
 <style>
-    /* ── ALL YOUR ORIGINAL STYLES ── */
     .mb-page {
         background: #000;
         min-height: 100vh;
@@ -925,6 +1050,18 @@
         background: #e50914 !important;
     }
 
+    .status-disputed {
+        background: #e50914 !important;
+    }
+
+    .status-inreview {
+        background: #ff8c00 !important;
+    }
+
+    .status-resolved {
+        background: #28a745 !important;
+    }
+
     .mb-card-body {
         display: flex;
         flex: 1;
@@ -985,6 +1122,24 @@
         background: rgba(229,9,20,0.2) !important;
         color: #e50914 !important;
         border: 1px solid rgba(229,9,20,0.3) !important;
+    }
+
+    .status-disputed.mb-status-badge {
+        background: rgba(229,9,20,0.2) !important;
+        color: #e50914 !important;
+        border: 1px solid rgba(229,9,20,0.3) !important;
+    }
+
+    .status-inreview.mb-status-badge {
+        background: rgba(255,140,0,0.2) !important;
+        color: #ff8c00 !important;
+        border: 1px solid rgba(255,140,0,0.3) !important;
+    }
+
+    .status-resolved.mb-status-badge {
+        background: rgba(40,167,69,0.2) !important;
+        color: #28a745 !important;
+        border: 1px solid rgba(40,167,69,0.3) !important;
     }
 
     .mb-booking-id {
@@ -1199,7 +1354,6 @@
         border-color: #FFD700 !important;
     }
 
-    /* ── FILTER PILL + PANEL STYLES (NEW) ── */
     .mb-filter-pill-wrapper {
         display: flex;
         justify-content: flex-start;

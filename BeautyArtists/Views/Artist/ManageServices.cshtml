@@ -92,6 +92,69 @@
             .price-breakdown span {
                 color: #FFD700;
             }
+
+        .client-pays-display {
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(255, 215, 0, 0.06);
+            border-radius: 6px;
+            border-left: 2px solid #FFD700;
+        }
+
+            .client-pays-display .label {
+                color: rgba(255, 255, 255, 0.5);
+                font-size: 0.75rem;
+            }
+
+            .client-pays-display .value {
+                color: #FFD700;
+                font-weight: 700;
+                font-size: 0.9rem;
+            }
+
+        .disclaimer-box {
+            padding: 12px 14px;
+            background: rgba(255, 215, 0, 0.05);
+            border-radius: 8px;
+            border-left: 3px solid #FFD700;
+        }
+
+            .disclaimer-box .form-check-input {
+                accent-color: #FFD700;
+                width: 18px;
+                height: 18px;
+                border: 2px solid rgba(255, 215, 0, 0.3);
+            }
+
+            .disclaimer-box .form-check-label {
+                color: rgba(255, 255, 255, 0.7);
+                font-size: 0.75rem;
+                line-height: 1.4;
+            }
+
+            .disclaimer-box .highlight-gold {
+                color: #FFD700;
+            }
+
+            .disclaimer-box .text-danger {
+                display: none;
+                margin-top: 6px;
+            }
+
+        .artist-receives {
+            margin-top: 6px;
+            padding: 6px 10px;
+            background: rgba(40, 167, 69, 0.06);
+            border-radius: 6px;
+            border-left: 2px solid #28a745;
+            font-size: 0.65rem;
+            color: rgba(255,255,255,0.5);
+        }
+
+            .artist-receives .amount {
+                color: #28a745;
+                font-weight: 700;
+            }
     </style>
 }
 
@@ -122,22 +185,19 @@
                         <div class="small mb-1"><span style="color:#f0c808">Category:</span> @(item.Service?.ServiceCategory?.Name ?? "General")</div>
                         <div class="small mb-1"><span style="color:#f0c808">Duration:</span> @item.Duration min</div>
                         <div class="mt-2 pt-2 border-top" style="border-color:rgba(255,215,0,0.1);">
+
+                            <!-- ─── YOUR PRICE ─── -->
                             <div style="display:flex; justify-content:space-between; align-items:center;">
                                 <span style="color:#f0c808; font-weight:600;">Your Price:</span>
                                 <span style="color:#fff; font-weight:800;">R @item.Price.ToString("N2")</span>
                             </div>
-                            <!-- ✅ FIXED: 4% markup, NOT 15% -->
+
+                            <!-- ─── CLIENT PAYS ─── -->
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
-                                <span style="color:rgba(255,215,0,0.4); font-size:0.7rem;">Platform Fee (4%):</span>
-                                <span style="color:#ff6600; font-weight:600; font-size:0.85rem;">R @((item.Price * 0.04m).ToString("N2"))</span>
-                            </div>
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:2px;">
                                 <span style="color:rgba(255,215,0,0.4); font-size:0.7rem;">Client pays:</span>
                                 <span style="color:#FFD700; font-weight:600; font-size:0.85rem;">R @((item.Price * 1.04m).ToString("N2"))</span>
                             </div>
-                            <small style="display:block; margin-top:4px; color:rgba(255,255,255,0.2); font-size:0.6rem; text-align:right;">
-                                <i class="fas fa-info-circle"></i>4% platform fee added to client. A platform fee (10% for new clients or R15 for repeat clients) is deducted from your earnings.
-                            </small>
+
                         </div>
                     </div>
                     <div class="d-flex gap-2">
@@ -152,7 +212,7 @@
     }
 </div>
 
-@* ── ADD SERVICE MODAL ── *@
+@* ─── ADD SERVICE MODAL ─── *@
 <div class="modal fade" id="addServiceModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -160,7 +220,7 @@
                 <h5 class="modal-title font-weight-bold" style="color: #f0c808;">ADD NEW SERVICE</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form asp-controller="Artist" asp-action="AddService" method="post" enctype="multipart/form-data">
+            <form asp-controller="Artist" asp-action="AddService" method="post" enctype="multipart/form-data" id="addServiceForm">
                 @Html.AntiForgeryToken()
                 <div class="modal-body px-4">
                     <div class="row g-4">
@@ -189,18 +249,18 @@
                             </div>
                         </div>
 
+                        <!-- ─── PRICE & DURATION SIDE BY SIDE ─── -->
                         <div class="col-md-6">
-                            <label class="input-label">Your Price (R) – <span style="color:#fff; font-weight:400;">What you earn</span></label>
-                            <input type="number" name="Price" id="add_Price" class="form-control" step="0.01" required />
-                            <!-- ✅ FIXED: 4% markup -->
-                            <small style="color:rgba(255,255,255,0.2); display:block; margin-top:4px; font-size:0.65rem;">
-                                <i class="fas fa-info-circle"></i> Clients will pay <span style="color:#FFD700;">4% more</span> for platform fees. You receive 100% of your price.
-                            </small>
+                            <label class="input-label">Your Price (R)</label>
+                            <input type="number" name="Price" id="add_Price" class="form-control" step="0.01" required oninput="updateClientTotal('add')" />
                         </div>
                         <div class="col-md-6">
                             <label class="input-label">Your Duration (Mins)</label>
                             <input type="number" name="Duration" id="add_Duration" class="form-control" required />
                         </div>
+
+                   
+
                         <div class="col-12">
                             <label class="input-label">Service Photo (Optional)</label>
                             <input type="file" name="ImageFile" class="form-control" />
@@ -215,6 +275,28 @@
                                 <label class="form-check-label text-white ms-2">Make Service Active Immediately</label>
                             </div>
                         </div>
+
+                        <!-- ─── CLIENT PAYS DISPLAY ─── -->
+                        <div class="col-12">
+                            <div class="client-pays-display">
+                                <span class="label">Client Pays:</span>
+                                <span class="value" id="addClientTotal">R 0.00</span>
+                            </div>
+                        </div>
+                        <!-- ─── "Got It" Acknowledgment ─── -->
+                        <div class="col-12">
+                            <div class="disclaimer-box">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="addAgreeToTerms" value="true" />
+                                    <label class="form-check-label" for="addAgreeToTerms">
+                                        The card processing fee is calculated as 4% of your price plus a flat R5, and is charged separately to the client — it is never deducted from your payout.
+                                        You further acknowledge that RubiOr charges a <span class="highlight-gold">10% commission</span> (no cap) on a new client's first booking with you,
+                                        and a flat <span class="highlight-gold">R15</span> fee on each booking thereafter with that same client.
+                                    </label>
+                                </div>
+                                <div id="addAgreeError" class="text-danger">⚠ You must acknowledge the terms before adding a service.</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0 pb-4">
@@ -225,7 +307,7 @@
     </div>
 </div>
 
-@* ── EDIT SERVICE MODAL ── *@
+@* ─── EDIT SERVICE MODAL ─── *@
 <div class="modal fade" id="editServiceModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -233,24 +315,30 @@
                 <h5 class="modal-title font-weight-bold" style="color: #f0c808;">EDIT YOUR SERVICE</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
-            <form asp-controller="Artist" asp-action="EditUserService" method="post" enctype="multipart/form-data">
+            <form asp-controller="Artist" asp-action="EditUserService" method="post" enctype="multipart/form-data" id="editServiceForm">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="Id" id="edit_Id" />
 
                 <div class="modal-body px-4">
                     <div class="row g-4">
+                        <!-- ─── PRICE & DURATION SIDE BY SIDE ─── -->
                         <div class="col-md-6">
-                            <label class="input-label">Your Price (R) – <span style="color:#fff; font-weight:400;">What you earn</span></label>
-                            <input type="number" name="Price" id="edit_Price" class="form-control" step="0.01" required />
-                            <!-- ✅ FIXED: 4% markup -->
-                            <small style="color:rgba(255,255,255,0.2); display:block; margin-top:4px; font-size:0.65rem;">
-                                <i class="fas fa-info-circle"></i> Clients will pay <span style="color:#FFD700;">4% more</span> for platform fees. You receive 100% of your price.
-                            </small>
+                            <label class="input-label">Your Price (R)</label>
+                            <input type="number" name="Price" id="edit_Price" class="form-control" step="0.01" required oninput="updateClientTotal('edit')" />
                         </div>
                         <div class="col-md-6">
                             <label class="input-label">Your Duration (Mins)</label>
                             <input type="number" name="Duration" id="edit_Duration" class="form-control" required />
                         </div>
+
+                        <!-- ─── CLIENT PAYS DISPLAY ─── -->
+                        <div class="col-12">
+                            <div class="client-pays-display">
+                                <span class="label">Client Pays:</span>
+                                <span class="value" id="editClientTotal">R 0.00</span>
+                            </div>
+                        </div>
+
                         <div class="col-12">
                             <label class="input-label">Change Photo (Optional)</label>
                             <input type="file" name="ImageFile" class="form-control" />
@@ -263,6 +351,21 @@
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" name="IsActive" id="edit_IsActive" value="true">
                                 <label class="form-check-label text-white ms-2">Active</label>
+                            </div>
+                        </div>
+
+                        <!-- ─── "Got It" Acknowledgment ─── -->
+                        <div class="col-12">
+                            <div class="disclaimer-box">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="editAgreeToTerms" value="true" />
+                                    <label class="form-check-label" for="editAgreeToTerms">
+                                        The card processing fee is calculated as 4% of your price plus a flat R5, and is charged separately to the client — it is never deducted from your payout.
+                                        You further acknowledge that RubiOr charges a <span class="highlight-gold">10% commission</span> (no cap) on a new client's first booking with you,
+                                        and a flat <span class="highlight-gold">R15</span> fee on each booking thereafter with that same client.
+                                    </label>
+                                </div>
+                                <div id="editAgreeError" class="text-danger">⚠ You must acknowledge the terms before updating a service.</div>
                             </div>
                         </div>
                     </div>
@@ -280,7 +383,17 @@
     <script>
         const rawServices = @Html.Raw(Json.Serialize(ViewBag.RawServices));
 
-        // ── Add Service: auto-fill ──
+        function updateClientTotal(type) {
+            const priceInput = document.getElementById(type === 'add' ? 'add_Price' : 'edit_Price');
+            const totalDisplay = document.getElementById(type === 'add' ? 'addClientTotal' : 'editClientTotal');
+
+            if (priceInput && totalDisplay) {
+                const price = parseFloat(priceInput.value) || 0;
+                const clientTotal = price + (price * 0.04) + 5;
+                totalDisplay.textContent = 'R ' + clientTotal.toFixed(2);
+            }
+        }
+
         document.getElementById('baseServiceSelect').addEventListener('change', function() {
             const s = rawServices.find(x => (x.id || x.Id) == this.value);
             if (s) {
@@ -292,23 +405,63 @@
                 $('#adminDetailsSection').fadeIn();
                 document.getElementById('add_Price').value = s.basePrice || s.BasePrice;
                 document.getElementById('add_Duration').value = s.duration || s.Duration;
+                setTimeout(function() { updateClientTotal('add'); }, 50);
             } else {
                 $('#adminDetailsSection').fadeOut();
             }
         });
 
-        // ── Edit Service Modal ──
+        document.getElementById('addServiceForm').addEventListener('submit', function(e) {
+            const agreeCheckbox = document.getElementById('addAgreeToTerms');
+            const agreeError = document.getElementById('addAgreeError');
+            if (!agreeCheckbox.checked) {
+                e.preventDefault();
+                agreeError.style.display = 'block';
+                agreeError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+            agreeError.style.display = 'none';
+            return true;
+        });
+
+        document.getElementById('editServiceForm').addEventListener('submit', function(e) {
+            const agreeCheckbox = document.getElementById('editAgreeToTerms');
+            const agreeError = document.getElementById('editAgreeError');
+            if (!agreeCheckbox.checked) {
+                e.preventDefault();
+                agreeError.style.display = 'block';
+                agreeError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return false;
+            }
+            agreeError.style.display = 'none';
+            return true;
+        });
+
+        document.getElementById('addAgreeToTerms').addEventListener('change', function() {
+            document.getElementById('addAgreeError').style.display = 'none';
+        });
+        document.getElementById('editAgreeToTerms').addEventListener('change', function() {
+            document.getElementById('editAgreeError').style.display = 'none';
+        });
+
         function openEditModal(id, price, duration, desc, isActive) {
             document.getElementById('edit_Id').value = id;
             document.getElementById('edit_Price').value = price;
             document.getElementById('edit_Duration').value = duration;
             document.getElementById('edit_Description').value = desc;
             document.getElementById('edit_IsActive').checked = (isActive === true || isActive === "true");
+
+            setTimeout(function() {
+                updateClientTotal('edit');
+            }, 50);
+
+            document.getElementById('editAgreeToTerms').checked = false;
+            document.getElementById('editAgreeError').style.display = 'none';
+
             var myModal = new bootstrap.Modal(document.getElementById('editServiceModal'));
             myModal.show();
         }
 
-        // ── Delete Service ──
         $(document).on('click', '.delete-service', function() {
             const id = $(this).data('id');
             const card = $(`#service-row-${id}`);

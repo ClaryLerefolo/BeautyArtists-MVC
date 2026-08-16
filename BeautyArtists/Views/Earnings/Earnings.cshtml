@@ -266,22 +266,20 @@
         /* ── STAT CARDS ── */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 14px;
             margin-bottom: 24px;
         }
 
-        @@media (max-width: 768px) {
+        @@media (max-width: 1100px) {
             .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 10px;
+                grid-template-columns: repeat(3, 1fr);
             }
         }
 
-        @@media (max-width: 480px) {
+        @@media (max-width: 640px) {
             .stats-grid {
-                grid-template-columns: 1fr 1fr;
-                gap: 8px;
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
@@ -630,6 +628,23 @@
             color: #28a745;
             font-weight: 700;
         }
+
+        /* ─── Stats card fee styles ─── */
+        .stat-fee {
+            border-left-color: #ff6600 !important;
+        }
+
+            .stat-fee .stat-value {
+                color: #ff6600 !important;
+            }
+
+        .stat-gross {
+            border-left-color: #17a2b8 !important;
+        }
+
+            .stat-gross .stat-value {
+                color: #17a2b8 !important;
+            }
     </style>
 }
 
@@ -765,17 +780,22 @@
         </form>
     </div>
 
-    @* ─── STAT CARDS ─── *@
+    @* ─── ✅ NEW: 5 STAT CARDS (Gross, Fees, Net, Month, Pending) ─── *@
     <div class="stats-grid">
-        <div class="stat-card">
+        <div class="stat-card stat-gross">
+            <span class="stat-label">Gross Earnings</span>
+            <span class="stat-value">R @Model.History.Sum(h => h.OriginalPrice).ToString("N2")</span>
+            <div class="stat-sub">Total before fees</div>
+        </div>
+        <div class="stat-card stat-fee">
+            <span class="stat-label">Total Fees Deducted</span>
+            <span class="stat-value">R @Model.History.Where(h => h.IsFullyPaid).Sum(h => h.OriginalPrice - h.YourEarnings).ToString("N2")</span>
+            <div class="stat-sub">Platform fees deducted</div>
+        </div>
+        <div class="stat-card" style="border-left-color:var(--gold)">
             <span class="stat-label">Net Cleared</span>
             <span class="stat-value">R @Model.TotalLifetimeEarnings.ToString("N2")</span>
             <div class="stat-sub">Lifetime after fees</div>
-        </div>
-        <div class="stat-card" style="border-left-color:var(--gold)">
-            <span class="stat-label">Completed</span>
-            <span class="stat-value">@Model.CompletedBookingsCount</span>
-            <div class="stat-sub">Avg R @Model.AvgJobValue.ToString("N0")</div>
         </div>
         <div class="stat-card" style="border-left-color:#00c853">
             <span class="stat-label">Month Revenue</span>
@@ -872,7 +892,7 @@
                     <tbody>
                         @foreach (var item in Model.History)
                         {
-                            // ─── ✅ FIXED: USE IsNewClient FROM THE MODEL ───
+                            // ─── ✅ USE IsNewClient FROM THE MODEL ───
                             var isNewClient = item.IsNewClient;
 
                             decimal platformFee;
@@ -1043,10 +1063,10 @@
 
             @if (hasFilters)
             {
-                                <text>
-                                    filterBar.classList.add('open');
-                                    toggleBtn.classList.add('open');
-                                </text>
+                                    <text>
+                                        filterBar.classList.add('open');
+                                        toggleBtn.classList.add('open');
+                                    </text>
             }
 
             toggleBtn.addEventListener('click', function() {

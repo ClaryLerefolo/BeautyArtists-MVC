@@ -111,7 +111,20 @@
                         <span asp-validation-for="Input.ConfirmPassword" class="ra-field-error"></span>
                     </div>
 
-                    <button type="submit" class="ra-submit-btn">
+                    <!-- ─── CANCELLATION & RESCHEDULING POLICY ─── -->
+                    <div style="margin-top: 8px; padding: 16px; background: rgba(255,215,0,0.04); border-radius: 10px; border-left: 3px solid #d4a843;">
+                        <div class="form-check" style="display: flex; align-items: flex-start; gap: 10px;">
+                            <input class="form-check-input" type="checkbox" id="hasAgreedToPolicy" name="Input.HasAgreedToPolicy" value="true" style="accent-color: #d4a843; width: 18px; height: 18px; border: 2px solid rgba(255,215,0,0.3); margin-top: 3px; flex-shrink: 0;" />
+                            <label class="form-check-label" for="hasAgreedToPolicy" style="color: rgba(255,255,255,0.7); font-size: 0.8rem; line-height: 1.5;">
+                                I have read, understood and agree to the <a href="#" onclick="openPolicyModal(event); return false;" style="color: #d4a843; text-decoration: underline;">Cancellation &amp; Rescheduling Policy</a>.
+                            </label>
+                        </div>
+                        <div id="policyAgreeError" class="ra-field-error" style="display:none; margin-top: 8px;">
+                            You must agree to the Cancellation &amp; Rescheduling Policy before registering.
+                        </div>
+                    </div>
+
+                    <button type="submit" class="ra-submit-btn" id="registerBtn">
                         <span>Create Artist Account</span>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
                              stroke="currentColor" stroke-width="2.5">
@@ -129,6 +142,169 @@
             </div>
         </div>
 
+    </div>
+</div>
+
+@* ─── CANCELLATION & RESCHEDULING POLICY MODAL ─── *@
+<div class="modal fade" id="policyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="background: #0a0a0a; border: 1px solid rgba(255,215,0,0.2); border-radius: 16px;">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255,215,0,0.1); padding: 20px 24px;">
+                <h5 class="modal-title" style="color: #d4a843; font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px;">Cancellation &amp; Rescheduling Policy</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding: 24px; color: rgba(255,255,255,0.75); font-size: 0.85rem; line-height: 1.8;">
+
+                <!-- ─── GOVERNING TEXT ─── -->
+                <p style="margin-bottom: 16px; font-style: italic; color: rgba(255,255,255,0.4); font-size: 0.8rem;">
+                    Governed by the laws of the Republic of South Africa
+                </p>
+                <p style="margin-bottom: 16px; color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+                    This Policy forms part of the Terms &amp; Conditions between RubiOr ("RubiOr", "the Platform"), the independent beauty artists who offer services through it ("Artists"), and clients who make bookings ("Clients"). By confirming a booking and paying a deposit, the Client accepts this Policy.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 1: DEFINITIONS ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">1. Definitions</h6>
+                <ul style="padding-left: 20px; margin-bottom: 16px; list-style-type: disc;">
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Booking Confirmed:</strong> The point at which an Artist accepts a Client's request and the Client pays the Deposit.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Deposit:</strong> The initial 50% payment required to secure a Booking.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Balance:</strong> The remaining 50% of the service price, due before the appointment as set out in Section 3.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Client Service Fee:</strong> The fee RubiOr charges the Client, in addition to the service price, at the time of booking.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Artist Service Fee:</strong> RubiOr's commission, calculated as a percentage of the service amount and deducted from the Artist's payout.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Cut-off Point:</strong> 48 hours (2 calendar days) before the scheduled appointment time.</li>
+                </ul>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 2: BOOKING & DEPOSIT ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">2. Booking &amp; Deposit</h6>
+                <ul style="padding-left: 20px; margin-bottom: 16px; list-style-type: disc;">
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);">A Booking is only secured once the Artist has accepted the request and the Client has paid the 50% Deposit.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);">The Deposit is calculated on the service price only. The Client Service Fee is charged separately at the time of booking (see Section 8).</li>
+                </ul>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 3: BALANCE PAYMENT ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">3. Balance Payment</h6>
+                <ul style="padding-left: 20px; margin-bottom: 16px; list-style-type: disc;">
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);">The remaining 50% Balance is due by the Cut-off Point (48 hours before the appointment).</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);">Failure to pay the Balance by the Cut-off Point may result in RubiOr treating the Booking as cancelled by the Client, subject to Section 5.</li>
+                </ul>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 4: RESCHEDULING ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">4. Rescheduling</h6>
+                <div style="background: rgba(255,215,0,0.04); border: 1px solid rgba(255,215,0,0.1); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,215,0,0.05);">
+                        <span style="color: rgba(255,255,255,0.5);">More than 48 hours before the appointment</span>
+                        <span style="color: rgba(255,255,255,0.7);">Yes — one reschedule to a new available date/time may be requested at no additional charge. The Deposit already paid carries over to the new date.</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+                        <span style="color: rgba(255,255,255,0.5);">Within 48 hours of the appointment</span>
+                        <span style="color: rgba(255,255,255,0.7);">No — once the Cut-off Point has passed, the appointment is locked and cannot be moved.</span>
+                    </div>
+                </div>
+                <p style="margin-bottom: 16px; font-size: 0.8rem; color: rgba(255,255,255,0.4);">
+                    Rescheduling is offered as a courtesy alternative to cancelling and forfeiting payment — it is not itself a right guaranteed by law, so RubiOr may set reasonable limits on it (e.g. one reschedule per booking, subject to Artist availability).
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 5: CANCELLATION BY CLIENT ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">5. Cancellation by the Client</h6>
+                <p style="margin-bottom: 8px; color: rgba(255,255,255,0.6);">
+                    A Client may cancel a Booking at any time — this is a right that cannot be removed. However, cancelling has the following financial consequences:
+                </p>
+
+                <p style="margin-bottom: 4px; font-weight: 700; color: #d4a843; font-size: 0.85rem;">a) Cancelling more than 48 hours before the appointment (before the Balance is paid):</p>
+                <p style="margin-left: 20px; margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    The Deposit is forfeited and non-refundable. Nothing further is owed, since the Balance had not yet been collected. The Client may choose to reschedule instead (see Section 4) to preserve the value of the Deposit.
+                </p>
+
+                <p style="margin-bottom: 4px; font-weight: 700; color: #d4a843; font-size: 0.85rem;">b) Cancelling within 48 hours of the appointment, or after the Balance has been paid:</p>
+                <p style="margin-left: 20px; margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    The full amount paid (Deposit + Balance) is forfeited and non-refundable. No rescheduling is available at this stage (see Section 4).
+                </p>
+
+                <p style="margin-bottom: 4px; font-weight: 700; color: #d4a843; font-size: 0.85rem;">c) No-shows:</p>
+                <p style="margin-left: 20px; margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    A Client who does not arrive for a confirmed appointment, without prior cancellation, is treated as a same-day cancellation under 5(b) — full forfeiture applies.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 6: MANDATORY EXCEPTION ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">6. Mandatory Exception — Death or Hospitalisation</h6>
+                <p style="margin-bottom: 16px; color: rgba(255,255,255,0.6);">
+                    In line with South African consumer protection law, no cancellation charge may be applied to the Deposit or Balance, and the Client is entitled to a full refund of the Deposit and Balance, where the Client — or the person for whom the appointment was booked — is unable to attend due to their death or hospitalisation. The Client Service Fee remains non-refundable in all cases, as set out in Section 8. RubiOr may reasonably request supporting documentation (e.g. a medical certificate or death certificate) before processing this refund.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 7: CANCELLATION BY ARTIST ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">7. Cancellation by the Artist</h6>
+                <p style="margin-bottom: 8px; color: rgba(255,255,255,0.6);">
+                    If an Artist cancels a confirmed Booking, the Client will be offered, at their choice:
+                </p>
+                <ul style="padding-left: 20px; margin-bottom: 8px; list-style-type: disc;">
+                    <li style="margin-bottom: 4px; color: rgba(255,255,255,0.6);">A full refund of the Deposit and Balance (if already paid), or</li>
+                    <li style="margin-bottom: 4px; color: rgba(255,255,255,0.6);">A free reschedule to the next available slot, at no extra charge.</li>
+                </ul>
+                <p style="margin-bottom: 8px; color: rgba(255,255,255,0.6);">
+                    The Client Service Fee is not refunded in this scenario — it remains non-refundable under all circumstances (see Section 8).
+                </p>
+                <p style="margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    On the Artist's side: the Artist Service Fee for that Booking is refunded to the Artist, since no service was delivered. However, RubiOr deducts a flat R10 cancellation penalty from the Artist's account whenever the Artist is the party who cancels a confirmed Booking.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 8: SERVICE FEES ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">8. Service Fees</h6>
+
+                <p style="font-weight: 700; color: #d4a843; margin-bottom: 4px; font-size: 0.85rem;">Client Service Fee</p>
+                <p style="margin-left: 20px; margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    Charged to the Client at the time of booking, in addition to the service price. This fee is retained by RubiOr in full under all circumstances — cancellation by the Client, cancellation by the Artist, rescheduling, no-shows, or the death/hospitalisation exception in Section 6 — and is never refunded.
+                </p>
+
+                <p style="font-weight: 700; color: #d4a843; margin-bottom: 4px; font-size: 0.85rem;">Artist Service Fee</p>
+                <p style="margin-left: 20px; margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    RubiOr's commission on a Booking, calculated as a percentage of the service amount and deducted from the Artist's payout. This fee is refunded to the Artist only where the Artist is the party who cancels a confirmed Booking.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 9: LEGAL BASIS ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">9. Legal Basis</h6>
+                <p style="margin-bottom: 8px; color: rgba(255,255,255,0.6);">
+                    This Policy is designed to comply with the Consumer Protection Act 68 of 2008 (CPA), in particular Section 17, which:
+                </p>
+                <ul style="padding-left: 20px; margin-bottom: 8px; list-style-type: disc;">
+                    <li style="margin-bottom: 4px; color: rgba(255,255,255,0.6);">Gives consumers the right to cancel an advance booking at any time;</li>
+                    <li style="margin-bottom: 4px; color: rgba(255,255,255,0.6);">Allows suppliers to take a reasonable deposit and charge a reasonable cancellation fee, assessed against the nature of the service, the notice given, and the realistic ability to re-fill that time slot; and</li>
+                    <li style="margin-bottom: 4px; color: rgba(255,255,255,0.6);">Prohibits any cancellation charge where the Client (or the person the booking was for) cannot attend due to death or hospitalisation.</li>
+                </ul>
+                <p style="margin-bottom: 12px; color: rgba(255,255,255,0.4); font-size: 0.8rem;">
+                    Given that each Artist's appointment slot is a fixed, personal, time-bound service that is difficult to resell on short notice, full forfeiture of the Deposit (and, later, the full payment) closer to the appointment date is considered a reasonable cancellation charge under the CPA's criteria. The commission and penalty arrangements between RubiOr and its Artists in Sections 7 and 8 are a separate commercial arrangement, distinct from the consumer-facing terms above.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 10: QUERIES & DISPUTES ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">10. Queries &amp; Disputes</h6>
+                <p style="margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    Clients and Artists who wish to query or dispute a charge under this Policy can raise it directly through the Issues tab in the RubiOr app. Unresolved disputes may be referred to the National Consumer Commission (NCC).
+                </p>
+
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid rgba(255,215,0,0.1); padding: 16px 24px;">
+                <button type="button" class="btn" data-bs-dismiss="modal" style="background: #d4a843; color: #0a0a0a; font-weight: 700; padding: 8px 28px; border-radius: 50px; border: none; font-size: 0.8rem; letter-spacing: 0.5px;">Close</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -418,6 +594,17 @@
             .ra-login-link a:hover {
                 opacity: 0.7;
             }
+
+    /* ── FORM CHECK OVERRIDE ── */
+    .form-check-input[type="checkbox"]:checked {
+        background-color: #d4a843;
+        border-color: #d4a843;
+    }
+
+    .form-check-input[type="checkbox"]:focus {
+        border-color: #d4a843;
+        box-shadow: 0 0 0 0.2rem rgba(212, 168, 67, 0.25);
+    }
 </style>
 
 @section Scripts {
@@ -428,5 +615,38 @@
             field.type = isPass ? 'text' : 'password';
             btn.style.color = isPass ? '#FFD700' : 'rgba(255,255,255,0.25)';
         }
+
+        function openPolicyModal(e) {
+            if (e) e.preventDefault();
+            var modal = new bootstrap.Modal(document.getElementById('policyModal'));
+            modal.show();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const checkbox = document.getElementById('hasAgreedToPolicy');
+            const error = document.getElementById('policyAgreeError');
+
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    if (!checkbox.checked) {
+                        e.preventDefault();
+                        error.style.display = 'block';
+                        error.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        return false;
+                    }
+                    error.style.display = 'none';
+                    return true;
+                });
+            }
+
+            if (checkbox) {
+                checkbox.addEventListener('change', function() {
+                    if (this.checked) {
+                        error.style.display = 'none';
+                    }
+                });
+            }
+        });
     </script>
 }

@@ -15,9 +15,6 @@
                     var hasHalfStar = (s.AverageRating - fullStars) >= 0.5;
                     var emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
 
-                    // ✅ FIXED: Calculate client price with 4% markup + R5
-                    var clientPrice = s.Price + (s.Price * 0.04m) + 5.00m;
-
                     <div class="col-md-4 col-sm-6 mb-4">
                         <div class="featured-card shadow-lg h-100">
                             <img src="@Url.Content(image)" alt="@s.ServiceName" class="service-img" />
@@ -50,10 +47,10 @@
                                     </div>
                                 }
 
-                                <!-- ─── ✅ FIXED: Just show the final price (like Uber) ─── -->
+                                <!-- ─── ✅ FIXED: Just the artist price (P) ─── -->
                                 <div class="mt-2">
                                     <span style="color:#FFD700;font-size:1.4rem;font-weight:800;">
-                                        R @clientPrice.ToString("N0")
+                                        R @s.Price.ToString("N0")
                                     </span>
                                 </div>
 

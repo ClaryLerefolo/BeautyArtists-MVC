@@ -132,7 +132,10 @@ namespace BeautyArtists.Controllers
         {
             return View();
         }
-
+        public IActionResult CancellationPolicy()
+        {
+            return View();
+        }
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SubmitReport(string category, string description, string email, List<IFormFile> attachments)

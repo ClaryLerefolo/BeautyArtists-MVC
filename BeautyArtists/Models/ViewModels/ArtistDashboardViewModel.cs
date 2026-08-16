@@ -5,6 +5,8 @@
         public string ArtistName { get; set; } = string.Empty;
 
         public int UpcomingAppointments { get; set; }
+        public int DisputedBookings { get; set; }       
+        public int ResolvedDisputes { get; set; }      
 
         public int PortfolioItemsCount { get; set; }
 

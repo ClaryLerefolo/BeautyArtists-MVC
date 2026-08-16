@@ -49,12 +49,22 @@ namespace BeautyArtists.Areas.Identity.Pages.Account
             public string Password { get; set; }
 
             [DataType(DataType.Password)]
-            [Compare("Password")]
+            [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
             public string ConfirmPassword { get; set; }
+
+            // ??? ? POLICY AGREEMENT ???
+            public bool HasAgreedToPolicy { get; set; }
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
+            // ??? ? CHECK POLICY AGREEMENT ???
+            if (!Input.HasAgreedToPolicy)
+            {
+                ModelState.AddModelError(string.Empty, "You must agree to the Cancellation & Rescheduling Policy before registering.");
+                return Page();
+            }
+
             if (ModelState.IsValid)
             {
                 var user = new ApplicationUser
@@ -83,11 +93,9 @@ namespace BeautyArtists.Areas.Identity.Pages.Account
                         return Page();
                     }
 
-                    // Generate registration verification token
                     var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                     code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-                    // Build callback URL matching live active host domain
                     var callbackUrl = Url.Page(
                         "/Account/ConfirmEmail",
                         pageHandler: null,
@@ -95,7 +103,6 @@ namespace BeautyArtists.Areas.Identity.Pages.Account
                         protocol: Request.Scheme,
                         host: Request.Host.Value);
 
-                    // Send email via your registered SMTP service
                     await _emailSender.SendEmailAsync(Input.Email, "Confirm your Beauty in Red and Gold Account",
                         $"<h3>Welcome {Input.FirstName}!</h3><p>Please confirm your Artist account by <a href='{callbackUrl}'>clicking here</a>.</p>");
 

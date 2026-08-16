@@ -20,8 +20,10 @@ namespace BeautyArtists.Services
         private readonly IConfiguration _config;
         private readonly ApplicationDbContext _context;
         private readonly HttpClient _httpClient;
-        private const decimal CLIENT_MARKUP_RATE = 0.04m;  // 4% markup for client
-        private const decimal BOOKING_FEE = 5.00m;
+
+        // ─── ✅ FIXED: CORRECT PRICING CONSTANTS ───
+        private const decimal CLIENT_MARKUP_RATE = 0.04m;  // 4% card processing fee
+        private const decimal BOOKING_FEE = 5.00m;          // Flat R5 booking fee
 
         public PaymentService(IConfiguration config, ApplicationDbContext context, IHttpClientFactory httpClientFactory)
         {
@@ -31,11 +33,28 @@ namespace BeautyArtists.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _config["Paystack:SecretKey"]);
         }
 
-        // ─── HELPERS ───
-        private decimal ClientServicePrice(Booking b) => b.ServicePrice * (1 + CLIENT_MARKUP_RATE);
-        private decimal ClientTotal(Booking b) => ClientServicePrice(b) + b.BookingFee;
-        private decimal DepositAmount(Booking b) => (ClientServicePrice(b) / 2) + b.BookingFee;
-        private decimal FinalAmount(Booking b) => ClientServicePrice(b) / 2;
+        // ─── ✅ FIXED: CORRECT PRICING HELPERS ───
+        private decimal CalculateCardProcessingFee(decimal servicePrice)
+        {
+            return servicePrice * CLIENT_MARKUP_RATE;  // 4% of service price
+        }
+
+        private decimal CalculateClientTotal(decimal servicePrice)
+        {
+            return servicePrice + CalculateCardProcessingFee(servicePrice) + BOOKING_FEE;  // P + 4% + R5
+        }
+
+        private decimal CalculateDepositAmount(decimal servicePrice)
+        {
+            decimal halfService = servicePrice / 2;
+            decimal cardFee = CalculateCardProcessingFee(servicePrice);
+            return halfService + cardFee + BOOKING_FEE;  // 50% + 4% + R5
+        }
+
+        private decimal CalculateFinalAmount(decimal servicePrice)
+        {
+            return servicePrice / 2;  // 50% of service (NO FEES!)
+        }
 
         public async Task<(bool success, string message, string authorizationUrl, string reference)> InitializePayment(
             string email,
@@ -60,15 +79,17 @@ namespace BeautyArtists.Services
                     return (false, "Booking not found", null, null);
                 }
 
-                // ─── DETERMINE PAYMENT TYPE ───
-                decimal depositAmount = DepositAmount(booking);
-                decimal clientTotal = ClientTotal(booking);
+                decimal servicePrice = booking.ServicePrice;
+                decimal clientTotal = CalculateClientTotal(servicePrice);
+                decimal depositAmount = CalculateDepositAmount(servicePrice);
                 bool isDeposit = !booking.IsDepositPaid;
                 bool isFullPayment = Math.Abs(amount - clientTotal) < 0.01m;
 
                 Console.WriteLine($"📊 Booking {bookingId}:");
-                Console.WriteLine($"   ServicePrice: R{booking.ServicePrice}");
+                Console.WriteLine($"   ServicePrice: R{servicePrice}");
                 Console.WriteLine($"   Amount Paid: R{amount}");
+                Console.WriteLine($"   Client Total: R{clientTotal}");
+                Console.WriteLine($"   Deposit Amount: R{depositAmount}");
                 Console.WriteLine($"   IsDeposit: {isDeposit}");
                 Console.WriteLine($"   IsFullPayment: {isFullPayment}");
 
@@ -126,7 +147,7 @@ namespace BeautyArtists.Services
             }
         }
 
-        // ─── BUILD SPLIT OBJECT ───
+        // ─── ✅ FIXED: BUILD SPLIT OBJECT ───
         private object BuildSplitObject(Booking booking, decimal amount)
         {
             // Get the artist's subaccount code
@@ -139,31 +160,35 @@ namespace BeautyArtists.Services
                 return null;
             }
 
-            // Calculate artist's share
-            // For deposit: artist gets 50% of client service price (booking fee goes to platform)
-            // For final/full: artist gets 100% of client service price
-            decimal artistShare;
+            // ─── ✅ FIXED: CALCULATE ARTIST'S SHARE ───
+            decimal servicePrice = booking.ServicePrice;
+            decimal clientTotal = CalculateClientTotal(servicePrice);
+            decimal cardFee = CalculateCardProcessingFee(servicePrice);
             bool isDeposit = !booking.IsDepositPaid;
-            bool isFullPayment = Math.Abs(amount - ClientTotal(booking)) < 0.01m;
+            bool isFullPayment = Math.Abs(amount - clientTotal) < 0.01m;
 
-            decimal clientServicePrice = ClientServicePrice(booking);
+            decimal artistShare;
 
             if (isDeposit && !isFullPayment)
             {
-                // Deposit = 50% of client service price (booking fee goes to platform)
-                artistShare = clientServicePrice / 2;
+                // DEPOSIT: Artist gets 50% of service price
+                // Platform keeps: card fee + booking fee + commission (handled separately)
+                artistShare = servicePrice / 2;  // R200.00
             }
             else
             {
-                // Final or full payment = 100% of client service price
-                artistShare = clientServicePrice;
+                // FINAL or FULL PAYMENT: Artist gets 50% of service price
+                // (for full payment, the other 50% was in deposit)
+                artistShare = servicePrice / 2;  // R200.00
             }
 
-            // Convert to cents
             int artistShareInCents = (int)(artistShare * 100);
 
             Console.WriteLine($"💰 Split: Artist subaccount {artistSubaccount} gets R{artistShare}");
-            Console.WriteLine($"   Client Service Price: R{clientServicePrice}");
+            Console.WriteLine($"   Service Price: R{servicePrice}");
+            Console.WriteLine($"   Card Fee: R{cardFee}");
+            Console.WriteLine($"   Booking Fee: R{BOOKING_FEE}");
+            Console.WriteLine($"   Client Total: R{clientTotal}");
             Console.WriteLine($"   IsDeposit: {isDeposit}, IsFullPayment: {isFullPayment}");
 
             return new

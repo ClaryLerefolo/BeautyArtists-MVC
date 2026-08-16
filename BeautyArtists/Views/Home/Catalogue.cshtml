@@ -51,8 +51,8 @@
                 <div class="cat-stat-divider"></div>
                 <div class="cat-stat">
                     @{
-                        // ✅ FIXED: ONLY 4% markup - NO booking fee
-                        var clientMinPrice = minPrice + (minPrice * 0.04m);
+                        // ✅ FIXED: Show JUST the artist price (P), NO markup
+                        var clientMinPrice = minPrice;
                     }
                     <span class="cat-stat-num">R @clientMinPrice.ToString("N0")</span>
                     <span class="cat-stat-label">FROM</span>
@@ -88,8 +88,8 @@
                     : "/images/service-default.jpg";
                     string cleanPath = imgUrl.TrimStart('/');
 
-                    // ✅ FIXED: ONLY 4% markup - NO booking fee
-                    var clientPrice = service.Price + (service.Price * 0.04m);
+                    // ✅ FIXED: Show JUST the artist price (P), NO markup
+                    var clientPrice = service.Price;
 
                     <div class="cat-card">
                         <div class="cat-card-img-wrap">
@@ -98,7 +98,7 @@
                                  alt="@service.ServiceName"
                                  onerror="this.src='/images/service-default.jpg'">
                             <div class="cat-card-img-overlay"></div>
-                            @* ─── ✅ FIXED: ONLY 4% markup - NO booking fee ─── *@
+                            @* ─── ✅ FIXED: Show JUST the artist price (P) ─── *@
                             <div class="cat-price-tag">R @clientPrice.ToString("N0")</div>
                             <div class="cat-category-tag">@service.Category</div>
                         </div>

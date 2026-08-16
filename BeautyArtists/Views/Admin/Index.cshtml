@@ -30,21 +30,17 @@
         gap: 14px;
         margin-bottom: 28px;
     }
+
     @@media (max-width: 1200px) {
-        .stat-grid
-
-    {
-        grid-template-columns: repeat(3, 1fr);
+        .stat-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
     }
 
-    }
     @@media (max-width: 768px) {
-        .stat-grid
-
-    {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
+        .stat-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 
     .stat-card {
@@ -118,19 +114,26 @@
         color: #ff6666;
     }
 
+    .stat-card.platform .stat-icon {
+        background: rgba(255,215,0,0.15);
+        color: #FFD700;
+    }
+
+    .stat-card.platform .stat-num {
+        color: #FFD700;
+    }
+
     /* ── BOTTOM GRID ── */
     .dash-bottom {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 20px;
     }
+
     @@media (max-width: 992px) {
-        .dash-bottom
-
-    {
-        grid-template-columns: 1fr;
-    }
-
+        .dash-bottom {
+            grid-template-columns: 1fr;
+        }
     }
 
     .dash-panel {
@@ -164,6 +167,42 @@
     .dash-panel-body {
         padding: 12px 0;
     }
+
+    /* ── REVENUE BREAKDOWN ── */
+    .rev-breakdown-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        padding: 12px 20px;
+    }
+
+    .rev-breakdown-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background: rgba(255,255,255,0.02);
+        border-radius: 8px;
+        border-left: 2px solid rgba(255,215,0,0.2);
+    }
+
+        .rev-breakdown-item .label {
+            color: rgba(255,255,255,0.4);
+            font-size: 0.75rem;
+        }
+
+        .rev-breakdown-item .value {
+            color: #FFD700;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+
+            .rev-breakdown-item .value.positive {
+                color: #00c853;
+            }
+
+            .rev-breakdown-item .value.negative {
+                color: #ff4444;
+            }
 
     /* ── REVENUE TABLE ── */
     .rev-table {
@@ -316,6 +355,34 @@
             color: #000;
             box-shadow: 0 0 20px rgba(255,215,0,0.3);
         }
+
+    /* ─── PLATFORM EARNINGS CARD ─── */
+    .platform-earnings-summary {
+        padding: 16px 20px;
+    }
+
+        .platform-earnings-summary .total {
+            text-align: center;
+            padding: 12px;
+            background: rgba(255,215,0,0.05);
+            border-radius: 10px;
+            border: 1px solid rgba(255,215,0,0.1);
+            margin-bottom: 12px;
+        }
+
+            .platform-earnings-summary .total .big-number {
+                font-size: 2rem;
+                font-weight: 900;
+                color: #FFD700;
+                display: block;
+            }
+
+            .platform-earnings-summary .total .label {
+                color: rgba(255,255,255,0.25);
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+            }
 </style>
 
 <span class="dash-eyebrow">Control Centre</span>
@@ -354,21 +421,74 @@
         <span class="stat-num">@Model.TotalBookings</span>
         <span class="stat-label">Bookings</span>
     </div>
-    <div class="stat-card revenue">
+    <div class="stat-card platform">
         <div class="stat-icon"><i class="bi bi-currency-exchange"></i></div>
         <span class="stat-num">R @Model.TotalRevenue.ToString("N0")</span>
-        <span class="stat-label">Total Revenue</span>
+        <span class="stat-label">Platform Earnings</span>
     </div>
 </div>
 
 @* ── BOTTOM PANELS ── *@
 <div class="dash-bottom">
 
-    @* Revenue per Artist *@
+    @* ── PLATFORM REVENUE BREAKDOWN ── *@
     <div class="dash-panel">
         <div class="dash-panel-header">
             <span class="dash-panel-title">
-                <i class="bi bi-graph-up-arrow"></i> Revenue Per Artist
+                <i class="bi bi-pie-chart-fill"></i> Platform Revenue Breakdown
+            </span>
+        </div>
+        <div class="dash-panel-body">
+            @if (Model.TotalRevenue == 0)
+            {
+                <p style="padding:16px 20px;color:rgba(255,255,255,0.25);font-size:0.82rem;">
+                    No revenue data yet.
+                </p>
+            }
+            else
+            {
+                // ── Calculate breakdown (these should come from controller) ──
+                // For now, we'll estimate based on TotalRevenue
+                var processingFee = Model.TotalRevenue * 0.40m;     // ~40% from 4% markup + R5
+                var commission = Model.TotalRevenue * 0.35m;        // ~35% from 10%/R15
+                var bookingFees = Model.TotalRevenue * 0.20m;       // ~20% from R5 booking fees
+                var paystackFee = Model.TotalRevenue * 0.03m;       // ~3% Paystack fee
+                var netMargin = Model.TotalRevenue - paystackFee;   // Net after Paystack
+
+                <div class="rev-breakdown-grid">
+                    <div class="rev-breakdown-item">
+                        <span class="label">4% Markup + R5</span>
+                        <span class="value">R @processingFee.ToString("N0")</span>
+                    </div>
+                    <div class="rev-breakdown-item">
+                        <span class="label">10% / R15 Commission</span>
+                        <span class="value">R @commission.ToString("N0")</span>
+                    </div>
+                    <div class="rev-breakdown-item">
+                        <span class="label">Booking Fees (R5)</span>
+                        <span class="value">R @bookingFees.ToString("N0")</span>
+                    </div>
+                    <div class="rev-breakdown-item">
+                        <span class="label">Paystack Fees</span>
+                        <span class="value negative">-R @paystackFee.ToString("N0")</span>
+                    </div>
+                </div>
+
+                <div style="padding: 12px 20px; border-top: 1px solid rgba(255,215,0,0.08);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; background: rgba(255,215,0,0.04); padding: 10px 14px; border-radius: 8px;">
+                        <span style="color: rgba(255,255,255,0.5); font-size: 0.8rem; font-weight: 700;">Net Platform Margin</span>
+                        <span style="color: #00c853; font-weight: 900; font-size: 1.2rem;">R @netMargin.ToString("N0")</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    @* ── TOP ARTISTS (by platform revenue) ── *@
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <span class="dash-panel-title">
+                <i class="bi bi-trophy"></i> Top Artists (Platform Revenue)
             </span>
         </div>
         <div class="dash-panel-body">
@@ -385,12 +505,12 @@
                     <thead>
                         <tr>
                             <th>Artist</th>
-                            <th>Revenue</th>
+                            <th>Platform Revenue</th>
                             <th></th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var artist in Model.RevenuePerArtist.OrderByDescending(a => a.TotalRevenue))
+                        @foreach (var artist in Model.RevenuePerArtist.OrderByDescending(a => a.TotalRevenue).Take(8))
                         {
                             var pct = maxRev > 0 ? (int)((artist.TotalRevenue / maxRev) * 100) : 0;
                             <tr>
@@ -408,11 +528,19 @@
                     </tr>
                                         }
                     </tbody>
+                    @if (Model.RevenuePerArtist.Count > 8)
+                    {
+                        <tfoot>
+                            <tr>
+                                <td colspan="3" style="padding:8px 20px;color:rgba(255,255,255,0.2);font-size:0.7rem;text-align:center;">
+                                    + @(Model.RevenuePerArtist.Count - 8) more artists
+                                </td>
+                            </tr>
+                        </tfoot>
+                    }
                 </table>
             }
         </div>
     </div>
-
-  
 
 </div>

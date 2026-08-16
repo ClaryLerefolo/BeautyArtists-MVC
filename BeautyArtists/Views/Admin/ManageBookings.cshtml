@@ -5,6 +5,7 @@
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
     var bookingsList = Model.ToList();
     var pending = bookingsList.Count(b => b.Status == BookingStatus.Pending);
+    var accepted = bookingsList.Count(b => b.Status == BookingStatus.Accepted);
     var confirmed = bookingsList.Count(b => b.Status == BookingStatus.Confirmed);
     var completed = bookingsList.Count(b => b.Status == BookingStatus.Completed);
     var cancelled = bookingsList.Count(b => b.Status == BookingStatus.Cancelled);

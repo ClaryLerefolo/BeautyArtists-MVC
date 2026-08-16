@@ -11,20 +11,26 @@ namespace BeautyArtists.Models.ViewModels
         public decimal Price { get; set; }
 
         // ============================================================
-        // 🔥 NEW: Booking Fee & Client Total
+        // 🔥 NEW: Card Processing Fee & Client Total
         // ============================================================
-        public decimal BookingFee { get; set; } = 6.00m;  // R6 fixed booking fee
-        public decimal ClientTotal { get; set; }           // Price + BookingFee (what client pays)
+        public decimal CardProcessingFee { get; set; }
+        public decimal BookingFee { get; set; } = 5.00m;  // R5 flat booking fee
+        public decimal ClientTotal { get; set; }         // Price + CardProcessingFee (what client pays)
+        public bool IsNewClient { get; set; }            // New or repeat client
+
+        // ============================================================
+        // 🔥 NEW: "I Agree" acknowledgment
+        // ============================================================
+        public bool HasAgreedToTerms { get; set; }       // Client must agree before booking
 
         public string? ArtistName { get; set; }
-        public string? ArtistId { get; set; }      // Needed to fetch slots
-        public string? ArtistProfilePicture { get; set; } // For the UI header
-        public string? CategoryName { get; set; }  // For context
+        public string? ArtistId { get; set; }
+        public string? ArtistProfilePicture { get; set; }
+        public string? CategoryName { get; set; }
 
         [Required(ErrorMessage = "Please select an available time slot.")]
         public int AvailabilitySlotId { get; set; }
 
-        // Kept for reschedule compatibility — auto-filled from slot
         public DateTime PreferredDate { get; set; }
 
         [StringLength(1000)]

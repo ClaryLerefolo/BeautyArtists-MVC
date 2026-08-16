@@ -291,6 +291,20 @@
                 box-shadow: 0 10px 20px rgba(240, 200, 8, 0.1);
             }
 
+            .appointment-card.rejected-card {
+                border-color: rgba(255, 0, 0, 0.3);
+                opacity: 0.7;
+            }
+
+                .appointment-card.rejected-card:hover {
+                    border-color: rgba(255, 0, 0, 0.5);
+                }
+
+            .appointment-card.dispute-card {
+                border-color: #e50914 !important;
+                box-shadow: 0 0 20px rgba(229, 9, 20, 0.15);
+            }
+
         .status-badge {
             padding: 5px 15px;
             border-radius: 50px;
@@ -330,12 +344,48 @@
             color: #fff !important;
         }
 
+        .bg-disputed {
+            background-color: #e50914 !important;
+            color: #fff !important;
+        }
+
+        .bg-inreview {
+            background-color: #ff8c00 !important;
+            color: #fff !important;
+        }
+
+        .bg-resolved {
+            background-color: #28a745 !important;
+            color: #fff !important;
+        }
+
         .client-info-box {
             background: #1a1a1a;
             border-left: 4px solid #f0c808;
             padding: 15px;
             border-radius: 4px;
         }
+
+        .refund-info-box {
+            background: rgba(40, 167, 69, 0.08);
+            border-left: 4px solid #28a745;
+            padding: 12px 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+
+            .refund-info-box .refund-amount {
+                color: #28a745;
+                font-weight: 800;
+                font-size: 1.1rem;
+            }
+
+            .refund-info-box .refund-label {
+                color: rgba(255,255,255,0.5);
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
 
         .type-indicator {
             font-size: 0.75rem;
@@ -446,6 +496,22 @@
                 background: #FFD700;
                 color: #000;
             }
+
+        .dispute-warning-box {
+            background: rgba(229, 9, 20, 0.12);
+            border: 1px solid #e50914;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-top: 8px;
+        }
+
+        .dispute-resolved-box {
+            background: rgba(40, 167, 69, 0.12);
+            border: 1px solid #28a745;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-top: 8px;
+        }
 
         /* ─── PAGINATION ─── */
         .pagination-wrapper {
@@ -658,6 +724,8 @@
                     <option value="Completed" selected="@(filterStatus == "Completed")">Completed</option>
                     <option value="Cancelled" selected="@(filterStatus == "Cancelled")">Cancelled</option>
                     <option value="Rejected" selected="@(filterStatus == "Rejected")">Rejected</option>
+                    <option value="Disputed" selected="@(filterStatus == "Disputed")">Disputed</option>
+                    <option value="Resolved" selected="@(filterStatus == "Resolved")">Resolved</option>
                 </select>
             </div>
 
@@ -678,8 +746,15 @@
         {
             @foreach (var item in bookingsList)
             {
+                var isRejected = item.Status == BookingStatus.Rejected;
+                var isRefunded = item.IsRefunded && item.RefundAmount > 0;
+                var isCancelled = item.Status == BookingStatus.Cancelled;
+                // ─── 🔥 FIX: ONLY use Status for dispute detection ───
+                var isDisputed = item.Status == BookingStatus.Disputed || item.Status == BookingStatus.InReview;
+                var isResolved = item.Status == BookingStatus.Resolved;
+
                 <div class="col-xl-4 col-md-6 mb-4">
-                    <div class="card appointment-card text-white">
+                    <div class="card appointment-card text-white @(isRejected || isCancelled ? "rejected-card" : "") @(isDisputed ? "dispute-card" : "")">
                         <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center pt-4 px-4">
                             <div class="text-muted small">
                                 <i class="far fa-clock me-1"></i> @item.AppointmentDate.ToString("MMM dd, yyyy @ HH:mm")
@@ -688,6 +763,26 @@
                                 @if (item.Status == BookingStatus.Accepted)
                                 {
                                     @:ACCEPTED (AWAITING DEPOSIT)
+                                }
+                                else if (item.Status == BookingStatus.Rejected)
+                                {
+                                    @:REJECTED
+                                }
+                                else if (item.Status == BookingStatus.Cancelled)
+                                {
+                                    <text>CANCELLED</text>
+                                }
+                                else if (item.Status == BookingStatus.Disputed)
+                                {
+                                    <text>⚠️ DISPUTED</text>
+                                }
+                                else if (item.Status == BookingStatus.InReview)
+                                {
+                                    <text>⏳ IN REVIEW</text>
+                                }
+                                else if (item.Status == BookingStatus.Resolved)
+                                {
+                                    <text>✅ RESOLVED</text>
                                 }
                                 else
                                 {
@@ -712,6 +807,57 @@
                                     </div>
                                     <div class="small text-white-50">@item.UserService?.Service?.Name</div>
                                 </div>
+
+                                @* ─── 🔥 DISPUTE STATUS - ONLY shows if Status is Disputed/InReview ─── *@
+                                @if (isDisputed)
+                                {
+                                    <div class="dispute-warning-box">
+                                        <span style="color: #e50914; font-weight: 700; font-size: 0.75rem;">
+                                            ⚠️ DISPUTED — Under review by admin
+                                        </span>
+                                        @if (!string.IsNullOrEmpty(item.DisputeReason))
+                                        {
+                                            <p style="margin: 2px 0 0 0; color: rgba(255,255,255,0.3); font-size: 0.65rem;">
+                                                Reason: @item.DisputeReason
+                                            </p>
+                                        }
+                                    </div>
+                                }
+
+                                @if (isResolved)
+                                {
+                                    <div class="dispute-resolved-box">
+                                        <span style="color: #28a745; font-weight: 700; font-size: 0.75rem;">
+                                            ✅ RESOLVED
+                                        </span>
+                                        @if (item.AdminResolution == "release_to_artist" || item.AdminResolution == "partial_split")
+                                        {
+                                            <p style="margin: 2px 0 0 0; color: rgba(255,255,255,0.3); font-size: 0.65rem;">
+                                                Funds have been released to you.
+                                            </p>
+                                        }
+                                        else if (item.AdminResolution == "refund_to_client")
+                                        {
+                                            <p style="margin: 2px 0 0 0; color: rgba(255,255,255,0.3); font-size: 0.65rem;">
+                                                Client was refunded.
+                                            </p>
+                                        }
+                                    </div>
+                                }
+
+                                @if (isRejected && isRefunded)
+                                {
+                                    <div class="refund-info-box">
+                                        <span class="refund-label">💰 Refund Processed</span>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span style="color: rgba(255,255,255,0.6);">Amount refunded to client:</span>
+                                            <span class="refund-amount">R @item.RefundAmount.ToString("N2")</span>
+                                        </div>
+                                        <div style="font-size: 0.65rem; color: rgba(255,255,255,0.3); margin-top: 4px;">
+                                            <i class="fas fa-clock me-1"></i> Refunded on @(item.RefundDate?.ToString("dd MMM yyyy HH:mm") ?? "N/A")
+                                        </div>
+                                    </div>
+                                }
 
                                 @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
                                 {
@@ -790,91 +936,234 @@
                                 }
                                 <div class="d-flex justify-content-between font-weight-bold border-top border-secondary pt-1">
                                     <span style="color: #f0c808;">Service Price:</span>
-                                    <span style="color: #f0c808; font-weight: bold;">R @item.ServicePrice.ToString("N2")</span>
-                                </div>
-
-                                <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-secondary" style="font-size: 0.7rem;">
-                                    <span class="text-muted">Deposit Status (50%):</span>
-                                    @if (item.IsDepositPaid)
-                                    {
-                                        <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> PAID</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-warning fw-bold"><i class="fas fa-hourglass-half me-1"></i> AWAITING</span>
-                                    }
-                                </div>
-                            </div>
-
-                            <div class="card-footer-actions">
-                                @if (item.Status == BookingStatus.Pending)
-                                {
-                                    <div class="mb-2">
-                                        @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
+                                    <span style="color: #f0c808; font-weight: bold;">
+                                        @if (isCancelled || isRejected)
                                         {
-                                            <div class="mb-2">
-                                                <small class="text-muted d-block text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Set Transport Fee (R):</small>
-                                                <div class="input-group input-group-sm">
-                                                    <span class="input-group-text bg-dark border-secondary text-white-50">R</span>
-                                                    <input type="number" id="transport-@item.Id" class="form-control bg-dark text-white border-secondary"
-                                                           placeholder="0.00" step="0.01" min="0" value="@(item.TransportCost > 0 ? item.TransportCost.ToString("F2") : "")" />
-                                                </div>
-                                            </div>
-                                        }
-                                        <input type="text" id="note-@item.Id" class="form-control bg-dark text-white border-secondary"
-                                               placeholder="Add a note for the client..." style="font-size: 0.8rem;" />
-                                    </div>
-
-                                    <div class="d-flex gap-2">
-                                        @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.WalkIn)
-                                        {
-                                            <a href="@Url.Action("ConfirmAcceptWalkIn", "Artist", new { bookingId = item.Id })"
-                                               class="btn btn-success w-100 fw-bold">
-                                                <i class="fas fa-check me-1"></i> ACCEPT
-                                            </a>
+                                            <span style="text-decoration: line-through; color: #ff4444;">R @item.ServicePrice.ToString("N2")</span>
+                                            <span style="color: #ff4444; font-size: 0.7rem; margin-left: 6px;">—</span>
                                         }
                                         else
                                         {
+                                            <span>R @item.ServicePrice.ToString("N2")</span>
+                                        }
+                                    </span>
+                                </div>
+
+                                @if (!isRejected && !isCancelled)
+                                {
+                                    <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-secondary" style="font-size: 0.7rem;">
+                                        <span class="text-muted">Deposit Status (50%):</span>
+                                        @if (item.IsDepositPaid)
+                                        {
+                                            <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> PAID</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-warning fw-bold"><i class="fas fa-hourglass-half me-1"></i> AWAITING</span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top border-secondary" style="font-size: 0.7rem;">
+                                        <span class="text-muted">Status:</span>
+                                        @if (isRejected && isRefunded)
+                                        {
+                                            <span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> REFUNDED</span>
+                                        }
+                                        else if (isRejected && !isRefunded)
+                                        {
+                                            <span class="text-muted fw-bold">NO PAYMENT MADE</span>
+                                        }
+                                        else if (isCancelled)
+                                        {
+                                            <span class="text-muted fw-bold">—</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="card-footer-actions">
+                                @* ─── PENDING STATUS ─── *@
+                                @if (item.Status == BookingStatus.Pending)
+                                {
+                                    @if (isDisputed)
+                                    {
+                                        <div class="alert alert-warning text-center mb-0" style="background: rgba(255,140,0,0.12); border: 1px solid #ff8c00; color: #ff8c00;">
+                                            <i class="fas fa-clock me-2"></i> This booking is under dispute. Please wait for admin resolution.
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="mb-2">
+                                            @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
+                                            {
+                                                <div class="mb-2">
+                                                    <small class="text-muted d-block text-uppercase mb-1" style="font-size: 0.65rem; letter-spacing: 0.5px;">Set Transport Fee (R):</small>
+                                                    <div class="input-group input-group-sm">
+                                                        <span class="input-group-text bg-dark border-secondary text-white-50">R</span>
+                                                        <input type="number" id="transport-@item.Id" class="form-control bg-dark text-white border-secondary"
+                                                               placeholder="0.00" step="0.01" min="0" value="@(item.TransportCost > 0 ? item.TransportCost.ToString("F2") : "")" />
+                                                    </div>
+                                                </div>
+                                            }
+                                            <input type="text" id="note-@item.Id" class="form-control bg-dark text-white border-secondary"
+                                                   placeholder="Add a note for the client..." style="font-size: 0.8rem;" />
+                                        </div>
+
+                                        <div class="d-flex gap-2">
+                                            @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.WalkIn)
+                                            {
+                                                <a href="@Url.Action("ConfirmAcceptWalkIn", "Artist", new { bookingId = item.Id })"
+                                                   class="btn btn-success w-100 fw-bold">
+                                                    <i class="fas fa-check me-1"></i> ACCEPT
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <form asp-action="ArtistUpdateStatus" method="post" class="flex-fill">
+                                                    <input type="hidden" name="bookingId" value="@item.Id" />
+                                                    <input type="hidden" name="newStatus" value="@BookingStatus.Accepted" />
+                                                    <input type="hidden" name="artistNotes" id="confirm-note-@item.Id" />
+                                                    <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
+                                                    <button type="submit" class="btn btn-success w-100 fw-bold"
+                                                            onclick="document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
+                                                                                                                                                                                                                                                         var tInput = document.getElementById('transport-@item.Id');
+                                                                                                                                                                                                                                                         if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
+                                                        <i class="fas fa-check me-1"></i> ACCEPT
+                                                    </button>
+                                                </form>
+                                            }
+
                                             <form asp-action="ArtistUpdateStatus" method="post" class="flex-fill">
                                                 <input type="hidden" name="bookingId" value="@item.Id" />
-                                                <input type="hidden" name="newStatus" value="@BookingStatus.Accepted" />
-                                                <input type="hidden" name="artistNotes" id="confirm-note-@item.Id" />
-                                                <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
-                                                <button type="submit" class="btn btn-success w-100 fw-bold"
-                                                        onclick="document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
-                                                                                                                                 var tInput = document.getElementById('transport-@item.Id');
-                                                                                                                                 if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
-                                                    <i class="fas fa-check me-1"></i> ACCEPT
+                                                <input type="hidden" name="newStatus" value="@BookingStatus.Rejected" />
+                                                <input type="hidden" name="artistNotes" id="reject-note-@item.Id" />
+                                                <button type="submit" class="btn btn-outline-danger w-100 fw-bold"
+                                                        onclick="document.getElementById('reject-note-@item.Id').value = document.getElementById('note-@item.Id').value">
+                                                    <i class="fas fa-times me-1"></i> REJECT
                                                 </button>
                                             </form>
-                                        }
-
-                                        <form asp-action="ArtistUpdateStatus" method="post" class="flex-fill">
-                                            <input type="hidden" name="bookingId" value="@item.Id" />
-                                            <input type="hidden" name="newStatus" value="@BookingStatus.Rejected" />
-                                            <input type="hidden" name="artistNotes" id="reject-note-@item.Id" />
-                                            <button type="submit" class="btn btn-outline-danger w-100 fw-bold"
-                                                    onclick="document.getElementById('reject-note-@item.Id').value = document.getElementById('note-@item.Id').value">
-                                                <i class="fas fa-times me-1"></i> REJECT
-                                            </button>
-                                        </form>
-                                    </div>
+                                        </div>
+                                    }
                                 }
+                                @* ─── ACCEPTED STATUS ─── *@
                                 else if (item.Status == BookingStatus.Accepted)
                                 {
-                                    <div class="alert alert-info text-center mb-0" style="background: rgba(23, 162, 184, 0.15); border: 1px solid #17a2b8; color: #17a2b8;">
-                                        <i class="fas fa-clock me-2"></i> Awaiting client's 50% deposit...
-                                    </div>
+                                    @if (isDisputed)
+                                    {
+                                        <div class="alert alert-warning text-center mb-0" style="background: rgba(255,140,0,0.12); border: 1px solid #ff8c00; color: #ff8c00;">
+                                            <i class="fas fa-clock me-2"></i> This booking is under dispute. Please wait for admin resolution.
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="d-flex gap-2">
+                                            <div class="alert alert-info text-center flex-fill mb-0" style="background: rgba(23, 162, 184, 0.15); border: 1px solid #17a2b8; color: #17a2b8;">
+                                                <i class="fas fa-clock me-2"></i> Awaiting client's 50% deposit...
+                                            </div>
+                                            <form asp-action="CancelByArtist" method="post" style="flex: 0 0 auto;">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <input type="hidden" name="artistNotes" id="cancel-accepted-note-@item.Id" value="Booking cancelled by artist." />
+                                                <button type="submit" class="btn btn-outline-danger fw-bold"
+                                                        onclick="var note = prompt('Reason for cancelling this booking (optional):'); if(note !== null) { document.getElementById('cancel-accepted-note-@item.Id').value = note || 'Booking cancelled by artist.'; return confirm('Are you sure you want to cancel this accepted booking?'); } return false;">
+                                                    <i class="fas fa-times me-1"></i> CANCEL
+                                                </button>
+                                            </form>
+                                        </div>
+                                    }
                                 }
+                                @* ─── CONFIRMED STATUS ─── *@
                                 else if (item.Status == BookingStatus.Confirmed)
                                 {
-                                    <form asp-action="ArtistUpdateStatus" method="post">
-                                        <input type="hidden" name="bookingId" value="@item.Id" />
-                                        <input type="hidden" name="newStatus" value="@BookingStatus.Completed" />
-                                        <button type="submit" class="btn btn-primary w-100 fw-bold">
-                                            <i class="fas fa-check-double me-2"></i> MARK COMPLETED
-                                        </button>
-                                    </form>
+                                    @if (isDisputed)
+                                    {
+                                        <div class="alert alert-warning text-center mb-0" style="background: rgba(255,140,0,0.12); border: 1px solid #ff8c00; color: #ff8c00;">
+                                            <i class="fas fa-clock me-2"></i> This booking is under dispute. Please wait for admin resolution.
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="d-flex gap-2">
+                                            <form asp-action="ArtistUpdateStatus" method="post" class="flex-fill">
+                                                <input type="hidden" name="bookingId" value="@item.Id" />
+                                                <input type="hidden" name="newStatus" value="@BookingStatus.Completed" />
+                                                <button type="submit" class="btn btn-primary w-100 fw-bold">
+                                                    <i class="fas fa-check-double me-2"></i> MARK COMPLETED
+                                                </button>
+                                            </form>
+                                            <form asp-action="CancelByArtist" method="post" class="flex-fill">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <input type="hidden" name="artistNotes" id="cancel-confirmed-note-@item.Id" value="Booking cancelled by artist." />
+                                                <button type="submit" class="btn btn-outline-danger w-100 fw-bold"
+                                                        onclick="var note = prompt('Reason for cancelling this confirmed booking (optional):'); if(note !== null) { document.getElementById('cancel-confirmed-note-@item.Id').value = note || 'Booking cancelled by artist.'; return confirm('Are you sure you want to cancel this confirmed booking? The client will be refunded.'); } return false;">
+                                                    <i class="fas fa-times me-1"></i> CANCEL
+                                                </button>
+                                            </form>
+                                        </div>
+                                    }
+                                }
+                                @* ─── REJECTED STATUS ─── *@
+                                else if (item.Status == BookingStatus.Rejected)
+                                {
+                                    <div class="alert alert-secondary text-center mb-0" style="background: rgba(108, 117, 125, 0.15); border: 1px solid #6c757d; color: #6c757d;">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        @if (isRefunded)
+                                        {
+                                            <text>Booking rejected — client refunded <strong>R @item.RefundAmount.ToString("N2")</strong></text>
+                                        }
+                                        else
+                                        {
+                                            <text>Booking rejected — no payment was made</text>
+                                        }
+                                    </div>
+                                }
+                                @* ─── DISPUTED / IN REVIEW ─── *@
+                                else if (item.Status == BookingStatus.Disputed || item.Status == BookingStatus.InReview)
+                                {
+                                    <div class="alert alert-warning text-center mb-0" style="background: rgba(255,140,0,0.12); border: 1px solid #ff8c00; color: #ff8c00;">
+                                        <i class="fas fa-clock me-2"></i> This booking is under dispute. Please wait for admin resolution.
+                                    </div>
+                                }
+                                @* ─── RESOLVED ─── *@
+                                else if (item.Status == BookingStatus.Resolved)
+                                {
+                                    <div class="alert alert-success text-center mb-0" style="background: rgba(40,167,69,0.12); border: 1px solid #28a745; color: #28a745;">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        Dispute resolved.
+                                        @if (item.AdminResolution == "release_to_artist" || item.AdminResolution == "partial_split")
+                                        {
+                                            <text>Funds released to you.</text>
+                                        }
+                                        else if (item.AdminResolution == "refund_to_client")
+                                        {
+                                            <text>Client was refunded.</text>
+                                        }
+                                    </div>
+                                }
+                                @* ─── COMPLETED ─── *@
+                                else if (item.Status == BookingStatus.Completed)
+                                {
+                                    <div class="alert alert-success text-center mb-0" style="background: rgba(40,167,69,0.12); border: 1px solid #28a745; color: #28a745;">
+                                        <i class="fas fa-check-circle me-2"></i> Booking completed
+                                        @if (item.IsFundsReleased)
+                                        {
+                                            <text>— funds released</text>
+                                        }
+                                    </div>
+                                }
+                                @* ─── CANCELLED ─── *@
+                                else if (item.Status == BookingStatus.Cancelled)
+                                {
+                                    <div class="alert alert-secondary text-center mb-0" style="background: rgba(108, 117, 125, 0.15); border: 1px solid #6c757d; color: #6c757d;">
+                                        <i class="fas fa-times-circle me-2"></i> Booking cancelled
+                                        @if (item.IsRefunded)
+                                        {
+                                            <text>— client refunded</text>
+                                        }
+                                    </div>
                                 }
 
                                 <div class="booked-date">

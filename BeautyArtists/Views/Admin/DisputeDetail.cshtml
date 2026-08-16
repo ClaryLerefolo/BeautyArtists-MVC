@@ -1,0 +1,118 @@
+﻿@model BeautyArtists.Models.Booking
+@{
+    ViewData["Title"] = $"Dispute #{Model.Id}";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    var totalPaid = Model.DepositPaid + Model.FinalPaymentPaid;
+}
+
+<div class="container-fluid py-4" style="max-width: 900px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 24px;">
+        <div>
+            <h2 style="color: #FFD700; font-weight: 800; margin: 0;">⚠️ Dispute #@Model.Id</h2>
+            <p style="color: rgba(255,255,255,0.3); margin: 0;">Review and resolve this dispute.</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <a asp-action="Disputes" style="color: rgba(255,255,255,0.3); text-decoration: none;">← Back to Disputes</a>
+        </div>
+    </div>
+
+    @if (TempData["Error"] != null)
+    {
+        <div style="background: rgba(255,50,50,0.08); border: 1px solid rgba(255,50,50,0.2); border-radius: 10px; padding: 12px 16px; color: #ff5555; margin-bottom: 20px;">
+            <i class="fas fa-exclamation-circle me-2"></i> @TempData["Error"]
+        </div>
+    }
+
+    <div style="display: grid; gap: 16px;">
+        <!-- ─── BOOKING DETAILS ─── -->
+        <div style="background: #0b0b0b; border: 1px solid rgba(255,215,0,0.2); border-radius: 12px; padding: 20px;">
+            <h4 style="color: #FFD700; margin-bottom: 12px;">📋 Booking Details</h4>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div><span style="color: rgba(255,255,255,0.3);">Service:</span> <span style="color: #fff;">@Model.UserService?.Service?.Name</span></div>
+                <div><span style="color: rgba(255,255,255,0.3);">Artist:</span> <span style="color: #fff;">@Model.UserService?.Artist?.FirstName @Model.UserService?.Artist?.LastName</span></div>
+                <div><span style="color: rgba(255,255,255,0.3);">Client:</span> <span style="color: #fff;">@Model.Customer?.FirstName @Model.Customer?.LastName</span></div>
+                <div><span style="color: rgba(255,255,255,0.3);">Appointment:</span> <span style="color: #fff;">@Model.AppointmentDate.ToString("dd MMM yyyy HH:mm")</span></div>
+                <div><span style="color: rgba(255,255,255,0.3);">Amount Paid:</span> <span style="color: #FFD700; font-weight: 700;">R @totalPaid.ToString("N2")</span></div>
+                <div><span style="color: rgba(255,255,255,0.3);">Dispute Raised:</span> <span style="color: #fff;">@Model.DisputeRaisedAt?.ToString("dd MMM yyyy HH:mm")</span></div>
+            </div>
+        </div>
+
+        <!-- ─── DISPUTE DETAILS ─── -->
+        <div style="background: #0b0b0b; border: 1px solid rgba(255,215,0,0.2); border-radius: 12px; padding: 20px;">
+            <h4 style="color: #FFD700; margin-bottom: 12px;">📝 Dispute Details</h4>
+            <p><span style="color: rgba(255,255,255,0.3);">Reason:</span> <span style="color: #e50914; font-weight: 600;">@Model.DisputeReason</span></p>
+            <div style="background: #1a1a1a; padding: 12px; border-radius: 8px; margin-top: 8px;">
+                <span style="color: rgba(255,255,255,0.3);">Description:</span>
+                <p style="color: #fff; margin: 4px 0 0 0;">@Model.DisputeDescription</p>
+            </div>
+        </div>
+
+        <!-- ─── RESOLUTION ─── -->
+        @if (Model.AdminReviewedAt == null)
+        {
+            <div style="background: #0b0b0b; border: 1px solid rgba(255,215,0,0.2); border-radius: 12px; padding: 20px;">
+                <h4 style="color: #FFD700; margin-bottom: 12px;">⚖️ Resolve Dispute</h4>
+                <form asp-action="ResolveDispute" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@Model.Id" />
+
+                    <div style="display: grid; gap: 12px;">
+                        <div>
+                            <label style="color: rgba(255,255,255,0.5); font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 4px;">Resolution</label>
+                            <select name="resolution" id="resolutionSelect" style="width: 100%; background: #1a1a1a; border: 1.5px solid rgba(255,215,0,0.2); border-radius: 10px; color: #fff; padding: 10px 14px;">
+                                <option value="release_to_artist">Release Funds to Artist</option>
+                                <option value="refund_to_client">Refund Funds to Client</option>
+                                <option value="partial_split">Partial Split (Enter Amount)</option>
+                            </select>
+                        </div>
+
+                        <div id="partialAmountField" style="display: none;">
+                            <label style="color: rgba(255,255,255,0.5); font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 4px;">Amount to Refund to Client</label>
+                            <input type="number" name="amount" id="partialAmount" step="0.01" min="0" max="@totalPaid"
+                                   style="width: 100%; background: #1a1a1a; border: 1.5px solid rgba(255,215,0,0.2); border-radius: 10px; color: #fff; padding: 10px 14px;" />
+                            <span style="color: rgba(255,255,255,0.2); font-size: 0.7rem;">Max: R @totalPaid.ToString("N2")</span>
+                        </div>
+
+                        <div>
+                            <label style="color: rgba(255,255,255,0.5); font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 4px;">Admin Notes (Optional)</label>
+                            <textarea name="adminNotes" rows="2" style="width: 100%; background: #1a1a1a; border: 1.5px solid rgba(255,215,0,0.2); border-radius: 10px; color: #fff; padding: 10px 14px; resize: vertical;" placeholder="Add notes about this resolution..."></textarea>
+                        </div>
+
+                        <button type="submit" style="padding: 14px; background: #FFD700; color: #000; font-weight: 800; border: none; border-radius: 10px; cursor: pointer; margin-top: 8px;">
+                            Apply Resolution
+                        </button>
+                    </div>
+                </form>
+            </div>
+        }
+        else
+        {
+            <div style="background: #0b0b0b; border: 1px solid rgba(40,167,69,0.3); border-radius: 12px; padding: 20px;">
+                <h4 style="color: #28a745; margin-bottom: 12px;">✅ Resolution Applied</h4>
+                <div style="display: grid; gap: 8px;">
+                    <p style="margin: 0;"><span style="color: rgba(255,255,255,0.3);">Resolution:</span> <span style="color: #fff; font-weight: 600;">@Model.AdminResolution</span></p>
+                    @if (Model.AdminResolutionAmount > 0)
+                    {
+                        <p style="margin: 0;"><span style="color: rgba(255,255,255,0.3);">Amount:</span> <span style="color: #FFD700; font-weight: 600;">R @Model.AdminResolutionAmount.ToString("N2")</span></p>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.AdminNotes))
+                    {
+                        <p style="margin: 0;"><span style="color: rgba(255,255,255,0.3);">Admin Notes:</span> <span style="color: #fff;">@Model.AdminNotes</span></p>
+                    }
+                    <p style="margin: 0;"><span style="color: rgba(255,255,255,0.3);">Resolved At:</span> <span style="color: #fff;">@Model.AdminReviewedAt?.ToString("dd MMM yyyy HH:mm")</span></p>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<script>
+    document.getElementById('resolutionSelect').addEventListener('change', function() {
+        const partialField = document.getElementById('partialAmountField');
+        if (this.value === 'partial_split') {
+            partialField.style.display = 'block';
+        } else {
+            partialField.style.display = 'none';
+        }
+    });
+</script>

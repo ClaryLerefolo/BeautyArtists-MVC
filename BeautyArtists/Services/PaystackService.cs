@@ -9,7 +9,7 @@ namespace BeautyArtists.Services
     public interface IPaystackService
     {
         Task<BankValidationResult> ValidateBankAccountAsync(string bankCode, string accountNumber);
-        Task<SubaccountCreationResult> CreateSubaccountAsync(string email, string bankCode, string accountNumber, string businessName, decimal percentageCharge = 15m);
+        Task<SubaccountCreationResult> CreateSubaccountAsync(string email, string bankCode, string accountNumber, string businessName, decimal percentageCharge = 0m);
         Task<List<Bank>> GetBanksAsync();
     }
 
@@ -41,6 +41,21 @@ namespace BeautyArtists.Services
         private readonly bool _isTestMode;
         private readonly ILogger<PaystackService> _logger;
         private readonly string _currency;
+
+        // ─── ✅ CORRECT SOUTH AFRICAN BANK CODES ───
+        private readonly List<Bank> _saBanks = new List<Bank>
+        {
+            new Bank { Name = "ABSA", Code = "632005" },
+            new Bank { Name = "Capitec", Code = "470010" },
+            new Bank { Name = "FNB", Code = "250655" },
+            new Bank { Name = "Nedbank", Code = "198765" },
+            new Bank { Name = "Standard Bank", Code = "051001" },
+            new Bank { Name = "Bank Zero", Code = "679000" },
+            new Bank { Name = "Discovery Bank", Code = "679000" },
+            new Bank { Name = "TymeBank", Code = "678910" },
+            new Bank { Name = "African Bank", Code = "430000" },
+            new Bank { Name = "Investec", Code = "580105" }
+        };
 
         public PaystackService(HttpClient httpClient, IConfiguration configuration, ILogger<PaystackService> logger)
         {
@@ -89,20 +104,8 @@ namespace BeautyArtists.Services
 
         private List<Bank> GetFallbackBanks()
         {
-            // ✅ CORRECT SOUTH AFRICAN BANK CODES - PERMANENT
-            return new List<Bank>
-            {
-                new Bank { Name = "ABSA", Code = "632005" },
-                new Bank { Name = "Capitec", Code = "470010" },
-                new Bank { Name = "FNB", Code = "250655" },
-                new Bank { Name = "Nedbank", Code = "198765" },
-                new Bank { Name = "Standard Bank", Code = "051001" },
-                new Bank { Name = "Bank Zero", Code = "679000" },
-                new Bank { Name = "Discovery Bank", Code = "679000" },
-                new Bank { Name = "TymeBank", Code = "678910" },
-                new Bank { Name = "African Bank", Code = "430000" },
-                new Bank { Name = "Investec", Code = "580105" }
-            };
+            // ─── ✅ RETURN CORRECT SOUTH AFRICAN BANK CODES ───
+            return _saBanks;
         }
 
         public async Task<BankValidationResult> ValidateBankAccountAsync(string bankCode, string accountNumber)
@@ -176,7 +179,7 @@ namespace BeautyArtists.Services
             string bankCode,
             string accountNumber,
             string businessName,
-            decimal percentageCharge = 15m)
+            decimal percentageCharge = 0m)
         {
             try
             {

@@ -14,5 +14,10 @@
         public decimal PlatformFee { get; set; }     // Platform fee deducted from artist (10% or R15)
         public decimal ClientMarkup { get; set; }    // 4% markup added to client
         public decimal BookingFee { get; set; }      // R5 booking fee
+
+        // ─── 🔥 ADD THESE MISSING PROPERTIES ───
+        public decimal ServicePrice { get; set; }        // Original artist price (P)
+        public decimal ClientTotal { get; set; }         // Total client pays (P + 4%×P + R5)
+        public decimal CardProcessingFee { get; set; }   // 4%×P + R5
     }
 }

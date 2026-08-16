@@ -19,16 +19,218 @@ namespace BeautyArtists.Controllers
         private readonly ICommunicationService _commService;
         private readonly INotificationService _notificationService;
         private readonly IEmailService _emailService;
-        private const decimal COMMISSION_RATE = 0.15m;
-        private const decimal BOOKING_FEE = 5.00m;
 
-        // ─── CORRECT PRICING HELPERS ───
-        private decimal ClientServicePrice(Booking b) => b.ServicePrice * 1.15m;
-        private decimal ClientTotal(Booking b) => ClientServicePrice(b) + b.BookingFee;
-        private decimal DepositAmount(Booking b) => (b.ServicePrice / 2) + b.BookingFee;
-        private decimal FinalAmount(Booking b) => b.ServicePrice / 2;
-        private decimal ClientFinalAmount(Booking b) => ClientServicePrice(b) / 2;
-        private decimal FullPaymentAmount(Booking b) => ClientTotal(b);
+        // ─── ✅ FIXED: CORRECT PRICING CONSTANTS ───
+        private const decimal CLIENT_MARKUP_RATE = 0.04m;      // 4% card processing fee
+        private const decimal BOOKING_FEE = 5.00m;              // Flat R5 booking fee
+        private const decimal NEW_CLIENT_COMMISSION = 0.10m;   // 10% for new clients
+        private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m; // R15 for repeat clients
+        private const decimal MIN_PLATFORM_FEE = 8.00m;        // Minimum fee floor
+
+        // ─── ✅ FIXED: CORRECT PRICING HELPERS ───
+        private decimal CalculateCardProcessingFee(decimal servicePrice)
+        {
+            return servicePrice * CLIENT_MARKUP_RATE;
+        }
+
+        private decimal CalculateClientTotal(decimal servicePrice)
+        {
+            return servicePrice + CalculateCardProcessingFee(servicePrice) + BOOKING_FEE;
+        }
+
+        private decimal CalculateDepositAmount(decimal servicePrice)
+        {
+            decimal halfService = servicePrice / 2;
+            decimal cardFee = CalculateCardProcessingFee(servicePrice);
+            return halfService + cardFee + BOOKING_FEE;
+        }
+
+        private decimal CalculateFinalAmount(decimal servicePrice)
+        {
+            return servicePrice / 2;
+        }
+
+        private decimal CalculateArtistPayout(decimal artistPrice, bool isNewClient)
+        {
+            decimal platformFee = isNewClient
+                ? artistPrice * NEW_CLIENT_COMMISSION
+                : REPEAT_CLIENT_FLAT_FEE;
+            platformFee = Math.Max(platformFee, MIN_PLATFORM_FEE);
+            return artistPrice - platformFee;
+        }
+
+        private async Task<bool> IsNewClient(string customerId, string artistId)
+        {
+            var existingBookings = await _context.Bookings
+                .Where(b => b.CustomerId == customerId
+                            && b.UserService.ArtistId == artistId
+                            && b.Status != BookingStatus.Cancelled
+                            && b.Status != BookingStatus.Rejected)
+                .AnyAsync();
+            return !existingBookings;
+        }
+
+        // ─── HELPER: Build deposit email body ───
+        private string BuildDepositEmailBody(Booking booking, decimal depositAmount, decimal finalAmount, bool isFullPayment)
+        {
+            var serviceName = booking.UserService?.Service?.Name ?? "your service";
+            var artistFullName = $"{booking.UserService?.Artist?.FirstName ?? ""} {booking.UserService?.Artist?.LastName ?? ""}".Trim() ?? "The artist";
+            var formattedDate = booking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
+            var formattedTime = booking.AppointmentDate.ToString("hh:mm tt");
+            var servicePrice = booking.ServicePrice;
+            var cardFee = booking.CardProcessingFee;
+            var bookingFee = booking.BookingFee;
+            var totalAmount = booking.TotalAmount;
+
+            if (isFullPayment)
+            {
+                return $@"
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #28a745; text-align: center;'>🎉 Full Payment Received!</h2>
+    <p>Dear {booking.Customer?.FirstName ?? "Client"},</p>
+    <p>Your full payment of <strong>R{totalAmount:N2}</strong> has been received.</p>
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <p><strong>📋 Service:</strong> {serviceName}</p>
+        <p><strong>👤 Artist:</strong> {artistFullName}</p>
+        <p><strong>📅 Date:</strong> {formattedDate}</p>
+        <p><strong>⏰ Time:</strong> {formattedTime}</p>
+    </div>
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
+            <span>Service Price:</span>
+            <span>R {servicePrice:N2}</span>
+        </p>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
+            <span>Card Processing Fee (4%):</span>
+            <span>R {cardFee:N2}</span>
+        </p>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 8px;'>
+            <span>Booking Fee:</span>
+            <span>R {bookingFee:N2}</span>
+        </p>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.1rem;'>
+            <strong>Total Paid:</strong>
+            <strong style='color: #28a745;'>R {totalAmount:N2}</strong>
+        </p>
+    </div>
+    <p>Your appointment is now <strong style='color: #28a745;'>CONFIRMED</strong> and <strong style='color: #28a745;'>FULLY PAID</strong>.</p>
+    <p>Thank you for choosing RubiOr! ✨</p>
+    <hr style='border-color: #333;'>
+    <p style='font-size: 12px; color: #666;'>RubiOr</p>
+</div>";
+            }
+            else
+            {
+                return $@"
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #f0c808; text-align: center;'>✅ Deposit Received!</h2>
+    <p>Dear {booking.Customer?.FirstName ?? "Client"},</p>
+    <p>Your deposit of <strong>R{depositAmount:N2}</strong> has been received.</p>
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <p><strong>📋 Service:</strong> {serviceName}</p>
+        <p><strong>👤 Artist:</strong> {artistFullName}</p>
+        <p><strong>📅 Date:</strong> {formattedDate}</p>
+        <p><strong>⏰ Time:</strong> {formattedTime}</p>
+    </div>
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
+            <span>Deposit Amount:</span>
+            <span>R {depositAmount:N2}</span>
+        </p>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 8px;'>
+            <span>Remaining Balance:</span>
+            <span>R {finalAmount:N2}</span>
+        </p>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.1rem;'>
+            <strong>Total:</strong>
+            <strong style='color: #FFD700;'>R {totalAmount:N2}</strong>
+        </p>
+    </div>
+    <p>Your appointment is now <strong style='color: #f0c808;'>CONFIRMED</strong>.</p>
+    <p><strong>Remaining Balance:</strong> R {finalAmount:N2} (to be paid at least 2 days before the appointment)</p>
+    <p>Thank you for choosing RubiOr! ✨</p>
+    <hr style='border-color: #333;'>
+    <p style='font-size: 12px; color: #666;'>RubiOr</p>
+</div>";
+            }
+        }
+
+        // ─── HELPER: Build final payment email body ───
+        private string BuildFinalPaymentEmailBody(Booking booking, decimal finalAmount)
+        {
+            var serviceName = booking.UserService?.Service?.Name ?? "your service";
+            var artistFullName = $"{booking.UserService?.Artist?.FirstName ?? ""} {booking.UserService?.Artist?.LastName ?? ""}".Trim() ?? "The artist";
+            var formattedDate = booking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
+            var formattedTime = booking.AppointmentDate.ToString("hh:mm tt");
+            var servicePrice = booking.ServicePrice;
+            var cardFee = booking.CardProcessingFee;
+            var bookingFee = booking.BookingFee;
+            var totalAmount = booking.TotalAmount;
+
+            return $@"
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #28a745; text-align: center;'>💰 Final Payment Received!</h2>
+    <p>Dear {booking.Customer?.FirstName ?? "Client"},</p>
+    <p>Your final payment of <strong>R{finalAmount:N2}</strong> has been received.</p>
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <p><strong>📋 Service:</strong> {serviceName}</p>
+        <p><strong>👤 Artist:</strong> {artistFullName}</p>
+        <p><strong>📅 Date:</strong> {formattedDate}</p>
+        <p><strong>⏰ Time:</strong> {formattedTime}</p>
+    </div>
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
+            <span>Service Price:</span>
+            <span>R {servicePrice:N2}</span>
+        </p>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
+            <span>Card Processing Fee (4%):</span>
+            <span>R {cardFee:N2}</span>
+        </p>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 8px;'>
+            <span>Booking Fee:</span>
+            <span>R {bookingFee:N2}</span>
+        </p>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.1rem;'>
+            <strong>Total Paid:</strong>
+            <strong style='color: #28a745;'>R {totalAmount:N2}</strong>
+        </p>
+    </div>
+    <p>Your appointment is now <strong style='color: #28a745;'>FULLY PAID</strong>.</p>
+    <p>Thank you for choosing RubiOr! ✨</p>
+    <hr style='border-color: #333;'>
+    <p style='font-size: 12px; color: #666;'>RubiOr</p>
+</div>";
+        }
+
+        // ─── HELPER: Build artist notification email ───
+        private string BuildArtistPaymentEmail(Booking booking, decimal amount, string paymentType)
+        {
+            var serviceName = booking.UserService?.Service?.Name ?? "your service";
+            var clientFullName = $"{booking.Customer?.FirstName ?? ""} {booking.Customer?.LastName ?? ""}".Trim() ?? "Client";
+            var formattedDate = booking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
+            var formattedTime = booking.AppointmentDate.ToString("hh:mm tt");
+            var totalAmount = booking.TotalAmount;
+            var servicePrice = booking.ServicePrice;
+
+            return $@"
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #f0c808; text-align: center;'>💰 {paymentType} Received!</h2>
+    <p>Dear {booking.UserService?.Artist?.FirstName ?? "Artist"},</p>
+    <p>The client <strong>{clientFullName}</strong> has paid <strong>R{amount:N2}</strong> for:</p>
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <p><strong>📋 Service:</strong> {serviceName}</p>
+        <p><strong>📅 Date:</strong> {formattedDate}</p>
+        <p><strong>⏰ Time:</strong> {formattedTime}</p>
+        <p><strong>Amount Received:</strong> R{amount:N2}</p>
+        <p><strong>Total Booking Amount:</strong> R{totalAmount:N2}</p>
+        <p><strong>Your Earnings:</strong> R{servicePrice:N2}</p>
+    </div>
+    <p>This appointment is now <strong style='color: #f0c808;'>CONFIRMED</strong>.</p>
+    <hr style='border-color: #333;'>
+    <p style='font-size: 12px; color: #666;'>RubiOr</p>
+</div>";
+        }
 
         public PaymentController(
             IPaymentService paymentService,
@@ -133,7 +335,7 @@ namespace BeautyArtists.Controllers
                     return RedirectToAction("MyBookings", "Booking");
                 }
 
-                decimal finalAmount = ClientFinalAmount(booking);
+                decimal finalAmount = CalculateFinalAmount(booking.ServicePrice);
 
                 if (finalAmount <= 0 || booking.FinalPaymentPaid >= finalAmount)
                 {
@@ -233,7 +435,8 @@ namespace BeautyArtists.Controllers
                 await _context.SaveChangesAsync();
 
                 bool isDeposit = !booking.IsDepositPaid;
-                bool isFullPayment = payment.Amount >= FullPaymentAmount(booking);
+                decimal clientTotal = CalculateClientTotal(booking.ServicePrice);
+                bool isFullPayment = payment.Amount >= clientTotal;
 
                 if (isDeposit)
                 {
@@ -246,7 +449,15 @@ namespace BeautyArtists.Controllers
                         booking.Status = BookingStatus.Confirmed;
                         await _context.SaveChangesAsync();
 
-                        await SendFullPaymentEmails(booking, payment.Amount);
+                        string clientEmailBody = BuildDepositEmailBody(booking, payment.Amount, 0, true);
+                        string artistEmailBody = BuildArtistPaymentEmail(booking, payment.Amount, "Full Payment");
+
+                        if (!string.IsNullOrEmpty(booking.Customer?.Email))
+                            await _emailService.SendEmailAsync(booking.Customer.Email, "✅ Full Payment Confirmed – Appointment Confirmed!", clientEmailBody);
+
+                        if (!string.IsNullOrEmpty(booking.UserService?.Artist?.Email))
+                            await _emailService.SendEmailAsync(booking.UserService.Artist.Email, "💰 Full Payment Received – Appointment Confirmed!", artistEmailBody);
+
                         TempData["Success"] = "Full payment successful! Your appointment is now confirmed and fully paid.";
                     }
                     else
@@ -257,7 +468,16 @@ namespace BeautyArtists.Controllers
                         booking.Status = BookingStatus.Confirmed;
                         await _context.SaveChangesAsync();
 
-                        await SendDepositEmails(booking, payment.Amount);
+                        decimal finalAmount = CalculateFinalAmount(booking.ServicePrice);
+                        string clientEmailBody = BuildDepositEmailBody(booking, payment.Amount, finalAmount, false);
+                        string artistEmailBody = BuildArtistPaymentEmail(booking, payment.Amount, "Deposit");
+
+                        if (!string.IsNullOrEmpty(booking.Customer?.Email))
+                            await _emailService.SendEmailAsync(booking.Customer.Email, "✅ Deposit Paid – Appointment Confirmed!", clientEmailBody);
+
+                        if (!string.IsNullOrEmpty(booking.UserService?.Artist?.Email))
+                            await _emailService.SendEmailAsync(booking.UserService.Artist.Email, "💰 Deposit Payment Received – Appointment Confirmed!", artistEmailBody);
+
                         TempData["Success"] = "Deposit successful! Your appointment is now confirmed.";
                     }
 
@@ -299,12 +519,19 @@ namespace BeautyArtists.Controllers
                 }
                 else
                 {
-                    decimal finalAmount = ClientFinalAmount(booking);
+                    decimal finalAmount = CalculateFinalAmount(booking.ServicePrice);
                     booking.FinalPaymentPaid = finalAmount;
                     booking.FinalPaidDate = DateTime.UtcNow;
                     await _context.SaveChangesAsync();
 
-                    await SendFinalPaymentEmails(booking, finalAmount);
+                    string clientEmailBody = BuildFinalPaymentEmailBody(booking, finalAmount);
+                    string artistEmailBody = BuildArtistPaymentEmail(booking, finalAmount, "Final Payment");
+
+                    if (!string.IsNullOrEmpty(booking.Customer?.Email))
+                        await _emailService.SendEmailAsync(booking.Customer.Email, "✅ Final Payment Confirmed!", clientEmailBody);
+
+                    if (!string.IsNullOrEmpty(booking.UserService?.Artist?.Email))
+                        await _emailService.SendEmailAsync(booking.UserService.Artist.Email, "💰 Final Payment Received – Appointment Fully Paid!", artistEmailBody);
 
                     if (User.Identity.IsAuthenticated)
                     {
@@ -343,216 +570,6 @@ namespace BeautyArtists.Controllers
                 }
 
                 return RedirectToAction("MyBookings", "Booking");
-            }
-        }
-
-        // ============================================================
-        // 📧 EMAIL HELPERS - FIXED
-        // ============================================================
-
-        private async Task SendDepositEmails(Booking booking, decimal depositAmount)
-        {
-            try
-            {
-                var artist = booking.UserService?.Artist;
-                var client = booking.Customer;
-                var serviceName = booking.UserService?.Service?.Name ?? "your service";
-
-                if (artist == null || client == null)
-                {
-                    Console.WriteLine($"❌ Deposit emails: Artist or client is null.");
-                    return;
-                }
-
-                string artistEmail = artist.Email;
-                string clientEmail = client.Email;
-
-                if (string.IsNullOrEmpty(artistEmail) || string.IsNullOrEmpty(clientEmail))
-                {
-                    Console.WriteLine($"❌ Deposit emails: Missing email.");
-                    return;
-                }
-
-                // ✅ FIXED: Use ClientFinalAmount for remaining balance
-                decimal finalAmount = ClientFinalAmount(booking);  // R5.75
-
-                // To Artist
-                string artistSubject = "💰 Deposit Payment Received – Appointment Confirmed!";
-                string artistBody = $@"
-                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                    <h2 style='color: #f0c808; text-align: center;'>Deposit Received! ✅</h2>
-                    <p>Dear {artist.FirstName},</p>
-                    <p>The client <strong>{client.FirstName} {client.LastName}</strong> has paid the deposit of <strong>R{depositAmount:N2}</strong> for:</p>
-                    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-                        <p><strong>Service:</strong> {serviceName}</p>
-                        <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
-                        <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-                        <p><strong>Deposit Received:</strong> R{depositAmount:N2}</p>
-                        <p><strong>Remaining Balance:</strong> R{finalAmount:N2}</p>
-                    </div>
-                    <p>This appointment is now <strong>CONFIRMED</strong>.</p>
-                    <hr>
-                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
-                </div>";
-
-                // To Client
-                string clientSubject = "✅ Deposit Paid – Appointment Confirmed!";
-                string clientBody = $@"
-                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                    <h2 style='color: #28a745; text-align: center;'>Deposit Paid! 🎉</h2>
-                    <p>Dear {client.FirstName},</p>
-                    <p>Your deposit of <strong>R{depositAmount:N2}</strong> has been received.</p>
-                    <p><strong>Deposit Breakdown:</strong></p>
-                    <p>50% of service price: R{(booking.ServicePrice / 2):N2}</p>
-                    <p style='color: #f0c808;'>Booking Fee: R{booking.BookingFee:N2}</p>
-                    <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>CONFIRMED</strong>.</p>
-                    <p><strong>Remaining Balance:</strong> R{finalAmount:N2} (to be paid at least 2 days before the appointment)</p>
-                    <p>Thank you for choosing RubiOr!</p>
-                    <hr>
-                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
-                </div>";
-
-                await _emailService.SendEmailAsync(artistEmail, artistSubject, artistBody);
-                await _emailService.SendEmailAsync(clientEmail, clientSubject, clientBody);
-
-                Console.WriteLine($"✅ Deposit emails sent.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ SendDepositEmails error: {ex.Message}");
-            }
-        }
-
-        private async Task SendFinalPaymentEmails(Booking booking, decimal finalAmount)
-        {
-            try
-            {
-                var artist = booking.UserService?.Artist;
-                var client = booking.Customer;
-                var serviceName = booking.UserService?.Service?.Name ?? "your service";
-
-                if (artist == null || client == null)
-                {
-                    Console.WriteLine($"❌ Final emails: Artist or client is null.");
-                    return;
-                }
-
-                string artistEmail = artist.Email;
-                string clientEmail = client.Email;
-
-                if (string.IsNullOrEmpty(artistEmail) || string.IsNullOrEmpty(clientEmail))
-                {
-                    Console.WriteLine($"❌ Final emails: Missing email.");
-                    return;
-                }
-
-                decimal depositPaid = booking.DepositPaid;
-
-                // To Artist
-                string artistSubject = "💰 Final Payment Received – Appointment Fully Paid!";
-                string artistBody = $@"
-                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                    <h2 style='color: #28a745; text-align: center;'>Final Payment Received! ✅</h2>
-                    <p>Dear {artist.FirstName},</p>
-                    <p>The client <strong>{client.FirstName} {client.LastName}</strong> has paid the remaining balance of <strong>R{finalAmount:N2}</strong> for:</p>
-                    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-                        <p><strong>Service:</strong> {serviceName}</p>
-                        <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
-                        <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-                        <p><strong>Total Received:</strong> R{(depositPaid + finalAmount):N2}</p>
-                        <p><strong>Your Earnings:</strong> R{booking.ServicePrice:N2}</p>
-                    </div>
-                    <p>This appointment is now <strong>FULLY PAID</strong>.</p>
-                    <hr>
-                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
-                </div>";
-
-                // To Client
-                string clientSubject = "✅ Final Payment Confirmed!";
-                string clientBody = $@"
-                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                    <h2 style='color: #28a745; text-align: center;'>Final Payment Confirmed! 🎉</h2>
-                    <p>Dear {client.FirstName},</p>
-                    <p>Your final payment of <strong>R{finalAmount:N2}</strong> has been received.</p>
-                    <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>FULLY PAID</strong>.</p>
-                    <p>Thank you for choosing RubiOr!</p>
-                    <hr>
-                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
-                </div>";
-
-                await _emailService.SendEmailAsync(artistEmail, artistSubject, artistBody);
-                await _emailService.SendEmailAsync(clientEmail, clientSubject, clientBody);
-
-                Console.WriteLine($"✅ Final emails sent.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ SendFinalPaymentEmails error: {ex.Message}");
-            }
-        }
-
-        private async Task SendFullPaymentEmails(Booking booking, decimal fullAmount)
-        {
-            try
-            {
-                var artist = booking.UserService?.Artist;
-                var client = booking.Customer;
-                var serviceName = booking.UserService?.Service?.Name ?? "your service";
-
-                if (artist == null || client == null)
-                {
-                    Console.WriteLine($"❌ Full payment emails: Artist or client is null.");
-                    return;
-                }
-
-                string artistEmail = artist.Email;
-                string clientEmail = client.Email;
-
-                if (string.IsNullOrEmpty(artistEmail) || string.IsNullOrEmpty(clientEmail))
-                {
-                    Console.WriteLine($"❌ Full payment emails: Missing email.");
-                    return;
-                }
-
-                // To Artist
-                string artistSubject = "💰 Full Payment Received – Appointment Confirmed!";
-                string artistBody = $@"
-                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                    <h2 style='color: #f0c808; text-align: center;'>Full Payment Received! ✅</h2>
-                    <p>Dear {artist.FirstName},</p>
-                    <p>The client <strong>{client.FirstName} {client.LastName}</strong> has paid the full amount of <strong>R{fullAmount:N2}</strong> for:</p>
-                    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-                        <p><strong>Service:</strong> {serviceName}</p>
-                        <p><strong>Date:</strong> {booking.AppointmentDate:dddd, MMMM dd, yyyy}</p>
-                        <p><strong>Time:</strong> {booking.AppointmentDate:hh:mm tt}</p>
-                        <p><strong>Your Earnings:</strong> R{booking.ServicePrice:N2}</p>
-                    </div>
-                    <p>This appointment is now <strong>CONFIRMED</strong> and <strong>FULLY PAID</strong>.</p>
-                    <hr>
-                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
-                </div>";
-
-                // To Client
-                string clientSubject = "✅ Full Payment Confirmed – Appointment Confirmed!";
-                string clientBody = $@"
-                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-                    <h2 style='color: #28a745; text-align: center;'>Full Payment Confirmed! 🎉</h2>
-                    <p>Dear {client.FirstName},</p>
-                    <p>Your full payment of <strong>R{fullAmount:N2}</strong> has been received.</p>
-                    <p>Your appointment for <strong>{serviceName}</strong> on <strong>{booking.AppointmentDate:dddd, MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</strong> is now <strong>CONFIRMED</strong> and <strong>FULLY PAID</strong>.</p>
-                    <p>Thank you for choosing RubiOr!</p>
-                    <hr>
-                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
-                </div>";
-
-                await _emailService.SendEmailAsync(artistEmail, artistSubject, artistBody);
-                await _emailService.SendEmailAsync(clientEmail, clientSubject, clientBody);
-
-                Console.WriteLine($"✅ Full payment emails sent.");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ SendFullPaymentEmails error: {ex.Message}");
             }
         }
     }

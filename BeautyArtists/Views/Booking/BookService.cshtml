@@ -1,4 +1,4 @@
-﻿﻿@using BeautyArtists.Models
+﻿@using BeautyArtists.Models
 @model BeautyArtists.Models.ViewModels.BookingViewModel
 @{
     ViewData["Title"] = "Book Service";
@@ -21,6 +21,14 @@
                     <span class="book-artist-label">with</span>
                     <span class="book-artist-name">@Model.ArtistName</span>
                 </div>
+                @if (Model.IsNewClient)
+                {
+                    <span class="client-tag new-client">New Client</span>
+                }
+                else
+                {
+                    <span class="client-tag repeat-client">Repeat Client</span>
+                }
             </div>
         </div>
     </div>
@@ -54,6 +62,7 @@
             <input type="hidden" name="Price" value="@Model.Price" />
             <input type="hidden" name="ServiceName" value="@Model.ServiceName" />
             <input type="hidden" name="ArtistName" value="@Model.ArtistName" />
+            <input type="hidden" name="IsNewClient" value="@Model.IsNewClient.ToString()" />
 
             @* ─── HIDDEN FIELDS (populated by modal) ─── *@
             <input type="hidden" name="AvailabilitySlotId" id="AvailabilitySlotId" value="@Model.AvailabilitySlotId" />
@@ -107,7 +116,7 @@
                         <div class="time-slots-grid" id="timeSlotsGrid"></div>
                     </div>
                 </div>
-                <div id="slotError" class="book-field-error" style="display:none">⚠ Please select a date and time to continue.</div>
+                <div id="slotError" class="book-field-error" style="display:none">Please select a date and time to continue.</div>
             </div>
 
             @* ── STEP 2: LOCATION TYPE ── *@
@@ -173,25 +182,205 @@
                 <div class="book-summary-row"><span>Appointment Type</span><strong id="summaryLocationType">Walk-In</strong></div>
                 <div class="book-summary-row"><span>Date &amp; Time</span><strong id="summarySlot">—</strong></div>
 
-                <!-- 🔥 PRICE BLOCK MOVED HERE INSIDE SUMMARY -->
-                <!-- 🔥 PRICE BLOCK WITH 4% MARKUP -->
-                <div class="book-summary-row book-summary-total">
+                <!-- ─── PRICE BREAKDOWN ─── -->
+                <div class="book-summary-row" style="border-top: 1px solid rgba(255,215,0,0.15); padding-top: 12px; margin-top: 4px;">
                     <span>Service Price</span>
-                    <strong>R @((Model.Price * 1.04m).ToString("N0"))</strong>
+                    <strong>R @Model.Price.ToString("N2")</strong>
+                </div>
+                <div class="book-summary-row">
+                    <span style="color: rgba(255,255,255,0.5);">Card Processing Fee (4%)</span>
+                    <strong style="color: #ff6600;">R @Model.CardProcessingFee.ToString("N2")</strong>
                 </div>
                 <div class="book-summary-row" style="border-bottom: 1px solid rgba(255,215,0,0.15);">
-                    <span style="color: rgba(255,215,0,0.5);">Booking Fee</span>
-                    <strong style="color: rgba(255,215,0,0.7);">R @Model.BookingFee.ToString("N0")</strong>
+                    <span style="color: rgba(255,255,255,0.5);">Booking Fee</span>
+                    <strong style="color: rgba(255,215,0,0.7);">R @Model.BookingFee.ToString("N2")</strong>
                 </div>
                 <div class="book-summary-row book-summary-total" style="border-bottom: none; padding-bottom: 0;">
                     <span style="color: #FFD700; font-weight: 800;">Total You Pay</span>
-                    <strong style="color: #FFD700; font-size: 1.2rem;">R @((Model.Price * 1.04m + Model.BookingFee).ToString("N0"))</strong>
+                    <strong style="color: #FFD700; font-size: 1.2rem;">R @Model.ClientTotal.ToString("N2")</strong>
                 </div>
-                <div class="travel-cost-disclaimer" id="travelDisclaimer" style="display:none">ℹ️ <em>Transport costs for house calls are calculated and added by your artist when reviewing the request.</em></div>
+
+                <!-- ─── ACKNOWLEDGMENT CHECKBOX ─── -->
+                <div style="margin-top: 16px; padding: 14px 16px; background: rgba(255,215,0,0.04); border-radius: 10px; border-left: 3px solid #FFD700;">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="hasAgreedToTerms" name="HasAgreedToTerms" value="true" style="accent-color: #FFD700; width: 18px; height: 18px; border: 2px solid rgba(255,215,0,0.3);" />
+                        <label class="form-check-label" for="hasAgreedToTerms" style="color: rgba(255,255,255,0.7); font-size: 0.8rem; line-height: 1.4;">
+                            By confirming this booking I agree that I have read, understood and agree with the terms and conditions of the attached <a href="#" onclick="openPolicyModal(event); return false;" style="color: #FFD700; text-decoration: underline;">cancellation policy</a>.
+                        </label>
+                    </div>
+                    <div id="agreeError" class="book-field-error" style="display:none; margin-top: 8px;">
+                        You must agree to the terms before booking.
+                    </div>
+                </div>
+
+                <div class="travel-cost-disclaimer" id="travelDisclaimer" style="display:none">Transport costs for house calls are calculated and added by your artist when reviewing the request.</div>
             </div>
 
-            <button type="submit" class="book-confirm-btn">Confirm Booking Request ✓</button>
+            <button type="submit" class="book-confirm-btn">Confirm Booking Request</button>
         </form>
+    </div>
+</div>
+
+@* ─── CANCELLATION POLICY MODAL ─── *@
+<div class="modal fade" id="policyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="background: #0a0a0a; border: 1px solid rgba(255,215,0,0.2); border-radius: 16px;">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(255,215,0,0.1); padding: 20px 24px;">
+                <h5 class="modal-title" style="color: #d4a843; font-weight: 700; font-size: 1.1rem; letter-spacing: 0.5px;">Cancellation &amp; Rescheduling Policy</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding: 24px; color: rgba(255,255,255,0.75); font-size: 0.85rem; line-height: 1.8;">
+
+                <!-- ─── GOVERNING TEXT ─── -->
+                <p style="margin-bottom: 16px; font-style: italic; color: rgba(255,255,255,0.4); font-size: 0.8rem;">
+                    Governed by the laws of the Republic of South Africa
+                </p>
+                <p style="margin-bottom: 16px; color: rgba(255,255,255,0.6); font-size: 0.85rem;">
+                    This Policy forms part of the Terms &amp; Conditions between RubiOr ("RubiOr", "the Platform"), the independent beauty artists who offer services through it ("Artists"), and clients who make bookings ("Clients"). By confirming a booking and paying a deposit, the Client accepts this Policy.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 1: DEFINITIONS ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">1. Definitions</h6>
+                <ul style="padding-left: 20px; margin-bottom: 16px; list-style-type: disc;">
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Booking Confirmed:</strong> The point at which an Artist accepts a Client's request and the Client pays the Deposit.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Deposit:</strong> The initial 50% payment required to secure a Booking.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Balance:</strong> The remaining 50% of the service price, due before the appointment as set out in Section 3.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Client Service Fee:</strong> The fee RubiOr charges the Client, in addition to the service price, at the time of booking.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Artist Service Fee:</strong> RubiOr's commission, calculated as a percentage of the service amount and deducted from the Artist's payout.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);"><strong style="color: #ffffff;">Cut-off Point:</strong> 48 hours (2 calendar days) before the scheduled appointment time.</li>
+                </ul>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 2: BOOKING & DEPOSIT ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">2. Booking &amp; Deposit</h6>
+                <ul style="padding-left: 20px; margin-bottom: 16px; list-style-type: disc;">
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);">A Booking is only secured once the Artist has accepted the request and the Client has paid the 50% Deposit.</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);">The Deposit is calculated on the service price only. The Client Service Fee is charged separately at the time of booking (see Section 8).</li>
+                </ul>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 3: BALANCE PAYMENT ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">3. Balance Payment</h6>
+                <ul style="padding-left: 20px; margin-bottom: 16px; list-style-type: disc;">
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);">The remaining 50% Balance is due by the Cut-off Point (48 hours before the appointment).</li>
+                    <li style="margin-bottom: 6px; color: rgba(255,255,255,0.6);">Failure to pay the Balance by the Cut-off Point may result in RubiOr treating the Booking as cancelled by the Client, subject to Section 5.</li>
+                </ul>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 4: RESCHEDULING ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">4. Rescheduling</h6>
+                <div style="background: rgba(255,215,0,0.04); border: 1px solid rgba(255,215,0,0.1); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px;">
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,215,0,0.05);">
+                        <span style="color: rgba(255,255,255,0.5);">More than 48 hours before the appointment</span>
+                        <span style="color: rgba(255,255,255,0.7); font-weight: 700;">Yes — one reschedule to a new available date/time may be requested at no additional charge. The Deposit already paid carries over to the new date.</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+                        <span style="color: rgba(255,255,255,0.5);">Within 48 hours of the appointment</span>
+                        <span style="color: rgba(255,255,255,0.7); font-weight: 700;">No — once the Cut-off Point has passed, the appointment is locked and cannot be moved.</span>
+                    </div>
+                </div>
+                <p style="margin-bottom: 16px; font-size: 0.8rem; color: rgba(255,255,255,0.4);">
+                    Rescheduling is offered as a courtesy alternative to cancelling and forfeiting payment — it is not itself a right guaranteed by law, so RubiOr may set reasonable limits on it (e.g. one reschedule per booking, subject to Artist availability).
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 5: CANCELLATION BY CLIENT ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">5. Cancellation by the Client</h6>
+                <p style="margin-bottom: 8px; color: rgba(255,255,255,0.6);">
+                    A Client may cancel a Booking at any time — this is a right that cannot be removed. However, cancelling has the following financial consequences:
+                </p>
+
+                <p style="margin-bottom: 4px; font-weight: 700; color: #d4a843; font-size: 0.85rem;">a) Cancelling more than 48 hours before the appointment (before the Balance is paid):</p>
+                <p style="margin-left: 20px; margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    The Deposit is forfeited and non-refundable. Nothing further is owed, since the Balance had not yet been collected. The Client may choose to reschedule instead (see Section 4) to preserve the value of the Deposit.
+                </p>
+
+                <p style="margin-bottom: 4px; font-weight: 700; color: #d4a843; font-size: 0.85rem;">b) Cancelling within 48 hours of the appointment, or after the Balance has been paid:</p>
+                <p style="margin-left: 20px; margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    The full amount paid (Deposit + Balance) is forfeited and non-refundable. No rescheduling is available at this stage (see Section 4).
+                </p>
+
+                <p style="margin-bottom: 4px; font-weight: 700; color: #d4a843; font-size: 0.85rem;">c) No-shows:</p>
+                <p style="margin-left: 20px; margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    A Client who does not arrive for a confirmed appointment, without prior cancellation, is treated as a same-day cancellation under 5(b) — full forfeiture applies.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 6: MANDATORY EXCEPTION ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">6. Mandatory Exception — Death or Hospitalisation</h6>
+                <p style="margin-bottom: 16px; color: rgba(255,255,255,0.6);">
+                    In line with South African consumer protection law, no cancellation charge may be applied to the Deposit or Balance, and the Client is entitled to a full refund of the Deposit and Balance, where the Client — or the person for whom the appointment was booked — is unable to attend due to their death or hospitalisation. The Client Service Fee remains non-refundable in all cases, as set out in Section 8. RubiOr may reasonably request supporting documentation (e.g. a medical certificate or death certificate) before processing this refund.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 7: CANCELLATION BY ARTIST ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">7. Cancellation by the Artist</h6>
+                <p style="margin-bottom: 8px; color: rgba(255,255,255,0.6);">
+                    If an Artist cancels a confirmed Booking, the Client will be offered, at their choice:
+                </p>
+                <ul style="padding-left: 20px; margin-bottom: 8px; list-style-type: disc;">
+                    <li style="margin-bottom: 4px; color: rgba(255,255,255,0.6);">A full refund of the Deposit and Balance (if already paid), or</li>
+                    <li style="margin-bottom: 4px; color: rgba(255,255,255,0.6);">A free reschedule to the next available slot, at no extra charge.</li>
+                </ul>
+                <p style="margin-bottom: 8px; color: rgba(255,255,255,0.6);">
+                    The Client Service Fee is not refunded in this scenario — it remains non-refundable under all circumstances (see Section 8).
+                </p>
+                <p style="margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    On the Artist's side: the Artist Service Fee for that Booking is refunded to the Artist, since no service was delivered. However, RubiOr deducts a flat R10 cancellation penalty from the Artist's account whenever the Artist is the party who cancels a confirmed Booking.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 8: SERVICE FEES ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">8. Service Fees</h6>
+
+                <p style="font-weight: 700; color: #d4a843; margin-bottom: 4px; font-size: 0.85rem;">Client Service Fee</p>
+                <p style="margin-left: 20px; margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    Charged to the Client at the time of booking, in addition to the service price. This fee is retained by RubiOr in full under all circumstances — cancellation by the Client, cancellation by the Artist, rescheduling, no-shows, or the death/hospitalisation exception in Section 6 — and is never refunded.
+                </p>
+
+                <p style="font-weight: 700; color: #d4a843; margin-bottom: 4px; font-size: 0.85rem;">Artist Service Fee</p>
+                <p style="margin-left: 20px; margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    RubiOr's commission on a Booking, calculated as a percentage of the service amount and deducted from the Artist's payout. This fee is refunded to the Artist only where the Artist is the party who cancels a confirmed Booking.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 9: LEGAL BASIS ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">9. Legal Basis</h6>
+                <p style="margin-bottom: 8px; color: rgba(255,255,255,0.6);">
+                    This Policy is designed to comply with the Consumer Protection Act 68 of 2008 (CPA), in particular Section 17, which:
+                </p>
+                <ul style="padding-left: 20px; margin-bottom: 8px; list-style-type: disc;">
+                    <li style="margin-bottom: 4px; color: rgba(255,255,255,0.6);">Gives consumers the right to cancel an advance booking at any time;</li>
+                    <li style="margin-bottom: 4px; color: rgba(255,255,255,0.6);">Allows suppliers to take a reasonable deposit and charge a reasonable cancellation fee, assessed against the nature of the service, the notice given, and the realistic ability to re-fill that time slot; and</li>
+                    <li style="margin-bottom: 4px; color: rgba(255,255,255,0.6);">Prohibits any cancellation charge where the Client (or the person the booking was for) cannot attend due to death or hospitalisation.</li>
+                </ul>
+                <p style="margin-bottom: 12px; color: rgba(255,255,255,0.4); font-size: 0.8rem;">
+                    Given that each Artist's appointment slot is a fixed, personal, time-bound service that is difficult to resell on short notice, full forfeiture of the Deposit (and, later, the full payment) closer to the appointment date is considered a reasonable cancellation charge under the CPA's criteria. The commission and penalty arrangements between RubiOr and its Artists in Sections 7 and 8 are a separate commercial arrangement, distinct from the consumer-facing terms above.
+                </p>
+
+                <hr style="border-color: rgba(255,215,0,0.1); margin: 20px 0;">
+
+                <!-- ─── SECTION 10: QUERIES & DISPUTES ─── -->
+                <h6 style="color: #d4a843; font-weight: 700; margin-bottom: 12px; font-size: 0.9rem;">10. Queries &amp; Disputes</h6>
+                <p style="margin-bottom: 12px; color: rgba(255,255,255,0.6);">
+                    Clients and Artists who wish to query or dispute a charge under this Policy can raise it directly through the Issues tab in the RubiOr app. Unresolved disputes may be referred to the National Consumer Commission (NCC).
+                </p>
+
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid rgba(255,215,0,0.1); padding: 16px 24px;">
+                <button type="button" class="btn" data-bs-dismiss="modal" style="background: #d4a843; color: #0a0a0a; font-weight: 700; padding: 8px 28px; border-radius: 50px; border: none; font-size: 0.8rem; letter-spacing: 0.5px;">Close</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -216,13 +405,12 @@
                     </button>
                 </div>
 
-                <!-- ─── MAP (MOVED RIGHT UNDER SEARCH) ─── -->
+                <!-- ─── MAP ─── -->
                 <div class="map-section-wrapper">
-
                     <div id="leafletMap" class="map-frame"></div>
                 </div>
 
-                <!-- ─── ADDRESS FIELDS (WARNING BADGE REMOVED) ─── -->
+                <!-- ─── ADDRESS FIELDS ─── -->
                 <div class="address-highlight-wrapper" style="margin-top: 16px;">
                     <div class="address-input-container">
                         <div class="address-icon">📍📝</div>
@@ -232,11 +420,11 @@
                             </label>
 
                             <div class="address-help-text">
-                                <strong>❗ IMPORTANT:</strong> The artist needs your EXACT location to travel to you!
+                                <strong>IMPORTANT:</strong> The artist needs your EXACT location to travel to you!
                             </div>
 
                             <div class="address-format-example">
-                                <div class="example-title">📋 Include ALL of the following:</div>
+                                <div class="example-title">Include ALL of the following:</div>
                                 <ul class="example-list">
                                     <li><strong>House/Apt. No./ Unit No.</strong> <span class="example">(e.g., 42, Apartment 3B)</span></li>
                                     <li><strong>Street Address</strong> <span class="example">(e.g., Mosime Street, Potchefstroom, Ikageng)</span></li>
@@ -244,10 +432,8 @@
                                 </ul>
                             </div>
 
-                            <!-- ─── VALIDATION ERROR (restored) ─── -->
                             <div id="modalMapValidationError" class="text-danger small" style="display:none; margin-top:10px;"></div>
 
-                            <!-- ─── 3 STRUCTURED FIELDS ─── -->
                             <div class="address-fields-grid">
                                 <div class="address-field-group">
                                     <label class="field-label">House/Apt. No./Unit No. <span class="required-star">*</span></label>
@@ -272,10 +458,9 @@
                             </div>
 
                             <div class="address-warning-message">
-                                ⚡ Your artist will use this EXACT address to find you on their map!
+                                Your artist will use this EXACT address to find you on their map!
                             </div>
 
-                            <!-- ─── GOOGLE MAPS LINK ─── -->
                             <div id="googleMapsLinkContainer" style="display:none; margin-top: 12px; text-align: center;">
                                 <a id="googleMapsLink" href="#" target="_blank" class="btn btn-success w-100" style="background: #4285F4; color: white; padding: 10px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: 600;">
                                     📍 Open in Google Maps
@@ -350,7 +535,6 @@
             color: rgba(255,255,255,0.25);
         }
 
-    /* ─── SEARCH BAR ─── */
     .map-search-wrapper {
         display: flex;
         gap: 10px;
@@ -394,7 +578,6 @@
             box-shadow: 0 0 12px rgba(255,215,0,0.3);
         }
 
-    /* ─── ADDRESS HIGHLIGHT WRAPPER (no badge) ─── */
     .address-highlight-wrapper {
         border: 2px solid rgba(255,215,0,0.25);
         border-radius: 16px;
@@ -513,17 +696,6 @@
         margin-top: 0;
     }
 
-    .map-instruction {
-        font-size: 0.85rem;
-        color: #FFD700;
-        background: rgba(255, 215, 0, 0.08);
-        padding: 8px 12px;
-        border-radius: 8px;
-        margin-bottom: 10px;
-        text-align: center;
-        font-weight: 600;
-    }
-
     .map-frame {
         height: 380px;
         width: 100%;
@@ -556,7 +728,6 @@
         border-left: 3px solid #ff4444;
     }
 
-    /* ── BASE STYLES (unchanged) ── */
     .book-page {
         background: #000;
         min-height: 100vh;
@@ -628,6 +799,28 @@
         font-size: 0.95rem;
         font-weight: 600;
     }
+
+    .client-tag {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 20px;
+        margin-top: 8px;
+        letter-spacing: 0.5px;
+    }
+
+        .client-tag.new-client {
+            background: rgba(255,215,0,0.15);
+            color: #FFD700;
+            border: 1px solid rgba(255,215,0,0.3);
+        }
+
+        .client-tag.repeat-client {
+            background: rgba(40,167,69,0.15);
+            color: #28a745;
+            border: 1px solid rgba(40,167,69,0.3);
+        }
 
     .book-server-errors {
         background: rgba(255,0,0,0.08);
@@ -792,7 +985,6 @@
             box-shadow: inset 0 0 0 3px #121212;
         }
 
-    /* ── CALENDAR STYLES ── */
     .slots-loading {
         display: flex;
         align-items: center;
@@ -814,18 +1006,6 @@
     @@keyframes spin {
         to {
             transform: rotate(360deg);
-        }
-    }
-
-    @@keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(4px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
         }
     }
 
@@ -967,23 +1147,38 @@
         border: none;
         border-radius: 999px;
         cursor: pointer;
+        transition: all 0.3s;
+    }
+
+        .book-confirm-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(255,215,0,0.3);
+        }
+
+    .form-check-input:checked {
+        background-color: #FFD700;
+        border-color: #FFD700;
     }
 </style>
 
 @section Scripts {
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+        // ─── OPEN POLICY MODAL ───
+        function openPolicyModal(e) {
+            if (e) e.preventDefault();
+            var modal = new bootstrap.Modal(document.getElementById('policyModal'));
+            modal.show();
+        }
+
         document.addEventListener("DOMContentLoaded", function () {
-            // ─── YOUR LOCATIONIQ API KEY ───
             const LOCATIONIQ_API_KEY = 'pk.262798f25cd021707b77f66c88babd01';
 
-            // ─── CALENDAR STATE ───
             let slotsData = [];
             let currentYear = new Date().getFullYear();
             let currentMonth = new Date().getMonth();
             const artistId = '@Model.ArtistId';
 
-            // ─── DOM ELEMENTS ───
             const cardWalkIn = document.getElementById("cardWalkIn");
             const cardHouseCall = document.getElementById("cardHouseCall");
             const radWalkIn = document.getElementById("locWalkIn");
@@ -1008,12 +1203,11 @@
             const summaryLocationType = document.getElementById("summaryLocationType");
             const travelDisclaimer = document.getElementById("travelDisclaimer");
 
-            // ─── MODAL FIELDS ───
             const modalHouse = document.getElementById("modalHouseNumber");
             const modalStreet = document.getElementById("modalStreetAddress");
             const modalArea = document.getElementById("modalAreaCode");
-            const modalLat = document.getElementById("Latitude"); // shares with main
-            const modalLng = document.getElementById("Longitude"); // shares with main
+            const modalLat = document.getElementById("Latitude");
+            const modalLng = document.getElementById("Longitude");
             const modalSearchInput = document.getElementById("mapSearchInput");
             const searchAddressBtn = document.getElementById("searchAddressBtn");
             const findExactBtn = document.getElementById("findExactBtn");
@@ -1021,7 +1215,6 @@
             const googleMapsLink = document.getElementById("googleMapsLink");
             const modalMapValidation = document.getElementById("modalMapValidationError");
 
-            // ─── MAIN HIDDEN FIELDS ───
             const mainHouse = document.getElementById("HouseNumber");
             const mainStreet = document.getElementById("StreetAddress");
             const mainArea = document.getElementById("AreaCode");
@@ -1029,7 +1222,6 @@
 
             let map, marker;
 
-            // ─── UPDATE GOOGLE MAPS LINK ───
             function updateGoogleMapsLink(lat, lng) {
                 if (lat && lng && googleMapsLink) {
                     googleMapsLink.href = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
@@ -1037,7 +1229,6 @@
                 }
             }
 
-            // ─── MAP FUNCTIONS ───
             function initMap() {
                 if (map) { map.invalidateSize(); return; }
                 map = L.map('leafletMap').setView([-26.2041, 28.0473], 13);
@@ -1178,7 +1369,6 @@
                 findExactBtn.onclick = (e) => { e.preventDefault(); findExactAddress(); };
             }
 
-            // ─── LOCATION SELECTION ───
             function selectLocationCard(type) {
                 if (type === "WalkIn") {
                     radWalkIn.checked = true;
@@ -1201,9 +1391,7 @@
             cardHouseCall.onclick = () => selectLocationCard("HouseCall");
             if (radWalkIn && radWalkIn.checked) selectLocationCard("WalkIn");
 
-            // ─── MODAL EVENTS ───
             openModalBtn.addEventListener('click', function() {
-                // Pre-fill modal with existing values from hidden fields
                 modalHouse.value = mainHouse.value || '';
                 modalStreet.value = mainStreet.value || '';
                 modalArea.value = mainArea.value || '';
@@ -1229,7 +1417,6 @@
                 }
             });
 
-            // ─── SAVE ADDRESS ───
             saveBtn.addEventListener('click', function() {
                 const house = modalHouse.value.trim();
                 const street = modalStreet.value.trim();
@@ -1273,7 +1460,6 @@
                 }, 3000);
             });
 
-            // ─── CALENDAR FUNCTIONS ───
             function showTimeSlots(dateString, slots) {
                 timeSlotsGrid.innerHTML = "";
                 selectedDateLabel.innerText = new Date(dateString).toLocaleDateString('default', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -1379,7 +1565,6 @@
                 renderCalendar();
             }
 
-            // ─── FETCH AVAILABILITY ───
             const calLoading = document.getElementById("calLoading");
             const calEmpty = document.getElementById("calEmpty");
             const calendarWrap = document.getElementById("calendarWrap");
@@ -1432,19 +1617,33 @@
 
                 if (radHouseCall && radHouseCall.checked) {
                     if (!mainHouse.value || !mainStreet.value || !mainArea.value || !latOutput.value || !lngOutput.value) {
-                        const mapValidationError = document.getElementById("mapValidationError");
-                        if (mapValidationError) {
-                            mapValidationError.style.display = "block";
-                            mapValidationError.scrollIntoView({ behavior: 'smooth' });
-                        }
                         const modal = new bootstrap.Modal(modalElement);
                         modal.show();
                         valid = false;
                     }
                 }
 
+                // ─── CHECK "I AGREE" ───
+                const agreeCheckbox = document.getElementById('hasAgreedToTerms');
+                const agreeError = document.getElementById('agreeError');
+                if (!agreeCheckbox.checked) {
+                    agreeError.style.display = 'block';
+                    agreeError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    valid = false;
+                } else {
+                    agreeError.style.display = 'none';
+                }
+
                 if (!valid) e.preventDefault();
             };
+
+            // ─── HIDE AGREEMENT ERROR ON CHECK ───
+            document.getElementById('hasAgreedToTerms').addEventListener('change', function() {
+                const agreeError = document.getElementById('agreeError');
+                if (this.checked) {
+                    agreeError.style.display = 'none';
+                }
+            });
         });
     </script>
 }

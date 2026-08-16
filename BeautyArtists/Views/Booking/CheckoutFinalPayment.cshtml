@@ -3,16 +3,19 @@
     ViewData["Title"] = "Complete Final Payment";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
-    // ─── INTERNAL CALCULATIONS ───
-    var artistPrice = Model.Booking.ServicePrice;
-    var markedUpPrice = artistPrice + (artistPrice * 0.04m);  // 4% markup
-    var bookingFee = 5.00m;
-    var clientTotal = markedUpPrice + bookingFee;
+    // ─── ✅ FIXED: USE STORED VALUES FROM BOOKING ───
+    var servicePrice = Model.Booking.ServicePrice;              // R400.00
+    var cardFee = Model.Booking.CardProcessingFee;              // R16.00 (4%)
+    var bookingFee = Model.Booking.BookingFee;                  // R5.00
+    var totalAmount = Model.Booking.TotalAmount;                // R421.00
 
-    // ─── ✅ CORRECT DEPOSIT & FINAL CALCULATIONS ───
-    // Deposit = 50% of marked up price + booking fee
-    var depositPaid = Model.DepositAmount;  // Already paid (should be R88.20)
-    var finalAmount = markedUpPrice / 2;    // R83.20
+    // ─── ✅ FIXED: DEPOSIT & FINAL ───
+    var depositPaid = Model.Booking.DepositPaid;                // R221.00 (what was paid)
+    var finalAmount = Model.Booking.FinalAmount;                // R200.00 (remaining)
+    var remainingBalance = finalAmount - Model.Booking.FinalPaymentPaid; // If any partial paid
+
+    // ─── AMOUNT DUE ───
+    var amountDue = remainingBalance > 0 ? remainingBalance : finalAmount;
 }
 
 <div class="container mt-5">
@@ -25,6 +28,14 @@
                     <p style="color: #28a745; font-size: 0.9rem;">
                         <i class="fas fa-check-circle me-1"></i> Deposit already paid
                     </p>
+                    @if (Model.IsNewClient)
+                    {
+                        <span class="client-tag new-client">⭐ New Client</span>
+                    }
+                    else
+                    {
+                        <span class="client-tag repeat-client">🔄 Repeat Client</span>
+                    }
                 </div>
                 <div class="card-body">
 
@@ -44,19 +55,25 @@
                         <p><strong>Time:</strong> @Model.Booking.AppointmentDate.ToString("hh:mm tt")</p>
                         <hr style="border-color: rgba(40,167,69,0.2);">
 
-                        <!-- ─── CLEAN PRICE BREAKDOWN - CLIENT ONLY ─── -->
+                        <!-- ─── ✅ FIXED: CLEAR PRICE BREAKDOWN ─── -->
                         <div style="background: #1a1a1a; padding: 12px 15px; border-radius: 8px; margin: 10px 0;">
 
-                            <!-- Service Price (with markup included) -->
+                            <!-- Service Price -->
                             <p style="margin: 4px 0; display: flex; justify-content: space-between;">
                                 <span style="color: rgba(255,255,255,0.6);">Service Price</span>
-                                <span style="color: #fff;">R @markedUpPrice.ToString("N2")</span>
+                                <span style="color: #fff;">R @servicePrice.ToString("N2")</span>
+                            </p>
+
+                            <!-- Card Processing Fee (4%) -->
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between;">
+                                <span style="color: rgba(255,255,255,0.5);">Card Processing Fee (4%)</span>
+                                <span style="color: #ff6600;">R @cardFee.ToString("N2")</span>
                             </p>
 
                             <!-- Booking Fee -->
                             <p style="margin: 4px 0; display: flex; justify-content: space-between;">
-                                <span style="color: rgba(255,255,255,0.6);">Booking Fee</span>
-                                <span style="color: #FFD700;">R @bookingFee.ToString("N2") <span style="color: #28a745; font-size: 0.7rem;">(Already Paid)</span></span>
+                                <span style="color: rgba(255,255,255,0.5);">Booking Fee</span>
+                                <span style="color: #FFD700;">R @bookingFee.ToString("N2")</span>
                             </p>
 
                             <hr style="border-color: rgba(40,167,69,0.2); margin: 8px 0;">
@@ -64,7 +81,7 @@
                             <!-- Total Client Pays -->
                             <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.2rem;">
                                 <span style="color: #fff; font-weight: 600;">Total</span>
-                                <span style="color: #FFD700; font-weight: 800;">R @clientTotal.ToString("N2")</span>
+                                <span style="color: #FFD700; font-weight: 800;">R @totalAmount.ToString("N2")</span>
                             </p>
 
                             <hr style="border-color: rgba(40,167,69,0.2); margin: 8px 0;">
@@ -72,13 +89,13 @@
                             <!-- Deposit Already Paid -->
                             <p style="margin: 4px 0; display: flex; justify-content: space-between;">
                                 <span style="color: rgba(255,255,255,0.6);">Deposit Already Paid</span>
-                                <span style="color: #ff6600;">R @depositPaid.ToString("N2")</span>
+                                <span style="color: #28a745; font-weight: 700;">R @depositPaid.ToString("N2")</span>
                             </p>
 
                             <!-- Remaining Balance -->
-                            <p style="margin: 4px 0; display: flex; justify-content: space-between;">
-                                <span style="color: rgba(255,255,255,0.6);">Remaining Balance</span>
-                                <span style="color: #ff6600;">R @finalAmount.ToString("N2")</span>
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.1rem;">
+                                <span style="color: rgba(255,255,255,0.7); font-weight: 600;">Remaining Balance</span>
+                                <span style="color: #ff6600; font-weight: 800;">R @amountDue.ToString("N2")</span>
                             </p>
 
                             <hr style="border-color: rgba(40,167,69,0.2); margin: 8px 0;">
@@ -86,20 +103,51 @@
                             <!-- Final Amount Due -->
                             <p style="margin: 6px 0 0 0; display: flex; justify-content: space-between; font-size: 1.2rem;">
                                 <strong style="color: #fff;">Final Amount Due</strong>
-                                <strong style="color: #28a745; font-size: 1.8rem; font-weight: 800;">R @finalAmount.ToString("N2")</strong>
+                                <strong style="color: #28a745; font-size: 1.8rem; font-weight: 800;">R @amountDue.ToString("N2")</strong>
+                            </p>
+                        </div>
+
+                        <!-- ─── ✅ FIXED: PAYMENT BREAKDOWN ─── -->
+                        <div style="background: rgba(40,167,69,0.04); padding: 10px 15px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #28a745;">
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 0.9rem;">
+                                <span style="color: rgba(255,255,255,0.5);">Deposit Paid</span>
+                                <span style="color: #28a745; font-weight: 700;">R @depositPaid.ToString("N2")</span>
+                            </p>
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 0.9rem;">
+                                <span style="color: rgba(255,255,255,0.5);">Final Payment Due</span>
+                                <span style="color: #ff6600; font-weight: 700;">R @amountDue.ToString("N2")</span>
+                            </p>
+                            <hr style="border-color: rgba(40,167,69,0.15); margin: 6px 0;">
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 1rem;">
+                                <span style="color: rgba(255,255,255,0.6); font-weight: 600;">Total Paid</span>
+                                <span style="color: #FFD700; font-weight: 800;">R @totalAmount.ToString("N2")</span>
                             </p>
                         </div>
                     </div>
 
+                    <!-- ─── "I AGREE" CHECKBOX ─── -->
+                    <div style="margin-top: 16px; padding: 14px 16px; background: rgba(40,167,69,0.04); border-radius: 10px; border-left: 3px solid #28a745;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="hasAgreedToTerms" name="hasAgreedToTerms" value="true" style="accent-color: #28a745; width: 18px; height: 18px; border: 2px solid rgba(40,167,69,0.3);" />
+                            <label class="form-check-label" for="hasAgreedToTerms" style="color: rgba(255,255,255,0.7); font-size: 0.8rem; line-height: 1.4;">
+                                By confirming this payment, you agree that your deposit and card processing fee are non-refundable should you wish to cancel your booking.
+                            </label>
+                        </div>
+                        <div id="agreeError" class="text-danger small" style="display:none; margin-top: 8px;">
+                            ⚠ You must agree to the terms before proceeding to payment.
+                        </div>
+                    </div>
+
                     <!-- ─── PAYMENT FORM ─── -->
-                    <form method="post" asp-action="InitiateFinalPayment" asp-controller="Payment">
+                    <form method="post" asp-action="InitiateFinalPayment" asp-controller="Payment" id="paymentForm">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="bookingId" value="@Model.Booking.Id" />
                         <input type="hidden" name="email" value="@Model.UserEmail" />
-                        <input type="hidden" name="amount" value="@finalAmount" />
+                        <input type="hidden" name="amount" value="@amountDue" />
+                        <input type="hidden" name="hasAgreedToTerms" id="hasAgreedToTermsHidden" value="false" />
 
-                        <button type="submit" class="btn w-100 py-3" style="background: linear-gradient(135deg, #28a745, #1a7a34); color: #fff; font-weight: 800; border-radius: 999px; border: none; transition: all 0.3s;">
-                            💳 Pay Final – R @finalAmount.ToString("N2")
+                        <button type="submit" class="btn w-100 py-3 mt-3" style="background: linear-gradient(135deg, #28a745, #1a7a34); color: #fff; font-weight: 800; border-radius: 999px; border: none; transition: all 0.3s;" id="submitPaymentBtn">
+                            💳 Pay Final – R @amountDue.ToString("N2")
                         </button>
                     </form>
 
@@ -122,4 +170,56 @@
         transform: translateY(-2px);
         box-shadow: 0 0 30px rgba(40,167,69,0.3);
     }
+
+    .client-tag {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 20px;
+        letter-spacing: 0.5px;
+    }
+
+        .client-tag.new-client {
+            background: rgba(255,215,0,0.15);
+            color: #FFD700;
+            border: 1px solid rgba(255,215,0,0.3);
+        }
+
+        .client-tag.repeat-client {
+            background: rgba(40,167,69,0.15);
+            color: #28a745;
+            border: 1px solid rgba(40,167,69,0.3);
+        }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const paymentForm = document.getElementById('paymentForm');
+        const agreeCheckbox = document.getElementById('hasAgreedToTerms');
+        const agreeError = document.getElementById('agreeError');
+        const agreeHidden = document.getElementById('hasAgreedToTermsHidden');
+
+        if (paymentForm) {
+            paymentForm.addEventListener('submit', function(e) {
+                if (!agreeCheckbox.checked) {
+                    e.preventDefault();
+                    agreeError.style.display = 'block';
+                    agreeError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+                agreeError.style.display = 'none';
+                agreeHidden.value = 'true';
+                return true;
+            });
+        }
+
+        if (agreeCheckbox) {
+            agreeCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    agreeError.style.display = 'none';
+                }
+            });
+        }
+    });
+</script>

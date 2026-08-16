@@ -1,0 +1,131 @@
+﻿@model IEnumerable<BeautyArtists.Models.Booking>
+@{
+    ViewData["Title"] = "Disputes";
+    Layout = "~/Views/Shared/_AdminLayout.cshtml";
+}
+
+<div class="container-fluid py-4">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 24px;">
+        <div>
+            <h2 style="color: #FFD700; font-weight: 800; margin: 0;">⚠️ Booking Disputes</h2>
+            <p style="color: rgba(255,255,255,0.3); margin: 0;">Manage disputes raised by clients. Target resolution: 24 hours.</p>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <span style="padding: 6px 14px; background: rgba(255,255,255,0.05); border-radius: 20px; color: rgba(255,255,255,0.5); font-size: 0.75rem;">
+                Total: <strong style="color: #fff;">@ViewBag.Total</strong>
+            </span>
+            <span style="padding: 6px 14px; background: rgba(229,9,20,0.15); border-radius: 20px; color: #e50914; font-size: 0.75rem;">
+                Pending: <strong>@ViewBag.Pending</strong>
+            </span>
+            <span style="padding: 6px 14px; background: rgba(40,167,69,0.15); border-radius: 20px; color: #28a745; font-size: 0.75rem;">
+                Resolved: <strong>@ViewBag.Resolved</strong>
+            </span>
+        </div>
+    </div>
+
+    <!-- ─── FILTERS ─── -->
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px;">
+        <form method="get" style="display: flex; gap: 12px; flex-wrap: wrap; flex: 1;">
+            <select name="status" style="background: #1a1a1a; border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; color: #fff; padding: 8px 14px;">
+                <option value="">All Status</option>
+                <option value="pending" selected="@(ViewBag.SelectedStatus == "pending")">Pending</option>
+                <option value="resolved" selected="@(ViewBag.SelectedStatus == "resolved")">Resolved</option>
+            </select>
+            <input type="text" name="search" placeholder="Search by ID, client, or service..."
+                   style="flex: 1; min-width: 200px; background: #1a1a1a; border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; color: #fff; padding: 8px 14px;"
+                   value="@ViewBag.SearchQuery" />
+            <button type="submit" style="padding: 8px 20px; background: #FFD700; color: #000; font-weight: 700; border: none; border-radius: 8px; cursor: pointer;">
+                Filter
+            </button>
+            <a asp-action="Disputes" style="padding: 8px 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.4); border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center;">
+                Clear
+            </a>
+        </form>
+    </div>
+
+    @if (!Model.Any())
+    {
+        <div style="text-align: center; padding: 60px 20px; background: #0b0b0b; border-radius: 12px;">
+            <p style="font-size: 2rem; margin-bottom: 10px;">✅</p>
+            <h4 style="color: rgba(255,255,255,0.5);">No disputes to review</h4>
+            <p style="color: rgba(255,255,255,0.2);">All clear!</p>
+        </div>
+    }
+    else
+    {
+        <div style="display: grid; gap: 16px;">
+            @foreach (var dispute in Model)
+            {
+                var timeElapsed = DateTime.UtcNow - (dispute.DisputeRaisedAt ?? DateTime.UtcNow);
+                var isUrgent = timeElapsed.TotalHours > 20;
+                var isResolved = dispute.AdminReviewedAt != null;
+
+                <div style="background: #0b0b0b; border: 1px solid @(isResolved ? "rgba(40,167,69,0.3)" : (isUrgent ? "#e50914" : "rgba(255,215,0,0.2)")); border-radius: 12px; padding: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <h4 style="color: #FFD700; margin: 0;">Booking #@dispute.Id</h4>
+                                <span style="padding: 2px 10px; border-radius: 20px; background: @(isResolved ? "#28a745" : (isUrgent ? "#e50914" : "#f0c808")); color: @(isResolved || isUrgent ? "#fff" : "#000"); font-size: 0.65rem; font-weight: 700; text-transform: uppercase;">
+                                    @(isResolved ? "Resolved" : (isUrgent ? "Urgent" : "Pending"))
+                                </span>
+                                @if (isResolved)
+                                {
+                                    <span style="color: rgba(255,255,255,0.2); font-size: 0.7rem;">
+                                        Resolved: @dispute.AdminReviewedAt?.ToString("dd MMM yyyy HH:mm")
+                                    </span>
+                                }
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 8px;">
+                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
+                                    <strong style="color: rgba(255,255,255,0.3);">Client:</strong> @dispute.Customer?.FirstName @dispute.Customer?.LastName
+                                </p>
+                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
+                                    <strong style="color: rgba(255,255,255,0.3);">Artist:</strong> @dispute.UserService?.Artist?.FirstName @dispute.UserService?.Artist?.LastName
+                                </p>
+                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
+                                    <strong style="color: rgba(255,255,255,0.3);">Service:</strong> @dispute.UserService?.Service?.Name
+                                </p>
+                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
+                                    <strong style="color: rgba(255,255,255,0.3);">Amount:</strong> <span style="color: #FFD700;">R@((dispute.DepositPaid + dispute.FinalPaymentPaid).ToString("N2"))</span>
+                                </p>
+                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
+                                    <strong style="color: rgba(255,255,255,0.3);">Reason:</strong> <span style="color: #e50914;">@dispute.DisputeReason</span>
+                                </p>
+                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
+                                    <strong style="color: rgba(255,255,255,0.3);">Raised:</strong> @dispute.DisputeRaisedAt?.ToString("dd MMM yyyy HH:mm")
+                                </p>
+                            </div>
+                            @if (!string.IsNullOrEmpty(dispute.DisputeDescription))
+                            {
+                                <p style="margin: 6px 0 0 0; color: rgba(255,255,255,0.3); font-size: 0.8rem; font-style: italic; background: #1a1a1a; padding: 8px 12px; border-radius: 6px;">
+                                    "@dispute.DisputeDescription"
+                                </p>
+                            }
+                            @if (!string.IsNullOrEmpty(dispute.AdminNotes))
+                            {
+                                <p style="margin: 4px 0 0 0; color: rgba(40,167,69,0.6); font-size: 0.75rem;">
+                                    <strong>Admin Note:</strong> @dispute.AdminNotes
+                                </p>
+                            }
+                        </div>
+                        <div style="text-align: right; min-width: 100px;">
+                            @if (!isResolved)
+                            {
+                                <a asp-action="DisputeDetail" asp-route-id="@dispute.Id"
+                                   style="display: inline-block; padding: 8px 24px; background: #FFD700; color: #000; font-weight: 700; border: none; border-radius: 8px; text-decoration: none;">
+                                    Review →
+                                </a>
+                            }
+                            else
+                            {
+                                <span style="display: inline-block; padding: 8px 24px; background: rgba(40,167,69,0.15); color: #28a745; font-weight: 700; border: 1px solid rgba(40,167,69,0.3); border-radius: 8px;">
+                                    ✅ Resolved
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>

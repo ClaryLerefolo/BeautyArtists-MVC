@@ -27,11 +27,12 @@ namespace BeautyArtists.Controllers
         private readonly IPaystackService _paystackService;
         private readonly IConfiguration _configuration;
 
-        // ─── NEW PRICING CONSTANTS ───
-        private const decimal CLIENT_MARKUP_RATE = 0.04m;      // 4% markup for client
-        private const decimal NEW_CLIENT_COMMISSION = 0.10m;   // 10% for new clients
-        private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m; // R15 for repeat clients
-        private const decimal MIN_PLATFORM_FEE = 8.00m;        // Safeguard: min R8
+        // ─── PRICING CONSTANTS ───
+        private const decimal CLIENT_MARKUP_RATE = 0.04m;
+        private const decimal NEW_CLIENT_COMMISSION = 0.10m;
+        private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m;
+        private const decimal MIN_PLATFORM_FEE = 8.00m;
+        private const decimal BOOKING_FEE = 5.00m;
 
         public ArtistController(
             ApplicationDbContext context,
@@ -76,6 +77,17 @@ namespace BeautyArtists.Controllers
                             && b.AppointmentDate > DateTime.Now
                             && b.Status == BookingStatus.Confirmed)
                 .AsNoTracking()
+                .CountAsync();
+
+            // ─── DISPUTE COUNTS ───
+            var disputedCount = await _context.Bookings
+                .Where(b => b.UserService.ArtistId == artistId
+                            && (b.Status == BookingStatus.Disputed || b.Status == BookingStatus.InReview))
+                .CountAsync();
+
+            var resolvedCount = await _context.Bookings
+                .Where(b => b.UserService.ArtistId == artistId
+                            && b.Status == BookingStatus.Resolved)
                 .CountAsync();
 
             var sixMonthsAgo = DateTime.Now.AddMonths(-5);
@@ -127,6 +139,8 @@ namespace BeautyArtists.Controllers
                 PortfolioItemsCount = portfolioCount,
                 ServicesCount = servicesCount,
                 UpcomingAppointments = upcomingCount,
+                DisputedBookings = disputedCount,
+                ResolvedDisputes = resolvedCount,
                 MonthlyEarnings = chartData.Sum(),
                 RecentAppointments = recentAppointments,
                 MonthlyEarningsGraph = chartData,
@@ -566,7 +580,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ═══════════════════════════════════════════════════════════
-        // UPDATE TRANSPORT COST
+        // UPDATE TRANSPORT COST - FIXED with dispute block
         // ═══════════════════════════════════════════════════════════
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -581,6 +595,19 @@ namespace BeautyArtists.Controllers
 
             if (booking == null)
                 return NotFound();
+
+            // ─── 🚫 BLOCK: CANNOT UPDATE DISPUTED BOOKINGS ───
+            if (booking.Status == BookingStatus.Disputed || booking.Status == BookingStatus.InReview)
+            {
+                TempData["Error"] = "This booking is under dispute. You cannot update transport cost.";
+                return RedirectToAction("MyAppointments");
+            }
+
+            if (booking.Status == BookingStatus.Resolved)
+            {
+                TempData["Error"] = "This booking has been resolved. No further changes allowed.";
+                return RedirectToAction("MyAppointments");
+            }
 
             if (booking.SelectedLocationType != LocationType.HouseCall)
             {
@@ -794,7 +821,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ═══════════════════════════════════════════════════════════
-        // ARTIST UPDATE STATUS
+        // ARTIST UPDATE STATUS - FIXED with dispute block
         // ═══════════════════════════════════════════════════════════
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -816,6 +843,19 @@ namespace BeautyArtists.Controllers
                 if (booking == null)
                 {
                     TempData["Error"] = "Booking not found or you don't have permission.";
+                    return RedirectToAction(nameof(MyAppointments));
+                }
+
+                // ─── 🚫 BLOCK: CANNOT UPDATE DISPUTED BOOKINGS ───
+                if (booking.Status == BookingStatus.Disputed || booking.Status == BookingStatus.InReview)
+                {
+                    TempData["Error"] = "This booking is under dispute. Please wait for admin resolution.";
+                    return RedirectToAction(nameof(MyAppointments));
+                }
+
+                if (booking.Status == BookingStatus.Resolved)
+                {
+                    TempData["Error"] = "This booking has been resolved by admin. No further changes allowed.";
                     return RedirectToAction(nameof(MyAppointments));
                 }
 
@@ -882,33 +922,71 @@ namespace BeautyArtists.Controllers
                 }
                 else if (newStatus == BookingStatus.Rejected)
                 {
-                    if (booking.IsDepositPaid || booking.Status == BookingStatus.Confirmed)
-                    {
-                        TempData["Error"] = "Cannot reject a booking that is already confirmed or paid.";
-                        return RedirectToAction(nameof(MyAppointments));
-                    }
+                    decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
 
                     booking.Status = BookingStatus.Rejected;
                     if (booking.AvailabilitySlot != null) booking.AvailabilitySlot.IsBooked = false;
-                    await _context.SaveChangesAsync();
 
-                    try
+                    if (totalPaid > 0)
                     {
-                        if (!string.IsNullOrEmpty(booking.CustomerId))
+                        try
                         {
+                            booking.RefundAmount = totalPaid;
+                            booking.RefundDate = DateTime.UtcNow;
+                            booking.IsRefunded = true;
+
+                            booking.DepositPaid = 0m;
+                            booking.FinalPaymentPaid = 0m;
+                            booking.IsDepositPaid = false;
+
+                            await _context.SaveChangesAsync();
+
                             await _notificationService.CreateNotificationAsync(
                                 booking.CustomerId,
-                                "Appointment Declined ❌",
-                                $"Unfortunately, your appointment request for {booking.UserService?.Service?.Name ?? "your service"} on {booking.AppointmentDate:MMM dd} has been declined.",
-                                "booking_rejected",
+                                "Refund Processed 💰",
+                                $"Your payment of R{totalPaid:N2} has been fully refunded because the artist rejected your booking.",
+                                "refund_processed",
                                 booking.Id.ToString(),
                                 Url.Action("MyBookings", "Booking")
                             );
+
+                            if (!string.IsNullOrEmpty(booking.Customer?.Email))
+                            {
+                                string refundSubject = "💰 Refund Processed - Booking Rejected";
+                                string refundBody = $@"
+                                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+                                    <h2 style='color: #28a745;'>💰 Refund Processed</h2>
+                                    <p>Dear {booking.Customer.FirstName ?? "Client"},</p>
+                                    <p>Your booking for <strong>{booking.UserService?.Service?.Name ?? "your service"}</strong> was rejected by the artist.</p>
+                                    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                                        <p><strong>Refund Amount:</strong> R{totalPaid:N2}</p>
+                                        <p><strong>Booking:</strong> #{booking.Id}</p>
+                                        <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
+                                    </div>
+                                    <p>The refund will reflect in your account within 5-7 business days.</p>
+                                    <p>We apologize for any inconvenience.</p>
+                                    <hr style='border-color: #333;'>
+                                    <p style='font-size: 0.8rem; color: rgba(255,255,255,0.3); text-align: center;'>
+                                        Thank you for choosing RubiOr! ✨
+                                    </p>
+                                </div>";
+
+                                await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, refundSubject, refundBody);
+                            }
+
+                            TempData["Success"] = $"Booking rejected. Client has been refunded R{totalPaid:N2}.";
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"❌ Refund error: {ex.Message}");
+                            TempData["Error"] = "Booking rejected but refund failed. Please contact support.";
                         }
                     }
-                    catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
-
-                    TempData["Success"] = "Appointment request rejected. Client has been notified.";
+                    else
+                    {
+                        await _context.SaveChangesAsync();
+                        TempData["Success"] = "Appointment request rejected. Client has been notified (no payment was made).";
+                    }
                 }
                 else if (newStatus == BookingStatus.Completed)
                 {
@@ -959,7 +1037,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ═══════════════════════════════════════════════════════════
-        // CONFIRM WALK‑IN ACCEPTANCE (with location sharing)
+        // CONFIRM WALK‑IN ACCEPTANCE - FIXED with dispute block
         // ═══════════════════════════════════════════════════════════
         [HttpGet]
         public async Task<IActionResult> ConfirmAcceptWalkIn(int bookingId)
@@ -973,6 +1051,19 @@ namespace BeautyArtists.Controllers
 
             if (booking == null || booking.SelectedLocationType != LocationType.WalkIn)
                 return NotFound();
+
+            // ─── 🚫 BLOCK: CANNOT ACCEPT DISPUTED BOOKINGS ───
+            if (booking.Status == BookingStatus.Disputed || booking.Status == BookingStatus.InReview)
+            {
+                TempData["Error"] = "This booking is under dispute. You cannot accept it.";
+                return RedirectToAction("MyAppointments");
+            }
+
+            if (booking.Status == BookingStatus.Resolved)
+            {
+                TempData["Error"] = "This booking has been resolved by admin. No further changes allowed.";
+                return RedirectToAction("MyAppointments");
+            }
 
             var model = new ConfirmAcceptWalkInViewModel
             {
@@ -999,6 +1090,19 @@ namespace BeautyArtists.Controllers
             if (booking == null)
                 return NotFound();
 
+            // ─── 🚫 BLOCK: CANNOT ACCEPT DISPUTED BOOKINGS ───
+            if (booking.Status == BookingStatus.Disputed || booking.Status == BookingStatus.InReview)
+            {
+                TempData["Error"] = "This booking is under dispute. You cannot accept it.";
+                return RedirectToAction("MyAppointments");
+            }
+
+            if (booking.Status == BookingStatus.Resolved)
+            {
+                TempData["Error"] = "This booking has been resolved by admin. No further changes allowed.";
+                return RedirectToAction("MyAppointments");
+            }
+
             booking.IsLocationShared = shareLocation;
             booking.Status = BookingStatus.Accepted;
             booking.ArtistNotes = "Accepted with location sharing: " + (shareLocation ? "Yes" : "No");
@@ -1023,57 +1127,8 @@ namespace BeautyArtists.Controllers
 
             if (!string.IsNullOrEmpty(booking.Customer?.Email))
             {
-                // ─── ✅ FIXED: NEW PRICING ───
-                decimal servicePrice = booking.ServicePrice;
-                decimal bookingFee = booking.BookingFee;
-                decimal clientMarkup = servicePrice * CLIENT_MARKUP_RATE;
-                decimal clientServicePrice = servicePrice + clientMarkup;
-                decimal clientTotal = clientServicePrice + bookingFee;
-
-                bool isNewClient = await IsNewClient(booking.CustomerId, booking.UserService.ArtistId);
-                decimal artistPayout = CalculateArtistPayout(servicePrice, isNewClient);
-                decimal depositAmount = (artistPayout / 2) + bookingFee;
-
-                string subject = "✅ Your Walk‑in Appointment Has Been Accepted!";
-                string emailBody = $@"
-<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-    <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
-    <p>Dear {booking.Customer.FirstName},</p>
-    <p>Great news! The artist has ACCEPTED your walk‑in appointment request.</p>
-    
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p><strong>Service:</strong> {booking.UserService?.Service?.Name}</p>
-        <p><strong>Artist:</strong> {booking.UserService?.Artist?.FirstName} {booking.UserService?.Artist?.LastName}</p>
-        <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
-    </div>
-    
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p><strong>Service Price:</strong> R {clientTotal:N2}</p>
-        <p><strong>Booking Fee:</strong> R {bookingFee:N2}</p>
-        <p style='border-top: 1px solid rgba(255,215,0,0.2); padding-top: 10px; margin-top: 10px;'>
-            <strong>Total:</strong> R {clientTotal:N2}
-        </p>
-    </div>
-    
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #FFD700;'>
-        <p><strong>💰 Deposit Required:</strong> R {depositAmount:N2}</p>
-        <p style='font-size: 0.8rem; color: rgba(255,255,255,0.4); margin: 5px 0 0 0;'>
-            Remaining balance: R {(clientTotal - depositAmount):N2} to be paid 2 days before appointment.
-        </p>
-    </div>
-    
-    <div style='text-align: center; margin: 25px 0;'>
-        <a href='{Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme)}' style='background: linear-gradient(45deg, #f0c808, #e50914); color: #000; padding: 14px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px; display: inline-block;'>
-            💰 PAY YOUR DEPOSIT NOW
-        </a>
-    </div>
-    
-    <hr style='border-color: #333;'>
-    <p style='font-size: 0.8rem; color: rgba(255,255,255,0.3); text-align: center;'>
-        Thank you for choosing RubiOr! ✨
-    </p>
-</div>"; 
-
+                string subject = "✅ Your Walk-in Appointment Has Been Accepted!";
+                string emailBody = BuildAcceptanceEmail(booking, Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme));
                 await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
             }
 
@@ -1251,7 +1306,6 @@ namespace BeautyArtists.Controllers
 
         // ─── HELPERS ───
 
-        // ─── HELPER: Send email ───
         private async Task SendBookingStatusEmail(Booking booking, string subject, string emailBody)
         {
             if (string.IsNullOrEmpty(booking.Customer?.Email)) return;
@@ -1271,14 +1325,133 @@ namespace BeautyArtists.Controllers
             }
         }
 
-        // ─── ✅ FIXED: Build Acceptance Email with New Pricing ───
+        // ══════════════════════════════════
+        //  POST: Artist/CancelByArtist - FIXED with dispute block
+        // ══════════════════════════════════
+        [Authorize(Roles = "Artist")]
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CancelByArtist(int id, string artistNotes)
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser == null) return Challenge();
+
+            var booking = await _context.Bookings
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Service)
+                .Include(b => b.Customer)
+                .FirstOrDefaultAsync(b => b.Id == id && b.UserService.ArtistId == currentUser.Id);
+
+            if (booking == null)
+            {
+                TempData["Error"] = "Booking not found.";
+                return RedirectToAction("MyAppointments");
+            }
+
+            // ─── 🚫 BLOCK: CANNOT CANCEL DISPUTED BOOKINGS ───
+            if (booking.Status == BookingStatus.Disputed || booking.Status == BookingStatus.InReview)
+            {
+                TempData["Error"] = "This booking is under dispute. You cannot cancel it.";
+                return RedirectToAction("MyAppointments");
+            }
+
+            if (booking.Status == BookingStatus.Resolved)
+            {
+                TempData["Error"] = "This booking has been resolved by admin. No further changes allowed.";
+                return RedirectToAction("MyAppointments");
+            }
+
+            if (booking.Status == BookingStatus.Completed)
+            {
+                TempData["Error"] = "This booking is already completed and cannot be cancelled.";
+                return RedirectToAction("MyAppointments");
+            }
+
+            // ─── UPDATE STATUS ───
+            booking.Status = BookingStatus.Cancelled;
+            booking.ArtistNotes = artistNotes ?? "Booking cancelled by artist.";
+
+            // ─── RELEASE THE SLOT ───
+            if (booking.AvailabilitySlotId.HasValue)
+            {
+                var slot = await _context.ArtistAvailabilities
+                    .FirstOrDefaultAsync(a => a.Id == booking.AvailabilitySlotId.Value);
+                if (slot != null) slot.IsBooked = false;
+            }
+
+            // ─── REFUND CLIENT ───
+            decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
+
+            if (totalPaid > 0)
+            {
+                booking.RefundAmount = totalPaid;
+                booking.RefundDate = DateTime.UtcNow;
+                booking.IsRefunded = true;
+
+                booking.DepositPaid = 0m;
+                booking.FinalPaymentPaid = 0m;
+                booking.IsDepositPaid = false;
+
+                await _context.SaveChangesAsync();
+
+                try
+                {
+                    await _notificationService.CreateNotificationAsync(
+                        booking.CustomerId,
+                        "Booking Cancelled - Refund Processed 💰",
+                        $"The artist has cancelled your booking #{booking.Id}. A full refund of R{totalPaid:N2} has been processed.",
+                        "booking_cancelled_refund",
+                        booking.Id.ToString(),
+                        Url.Action("MyBookings", "Booking")
+                    );
+
+                    if (booking.Customer != null && !string.IsNullOrEmpty(booking.Customer.Email))
+                    {
+                        string subject = "💰 Booking Cancelled - Refund Processed";
+                        string body = $@"
+                <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+                    <h2 style='color: #28a745;'>💰 Refund Processed</h2>
+                    <p>Dear {booking.Customer.FirstName},</p>
+                    <p>The artist has cancelled your booking <strong>#{booking.Id}</strong>.</p>
+                    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+                        <p><strong>Service:</strong> {booking.UserService?.Service?.Name ?? "your service"}</p>
+                        <p><strong>Refund Amount:</strong> R{totalPaid:N2}</p>
+                        <p><strong>Reason:</strong> {booking.ArtistNotes}</p>
+                    </div>
+                    <p>The refund will reflect in your account within 5-7 business days.</p>
+                    <p>We apologize for any inconvenience.</p>
+                    <hr style='border-color: #333;'>
+                    <p style='font-size: 12px; color: #666;'>RubiOr</p>
+                </div>";
+
+                        await _commService.SendDirectMessageEmailAsync(currentUser.Id, booking.CustomerId, subject, body);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"⚠️ Refund notification error: {ex.Message}");
+                }
+
+                TempData["Success"] = $"Booking cancelled. Client has been refunded R{totalPaid:N2}.";
+            }
+            else
+            {
+                await _context.SaveChangesAsync();
+                TempData["Success"] = "Booking cancelled. No payment was made.";
+            }
+
+            return RedirectToAction("MyAppointments", "Artist");
+        }
+
+        // ─── BUILD ACCEPTANCE EMAIL ───
         private string BuildAcceptanceEmail(Booking booking, string depositUrl)
         {
             var servicePrice = booking.ServicePrice;
+            var cardFee = booking.CardProcessingFee;
             var bookingFee = booking.BookingFee;
-            var clientMarkup = servicePrice * CLIENT_MARKUP_RATE;
-            var clientServicePrice = servicePrice + clientMarkup;
-            var clientTotal = clientServicePrice + bookingFee;
+            var clientTotal = booking.TotalAmount;
 
             bool isNewClient = false;
             if (booking.CustomerId != null && booking.UserService?.ArtistId != null)
@@ -1294,34 +1467,67 @@ namespace BeautyArtists.Controllers
             }
 
             decimal artistPayout = CalculateArtistPayout(servicePrice, isNewClient);
-            decimal depositAmount = (artistPayout / 2) + bookingFee;
+            decimal depositAmount = (artistPayout / 2) + cardFee + bookingFee;
             string platformFeeLabel = isNewClient ? "10%" : "R15";
+            decimal platformFee = servicePrice - artistPayout;
+
+            string serviceName = booking.UserService?.Service?.Name ?? "your service";
+            string artistFullName = $"{booking.UserService?.Artist?.FirstName ?? ""} {booking.UserService?.Artist?.LastName ?? ""}".Trim() ?? "The artist";
+            string formattedDate = booking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
+            string formattedTime = booking.AppointmentDate.ToString("hh:mm tt");
 
             return $@"
-    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-        <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
-        <p>Dear {booking.Customer?.FirstName},</p>
-        <p>Great news! The artist has ACCEPTED your appointment request.</p>
-        <p><strong>Service:</strong> {booking.UserService?.Service?.Name ?? "your service"}</p>
-        <p><strong>Date:</strong> {booking.AppointmentDate:MMMM dd, yyyy} at {booking.AppointmentDate:hh:mm tt}</p>
-        <hr style='border-color: #333;'>
-        <p><strong>Artist Price:</strong> R {servicePrice:N2}</p>
-        <p><strong>Platform Fee (4%):</strong> R {clientMarkup:N2}</p>
-        <p><strong>Service Total:</strong> R {clientServicePrice:N2}</p>
-        <p><strong>Booking Fee:</strong> R {bookingFee:N2}</p>
-        <p><strong>Total Amount:</strong> R {clientTotal:N2}</p>
-        <hr style='border-color: #333;'>
-        <p><strong>Artist Receives:</strong> R {artistPayout:N2}</p>
-        <p><strong>Platform Fee ({platformFeeLabel}):</strong> R {(servicePrice - artistPayout):N2}</p>
-        <p><strong>Deposit Required:</strong> R {depositAmount:N2}</p>
-        <div style='text-align: center; margin: 20px 0;'>
-            <a href='{depositUrl}' style='background: #f0c808; color: #000; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>PAY YOUR DEPOSIT NOW</a>
-        </div>
-        <p>Thank you for choosing RubiOr!</p>
-    </div>";
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
+    <p>Dear {booking.Customer?.FirstName ?? "Client"},</p>
+    <p>Great news! <strong>{artistFullName}</strong> has ACCEPTED your appointment request.</p>
+    
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <p><strong>📋 Service:</strong> {serviceName}</p>
+        <p><strong>👤 Artist:</strong> {artistFullName}</p>
+        <p><strong>📅 Date:</strong> {formattedDate}</p>
+        <p><strong>⏰ Time:</strong> {formattedTime}</p>
+    </div>
+    
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
+            <span>Service Price:</span>
+            <span>R {servicePrice:N2}</span>
+        </p>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
+            <span>Card Processing Fee (4%):</span>
+            <span>R {cardFee:N2}</span>
+        </p>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 8px;'>
+            <span>Booking Fee:</span>
+            <span>R {bookingFee:N2}</span>
+        </p>
+        <p style='margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.1rem;'>
+            <strong>Total:</strong>
+            <strong style='color: #FFD700;'>R {clientTotal:N2}</strong>
+        </p>
+    </div>
+    
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #FFD700;'>
+        <p><strong>💰 Deposit Required:</strong> R {depositAmount:N2}</p>
+        <p style='font-size: 0.8rem; color: rgba(255,255,255,0.4); margin: 5px 0 0 0;'>
+            Remaining balance: R {(clientTotal - depositAmount):N2}
+        </p>
+    </div>
+    
+    <div style='text-align: center; margin: 25px 0;'>
+        <a href='{depositUrl}' style='background: linear-gradient(45deg, #f0c808, #e50914); color: #000; padding: 14px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px; display: inline-block;'>
+            💰 PAY YOUR DEPOSIT NOW
+        </a>
+    </div>
+    
+    <hr style='border-color: #333;'>
+    <p style='font-size: 0.8rem; color: rgba(255,255,255,0.3); text-align: center;'>
+        Thank you for choosing RubiOr! ✨
+    </p>
+</div>";
         }
 
-        // ─── HELPER: Check if client is new to this artist ───
         private async Task<bool> IsNewClient(string customerId, string artistId)
         {
             var existingBookings = await _context.Bookings
@@ -1334,7 +1540,6 @@ namespace BeautyArtists.Controllers
             return !existingBookings;
         }
 
-        // ─── HELPER: Calculate artist payout ───
         private decimal CalculateArtistPayout(decimal artistPrice, bool isNewClient)
         {
             decimal platformFee = isNewClient

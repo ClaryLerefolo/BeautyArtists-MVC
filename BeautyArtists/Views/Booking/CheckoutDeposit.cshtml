@@ -6,17 +6,20 @@
     var headerColor = Model.IsLastMinute ? "#f0c808" : "#FFD700";
     var buttonGradient = Model.IsLastMinute ? "linear-gradient(135deg, #f0c808, #e50914)" : "linear-gradient(135deg, #f0c808, #e50914)";
 
-    // ─── CALCULATE CLIENT PRICES ───
-    var artistPrice = Model.Booking.ServicePrice;
-    var markedUpPrice = artistPrice + (artistPrice * 0.04m);  // 4% markup
-    var bookingFee = 5.00m;
-    var clientTotal = markedUpPrice + bookingFee;
+    // ─── ✅ FIXED: USE STORED VALUES FROM BOOKING ───
+    var servicePrice = Model.Booking.ServicePrice;              // R400.00
+    var cardFee = Model.Booking.CardProcessingFee;              // R16.00 (4%)
+    var bookingFee = Model.Booking.BookingFee;                  // R5.00
+    var totalAmount = Model.Booking.TotalAmount;                // R421.00
 
-    // ─── ✅ CORRECT DEPOSIT CALCULATION ───
-    // Deposit = 50% of marked up price + booking fee
-    var depositAmount = (markedUpPrice / 2) + bookingFee;  // R88.20
-    var remainingBalance = markedUpPrice / 2;               // R83.20
-    var amountDue = Model.IsLastMinute ? clientTotal : depositAmount;
+    // ─── ✅ FIXED: DEPOSIT = 50% of service + card fee + booking fee ───
+    var depositAmount = (servicePrice / 2) + cardFee + bookingFee;  // R200 + R16 + R5 = R221.00
+
+    // ─── ✅ FIXED: FINAL = remaining 50% of service ───
+    var finalAmount = servicePrice / 2;  // R200.00
+
+    // ─── AMOUNT DUE ───
+    var amountDue = Model.IsLastMinute ? totalAmount : depositAmount;
 }
 
 <div class="container mt-5">
@@ -26,9 +29,17 @@
                 <div class="card-header text-center" style="border-bottom-color: rgba(240,200,8,0.1);">
                     <h3 style="color: @headerColor;">@ViewData["Title"]</h3>
                     <p style="color: #fff;">Booking #@Model.Booking.Id</p>
+                    @if (Model.IsNewClient)
+                    {
+                        <span class="client-tag new-client">⭐ New Client</span>
+                    }
+                    else
+                    {
+                        <span class="client-tag repeat-client">🔄 Repeat Client</span>
+                    }
                     @if (Model.IsLastMinute)
                     {
-                        <p style="color: #ffc107; font-size: 0.9rem;">
+                        <p style="color: #ffc107; font-size: 0.9rem; margin-top: 6px;">
                             <i class="fas fa-clock me-1"></i> Appointment is within 2 days – full payment required.
                         </p>
                     }
@@ -51,18 +62,24 @@
                         <p><strong>Time:</strong> @Model.Booking.AppointmentDate.ToString("hh:mm tt")</p>
                         <hr style="border-color: rgba(240,200,8,0.2);">
 
-                        <!-- ─── CLEAN PRICE BREAKDOWN - CLIENT ONLY ─── -->
+                        <!-- ─── ✅ FIXED: CLEAR PRICE BREAKDOWN ─── -->
                         <div style="background: #1a1a1a; padding: 12px 15px; border-radius: 8px; margin: 10px 0;">
 
-                            <!-- Service Price (with markup included) -->
+                            <!-- Service Price -->
                             <p style="margin: 4px 0; display: flex; justify-content: space-between;">
                                 <span style="color: rgba(255,255,255,0.6);">Service Price</span>
-                                <span style="color: #fff;">R @markedUpPrice.ToString("N2")</span>
+                                <span style="color: #fff;">R @servicePrice.ToString("N2")</span>
+                            </p>
+
+                            <!-- Card Processing Fee (4%) -->
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between;">
+                                <span style="color: rgba(255,255,255,0.5);">Card Processing Fee (4%)</span>
+                                <span style="color: #ff6600;">R @cardFee.ToString("N2")</span>
                             </p>
 
                             <!-- Booking Fee -->
                             <p style="margin: 4px 0; display: flex; justify-content: space-between;">
-                                <span style="color: rgba(255,255,255,0.6);">Booking Fee</span>
+                                <span style="color: rgba(255,255,255,0.5);">Booking Fee</span>
                                 <span style="color: #FFD700;">R @bookingFee.ToString("N2")</span>
                             </p>
 
@@ -71,13 +88,30 @@
                             <!-- Total Client Pays -->
                             <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.2rem;">
                                 <span style="color: #fff; font-weight: 600;">Total</span>
-                                <span style="color: #FFD700; font-weight: 800;">R @clientTotal.ToString("N2")</span>
+                                <span style="color: #FFD700; font-weight: 800;">R @totalAmount.ToString("N2")</span>
+                            </p>
+                        </div>
+
+                        <!-- ─── ✅ FIXED: DEPOSIT & FINAL BREAKDOWN ─── -->
+                        <div style="background: rgba(255,215,0,0.04); padding: 10px 15px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #FFD700;">
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 0.9rem;">
+                                <span style="color: rgba(255,255,255,0.5);">Deposit (50% of service + fees)</span>
+                                <span style="color: #FFD700; font-weight: 700;">R @depositAmount.ToString("N2")</span>
+                            </p>
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 0.9rem;">
+                                <span style="color: rgba(255,255,255,0.5);">Final Payment (remaining 50%)</span>
+                                <span style="color: #28a745; font-weight: 700;">R @finalAmount.ToString("N2")</span>
+                            </p>
+                            <hr style="border-color: rgba(240,200,8,0.15); margin: 6px 0;">
+                            <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 1rem;">
+                                <span style="color: rgba(255,255,255,0.6); font-weight: 600;">Total You Pay</span>
+                                <span style="color: #FFD700; font-weight: 800;">R @totalAmount.ToString("N2")</span>
                             </p>
                         </div>
 
                         <!-- ─── AMOUNT DUE ─── -->
                         <p style="font-size: 1.2rem; margin-top: 16px;">
-                            <strong>Amount Due:</strong>
+                            <strong>Amount Due Now:</strong>
                             <span style="color: #ff6600; font-size: 1.8rem; font-weight: 800;">
                                 R @amountDue.ToString("N2")
                             </span>
@@ -92,20 +126,34 @@
                         else
                         {
                             <p class="text-muted small mt-2">
-                                <i class="fas fa-info-circle me-1"></i> Remaining <strong style="color: #FFD700;">R @remainingBalance.ToString("N2")</strong>
+                                <i class="fas fa-info-circle me-1"></i> Remaining <strong style="color: #28a745;">R @finalAmount.ToString("N2")</strong>
                                 to be paid 2 days before appointment.
                             </p>
                         }
                     </div>
 
+                    <!-- ─── "I AGREE" CHECKBOX ─── -->
+                    <div style="margin-top: 16px; padding: 14px 16px; background: rgba(255,215,0,0.04); border-radius: 10px; border-left: 3px solid #FFD700;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="hasAgreedToTerms" name="hasAgreedToTerms" value="true" style="accent-color: #FFD700; width: 18px; height: 18px; border: 2px solid rgba(255,215,0,0.3);" />
+                            <label class="form-check-label" for="hasAgreedToTerms" style="color: rgba(255,255,255,0.7); font-size: 0.8rem; line-height: 1.4;">
+                                By confirming this booking, you agree that your deposit and card processing fee are non-refundable should you wish to cancel your booking.
+                            </label>
+                        </div>
+                        <div id="agreeError" class="text-danger small" style="display:none; margin-top: 8px;">
+                            ⚠ You must agree to the terms before proceeding to payment.
+                        </div>
+                    </div>
+
                     <!-- ─── PAYMENT FORM ─── -->
-                    <form method="post" asp-action="InitiatePayment" asp-controller="Payment">
+                    <form method="post" asp-action="InitiatePayment" asp-controller="Payment" id="paymentForm">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="bookingId" value="@Model.Booking.Id" />
                         <input type="hidden" name="email" value="@Model.UserEmail" />
                         <input type="hidden" name="amount" value="@amountDue" />
+                        <input type="hidden" name="hasAgreedToTerms" id="hasAgreedToTermsHidden" value="false" />
 
-                        <button type="submit" class="btn w-100 py-3" style="background: @buttonGradient; color: #000; font-weight: 800; border-radius: 999px; border: none; transition: all 0.3s;">
+                        <button type="submit" class="btn w-100 py-3 mt-3" style="background: @buttonGradient; color: #000; font-weight: 800; border-radius: 999px; border: none; transition: all 0.3s;" id="submitPaymentBtn">
                             @buttonText – R @amountDue.ToString("N2")
                         </button>
                     </form>
@@ -129,4 +177,56 @@
         transform: translateY(-2px);
         box-shadow: 0 0 30px rgba(255,215,0,0.3);
     }
+
+    .client-tag {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 4px 12px;
+        border-radius: 20px;
+        letter-spacing: 0.5px;
+    }
+
+        .client-tag.new-client {
+            background: rgba(255,215,0,0.15);
+            color: #FFD700;
+            border: 1px solid rgba(255,215,0,0.3);
+        }
+
+        .client-tag.repeat-client {
+            background: rgba(40,167,69,0.15);
+            color: #28a745;
+            border: 1px solid rgba(40,167,69,0.3);
+        }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const paymentForm = document.getElementById('paymentForm');
+        const agreeCheckbox = document.getElementById('hasAgreedToTerms');
+        const agreeError = document.getElementById('agreeError');
+        const agreeHidden = document.getElementById('hasAgreedToTermsHidden');
+
+        if (paymentForm) {
+            paymentForm.addEventListener('submit', function(e) {
+                if (!agreeCheckbox.checked) {
+                    e.preventDefault();
+                    agreeError.style.display = 'block';
+                    agreeError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return false;
+                }
+                agreeError.style.display = 'none';
+                agreeHidden.value = 'true';
+                return true;
+            });
+        }
+
+        if (agreeCheckbox) {
+            agreeCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    agreeError.style.display = 'none';
+                }
+            });
+        }
+    });
+</script>

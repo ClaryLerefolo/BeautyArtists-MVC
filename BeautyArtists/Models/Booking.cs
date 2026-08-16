@@ -27,12 +27,21 @@ namespace BeautyArtists.Models
         public decimal TransportCost { get; set; } = 0; // Set by Artist later for house calls.
 
         // ============================================================
-        // 🔥 NEW: Booking Fee & Commission Fields
+        //  Card Processing Fee & Client Type
+        // ============================================================
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal CardProcessingFee { get; set; } = 0m; // 4% × P (charged to client)
+
+        public bool IsNewClient { get; set; } = false; // True = new client, False = repeat client
+
+        // ============================================================
+        // 🔥 FIXED: Booking Fee & Commission Fields
         // ============================================================
 
         [DataType(DataType.Currency)]
         [Column(TypeName = "decimal(18,2)")]
-        public decimal BookingFee { get; set; } = 6.00m; // R6 fixed client booking fee
+        public decimal BookingFee { get; set; } = 5.00m; // R5 fixed client booking fee (NOT R6!)
 
         [DataType(DataType.Currency)]
         [Column(TypeName = "decimal(18,2)")]
@@ -40,19 +49,30 @@ namespace BeautyArtists.Models
 
         [DataType(DataType.Currency)]
         [Column(TypeName = "decimal(18,2)")]
-        public decimal PlatformCommission { get; set; } = 0m; // 15% commission deducted from artist
+        public decimal PlatformCommission { get; set; } = 0m; // Commission deducted from artist
 
         [DataType(DataType.Currency)]
         [Column(TypeName = "decimal(18,2)")]
-        public decimal PlatformEarnings { get; set; } = 0m; // BookingFee + Commission (total platform revenue)
+        public decimal PlatformEarnings { get; set; } = 0m; // CardFee + BookingFee + Commission (total platform revenue)
 
         [DataType(DataType.Currency)]
         [Column(TypeName = "decimal(18,2)")]
-        public decimal ArtistNetAmount { get; set; } = 0m; // What the artist actually receives (85% of service price)
+        public decimal ArtistNetAmount { get; set; } = 0m; // What the artist actually receives
 
         [DataType(DataType.Currency)]
         [Column(TypeName = "decimal(18,2)")]
-        public decimal ArtistTotalEarned { get; set; } = 0m; // Accumulated earnings for this booking (deposit + final)
+        public decimal ArtistTotalEarned { get; set; } = 0m; // Accumulated earnings for this booking
+
+        // ============================================================
+        // 🔥 NEW: Deposit & Final Amounts (stored at booking time)
+        // ============================================================
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal DepositAmount { get; set; } = 0m; // 50% of service + card fee + booking fee = R221.00
+
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal FinalAmount { get; set; } = 0m; // 50% of service = R200.00
 
         // ============================================================
         // Existing properties below...
@@ -72,6 +92,14 @@ namespace BeautyArtists.Models
         public string? ClientNotes { get; set; }      // Client's reason when cancelling/rescheduling
         public bool HasRescheduled { get; set; } = false;
         public bool IsDepositPaid { get; set; } = false;
+        // ─── CANCELLATION/REFUND TRACKING ───
+        [DataType(DataType.Currency)]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal RefundAmount { get; set; } = 0m;
+
+        public DateTime? RefundDate { get; set; }
+
+        public bool IsRefunded { get; set; } = false;
 
         // Navigation properties
         public virtual ApplicationUser Customer { get; set; } = default!;
@@ -89,6 +117,22 @@ namespace BeautyArtists.Models
 
         // Enum to represent different booking statuses
         public BookingStatus Status { get; set; }
+        // ─── BOOKING LIFECYCLE PROPERTIES ───
+        public DateTime? ConfirmationPromptSentAt { get; set; }  // When client was asked to confirm
+        public DateTime? AutoConfirmAt { get; set; }             // 5 hours after appointment
+        public bool IsDisputed { get; set; } = false;
+        public string? DisputeReason { get; set; }               // "no_show" or "quality_issue"
+        public DateTime? DisputeRaisedAt { get; set; }
+        public DateTime? AdminReviewedAt { get; set; }
+        public string? AdminResolution { get; set; }             // "release_to_artist", "refund_to_client", "partial_split"
+        public decimal AdminResolutionAmount { get; set; } = 0m;
+        public DateTime? CompletedAt { get; set; }
+        public DateTime? FundsReleasedAt { get; set; }
+        public bool IsFundsReleased { get; set; } = false;
+        public bool IsCompleted { get; set; } = false;
+        public string? DisputeDescription { get; set; }
+        public string? AdminNotes { get; set; }
+
 
         public enum BookingStatus
         {
@@ -97,6 +141,9 @@ namespace BeautyArtists.Models
             Confirmed,    // Booking is confirmed
             Completed,    // Booking has been completed
             Cancelled,    // Booking has been cancelled
+            Disputed,     // Booking has beem dispiuted
+            InReview,     // Dispute is under review by admin.
+            Resolved,     // Dispute is resolved by admin.  
             Rejected
         }
     }
