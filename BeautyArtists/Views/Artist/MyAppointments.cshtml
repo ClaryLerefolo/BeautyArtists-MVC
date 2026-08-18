@@ -1154,18 +1154,7 @@
                                         }
                                     </div>
                                 }
-                                @* ─── CANCELLED ─── *@
-                                else if (item.Status == BookingStatus.Cancelled)
-                                {
-                                    <div class="alert alert-secondary text-center mb-0" style="background: rgba(108, 117, 125, 0.15); border: 1px solid #6c757d; color: #6c757d;">
-                                        <i class="fas fa-times-circle me-2"></i> Booking cancelled
-                                        @if (item.IsRefunded)
-                                        {
-                                            <text>— client refunded</text>
-                                        }
-                                    </div>
-                                }
-
+                        
                                 <div class="booked-date">
                                     <i class="far fa-calendar-alt me-1"></i> Booked @item.BookingDate.ToString("dd MMM yyyy")
                                 </div>

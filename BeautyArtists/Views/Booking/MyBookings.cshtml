@@ -312,39 +312,7 @@
                                     @booking.AppointmentDate.ToString("HH:mm")
                                 </div>
 
-                                @* ── PAYMENT STATUS ── *@
-                                <div class="mb-meta-item" style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
-                                    @if (isLastMinute && !isFullyPaid && (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted || booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed))
-                                    {
-                                        <span style="color: #ff6b6b; font-weight: 700;">
-                                            ⚠️ LAST MINUTE - FULL PAYMENT REQUIRED
-                                        </span>
-                                        <span style="color: #ff6b6b; font-size: 0.65rem; display: block; margin-top: 2px;">
-                                            Appointment within 2 days - full amount must be paid
-                                        </span>
-                                    }
-                                    else
-                                    {
-                                        <span style="color: @paymentStatusColor; font-weight: 700;">
-                                            @paymentStatusText
-                                        </span>
-                                        @if (isFullyPaid)
-                                        {
-                                            <span style="color: #28a745;">✅</span>
-                                        }
-                                        else if (hasDeposit)
-                                        {
-                                            <span style="color: #ffc107;">💰</span>
-                                            <span style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-left: 4px;">
-                                                (R @booking.DepositPaid.ToString("N2") paid)
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <span style="color: #6c757d;">⏳</span>
-                                        }
-                                    }
-                                </div>
+               
 
                                 @* ─── ✅ CONFIRMATION PROMPT ─── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed
