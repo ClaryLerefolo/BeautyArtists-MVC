@@ -35,12 +35,12 @@ namespace BeautyArtists.Controllers
             _notificationService = notificationService;
         }
 
-        // ─── HELPER: Check if client is new to this artist ───
-        private async Task<bool> IsNewClient(string customerId, string artistId)
+        // ─── ✅ FIXED: Check if client is new to THIS SPECIFIC SERVICE ───
+        private async Task<bool> IsNewClient(string customerId, int userServiceId)
         {
             var existingBookings = await _context.Bookings
                 .Where(b => b.CustomerId == customerId
-                            && b.UserService.ArtistId == artistId
+                            && b.UserServiceId == userServiceId
                             && b.Status != BookingStatus.Cancelled
                             && b.Status != BookingStatus.Rejected)
                 .AnyAsync();
@@ -194,8 +194,10 @@ namespace BeautyArtists.Controllers
             decimal clientTotal = CalculateClientTotal(servicePrice);
 
             var currentUser = await _userManager.GetUserAsync(User);
+
+            // ✅ FIXED: Check by UserServiceId, NOT ArtistId
             bool isNewClient = currentUser != null
-                ? await IsNewClient(currentUser.Id, userService.ArtistId)
+                ? await IsNewClient(currentUser.Id, userServiceId)
                 : true;
 
             var model = new BookingViewModel
@@ -279,7 +281,8 @@ namespace BeautyArtists.Controllers
                             : userService.Artist?.UserName ?? "Pro Artist";
                         model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
                         model.CategoryName = userService.Service?.ServiceCategory?.Name;
-                        model.IsNewClient = await IsNewClient(currentUser.Id, userService.ArtistId);
+                        // ✅ FIXED: Check by UserServiceId
+                        model.IsNewClient = await IsNewClient(currentUser.Id, model.UserServiceId);
                     }
                     return View("BookService", model);
                 }
@@ -312,7 +315,8 @@ namespace BeautyArtists.Controllers
                             : userService.Artist?.UserName ?? "Pro Artist";
                         model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
                         model.CategoryName = userService.Service?.ServiceCategory?.Name;
-                        model.IsNewClient = await IsNewClient(currentUser.Id, userService.ArtistId);
+                        // ✅ FIXED: Check by UserServiceId
+                        model.IsNewClient = await IsNewClient(currentUser.Id, model.UserServiceId);
                     }
                     return View("BookService", model);
                 }
@@ -332,7 +336,10 @@ namespace BeautyArtists.Controllers
 
                 // ─── CALCULATE FEES ───
                 decimal servicePrice = model.Price;
-                bool isNewClient = await IsNewClient(currentUser.Id, model.ArtistId);
+
+                // ✅ FIXED: Check by UserServiceId
+                bool isNewClient = await IsNewClient(currentUser.Id, model.UserServiceId);
+
                 decimal cardProcessingFee = CalculateCardProcessingFee(servicePrice);
                 decimal clientTotal = CalculateClientTotal(servicePrice);
                 decimal platformFee = isNewClient
@@ -902,9 +909,10 @@ namespace BeautyArtists.Controllers
             if (booking == null || booking.HasRescheduled || booking.Status != BookingStatus.Confirmed)
                 return NotFound();
 
-            if (booking.AppointmentDate <= DateTime.Now.AddHours(24))
+            // ─── ✅ FIXED: 48 HOURS (2 DAYS) ───
+            if (booking.AppointmentDate <= DateTime.Now.AddHours(48))
             {
-                TempData["Error"] = "Rescheduling is only allowed at least 24 hours before your appointment.";
+                TempData["Error"] = "Rescheduling is only allowed at least 48 hours (2 days) before your appointment.";
                 return RedirectToAction("MyBookings");
             }
 
@@ -948,9 +956,10 @@ namespace BeautyArtists.Controllers
             if (booking == null || booking.Status != BookingStatus.Confirmed || booking.HasRescheduled)
                 return NotFound();
 
-            if (booking.AppointmentDate <= DateTime.Now.AddHours(24))
+            // ─── ✅ FIXED: 48 HOURS (2 DAYS) ───
+            if (booking.AppointmentDate <= DateTime.Now.AddHours(48))
             {
-                TempData["Error"] = "Rescheduling is only allowed at least 24 hours before your appointment.";
+                TempData["Error"] = "Rescheduling is only allowed at least 48 hours (2 days) before your appointment.";
                 return RedirectToAction("MyBookings");
             }
 
@@ -1269,6 +1278,7 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction("DisputeBooking", new { id = booking.Id });
             }
         }
+
         // ══════════════════════════════════
         //  DISPUTE BOOKING (Client)
         // ══════════════════════════════════

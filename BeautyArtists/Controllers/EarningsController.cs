@@ -15,8 +15,8 @@ namespace BeautyArtists.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        // ─── ✅ NEW FEE STRUCTURE ───
-        private const decimal CLIENT_MARKUP = 0.04m;      // 4% added to client
+        // ─── PRICING CONSTANTS ───
+        private const decimal CLIENT_MARKUP = 0.04m;      // 4% card processing fee
         private const decimal BOOKING_FEE = 5.00m;        // R5 booking fee
         private const decimal COMMISSION_NEW = 0.10m;      // 10% for new clients
         private const decimal COMMISSION_REPEAT = 15.00m;  // R15 for repeat clients
@@ -28,13 +28,14 @@ namespace BeautyArtists.Controllers
             _userManager = userManager;
         }
 
-        // ─── HELPER: Check if client is new ───
-        private async Task<bool> IsNewClient(string artistId, string customerId)
+        // ─── ✅ FIXED: Check by SPECIFIC SERVICE (UserServiceId) ───
+        private async Task<bool> IsNewClient(int userServiceId, string customerId)
         {
             var existingBookings = await _context.Bookings
-                .Where(b => b.UserService.ArtistId == artistId
+                .Where(b => b.UserServiceId == userServiceId
                        && b.CustomerId == customerId
-                       && b.Status == Booking.BookingStatus.Completed)
+                       && b.Status != Booking.BookingStatus.Cancelled
+                       && b.Status != Booking.BookingStatus.Rejected)
                 .AnyAsync();
 
             return !existingBookings;
@@ -54,16 +55,6 @@ namespace BeautyArtists.Controllers
         {
             var platformFee = GetPlatformFee(servicePrice, isNewClient);
             return servicePrice - platformFee;
-        }
-
-        // ─── HELPER: Artist's earned amount (only when completed) ───
-        private async Task<decimal> GetArtistEarnings(Booking b)
-        {
-            if (b.Status != Booking.BookingStatus.Completed)
-                return 0m;
-
-            var isNew = await IsNewClient(b.UserService.ArtistId, b.CustomerId);
-            return GetArtistPayout(b.ServicePrice, isNew);
         }
 
         public async Task<IActionResult> Earnings(
@@ -121,7 +112,8 @@ namespace BeautyArtists.Controllers
 
             foreach (var b in completedBookings)
             {
-                var isNew = await IsNewClient(user.Id, b.CustomerId);
+                // ✅ FIXED: Use UserServiceId
+                var isNew = await IsNewClient(b.UserServiceId, b.CustomerId);
                 var artistEarnings = GetArtistPayout(b.ServicePrice, isNew);
                 totalLifetimeEarnings += artistEarnings;
 
@@ -145,7 +137,8 @@ namespace BeautyArtists.Controllers
                 decimal totalEarnings = 0m;
                 foreach (var b in group)
                 {
-                    var isNew = await IsNewClient(user.Id, b.CustomerId);
+                    // ✅ FIXED: Use UserServiceId
+                    var isNew = await IsNewClient(b.UserServiceId, b.CustomerId);
                     totalEarnings += GetArtistPayout(b.ServicePrice, isNew);
                 }
                 topServices.Add(new KeyValuePair<string, EarningsServiceSummary>(
@@ -165,17 +158,27 @@ namespace BeautyArtists.Controllers
                 .Take(pageSize)
                 .ToList();
 
-            // ─── ✅ FIXED HISTORY ───
+            // ─── ✅ FIXED HISTORY WITH ALL VALUES POPULATED ───
             var history = new List<EarningsHistoryItem>();
             foreach (var b in paginatedBookings)
             {
-                var isNew = await IsNewClient(user.Id, b.CustomerId);
+                // ✅ FIXED: Use UserServiceId
+                var isNew = await IsNewClient(b.UserServiceId, b.CustomerId);
                 var platformFee = GetPlatformFee(b.ServicePrice, isNew);
                 var artistPayout = GetArtistPayout(b.ServicePrice, isNew);
 
-                decimal depositPaid = b.IsDepositPaid ? b.ServicePrice / 2 : 0m;
-                decimal finalPaid = b.FinalPaymentPaid > 0 ? b.ServicePrice / 2 : 0m;
-                bool isFullyPaid = (b.DepositPaid - b.BookingFee) + b.FinalPaymentPaid >= b.ServicePrice;
+                // ─── CLIENT TOTAL (ServicePrice + Card Fee + Booking Fee) ───
+                var cardFee = b.ServicePrice * CLIENT_MARKUP;  // 4%
+                var bookingFee = BOOKING_FEE;                  // R5
+                var clientTotalPaid = b.ServicePrice + cardFee + bookingFee;
+
+                // ─── PLATFORM EARNINGS (Commission + Booking Fee) ───
+                var platformTotalEarnings = platformFee + bookingFee;
+
+                // ─── DEPOSIT & FINAL ───
+                decimal depositPaid = b.IsDepositPaid ? b.DepositAmount : 0m;
+                decimal finalPaid = b.FinalPaymentPaid > 0 ? b.FinalAmount : 0m;
+                bool isFullyPaid = (b.DepositPaid + b.FinalPaymentPaid) >= b.TotalAmount;
 
                 history.Add(new EarningsHistoryItem
                 {
@@ -184,7 +187,6 @@ namespace BeautyArtists.Controllers
                     ClientName = $"{b.Customer?.FirstName} {b.Customer?.LastName}" ?? "Unknown",
                     ServiceName = b.UserService?.Service?.Name ?? "Service",
 
-                    // ✅ CRITICAL FIX: OriginalPrice must be b.ServicePrice
                     OriginalPrice = b.ServicePrice,
                     IsNewClient = isNew,
 
@@ -195,13 +197,13 @@ namespace BeautyArtists.Controllers
                     IsFullyPaid = isFullyPaid,
                     Status = b.Status.ToString(),
 
-                    // ─── HIDDEN FROM ARTIST ───
-                    PlatformFee = 0m,
-                    TipAmount = 0m,
-                    BookingFee = 0m,
-                    ClientTotalPaid = 0m,
-                    PlatformTotalEarnings = 0m,
-                    TotalPaid = 0m
+                    // ─── ✅ NOW POPULATED CORRECTLY ───
+                    PlatformFee = platformFee,                    // Commission
+                    BookingFee = bookingFee,                      // R5 booking fee
+                    ClientTotalPaid = clientTotalPaid,            // What client paid total
+                    PlatformTotalEarnings = platformTotalEarnings, // Platform revenue
+                    TotalPaid = b.DepositPaid + b.FinalPaymentPaid,
+                    TipAmount = 0m
                 });
             }
 
@@ -221,13 +223,14 @@ namespace BeautyArtists.Controllers
                 History = history,
                 TotalArtistGross = totalLifetimeEarnings,
 
-                // ─── HIDDEN FROM ARTIST ───
-                TotalPlatformLifetimeEarnings = 0m,
-                TotalBookingFeesCollected = 0m,
-                TotalCommissionCollected = 0m,
-                ThisMonthPlatformEarnings = 0m,
-                TotalBookingFees = 0m,
-                TotalClientPaid = 0m
+                TotalPlatformLifetimeEarnings = history.Sum(h => h.PlatformTotalEarnings),
+                TotalBookingFeesCollected = history.Sum(h => h.BookingFee),
+                TotalCommissionCollected = history.Sum(h => h.PlatformFee),
+                ThisMonthPlatformEarnings = history
+                    .Where(h => h.Date.Month == now.Month && h.Date.Year == now.Year)
+                    .Sum(h => h.PlatformTotalEarnings),
+                TotalBookingFees = history.Sum(h => h.BookingFee),
+                TotalClientPaid = history.Sum(h => h.ClientTotalPaid)
             };
 
             ViewBag.CurrentPage = page;
@@ -269,13 +272,14 @@ namespace BeautyArtists.Controllers
                 var clientName = $"{b.Customer?.FirstName} {b.Customer?.LastName}".Replace("\"", "\"\"");
                 var serviceName = (b.UserService?.Service?.Name ?? "Service").Replace("\"", "\"\"");
 
-                var isNew = await IsNewClient(user.Id, b.CustomerId);
+                // ✅ FIXED: Use UserServiceId
+                var isNew = await IsNewClient(b.UserServiceId, b.CustomerId);
                 var platformFee = GetPlatformFee(b.ServicePrice, isNew);
                 var artistEarnings = GetArtistPayout(b.ServicePrice, isNew);
 
-                decimal depositShare = b.IsDepositPaid ? b.ServicePrice / 2 : 0m;
-                decimal finalShare = b.FinalPaymentPaid > 0 ? b.ServicePrice / 2 : 0m;
-                bool isFullyPaid = (b.DepositPaid - b.BookingFee) + b.FinalPaymentPaid >= b.ServicePrice;
+                decimal depositShare = b.IsDepositPaid ? b.DepositAmount : 0m;
+                decimal finalShare = b.FinalPaymentPaid > 0 ? b.FinalAmount : 0m;
+                bool isFullyPaid = (b.DepositPaid + b.FinalPaymentPaid) >= b.TotalAmount;
                 var clientType = isNew ? "New" : "Repeat";
 
                 csv.AppendLine($"\"{b.AppointmentDate:dd/MM/yyyy}\"," +

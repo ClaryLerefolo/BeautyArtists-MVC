@@ -1445,101 +1445,160 @@ namespace BeautyArtists.Controllers
             return RedirectToAction("MyAppointments", "Artist");
         }
 
-        // ─── BUILD ACCEPTANCE EMAIL ───
+        // ─── BUILD ACCEPTANCE EMAIL (FIXED - MATCHES MYBOOKINGS EXACTLY) ───
         private string BuildAcceptanceEmail(Booking booking, string depositUrl)
         {
-            var servicePrice = booking.ServicePrice;
-            var cardFee = booking.CardProcessingFee;
-            var bookingFee = booking.BookingFee;
-            var clientTotal = booking.TotalAmount;
+            // ─── RELOAD BOOKING WITH ALL NAVIGATION PROPERTIES ───
+            var fullBooking = _context.Bookings
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Service)
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                .Include(b => b.Customer)
+                .FirstOrDefault(b => b.Id == booking.Id);
 
+            if (fullBooking == null) fullBooking = booking;
+
+            // ─── GET SERVICE NAME ───
+            var serviceName = fullBooking.UserService?.Service?.Name ?? "Unknown Service";
+
+            // ─── GET ARTIST NAME ───
+            var artistFirstName = fullBooking.UserService?.Artist?.FirstName ??
+                                  fullBooking.UserService?.Artist?.UserName?.Split('@')[0] ??
+                                  "The artist";
+            var artistLastName = fullBooking.UserService?.Artist?.LastName ?? "";
+            var artistFullName = $"{artistFirstName} {artistLastName}".Trim();
+            if (string.IsNullOrEmpty(artistFullName)) artistFullName = "The artist";
+
+            // ─── USE STORED VALUES FROM BOOKING (MATCHES MYBOOKINGS EXACTLY) ───
+            var servicePrice = fullBooking.ServicePrice;
+            var cardFee = fullBooking.CardProcessingFee;
+            var bookingFee = fullBooking.BookingFee;
+            var clientTotal = fullBooking.TotalAmount;
+            var depositAmount = fullBooking.DepositAmount;
+            var finalAmount = fullBooking.FinalAmount;
+
+            // ─── DETERMINE IF NEW CLIENT ───
             bool isNewClient = false;
-            if (booking.CustomerId != null && booking.UserService?.ArtistId != null)
+            if (fullBooking.CustomerId != null && fullBooking.UserService?.ArtistId != null)
             {
                 var existingBookings = _context.Bookings
-                    .Where(b => b.CustomerId == booking.CustomerId
-                                && b.UserService.ArtistId == booking.UserService.ArtistId
+                    .Where(b => b.CustomerId == fullBooking.CustomerId
+                                && b.UserService.ArtistId == fullBooking.UserService.ArtistId
                                 && b.Status != BookingStatus.Cancelled
                                 && b.Status != BookingStatus.Rejected
-                                && b.Id != booking.Id)
+                                && b.Id != fullBooking.Id)
                     .Any();
                 isNewClient = !existingBookings;
             }
 
-            decimal artistPayout = CalculateArtistPayout(servicePrice, isNewClient);
-            decimal depositAmount = (artistPayout / 2) + cardFee + bookingFee;
+            // ─── CALCULATE PLATFORM FEE ───
+            decimal platformFee = isNewClient
+                ? servicePrice * NEW_CLIENT_COMMISSION
+                : REPEAT_CLIENT_FLAT_FEE;
+            platformFee = Math.Max(platformFee, MIN_PLATFORM_FEE);
+            decimal artistPayout = servicePrice - platformFee;
             string platformFeeLabel = isNewClient ? "10%" : "R15";
-            decimal platformFee = servicePrice - artistPayout;
 
-            string serviceName = booking.UserService?.Service?.Name ?? "your service";
-            string artistFullName = $"{booking.UserService?.Artist?.FirstName ?? ""} {booking.UserService?.Artist?.LastName ?? ""}".Trim() ?? "The artist";
-            string formattedDate = booking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
-            string formattedTime = booking.AppointmentDate.ToString("hh:mm tt");
+            string formattedDate = fullBooking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
+            string formattedTime = fullBooking.AppointmentDate.ToString("hh:mm tt");
+
+            string locationDisplay = fullBooking.SelectedLocationType == LocationType.WalkIn
+                ? "📍 Walk-In (at artist's studio)"
+                : "🏠 House Call (artist comes to you)";
+
+            string customerName = fullBooking.Customer?.FirstName ??
+                                  fullBooking.Customer?.UserName?.Split('@')[0] ??
+                                  "Client";
 
             return $@"
-<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-    <h2 style='color: #f0c808;'>✨ Appointment Accepted! ✨</h2>
-    <p>Dear {booking.Customer?.FirstName ?? "Client"},</p>
-    <p>Great news! <strong>{artistFullName}</strong> has ACCEPTED your appointment request.</p>
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 24px; background: #0a0a0a; color: #fff;'>
     
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p><strong>📋 Service:</strong> {serviceName}</p>
-        <p><strong>👤 Artist:</strong> {artistFullName}</p>
-        <p><strong>📅 Date:</strong> {formattedDate}</p>
-        <p><strong>⏰ Time:</strong> {formattedTime}</p>
+    <!-- HEADER -->
+    <h2 style='color: #f0c808; margin-top: 0; font-size: 24px;'>✨ Appointment Accepted! ✨</h2>
+    <p style='color: rgba(255,255,255,0.7);'>Dear {customerName},</p>
+    <p style='color: rgba(255,255,255,0.8);'>Great news! <strong style='color: #FFD700;'>{artistFullName}</strong> has ACCEPTED your appointment request.</p>
+    
+    <!-- SERVICE DETAILS -->
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #f0c808;'>
+        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>📋 Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
+        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>👤 Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
+        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>📅 Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
+        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>⏰ Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
+        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>{locationDisplay}</strong></p>
     </div>
     
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
-            <span>Service Price:</span>
-            <span>R {servicePrice:N2}</span>
+    <!-- PRICE BREAKDOWN (EXACTLY LIKE MYBOOKINGS) -->
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0;'>
+        <p style='margin: 0 0 10px 0; color: rgba(255,255,255,0.4); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;'>Price Breakdown</p>
+        
+        <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
+            <span style='color: rgba(255,255,255,0.6);'>Service Price:</span>
+            <span style='color: #fff; font-weight: 600;'>R {servicePrice:N2}</span>
         </p>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
-            <span>Card Processing Fee (4%):</span>
-            <span>R {cardFee:N2}</span>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
+            <span style='color: rgba(255,255,255,0.6);'>Card Processing Fee (4%):</span>
+            <span style='color: #fff; font-weight: 600;'>R {cardFee:N2}</span>
         </p>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 8px;'>
-            <span>Booking Fee:</span>
-            <span>R {bookingFee:N2}</span>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #2a2a2a; padding-bottom: 10px;'>
+            <span style='color: rgba(255,255,255,0.6);'>Booking Fee:</span>
+            <span style='color: #fff; font-weight: 600;'>R {bookingFee:N2}</span>
         </p>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.1rem;'>
-            <strong>Total:</strong>
+        {(fullBooking.TransportCost > 0 ? $@"
+        <p style='margin: 6px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #2a2a2a; padding-bottom: 10px;'>
+            <span style='color: rgba(255,255,255,0.6);'>Transport Cost:</span>
+            <span style='color: #FFD700; font-weight: 600;'>R {fullBooking.TransportCost:N2}</span>
+        </p>" : "")}
+        <p style='margin: 10px 0 0 0; display: flex; justify-content: space-between; font-size: 18px; border-top: 2px solid #f0c808; padding-top: 12px;'>
+            <strong style='color: #f0c808;'>Total:</strong>
             <strong style='color: #FFD700;'>R {clientTotal:N2}</strong>
         </p>
     </div>
+
     
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #FFD700;'>
-        <p><strong>💰 Deposit Required:</strong> R {depositAmount:N2}</p>
-        <p style='font-size: 0.8rem; color: rgba(255,255,255,0.4); margin: 5px 0 0 0;'>
-            Remaining balance: R {(clientTotal - depositAmount):N2}
+    <!-- DEPOSIT BREAKDOWN (USES booking.DepositAmount & booking.FinalAmount) -->
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #FFD700;'>
+        <p style='margin: 0 0 4px 0; color: rgba(255,255,255,0.4); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;'>Payment Schedule</p>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
+            <span style='color: rgba(255,255,255,0.7);'>💰 Deposit Required:</span>
+            <span style='color: #FFD700; font-weight: 700; font-size: 18px;'>R {depositAmount:N2}</span>
+        </p>
+        <p style='margin: 6px 0 0 0; display: flex; justify-content: space-between; border-top: 1px solid #2a2a2a; padding-top: 8px;'>
+            <span style='color: rgba(255,255,255,0.4); font-size: 13px;'>Remaining balance:</span>
+            <span style='color: #fff; font-weight: 600; font-size: 15px;'>R {finalAmount:N2}</span>
         </p>
     </div>
     
-    <div style='text-align: center; margin: 25px 0;'>
-        <a href='{depositUrl}' style='background: linear-gradient(45deg, #f0c808, #e50914); color: #000; padding: 14px 30px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px; display: inline-block;'>
-            💰 PAY YOUR DEPOSIT NOW
+    <!-- PAYMENT BUTTON -->
+    <div style='text-align: center; margin: 25px 0 15px 0;'>
+        <a href='{depositUrl}' style='background: linear-gradient(135deg, #f0c808, #e50914); color: #000; padding: 14px 40px; text-decoration: none; border-radius: 50px; font-weight: 800; font-size: 16px; display: inline-block; letter-spacing: 0.5px; text-transform: uppercase; border: none; cursor: pointer;'>
+            💰 Pay Deposit Now
         </a>
     </div>
     
-    <hr style='border-color: #333;'>
-    <p style='font-size: 0.8rem; color: rgba(255,255,255,0.3); text-align: center;'>
+    <!-- FOOTER -->
+    <hr style='border-color: #2a2a2a; margin-top: 20px;'>
+    <p style='font-size: 12px; color: rgba(255,255,255,0.2); text-align: center; margin: 8px 0;'>
         Thank you for choosing RubiOr! ✨
+    </p>
+    <p style='font-size: 10px; color: rgba(255,255,255,0.12); text-align: center; margin: 4px 0;'>
+        This is an automated message. Please do not reply to this email.
     </p>
 </div>";
         }
 
-        private async Task<bool> IsNewClient(string customerId, string artistId)
+        // ─── ✅ FIXED: IsNewClient based on SPECIFIC SERVICE (UserServiceId) ───
+        private async Task<bool> IsNewClient(string customerId, int userServiceId)
         {
             var existingBookings = await _context.Bookings
                 .Where(b => b.CustomerId == customerId
-                            && b.UserService.ArtistId == artistId
+                            && b.UserServiceId == userServiceId
                             && b.Status != BookingStatus.Cancelled
                             && b.Status != BookingStatus.Rejected)
                 .AnyAsync();
 
             return !existingBookings;
         }
-
         private decimal CalculateArtistPayout(decimal artistPrice, bool isNewClient)
         {
             decimal platformFee = isNewClient

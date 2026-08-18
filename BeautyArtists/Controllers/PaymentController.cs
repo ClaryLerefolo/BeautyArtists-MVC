@@ -20,14 +20,14 @@ namespace BeautyArtists.Controllers
         private readonly INotificationService _notificationService;
         private readonly IEmailService _emailService;
 
-        // ─── ✅ FIXED: CORRECT PRICING CONSTANTS ───
-        private const decimal CLIENT_MARKUP_RATE = 0.04m;      // 4% card processing fee
-        private const decimal BOOKING_FEE = 5.00m;              // Flat R5 booking fee
-        private const decimal NEW_CLIENT_COMMISSION = 0.10m;   // 10% for new clients
-        private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m; // R15 for repeat clients
-        private const decimal MIN_PLATFORM_FEE = 8.00m;        // Minimum fee floor
+        // ─── PRICING CONSTANTS ───
+        private const decimal CLIENT_MARKUP_RATE = 0.04m;
+        private const decimal BOOKING_FEE = 5.00m;
+        private const decimal NEW_CLIENT_COMMISSION = 0.10m;
+        private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m;
+        private const decimal MIN_PLATFORM_FEE = 8.00m;
 
-        // ─── ✅ FIXED: CORRECT PRICING HELPERS ───
+        // ─── HELPERS ───
         private decimal CalculateCardProcessingFee(decimal servicePrice)
         {
             return servicePrice * CLIENT_MARKUP_RATE;
@@ -59,176 +59,240 @@ namespace BeautyArtists.Controllers
             return artistPrice - platformFee;
         }
 
-        private async Task<bool> IsNewClient(string customerId, string artistId)
+        // ─── ✅ FIXED: IsNewClient based on SPECIFIC SERVICE (UserServiceId) ───
+        private async Task<bool> IsNewClient(string customerId, int userServiceId)
         {
             var existingBookings = await _context.Bookings
                 .Where(b => b.CustomerId == customerId
-                            && b.UserService.ArtistId == artistId
+                            && b.UserServiceId == userServiceId
                             && b.Status != BookingStatus.Cancelled
                             && b.Status != BookingStatus.Rejected)
                 .AnyAsync();
             return !existingBookings;
         }
 
-        // ─── HELPER: Build deposit email body ───
+        // ─── BUILD DEPOSIT EMAIL (CLIENT-FRIENDLY - NO PLATFORM FEES) ───
         private string BuildDepositEmailBody(Booking booking, decimal depositAmount, decimal finalAmount, bool isFullPayment)
         {
-            var serviceName = booking.UserService?.Service?.Name ?? "your service";
-            var artistFullName = $"{booking.UserService?.Artist?.FirstName ?? ""} {booking.UserService?.Artist?.LastName ?? ""}".Trim() ?? "The artist";
-            var formattedDate = booking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
-            var formattedTime = booking.AppointmentDate.ToString("hh:mm tt");
-            var servicePrice = booking.ServicePrice;
-            var cardFee = booking.CardProcessingFee;
-            var bookingFee = booking.BookingFee;
-            var totalAmount = booking.TotalAmount;
+            // Reload booking with all navigation properties
+            var fullBooking = _context.Bookings
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Service)
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                .Include(b => b.Customer)
+                .FirstOrDefault(b => b.Id == booking.Id) ?? booking;
+
+            var serviceName = fullBooking.UserService?.Service?.Name ?? "your service";
+            var artistFullName = $"{fullBooking.UserService?.Artist?.FirstName ?? ""} {fullBooking.UserService?.Artist?.LastName ?? ""}".Trim() ?? "The artist";
+            var formattedDate = fullBooking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
+            var formattedTime = fullBooking.AppointmentDate.ToString("hh:mm tt");
+            var servicePrice = fullBooking.ServicePrice;
+            var cardFee = fullBooking.CardProcessingFee;
+            var bookingFee = fullBooking.BookingFee;
+            var totalAmount = fullBooking.TotalAmount;
 
             if (isFullPayment)
             {
                 return $@"
-<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-    <h2 style='color: #28a745; text-align: center;'>🎉 Full Payment Received!</h2>
-    <p>Dear {booking.Customer?.FirstName ?? "Client"},</p>
-    <p>Your full payment of <strong>R{totalAmount:N2}</strong> has been received.</p>
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p><strong>📋 Service:</strong> {serviceName}</p>
-        <p><strong>👤 Artist:</strong> {artistFullName}</p>
-        <p><strong>📅 Date:</strong> {formattedDate}</p>
-        <p><strong>⏰ Time:</strong> {formattedTime}</p>
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 24px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #28a745; margin-top: 0;'>🎉 Full Payment Received!</h2>
+    <p>Dear {fullBooking.Customer?.FirstName ?? "Client"},</p>
+    <p>Your full payment of <strong style='color: #28a745;'>R{totalAmount:N2}</strong> has been received.</p>
+    
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #28a745;'>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>📋 Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>👤 Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>📅 Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>⏰ Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
     </div>
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
-            <span>Service Price:</span>
-            <span>R {servicePrice:N2}</span>
+    
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0;'>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
+            <span style='color: rgba(255,255,255,0.6);'>Service Price:</span>
+            <span style='color: #fff; font-weight: 600;'>R{servicePrice:N2}</span>
         </p>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
-            <span>Card Processing Fee (4%):</span>
-            <span>R {cardFee:N2}</span>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
+            <span style='color: rgba(255,255,255,0.6);'>Card Processing Fee (4%):</span>
+            <span style='color: #fff; font-weight: 600;'>R{cardFee:N2}</span>
         </p>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 8px;'>
-            <span>Booking Fee:</span>
-            <span>R {bookingFee:N2}</span>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #2a2a2a; padding-bottom: 10px;'>
+            <span style='color: rgba(255,255,255,0.6);'>Booking Fee:</span>
+            <span style='color: #fff; font-weight: 600;'>R{bookingFee:N2}</span>
         </p>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.1rem;'>
-            <strong>Total Paid:</strong>
-            <strong style='color: #28a745;'>R {totalAmount:N2}</strong>
+        <p style='margin: 10px 0 0 0; display: flex; justify-content: space-between; font-size: 18px; border-top: 2px solid #28a745; padding-top: 12px;'>
+            <strong style='color: #28a745;'>Total Paid:</strong>
+            <strong style='color: #28a745;'>R{totalAmount:N2}</strong>
         </p>
     </div>
+    
     <p>Your appointment is now <strong style='color: #28a745;'>CONFIRMED</strong> and <strong style='color: #28a745;'>FULLY PAID</strong>.</p>
     <p>Thank you for choosing RubiOr! ✨</p>
-    <hr style='border-color: #333;'>
-    <p style='font-size: 12px; color: #666;'>RubiOr</p>
+    <hr style='border-color: #2a2a2a;'>
+    <p style='font-size: 12px; color: rgba(255,255,255,0.2);'>This is an automated message. Please do not reply.</p>
 </div>";
             }
             else
             {
                 return $@"
-<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-    <h2 style='color: #f0c808; text-align: center;'>✅ Deposit Received!</h2>
-    <p>Dear {booking.Customer?.FirstName ?? "Client"},</p>
-    <p>Your deposit of <strong>R{depositAmount:N2}</strong> has been received.</p>
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p><strong>📋 Service:</strong> {serviceName}</p>
-        <p><strong>👤 Artist:</strong> {artistFullName}</p>
-        <p><strong>📅 Date:</strong> {formattedDate}</p>
-        <p><strong>⏰ Time:</strong> {formattedTime}</p>
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 24px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #f0c808; margin-top: 0;'>✅ Deposit Received!</h2>
+    <p>Dear {fullBooking.Customer?.FirstName ?? "Client"},</p>
+    <p>Your deposit of <strong style='color: #FFD700;'>R{depositAmount:N2}</strong> has been received.</p>
+    
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #f0c808;'>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>📋 Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>👤 Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>📅 Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>⏰ Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
     </div>
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
-            <span>Deposit Amount:</span>
-            <span>R {depositAmount:N2}</span>
+    
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0;'>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
+            <span style='color: rgba(255,255,255,0.6);'>Service Price:</span>
+            <span style='color: #fff; font-weight: 600;'>R{servicePrice:N2}</span>
         </p>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 8px;'>
-            <span>Remaining Balance:</span>
-            <span>R {finalAmount:N2}</span>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
+            <span style='color: rgba(255,255,255,0.6);'>Card Processing Fee (4%):</span>
+            <span style='color: #fff; font-weight: 600;'>R{cardFee:N2}</span>
         </p>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.1rem;'>
-            <strong>Total:</strong>
-            <strong style='color: #FFD700;'>R {totalAmount:N2}</strong>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #2a2a2a; padding-bottom: 10px;'>
+            <span style='color: rgba(255,255,255,0.6);'>Booking Fee:</span>
+            <span style='color: #fff; font-weight: 600;'>R{bookingFee:N2}</span>
+        </p>
+        <p style='margin: 10px 0 0 0; display: flex; justify-content: space-between; font-size: 18px; border-top: 2px solid #f0c808; padding-top: 12px;'>
+            <strong style='color: #f0c808;'>Total:</strong>
+            <strong style='color: #FFD700;'>R{totalAmount:N2}</strong>
         </p>
     </div>
+    
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #FFD700;'>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
+            <span style='color: rgba(255,255,255,0.7);'>💰 Deposit Paid:</span>
+            <span style='color: #FFD700; font-weight: 700;'>R{depositAmount:N2}</span>
+        </p>
+        <p style='margin: 6px 0 0 0; display: flex; justify-content: space-between; border-top: 1px solid #2a2a2a; padding-top: 8px;'>
+            <span style='color: rgba(255,255,255,0.4);'>Remaining balance:</span>
+            <span style='color: #fff; font-weight: 600;'>R{finalAmount:N2}</span>
+        </p>
+    </div>
+    
     <p>Your appointment is now <strong style='color: #f0c808;'>CONFIRMED</strong>.</p>
-    <p><strong>Remaining Balance:</strong> R {finalAmount:N2} (to be paid at least 2 days before the appointment)</p>
+    <p style='color: rgba(255,255,255,0.6); font-size: 14px;'>💡 <strong>Remaining Balance:</strong> R{finalAmount:N2} (to be paid at least 2 days before the appointment)</p>
     <p>Thank you for choosing RubiOr! ✨</p>
-    <hr style='border-color: #333;'>
-    <p style='font-size: 12px; color: #666;'>RubiOr</p>
+    <hr style='border-color: #2a2a2a;'>
+    <p style='font-size: 12px; color: rgba(255,255,255,0.2);'>This is an automated message. Please do not reply.</p>
 </div>";
             }
         }
 
-        // ─── HELPER: Build final payment email body ───
+        // ─── BUILD FINAL PAYMENT EMAIL (CLIENT-FRIENDLY - NO PLATFORM FEES) ───
         private string BuildFinalPaymentEmailBody(Booking booking, decimal finalAmount)
         {
-            var serviceName = booking.UserService?.Service?.Name ?? "your service";
-            var artistFullName = $"{booking.UserService?.Artist?.FirstName ?? ""} {booking.UserService?.Artist?.LastName ?? ""}".Trim() ?? "The artist";
-            var formattedDate = booking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
-            var formattedTime = booking.AppointmentDate.ToString("hh:mm tt");
-            var servicePrice = booking.ServicePrice;
-            var cardFee = booking.CardProcessingFee;
-            var bookingFee = booking.BookingFee;
-            var totalAmount = booking.TotalAmount;
+            var fullBooking = _context.Bookings
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Service)
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                .Include(b => b.Customer)
+                .FirstOrDefault(b => b.Id == booking.Id) ?? booking;
+
+            var serviceName = fullBooking.UserService?.Service?.Name ?? "your service";
+            var artistFullName = $"{fullBooking.UserService?.Artist?.FirstName ?? ""} {fullBooking.UserService?.Artist?.LastName ?? ""}".Trim() ?? "The artist";
+            var formattedDate = fullBooking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
+            var formattedTime = fullBooking.AppointmentDate.ToString("hh:mm tt");
+            var servicePrice = fullBooking.ServicePrice;
+            var cardFee = fullBooking.CardProcessingFee;
+            var bookingFee = fullBooking.BookingFee;
+            var totalAmount = fullBooking.TotalAmount;
 
             return $@"
-<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-    <h2 style='color: #28a745; text-align: center;'>💰 Final Payment Received!</h2>
-    <p>Dear {booking.Customer?.FirstName ?? "Client"},</p>
-    <p>Your final payment of <strong>R{finalAmount:N2}</strong> has been received.</p>
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p><strong>📋 Service:</strong> {serviceName}</p>
-        <p><strong>👤 Artist:</strong> {artistFullName}</p>
-        <p><strong>📅 Date:</strong> {formattedDate}</p>
-        <p><strong>⏰ Time:</strong> {formattedTime}</p>
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #28a745; border-radius: 12px; padding: 24px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #28a745; margin-top: 0;'>💰 Final Payment Received!</h2>
+    <p>Dear {fullBooking.Customer?.FirstName ?? "Client"},</p>
+    <p>Your final payment of <strong style='color: #28a745;'>R{finalAmount:N2}</strong> has been received.</p>
+    
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #28a745;'>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>📋 Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>👤 Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>📅 Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>⏰ Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
     </div>
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
-            <span>Service Price:</span>
-            <span>R {servicePrice:N2}</span>
+    
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0;'>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
+            <span style='color: rgba(255,255,255,0.6);'>Service Price:</span>
+            <span style='color: #fff; font-weight: 600;'>R{servicePrice:N2}</span>
         </p>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between;'>
-            <span>Card Processing Fee (4%):</span>
-            <span>R {cardFee:N2}</span>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
+            <span style='color: rgba(255,255,255,0.6);'>Card Processing Fee (4%):</span>
+            <span style='color: #fff; font-weight: 600;'>R{cardFee:N2}</span>
         </p>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #333; padding-bottom: 8px;'>
-            <span>Booking Fee:</span>
-            <span>R {bookingFee:N2}</span>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #2a2a2a; padding-bottom: 10px;'>
+            <span style='color: rgba(255,255,255,0.6);'>Booking Fee:</span>
+            <span style='color: #fff; font-weight: 600;'>R{bookingFee:N2}</span>
         </p>
-        <p style='margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.1rem;'>
-            <strong>Total Paid:</strong>
-            <strong style='color: #28a745;'>R {totalAmount:N2}</strong>
+        <p style='margin: 10px 0 0 0; display: flex; justify-content: space-between; font-size: 18px; border-top: 2px solid #28a745; padding-top: 12px;'>
+            <strong style='color: #28a745;'>Total Paid:</strong>
+            <strong style='color: #28a745;'>R{totalAmount:N2}</strong>
         </p>
     </div>
+    
     <p>Your appointment is now <strong style='color: #28a745;'>FULLY PAID</strong>.</p>
     <p>Thank you for choosing RubiOr! ✨</p>
-    <hr style='border-color: #333;'>
-    <p style='font-size: 12px; color: #666;'>RubiOr</p>
+    <hr style='border-color: #2a2a2a;'>
+    <p style='font-size: 12px; color: rgba(255,255,255,0.2);'>This is an automated message. Please do not reply.</p>
 </div>";
         }
 
-        // ─── HELPER: Build artist notification email ───
+        // ─── BUILD ARTIST NOTIFICATION EMAIL ───
         private string BuildArtistPaymentEmail(Booking booking, decimal amount, string paymentType)
         {
-            var serviceName = booking.UserService?.Service?.Name ?? "your service";
-            var clientFullName = $"{booking.Customer?.FirstName ?? ""} {booking.Customer?.LastName ?? ""}".Trim() ?? "Client";
-            var formattedDate = booking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
-            var formattedTime = booking.AppointmentDate.ToString("hh:mm tt");
-            var totalAmount = booking.TotalAmount;
-            var servicePrice = booking.ServicePrice;
+            var fullBooking = _context.Bookings
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Service)
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                .Include(b => b.Customer)
+                .FirstOrDefault(b => b.Id == booking.Id) ?? booking;
+
+            var serviceName = fullBooking.UserService?.Service?.Name ?? "your service";
+            var clientFullName = $"{fullBooking.Customer?.FirstName ?? ""} {fullBooking.Customer?.LastName ?? ""}".Trim() ?? "Client";
+            var formattedDate = fullBooking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
+            var formattedTime = fullBooking.AppointmentDate.ToString("hh:mm tt");
+            var totalAmount = fullBooking.TotalAmount;
+            var servicePrice = fullBooking.ServicePrice;
 
             return $@"
-<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-    <h2 style='color: #f0c808; text-align: center;'>💰 {paymentType} Received!</h2>
-    <p>Dear {booking.UserService?.Artist?.FirstName ?? "Artist"},</p>
-    <p>The client <strong>{clientFullName}</strong> has paid <strong>R{amount:N2}</strong> for:</p>
-    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-        <p><strong>📋 Service:</strong> {serviceName}</p>
-        <p><strong>📅 Date:</strong> {formattedDate}</p>
-        <p><strong>⏰ Time:</strong> {formattedTime}</p>
-        <p><strong>Amount Received:</strong> R{amount:N2}</p>
-        <p><strong>Total Booking Amount:</strong> R{totalAmount:N2}</p>
-        <p><strong>Your Earnings:</strong> R{servicePrice:N2}</p>
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 24px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #f0c808; margin-top: 0;'>💰 {paymentType} Received!</h2>
+    <p>Dear {fullBooking.UserService?.Artist?.FirstName ?? "Artist"},</p>
+    <p>The client <strong style='color: #FFD700;'>{clientFullName}</strong> has paid <strong style='color: #FFD700;'>R{amount:N2}</strong> for:</p>
+    
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #f0c808;'>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>📋 Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>📅 Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>⏰ Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
     </div>
+    
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0;'>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
+            <span style='color: rgba(255,255,255,0.6);'>Amount Received:</span>
+            <span style='color: #FFD700; font-weight: 600;'>R{amount:N2}</span>
+        </p>
+        <p style='margin: 6px 0; display: flex; justify-content: space-between; border-bottom: 1px solid #2a2a2a; padding-bottom: 8px;'>
+            <span style='color: rgba(255,255,255,0.6);'>Total Booking Amount:</span>
+            <span style='color: #fff; font-weight: 600;'>R{totalAmount:N2}</span>
+        </p>
+        <p style='margin: 8px 0 0 0; display: flex; justify-content: space-between; font-size: 16px; border-top: 2px solid #f0c808; padding-top: 10px;'>
+            <strong style='color: #f0c808;'>Your Earnings:</strong>
+            <strong style='color: #00c853;'>R{servicePrice:N2}</strong>
+        </p>
+    </div>
+    
     <p>This appointment is now <strong style='color: #f0c808;'>CONFIRMED</strong>.</p>
-    <hr style='border-color: #333;'>
-    <p style='font-size: 12px; color: #666;'>RubiOr</p>
+    <hr style='border-color: #2a2a2a;'>
+    <p style='font-size: 12px; color: rgba(255,255,255,0.2);'>RubiOr</p>
 </div>";
         }
 

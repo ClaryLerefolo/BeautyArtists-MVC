@@ -20,26 +20,27 @@ namespace BeautyArtists.Controllers
         private readonly IWebHostEnvironment _hostEnvironment;
         private readonly ICommunicationService _commService;
 
-        // ─── ✅ NEW PRICING CONSTANTS ───
-        private const decimal CLIENT_MARKUP_RATE = 0.04m;      // 4% markup for client
+        // ─── PRICING CONSTANTS ───
+        private const decimal CLIENT_MARKUP_RATE = 0.04m;
         private const decimal BOOKING_FEE = 5.00m;
-        private const decimal NEW_CLIENT_COMMISSION = 0.10m;   // 10% for new clients
-        private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m; // R15 for repeat clients
-        private const decimal MIN_PLATFORM_FEE = 8.00m;        // Safeguard: min R8
+        private const decimal NEW_CLIENT_COMMISSION = 0.10m;
+        private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m;
+        private const decimal MIN_PLATFORM_FEE = 8.00m;
 
         public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment hostEnvironment, ICommunicationService commService)
         {
             _context = context;
             _userManager = userManager;
             _hostEnvironment = hostEnvironment;
+            _commService = commService;
         }
 
-        // ─── HELPER: Check if client is new ───
-        private async Task<bool> IsNewClient(string customerId, string artistId)
+        // ─── ✅ FIXED: Check by SPECIFIC SERVICE (UserServiceId) ───
+        private async Task<bool> IsNewClient(string customerId, int userServiceId)
         {
             var existingBookings = await _context.Bookings
                 .Where(b => b.CustomerId == customerId
-                            && b.UserService.ArtistId == artistId
+                            && b.UserServiceId == userServiceId
                             && b.Status != BookingStatus.Cancelled
                             && b.Status != BookingStatus.Rejected)
                 .AnyAsync();
@@ -77,8 +78,6 @@ namespace BeautyArtists.Controllers
                 TotalArtists = await _userManager.GetUsersInRoleAsync("Artist").ContinueWith(t => t.Result.Count),
                 TotalCustomers = await _userManager.GetUsersInRoleAsync("Client").ContinueWith(t => t.Result.Count),
                 TotalBookings = await _context.Bookings.CountAsync(),
-
-                // ─── ✅ FIXED: CORRECT PLATFORM EARNINGS ───
                 TotalRevenue = await CalculateTotalPlatformEarnings(),
                 RevenuePerArtist = await CalculateRevenuePerArtist()
             };
@@ -86,7 +85,7 @@ namespace BeautyArtists.Controllers
             return View("Index", model);
         }
 
-        // ─── ✅ NEW: Calculate total platform earnings ───
+        // ─── ✅ FIXED: Calculate total platform earnings using UserServiceId ───
         private async Task<decimal> CalculateTotalPlatformEarnings()
         {
             var completedBookings = await _context.Bookings
@@ -97,7 +96,8 @@ namespace BeautyArtists.Controllers
             decimal total = 0m;
             foreach (var booking in completedBookings)
             {
-                bool isNew = await IsNewClient(booking.CustomerId, booking.UserService.ArtistId);
+                // ✅ FIXED: Check by UserServiceId
+                bool isNew = await IsNewClient(booking.CustomerId, booking.UserServiceId);
                 decimal platformFee = GetPlatformFee(booking.ServicePrice, isNew);
                 decimal markup = booking.ServicePrice * CLIENT_MARKUP_RATE;
                 total += markup + platformFee + booking.BookingFee;
@@ -106,7 +106,7 @@ namespace BeautyArtists.Controllers
             return total;
         }
 
-        // ─── ✅ NEW: Calculate revenue per artist ───
+        // ─── ✅ FIXED: Calculate revenue per artist using UserServiceId ───
         private async Task<List<AdminDashboardViewModel.ArtistRevenue>> CalculateRevenuePerArtist()
         {
             var completedBookings = await _context.Bookings
@@ -132,7 +132,8 @@ namespace BeautyArtists.Controllers
                     };
                 }
 
-                bool isNew = await IsNewClient(booking.CustomerId, artistId);
+                // ✅ FIXED: Check by UserServiceId
+                bool isNew = await IsNewClient(booking.CustomerId, booking.UserServiceId);
                 decimal platformFee = GetPlatformFee(booking.ServicePrice, isNew);
                 decimal markup = booking.ServicePrice * CLIENT_MARKUP_RATE;
                 result[artistId].TotalRevenue += markup + platformFee + booking.BookingFee;
@@ -485,7 +486,6 @@ namespace BeautyArtists.Controllers
             return RedirectToAction(nameof(ManageBookings));
         }
 
-        // ─── ✅ NEW: ADMIN RESCHEDULE - NO 24-HOUR RESTRICTION ───
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AdminReschedule(int bookingId, int newSlotId)
@@ -505,8 +505,6 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction(nameof(ManageBookings));
             }
 
-            // ─── ✅ NO 24-HOUR RESTRICTION FOR ADMIN ───
-            // Release old slot
             if (booking.AvailabilitySlotId.HasValue)
             {
                 var oldSlot = await _context.ArtistAvailabilities
@@ -514,7 +512,6 @@ namespace BeautyArtists.Controllers
                 if (oldSlot != null) oldSlot.IsBooked = false;
             }
 
-            // Assign new slot
             booking.AppointmentDate = newSlot.AvailableDate.Add(newSlot.StartTime);
             booking.AvailabilitySlotId = newSlot.Id;
             newSlot.IsBooked = true;
@@ -600,6 +597,7 @@ namespace BeautyArtists.Controllers
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(HeroBanners));
         }
+
         // ══════════════════════════════════
         //  DISPUTES - List all disputes
         // ══════════════════════════════════
@@ -766,9 +764,6 @@ namespace BeautyArtists.Controllers
                     return;
                 }
 
-                // ─── TRANSFER TO ARTIST SUBACCOUNT ───
-                // await _paymentService.TransferToSubaccount(artistProfile.SubaccountCode, totalPaid);
-
                 booking.ArtistTotalEarned = totalPaid;
                 booking.FundsReleasedAt = DateTime.UtcNow;
                 booking.IsFundsReleased = true;
@@ -798,9 +793,6 @@ namespace BeautyArtists.Controllers
                     Console.WriteLine($"⚠️ No payment found for booking {booking.Id}");
                     return;
                 }
-
-                // ─── PROCESS REFUND ───
-                // await _paymentService.RefundPayment(booking.Id, totalPaid);
 
                 booking.RefundAmount = totalPaid;
                 booking.RefundDate = DateTime.UtcNow;
@@ -832,7 +824,6 @@ namespace BeautyArtists.Controllers
 
                 if (refundAmount > 0)
                 {
-                    // await _paymentService.RefundPayment(booking.Id, refundAmount);
                     booking.RefundAmount = refundAmount;
                     booking.RefundDate = DateTime.UtcNow;
                     booking.IsRefunded = true;
@@ -845,7 +836,6 @@ namespace BeautyArtists.Controllers
 
                     if (artistProfile != null && !string.IsNullOrEmpty(artistProfile.SubaccountCode))
                     {
-                        // await _paymentService.TransferToSubaccount(artistProfile.SubaccountCode, artistAmount);
                         booking.ArtistTotalEarned = artistAmount;
                         booking.FundsReleasedAt = DateTime.UtcNow;
                         booking.IsFundsReleased = true;
@@ -869,7 +859,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ══════════════════════════════════
-        //  HELPER: Send resolution EMAILS only (NO NOTIFICATIONS)
+        //  HELPER: Send resolution EMAILS
         // ══════════════════════════════════
         private async Task SendResolutionEmails(Booking booking, string resolution, decimal amount)
         {

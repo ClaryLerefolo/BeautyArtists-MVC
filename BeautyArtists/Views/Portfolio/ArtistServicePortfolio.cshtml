@@ -4,8 +4,8 @@
     ViewData["Title"] = $"{Model.ArtistName} — {Model.ServiceName} Portfolio";
     Layout = "~/Views/Shared/_Layout.cshtml";
 
-    // ─── ✅ CORRECT PRICING: 4% markup (NO booking fee shown here) ───
-    var markedUpPrice = Model.ServicePrice + (Model.ServicePrice * 0.04m);
+    // ─── ✅ FIXED: Use artist's ACTUAL price (NO markup) ───
+    var artistPrice = Model.ServicePrice;
 }
 
 <section class="py-5 bg-black" style="min-height:100vh;">
@@ -22,7 +22,7 @@
                 <p class="text-white-50 fs-6">by <span class="text-gold">@Model.ArtistName</span></p>
                 <p class="text-light" style="font-size:0.9rem;">@Model.ServiceDescription</p>
                 <div class="d-flex align-items-center gap-3 mt-2 flex-wrap">
-                    <span class="price-badge">R @markedUpPrice.ToString("N0")</span>
+                    <span class="price-badge">R @artistPrice.ToString("N0")</span>
                     <a asp-controller="Booking" asp-action="BookService"
                        asp-route-userServiceId="@Model.UserServiceId"
                        class="booknow-small">
@@ -515,4 +515,4 @@
 
         document.addEventListener('DOMContentLoaded', initializeLightbox);
     })();
-</script>
+</script> 

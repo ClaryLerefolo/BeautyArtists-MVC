@@ -19,7 +19,9 @@ namespace BeautyArtists.Controllers
             _userManager = userManager;
         }
 
+        // ═══════════════════════════════════════════════════════════
         // GET: ArtistAvailability/Index
+        // ═══════════════════════════════════════════════════════════
         [HttpGet]
         public async Task<IActionResult> Index(int page = 1, int pageSize = 10)
         {
@@ -45,7 +47,9 @@ namespace BeautyArtists.Controllers
             return View(slots);
         }
 
-        // POST: ArtistAvailability/AddSlot
+        // ═══════════════════════════════════════════════════════════
+        // POST: ArtistAvailability/AddSlot - FIXED!
+        // ═══════════════════════════════════════════════════════════
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddSlot(DateTime AvailableDate, TimeSpan StartTime, TimeSpan EndTime)
@@ -54,7 +58,7 @@ namespace BeautyArtists.Controllers
             if (string.IsNullOrEmpty(userId))
                 return Challenge();
 
-            // Validation
+            // ─── VALIDATION ───
             if (StartTime >= EndTime)
             {
                 TempData["Error"] = "Start time must be before end time.";
@@ -67,44 +71,102 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            // Check for overlapping slots
-            var overlappingSlot = await _context.ArtistAvailabilities
-                .FirstOrDefaultAsync(a => a.ArtistId == userId
-                    && a.AvailableDate == AvailableDate
-                    && ((StartTime >= a.StartTime && StartTime < a.EndTime)
-                        || (EndTime > a.StartTime && EndTime <= a.EndTime)
-                        || (StartTime <= a.StartTime && EndTime >= a.EndTime)));
+            var duration = EndTime - StartTime;
 
-            if (overlappingSlot != null)
+            // ─── 🔥 AUTO-DETECT: Split if duration > 4 hours ───
+            if (duration.TotalHours > 4)
             {
-                TempData["Error"] = $"Time slot overlaps with existing slot ({overlappingSlot.StartTime:hh\\:mm} - {overlappingSlot.EndTime:hh\\:mm}).";
-                return RedirectToAction(nameof(Index));
+                // ─── SPLIT INTO 2-HOUR INTERVALS ───
+                var interval = TimeSpan.FromHours(2);
+                var currentStart = StartTime;
+                var slotsAdded = 0;
+
+                while (currentStart < EndTime)
+                {
+                    var slotEnd = currentStart + interval;
+                    if (slotEnd > EndTime)
+                        slotEnd = EndTime;
+
+                    // Check for overlap with existing slots
+                    var overlappingSlot = await _context.ArtistAvailabilities
+                        .FirstOrDefaultAsync(a => a.ArtistId == userId
+                            && a.AvailableDate == AvailableDate
+                            && ((currentStart >= a.StartTime && currentStart < a.EndTime)
+                                || (slotEnd > a.StartTime && slotEnd <= a.EndTime)
+                                || (currentStart <= a.StartTime && slotEnd >= a.EndTime)));
+
+                    if (overlappingSlot == null)
+                    {
+                        var newSlot = new ArtistAvailability
+                        {
+                            ArtistId = userId,
+                            AvailableDate = AvailableDate,
+                            StartTime = currentStart,
+                            EndTime = slotEnd,
+                            IsBooked = false
+                        };
+
+                        _context.ArtistAvailabilities.Add(newSlot);
+                        slotsAdded++;
+                    }
+                    else
+                    {
+                        TempData["Warning"] = $"Slot {currentStart:hh\\:mm} - {slotEnd:hh\\:mm} overlaps with existing slot. Skipped.";
+                    }
+
+                    currentStart = slotEnd;
+                }
+
+                await _context.SaveChangesAsync();
+
+                if (slotsAdded > 0)
+                {
+                    TempData["Success"] = $"✅ Added {slotsAdded} slot(s) for {AvailableDate:MMM dd, yyyy} from {StartTime:hh\\:mm} to {EndTime:hh\\:mm}!";
+                }
+                else
+                {
+                    TempData["Error"] = "No slots were added. All time slots overlapped with existing ones.";
+                }
             }
-
-            var newSlot = new ArtistAvailability
+            else
             {
-                ArtistId = userId,
-                AvailableDate = AvailableDate,
-                StartTime = StartTime,
-                EndTime = EndTime,
-                IsBooked = false
-            };
+                // ─── CUSTOM SINGLE SLOT (≤ 4 HOURS) ───
+                // Can be 1 hour, 2 hours, 3 hours, 3.5 hours, 4 hours, etc.
 
-            try
-            {
+                var overlappingSlot = await _context.ArtistAvailabilities
+                    .FirstOrDefaultAsync(a => a.ArtistId == userId
+                        && a.AvailableDate == AvailableDate
+                        && ((StartTime >= a.StartTime && StartTime < a.EndTime)
+                            || (EndTime > a.StartTime && EndTime <= a.EndTime)
+                            || (StartTime <= a.StartTime && EndTime >= a.EndTime)));
+
+                if (overlappingSlot != null)
+                {
+                    TempData["Error"] = $"Time slot overlaps with existing slot ({overlappingSlot.StartTime:hh\\:mm} - {overlappingSlot.EndTime:hh\\:mm}).";
+                    return RedirectToAction(nameof(Index));
+                }
+
+                var newSlot = new ArtistAvailability
+                {
+                    ArtistId = userId,
+                    AvailableDate = AvailableDate,
+                    StartTime = StartTime,
+                    EndTime = EndTime,
+                    IsBooked = false
+                };
+
                 _context.ArtistAvailabilities.Add(newSlot);
                 await _context.SaveChangesAsync();
+
                 TempData["Success"] = $"✅ Slot added for {AvailableDate:MMM dd, yyyy} from {StartTime:hh\\:mm} to {EndTime:hh\\:mm}!";
-            }
-            catch (Exception ex)
-            {
-                TempData["Error"] = $"Failed to add slot: {ex.Message}";
             }
 
             return RedirectToAction(nameof(Index));
         }
 
+        // ═══════════════════════════════════════════════════════════
         // POST: ArtistAvailability/DeleteSlot
+        // ═══════════════════════════════════════════════════════════
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteSlot(int id)

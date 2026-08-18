@@ -780,7 +780,7 @@
         </form>
     </div>
 
-    @* ─── ✅ NEW: 5 STAT CARDS (Gross, Fees, Net, Month, Pending) ─── *@
+    @* ─── 5 STAT CARDS ─── *@
     <div class="stats-grid">
         <div class="stat-card stat-gross">
             <span class="stat-label">Gross Earnings</span>
@@ -789,7 +789,7 @@
         </div>
         <div class="stat-card stat-fee">
             <span class="stat-label">Total Fees Deducted</span>
-            <span class="stat-value">R @Model.History.Where(h => h.IsFullyPaid).Sum(h => h.OriginalPrice - h.YourEarnings).ToString("N2")</span>
+            <span class="stat-value">R @Model.History.Where(h => h.IsFullyPaid).Sum(h => h.PlatformFee).ToString("N2")</span>
             <div class="stat-sub">Platform fees deducted</div>
         </div>
         <div class="stat-card" style="border-left-color:var(--gold)">
@@ -892,19 +892,10 @@
                     <tbody>
                         @foreach (var item in Model.History)
                         {
-                            // ─── ✅ USE IsNewClient FROM THE MODEL ───
+                            // ─── ✅ USE STORED VALUES FROM THE MODEL ───
                             var isNewClient = item.IsNewClient;
-
-                            decimal platformFee;
-                            if (isNewClient)
-                            {
-                                platformFee = item.OriginalPrice * 0.10m;
-                                if (platformFee < 8.00m) platformFee = 8.00m;
-                            }
-                            else
-                            {
-                                platformFee = 15.00m;
-                            }
+                            var platformFee = item.PlatformFee;        // ✅ Use stored value
+                            var yourEarnings = item.YourEarnings;      // ✅ Use stored value
 
                             <tr>
                                 <td style="color:rgba(255,255,255,0.4)">@item.Date.ToString("dd MMM yyyy")</td>
@@ -922,7 +913,7 @@
                                 <td style="color:rgba(255,255,255,0.6)">@item.ServiceName</td>
                                 <td class="text-end amount-service">R @item.OriginalPrice.ToString("N2")</td>
                                 <td class="text-end amount-platform">R @platformFee.ToString("N2")</td>
-                                <td class="text-end amount-artist">R @item.YourEarnings.ToString("N2")</td>
+                                <td class="text-end amount-artist">R @yourEarnings.ToString("N2")</td>
                                 <td class="text-end amount-deposit">R @item.DepositPaid.ToString("N2")</td>
                                 <td class="text-end amount-final">R @item.FinalPaymentPaid.ToString("N2")</td>
                                 <td class="text-center">
@@ -944,7 +935,10 @@
                     </tbody>
                     <tfoot>
                         <tr style="border-top:1px solid rgba(240,200,8,0.15)">
-                            <td colspan="6" style="padding:12px;font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.3)">Total</td>
+                            <td colspan="5" style="padding:12px;font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.3)">Total</td>
+                            <td class="text-end" style="color:#ff6600;font-size:0.9rem;font-weight:900;padding:12px;">
+                                R @Model.History.Sum(h => h.PlatformFee).ToString("N2")
+                            </td>
                             <td class="text-end" style="color:var(--gold);font-size:0.9rem;font-weight:900;padding:12px;">
                                 R @Model.History.Sum(h => h.YourEarnings).ToString("N2")
                             </td>
@@ -1063,10 +1057,10 @@
 
             @if (hasFilters)
             {
-                                    <text>
-                                        filterBar.classList.add('open');
-                                        toggleBtn.classList.add('open');
-                                    </text>
+                    <text>
+                    filterBar.classList.add('open');
+                    toggleBtn.classList.add('open');
+                    </text>
             }
 
             toggleBtn.addEventListener('click', function() {

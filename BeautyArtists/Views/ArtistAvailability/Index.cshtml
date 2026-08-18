@@ -148,6 +148,24 @@
                 color: #FFD700;
             }
 
+        /* ─── SLOT INFO TEXT ─── */
+        .slot-info-text {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.25);
+            text-align: center;
+            padding: 6px 0 0 0;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            margin-top: 4px;
+        }
+
+            .slot-info-text .highlight {
+                color: #f0c808;
+            }
+
+            .slot-info-text .split-info {
+                color: #ff6b6b;
+            }
+
         @@media (max-width: 768px) {
             .pagination-container {
                 gap: 4px !important;
@@ -182,6 +200,14 @@
 {
     <div class="alert alert-danger alert-dismissible fade show m-3" role="alert" style="background: #5c1a1a; color: #ff8888; border: none;">
         ❌ @TempData["Error"]
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["Warning"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show m-3" role="alert" style="background: #5c4a1a; color: #ffcc66; border: none;">
+        ⚠️ @TempData["Warning"]
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert"></button>
     </div>
 }
@@ -292,6 +318,7 @@
     </div>
 }
 
+@* ─── 🔥 MODAL WITH DYNAMIC SLOT INFO ─── *@
 <div class="modal fade" id="addAvailabilityModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -310,12 +337,18 @@
                         </div>
                         <div class="col-md-6">
                             <label class="input-label">Start Time</label>
-                            <input type="time" name="StartTime" class="form-control" required>
+                            <input type="time" name="StartTime" class="form-control" required id="startTimeInput">
                         </div>
                         <div class="col-md-6">
                             <label class="input-label">End Time</label>
-                            <input type="time" name="EndTime" class="form-control" required>
+                            <input type="time" name="EndTime" class="form-control" required id="endTimeInput">
                         </div>
+                    </div>
+
+                    @* ─── 🔥 DYNAMIC SLOT INFO DISPLAY ─── *@
+                    <div class="slot-info-text mt-3" id="slotInfoDisplay">
+                        <i class="bi bi-info-circle me-1"></i>
+                        <span id="slotInfoText">Select times to see slot details</span>
                     </div>
                 </div>
                 <div class="modal-footer border-0 pb-4">
@@ -342,5 +375,45 @@
                 });
             }
         }
+
+        // ─── 🔥 DYNAMIC SLOT INFO ───
+        document.addEventListener('DOMContentLoaded', function() {
+            const startInput = document.getElementById('startTimeInput');
+            const endInput = document.getElementById('endTimeInput');
+            const infoText = document.getElementById('slotInfoText');
+
+            function updateSlotInfo() {
+                if (startInput.value && endInput.value) {
+                    const startParts = startInput.value.split(':');
+                    const endParts = endInput.value.split(':');
+                    const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+                    const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+                    const durationHours = (endMinutes - startMinutes) / 60;
+
+                    if (durationHours <= 0) {
+                        infoText.innerHTML = '⚠️ End time must be after start time';
+                        infoText.style.color = '#ff6b6b';
+                        return;
+                    }
+
+                    if (durationHours > 4) {
+                        const numSlots = Math.ceil(durationHours / 2);
+                        infoText.innerHTML = `<span class="split-info">⏱️ Long window (${durationHours.toFixed(1)} hrs) — will auto-split into <strong>${numSlots}</strong> slots of 2 hours each</span>`;
+                        infoText.style.color = '#ff6b6b';
+                    } else {
+                        infoText.innerHTML = `<span class="highlight">⏱️ Custom slot (${durationHours.toFixed(1)} hrs) — added as a single slot</span>`;
+                        infoText.style.color = '#f0c808';
+                    }
+                } else {
+                    infoText.innerHTML = 'Select times to see slot details';
+                    infoText.style.color = 'rgba(255,255,255,0.25)';
+                }
+            }
+
+            startInput.addEventListener('change', updateSlotInfo);
+            startInput.addEventListener('input', updateSlotInfo);
+            endInput.addEventListener('change', updateSlotInfo);
+            endInput.addEventListener('input', updateSlotInfo);
+        });
     </script>
 }
