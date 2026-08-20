@@ -610,7 +610,6 @@
         </div>
     </div>
 </div>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
     // ─── LOCATIONIQ API KEY ───
@@ -621,44 +620,7 @@
         myModal.show();
     }
 
-    // ── CITY DROPDOWN LOGIC ──
-    const cityMap = {
-        "Gauteng": ["Johannesburg", "Pretoria", "Sandton", "Soweto", "Centurion"],
-        "North West": ["Rustenburg", "Potchefstroom", "Klerksdorp", "Mahikeng"],
-        "Western Cape": ["Cape Town", "Stellenbosch", "George", "Paarl"],
-        "KwaZulu-Natal": ["Durban", "Pietermaritzburg", "Umhlanga", "Newcastle"],
-        "Free State": ["Bloemfontein", "Welkom", "Sasolburg"],
-        "Eastern Cape": ["Gqeberha", "East London", "Makhanda"],
-        "Limpopo": ["Polokwane", "Thohoyandou", "Tzaneen"],
-        "Mpumalanga": ["Mbombela", "Secunda", "Witbank"],
-        "Northern Cape": ["Kimberley", "Upington"]
-    };
-
-    const provSelect = document.getElementById('editProvince');
-    const citySelect = document.getElementById('editCity');
-
-    function updateCities() {
-        const selected = provSelect.value;
-        citySelect.innerHTML = '<option value="">Select City</option>';
-        if (selected && cityMap[selected]) {
-            cityMap[selected].forEach(function(city) {
-                const opt = document.createElement('option');
-                opt.value = city;
-                opt.textContent = city;
-                if (city === '@Model.City') opt.selected = true;
-                citySelect.appendChild(opt);
-            });
-        }
-    }
-
-    const initialProvince = '@Model.Province';
-    if (initialProvince) {
-        provSelect.value = initialProvince;
-    }
-    updateCities();
-    provSelect.addEventListener('change', updateCities);
-
-    // ── IMAGE PREVIEW ──
+    // ─── IMAGE PREVIEW ───
     document.getElementById('editPfpInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -670,7 +632,7 @@
         }
     });
 
-    // ── STUDIO MAP ──
+    // ─── STUDIO MAP ───
     let studioMap, studioMarker;
 
     function initStudioMap() {
