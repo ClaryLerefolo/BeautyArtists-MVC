@@ -36,7 +36,7 @@
                 <div class="mb-stat-div"></div>
                 <div class="mb-stat">
                     <span class="mb-stat-num" style="color:#f0c808">@pending</span>
-                    <span class="mb-stat-label">PENDING</span>
+                    <span class="mb-stat-label">AWAITING ARTIST RESPONSE</span>
                 </div>
                 <div class="mb-stat-div"></div>
                 <div class="mb-stat">
@@ -227,7 +227,8 @@
                 };
                 string statusDisplay = booking.Status switch
                 {
-                    BeautyArtists.Models.Booking.BookingStatus.Accepted => isLastMinute ? "LAST MINUTE" : "ACCEPTED - AWAITING DEPOSIT",
+                    BeautyArtists.Models.Booking.BookingStatus.Pending => "AWAITING ARTIST RESPONSE",
+                    BeautyArtists.Models.Booking.BookingStatus.Accepted => isLastMinute ? "LAST MINUTE" : "ACCEPTED - AWAITING FULL PAYMENT",
                     BeautyArtists.Models.Booking.BookingStatus.Confirmed => isLastMinute ? "LAST MINUTE" : "CONFIRMED",
                     BeautyArtists.Models.Booking.BookingStatus.Rejected => "REJECTED",
                     BeautyArtists.Models.Booking.BookingStatus.Disputed => "DISPUTED",

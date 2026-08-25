@@ -6,7 +6,7 @@
     var service = Model.UserService;
     var categoryName = service.Service?.ServiceCategory?.Name ?? "General";
 
-    // ─── ✅ CORRECT: Calculate what artist actually receives ───
+    // ─── Calculate what artist actually receives ───
     var artistRepeatPayout = service.Price - 15.00m;
     var artistNewPayout = service.Price * 0.90m;  // 10% commission
 }
@@ -40,12 +40,16 @@
                         <span style="color:#fff; font-weight:700;">R @service.Price.ToString("N2")</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                        <span style="color:rgba(255,255,255,0.4); font-size:0.7rem;">Platform Fee (4%):</span>
+                        <span style="color:rgba(255,255,255,0.4); font-size:0.7rem;">Markup Fee (4%):</span>
                         <span style="color:#ff6600; font-weight:600;">R @((service.Price * 0.04m).ToString("N2"))</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-bottom:1px solid rgba(255,215,0,0.1); padding-bottom:6px;">
+                        <span style="color:rgba(255,255,255,0.4); font-size:0.7rem;">Booking Fee:</span>
+                        <span style="color:#ffc107; font-weight:600;">R 5.00</span>
                     </div>
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-top:1px solid rgba(255,215,0,0.1); padding-top:6px; margin-top:4px;">
                         <span style="color:rgba(255,215,0,0.4); font-size:0.75rem;">Client pays:</span>
-                        <span style="color:#FFD700; font-weight:700;">R @((service.Price * 1.04m).ToString("N2"))</span>
+                        <span style="color:#FFD700; font-weight:700;">R @((service.Price * 1.04m + 5.00m).ToString("N2"))</span>
                     </div>
 
                     <!-- ─── ✅ CORRECT DISCLAIMER ─── -->
@@ -53,13 +57,13 @@
                         <div style="display: flex; align-items: flex-start; gap: 6px; margin-bottom: 3px;">
                             <span style="color: #FFD700; font-weight: 700; font-size: 0.6rem;">✓</span>
                             <span style="color: rgba(255,255,255,0.5); font-size: 0.6rem;">
-                                4% platform fee added to client.
+                                4% markup + R5 booking fee added to client.
                             </span>
                         </div>
                         <div style="display: flex; align-items: flex-start; gap: 6px; margin-bottom: 3px;">
                             <span style="color: #FFD700; font-weight: 700; font-size: 0.6rem;">✓</span>
                             <span style="color: rgba(255,255,255,0.5); font-size: 0.6rem;">
-                                Platform fee deducted from your earnings:
+                                Commission deducted from your earnings:
                                 <span style="color: #28a745; font-weight: 600;">R15</span>
                                 <span style="color: rgba(255,255,255,0.25);">for repeat clients</span>
                             </span>
@@ -67,7 +71,7 @@
                         <div style="display: flex; align-items: flex-start; gap: 6px;">
                             <span style="color: #FFD700; font-weight: 700; font-size: 0.6rem;">✓</span>
                             <span style="color: rgba(255,255,255,0.5); font-size: 0.6rem;">
-                                Platform fee deducted from your earnings:
+                                Commission deducted from your earnings:
                                 <span style="color: #FFD700; font-weight: 600;">10%</span>
                                 <span style="color: rgba(255,255,255,0.25);">for new clients</span>
                             </span>
@@ -76,7 +80,7 @@
 
                     <!-- ─── ✅ WHAT ARTIST ACTUALLY RECEIVES ─── -->
                     <div style="margin-top: 8px; padding: 6px 10px; background: rgba(40, 167, 69, 0.06); border-radius: 6px; border-left: 2px solid #28a745; font-size: 0.65rem; color: rgba(255,255,255,0.5);">
-                        <span>💰 Artist receives: </span>
+                        <span>💰 You receive: </span>
                         <span style="color: #28a745; font-weight: 700;">R @artistRepeatPayout.ToString("N0")</span>
                         <span style="color:rgba(255,255,255,0.2);">(repeat)</span>
                         <span style="color:rgba(255,255,255,0.1); margin:0 4px;">•</span>
@@ -182,11 +186,6 @@
                         <div class="col-md-6">
                             <label class="form-label text-gold">Price (R)</label>
                             <input type="number" name="Price" id="edit_Price" class="form-control" step="0.01" required />
-                            <small style="color:rgba(255,255,255,0.2); display:block; margin-top:4px; font-size:0.65rem;">
-                                <i class="fas fa-info-circle"></i>
-                                <span style="color:#FFD700;">4%</span> added to client + R5 booking fee.
-                                Platform fee (<span style="color:#28a745;">R15</span> repeat / <span style="color:#FFD700;">10%</span> new) deducted from your payout.
-                            </small>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label text-gold">Duration (mins)</label>
@@ -213,13 +212,13 @@
                         <div style="display: flex; align-items: flex-start; gap: 6px; margin-bottom: 3px;">
                             <span style="color: #FFD700; font-weight: 700; font-size: 0.65rem;">✓</span>
                             <span style="color: rgba(255,255,255,0.5); font-size: 0.6rem;">
-                                4% platform fee added to client.
+                                4% markup + R5 booking fee added to client.
                             </span>
                         </div>
                         <div style="display: flex; align-items: flex-start; gap: 6px; margin-bottom: 3px;">
                             <span style="color: #FFD700; font-weight: 700; font-size: 0.65rem;">✓</span>
                             <span style="color: rgba(255,255,255,0.5); font-size: 0.6rem;">
-                                Platform fee deducted from your earnings:
+                                Commission deducted from your earnings:
                                 <span style="color: #28a745; font-weight: 600;">R15</span>
                                 <span style="color: rgba(255,255,255,0.25);">for repeat clients</span>
                             </span>
@@ -227,7 +226,7 @@
                         <div style="display: flex; align-items: flex-start; gap: 6px;">
                             <span style="color: #FFD700; font-weight: 700; font-size: 0.65rem;">✓</span>
                             <span style="color: rgba(255,255,255,0.5); font-size: 0.6rem;">
-                                Platform fee deducted from your earnings:
+                                Commission deducted from your earnings:
                                 <span style="color: #FFD700; font-weight: 600;">10%</span>
                                 <span style="color: rgba(255,255,255,0.25);">for new clients</span>
                             </span>
@@ -243,7 +242,7 @@
     </div>
 </div>
 
-@* ── ADD PORTFOLIO ITEM MODAL ── *@
+@* ─── ADD PORTFOLIO ITEM MODAL ─── *@
 <div class="modal fade" id="addPortfolioItemModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content bg-dark text-white" style="border:1px solid rgba(255,215,0,0.2);border-radius:20px;">
@@ -285,7 +284,7 @@
     </div>
 </div>
 
-@* ── LIGHTBOX OVERLAY ── *@
+@* ─── LIGHTBOX OVERLAY ─── *@
 <div id="lightbox" class="lightbox-overlay" onclick="closeLightbox(event)">
     <div class="lightbox-container">
         <button class="lightbox-close" onclick="closeLightbox()">&times;</button>
@@ -802,8 +801,7 @@
             if (e.key === 'Escape') closeLightbox();
             else if (e.key === 'ArrowLeft') { navigateLightbox(-1); e.preventDefault(); }
             else if (e.key === 'ArrowRight') { navigateLightbox(1); e.preventDefault(); }
-        });
-
+        }); 
         document.addEventListener('DOMContentLoaded', initializeLightbox);
     </script>
 }
