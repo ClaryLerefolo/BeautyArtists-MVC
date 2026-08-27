@@ -221,19 +221,7 @@
                                 }
 
                                 <!-- ─── ✅ FIXED: Just the artist price (P), NO markup ─── -->
-                                <div class="mb-2">
-                                    <span style="color:#FFD700;font-size:1.6rem;font-weight:800;">
-                                        R @service.Price.ToString("N0")
-                                    </span>
-                                </div>
-
                                 <div class="d-grid gap-2">
-                                    <a asp-controller="Portfolio" asp-action="ArtistServicePortfolio"
-                                       asp-route-artistId="@service.ArtistId"
-                                       asp-route-serviceId="@service.UserServiceId"
-                                       class="btn btn-gradient">
-                                        View Service
-                                    </a>
                                     <div style="display: flex; gap: 8px;">
                                         <a asp-controller="Home" asp-action="Catalogue"
                                            asp-route-artistId="@service.ArtistId"

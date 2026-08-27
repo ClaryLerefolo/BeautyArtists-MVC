@@ -22,7 +22,7 @@ namespace BeautyArtists.Models
 
         public string ReferenceId { get; set; } // BookingId, PaymentId, etc.
 
-        public string ReferenceType { get; set; } // "Booking", "Payment", "User"
+        public string? ReferenceType { get; set; } // "Booking", "Payment", "User"
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

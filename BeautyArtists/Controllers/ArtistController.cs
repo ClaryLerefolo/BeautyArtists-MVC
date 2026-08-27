@@ -1665,5 +1665,27 @@ namespace BeautyArtists.Controllers
                 await smtpClient.SendMailAsync(mailMessage);
             }
         }
+
+        [HttpGet]
+        public async Task<IActionResult> TestEmail()
+        {
+            try
+            {
+                Console.WriteLine("📧 [Test] Starting email test...");
+                await _commService.SendDirectMessageEmailAsync(
+                    "test-sender-id",
+                    "ignatiuslerefolo07101999@gmail.com",
+                    "Test Email from RubiOr",
+                    "<h1>Test Email</h1><p>This is a test email to verify SMTP is working.</p>"
+                );
+                Console.WriteLine("✅ [Test] Email sent!");
+                return Content("Email sent! Check your inbox.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ [Test] Email failed: {ex.Message}");
+                return Content($"Error: {ex.Message}");
+            }
+        }
     }
 }

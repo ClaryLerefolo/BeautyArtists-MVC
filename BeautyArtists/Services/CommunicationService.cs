@@ -80,24 +80,12 @@ namespace BeautyArtists.Services
         {
             try
             {
-                Console.WriteLine($"🔍 SendBookingRequestToArtist: ArtistId={artistId}, BookingId={bookingId}");
+                Console.WriteLine($"🔍 [CommService] SendBookingRequestToArtist called");
+                Console.WriteLine($"🔍 [CommService] Incoming ArtistId: '{artistId}', BookingId: {bookingId}");
 
-                // 1. Get artist
-                var artist = await _context.Users.FindAsync(artistId);
-                if (artist == null)
-                {
-                    Console.WriteLine($"❌ SendBookingRequestToArtist: Artist {artistId} not found.");
-                    return;
-                }
-                if (string.IsNullOrEmpty(artist.Email))
-                {
-                    Console.WriteLine($"❌ SendBookingRequestToArtist: Artist {artistId} has no email.");
-                    return;
-                }
-                Console.WriteLine($"✅ Artist found: {artist.Email}");
-
-                // 2. Get booking with all details
+                // 1. Fetch booking with full entity graph upfront (AsNoTracking at start of chain)
                 var booking = await _context.Bookings
+                    .AsNoTracking()
                     .Include(b => b.Customer)
                     .Include(b => b.UserService)
                         .ThenInclude(us => us.Service)
@@ -107,17 +95,53 @@ namespace BeautyArtists.Services
 
                 if (booking == null)
                 {
-                    Console.WriteLine($"❌ SendBookingRequestToArtist: Booking {bookingId} not found.");
+                    Console.WriteLine($"❌ [CommService] Booking ID {bookingId} not found in database.");
                     return;
                 }
-                Console.WriteLine($"✅ Booking found: {booking.Id}");
 
-                // 3. Build email with FULL DETAILS
+                Console.WriteLine($"✅ [CommService] Booking found: ID {booking.Id}");
+
+                // 2. Resolve Artist (Primary: parameter lookup; Fallback: Booking navigation property)
+                ApplicationUser? artist = null;
+
+                if (!string.IsNullOrWhiteSpace(artistId))
+                {
+                    var cleanArtistId = artistId.Trim();
+                    // Added .AsNoTracking() here as well for read-only user resolution
+                    artist = await _context.Users
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(u => u.Id == cleanArtistId);
+                }
+
+                // Fallback if parameter lookup failed or was empty
+                if (artist == null && booking.UserService?.Artist != null)
+                {
+                    artist = booking.UserService.Artist;
+                    Console.WriteLine($"ℹ️ [CommService] Resolved artist directly from Booking.UserService navigation property.");
+                }
+
+                if (artist == null)
+                {
+                    Console.WriteLine($"❌ [CommService] Could not resolve Artist for ID '{artistId}' or Booking ID {bookingId}.");
+                    return;
+                }
+
+                Console.WriteLine($"✅ [CommService] Artist resolved: {artist.FirstName} {artist.LastName} ({artist.Email ?? "NO EMAIL"})");
+
+                if (string.IsNullOrWhiteSpace(artist.Email))
+                {
+                    Console.WriteLine($"❌ [CommService] Artist '{artist.Id}' has no valid email address configured.");
+                    return;
+                }
+
+                // 3. Construct email variables with fallback safety
                 string clientName = booking.Customer != null
                     ? $"{booking.Customer.FirstName} {booking.Customer.LastName}".Trim()
                     : "Client";
+                if (string.IsNullOrWhiteSpace(clientName)) clientName = "Client";
+
                 string serviceName = booking.UserService?.Service?.Name ?? "Service";
-                string artistName = !string.IsNullOrEmpty(artist.FirstName) ? artist.FirstName : "Artist";
+                string artistName = !string.IsNullOrWhiteSpace(artist.FirstName) ? artist.FirstName : "Artist";
                 string appointmentDate = booking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
                 string appointmentTime = booking.AppointmentDate.ToString("hh:mm tt");
                 string locationType = booking.SelectedLocationType == LocationType.HouseCall ? "🏠 House Call" : "🏢 Walk-In";
@@ -126,63 +150,67 @@ namespace BeautyArtists.Services
 
                 string subject = "📅 New Booking Request!";
                 string body = $@"
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
-            <div style='text-align: center; margin-bottom: 20px;'>
-                <h1 style='color: #f0c808; margin: 0; font-size: 24px;'>📅 New Booking Request!</h1>
-                <hr style='border-color: #f0c808;'>
-            </div>
-            
-            <p style='font-size: 16px;'>Dear <strong>{artistName}</strong>,</p>
-            
-            <p style='font-size: 14px; color: #ddd;'>You have a new booking request from <strong style='color: #f0c808;'>{clientName}</strong>.</p>
-            
-            <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
-                <h3 style='color: #f0c808; margin-top: 0;'>📋 Booking Details</h3>
-                <p style='margin: 8px 0;'><strong>Client:</strong> {clientName}</p>
-                <p style='margin: 8px 0;'><strong>Service:</strong> {serviceName}</p>
-                <p style='margin: 8px 0;'><strong>Date:</strong> {appointmentDate}</p>
-                <p style='margin: 8px 0;'><strong>Time:</strong> {appointmentTime}</p>
-                <p style='margin: 8px 0;'><strong>Location:</strong> {locationType}</p>
-                <p style='margin: 8px 0;'><strong>Service Price:</strong> {price}</p>
-            </div>
-            
-            <div style='text-align: center; margin: 25px 0;'>
-                <a href='{dashboardUrl}' 
-                   style='background: linear-gradient(45deg, #f0c808, #e50914); 
-                          color: #000; 
-                          padding: 14px 30px; 
-                          text-decoration: none; 
-                          border-radius: 50px; 
-                          font-weight: bold; 
-                          font-size: 16px; 
-                          display: inline-block;'>
-                    👀 View in Dashboard
-                </a>
-            </div>
-            
-            <div style='background: rgba(229, 9, 20, 0.1); padding: 12px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #e50914;'>
-                <p style='margin: 0; font-size: 12px; color: #ff8888;'>
-                    <strong>⚠️ Action Required:</strong> Please log in to review and accept or decline this booking request.
-                </p>
-            </div>
-            
-            <hr style='border-color: #333; margin: 20px 0;'>
-            <p style='font-size: 11px; color: #666; text-align: center;'>
-                &copy; {DateTime.Now.Year} RubiOr
-            </p>
-        </div>";
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+    <div style='text-align: center; margin-bottom: 20px;'>
+        <h1 style='color: #f0c808; margin: 0; font-size: 24px;'>📅 New Booking Request!</h1>
+        <hr style='border-color: #f0c808;'>
+    </div>
 
-                // 4. Send the email
+    <p style='font-size: 16px;'>Dear <strong>{artistName}</strong>,</p>
+
+    <p style='font-size: 14px; color: #ddd;'>You have a new booking request from <strong style='color: #f0c808;'>{clientName}</strong>.</p>
+
+    <div style='background: #1a1a1a; padding: 15px; border-radius: 8px; margin: 15px 0;'>
+        <h3 style='color: #f0c808; margin-top: 0;'>📋 Booking Details</h3>
+        <p style='margin: 8px 0;'><strong>Client:</strong> {clientName}</p>
+        <p style='margin: 8px 0;'><strong>Service:</strong> {serviceName}</p>
+        <p style='margin: 8px 0;'><strong>Date:</strong> {appointmentDate}</p>
+        <p style='margin: 8px 0;'><strong>Time:</strong> {appointmentTime}</p>
+        <p style='margin: 8px 0;'><strong>Location:</strong> {locationType}</p>
+        <p style='margin: 8px 0;'><strong>Service Price:</strong> {price}</p>
+    </div>
+
+    <div style='text-align: center; margin: 25px 0;'>
+        <a href='{dashboardUrl}' 
+           style='background: linear-gradient(45deg, #f0c808, #e50914); 
+                  color: #000; 
+                  padding: 14px 30px; 
+                  text-decoration: none; 
+                  border-radius: 50px; 
+                  font-weight: bold; 
+                  font-size: 16px; 
+                  display: inline-block;'>
+            👀 View in Dashboard
+        </a>
+    </div>
+
+    <div style='background: rgba(229, 9, 20, 0.1); padding: 12px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #e50914;'>
+        <p style='margin: 0; font-size: 12px; color: #ff8888;'>
+            <strong>⚠️ Action Required:</strong> Please log in to review and accept or decline this booking request.
+        </p>
+    </div>
+
+    <hr style='border-color: #333; margin: 20px 0;'>
+    <p style='font-size: 11px; color: #666; text-align: center;'>
+        &copy; {DateTime.Now.Year} RubiOr
+    </p>
+</div>";
+
+                // 4. Dispatch Email
+                Console.WriteLine($"📧 [CommService] Dispatching email via _emailSender to: {artist.Email}");
                 await _emailSender.SendEmailAsync(artist.Email, subject, body);
-                Console.WriteLine($"✅ Booking request email sent to artist {artist.Email}");
+                Console.WriteLine($"✅ [CommService] Email successfully dispatched to {artist.Email}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ SendBookingRequestToArtistAsync error: {ex.Message}");
-                Console.WriteLine($"❌ Stack: {ex.StackTrace}");
+                Console.WriteLine($"❌ [CommService] SendBookingRequestToArtistAsync Exception: {ex.Message}");
+                Console.WriteLine($"❌ [CommService] StackTrace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"❌ [CommService] Inner Exception: {ex.InnerException.Message}");
+                }
             }
         }
-
         public async Task SendBookingStatusUpdateAsync(string recipientId, int bookingId, string status)
         {
             try

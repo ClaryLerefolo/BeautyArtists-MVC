@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 
 namespace BeautyArtists.Services
 {
-    // 2. Implement the Microsoft Identity interface directly
     public class SmtpEmailSender : IEmailSender
     {
         private readonly IConfiguration _config;
@@ -18,27 +17,50 @@ namespace BeautyArtists.Services
 
         public async Task SendEmailAsync(string email, string subject, string htmlMessage)
         {
-            var smtpSettings = _config.GetSection("SmtpSettings");
-
-            using (var message = new MailMessage())
+            try
             {
-                message.To.Add(new MailAddress(email));
-                message.From = new MailAddress(smtpSettings["FromAddress"], "RubiOr");
-                message.Subject = subject;
-                message.Body = htmlMessage;
-                message.IsBodyHtml = true;
+                var smtpSettings = _config.GetSection("SmtpSettings");
 
-                using (var client = new SmtpClient(smtpSettings["Host"], int.Parse(smtpSettings["Port"])))
+                Console.WriteLine($"📧 [SmtpEmailSender] Sending to: {email}");
+                Console.WriteLine($"📧 [SmtpEmailSender] Host: {smtpSettings["Host"]}:{smtpSettings["Port"]}");
+                Console.WriteLine($"📧 [SmtpEmailSender] Username: {smtpSettings["Username"]}");
+                Console.WriteLine($"📧 [SmtpEmailSender] From: {smtpSettings["FromAddress"]}");
+
+                using (var message = new MailMessage())
                 {
-                    client.Credentials = new NetworkCredential(smtpSettings["Username"], smtpSettings["Password"]);
-                    client.EnableSsl = true;
-                    await client.SendMailAsync(message);
+                    message.To.Add(new MailAddress(email));
+                    message.From = new MailAddress(smtpSettings["FromAddress"], "RubiOr");
+                    message.Subject = subject;
+                    message.Body = htmlMessage;
+                    message.IsBodyHtml = true;
+
+                    using (var client = new SmtpClient(smtpSettings["Host"], int.Parse(smtpSettings["Port"])))
+                    {
+                        client.Credentials = new NetworkCredential(smtpSettings["Username"], smtpSettings["Password"]);
+                        client.EnableSsl = true;
+                        client.Timeout = 30000; // 30 seconds
+
+                        Console.WriteLine($"📧 [SmtpEmailSender] Sending...");
+                        await client.SendMailAsync(message);
+                        Console.WriteLine($"✅ [SmtpEmailSender] Email sent successfully to {email}");
+                    }
                 }
+            }
+            catch (SmtpException smtpEx)
+            {
+                Console.WriteLine($"❌ [SmtpEmailSender] SMTP Error: {smtpEx.Message}");
+                Console.WriteLine($"📚 StatusCode: {smtpEx.StatusCode}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ [SmtpEmailSender] Error: {ex.Message}");
+                Console.WriteLine($"📚 Stack: {ex.StackTrace}");
+                throw;
             }
         }
     }
 
-    // 🔥 ADD THIS CLASS HERE - OUTSIDE SmtpEmailSender BUT INSIDE THE NAMESPACE
     public class SmtpSettings
     {
         public string Host { get; set; }

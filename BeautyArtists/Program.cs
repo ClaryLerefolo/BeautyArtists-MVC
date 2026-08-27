@@ -53,8 +53,7 @@ builder.Services.AddAuthorization();
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("SmtpSettings"));
 
 builder.Services.AddTransient<IEmailSender, SmtpEmailSender>();
-builder.Services.AddTransient<ICommunicationService, CommunicationService>();
-builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ICommunicationService, CommunicationService>(); builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IChatService, ChatService>();

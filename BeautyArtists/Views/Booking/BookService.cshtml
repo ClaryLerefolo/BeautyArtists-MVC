@@ -57,8 +57,8 @@
 
         <form asp-controller="Booking" asp-action="ConfirmBooking" method="post" id="bookingForm">
             @Html.AntiForgeryToken()
-            <input type="hidden" name="UserServiceId" value="@Model.UserServiceId" />
             <input type="hidden" name="ArtistId" value="@Model.ArtistId" />
+            <input type="hidden" name="UserServiceId" value="@Model.UserServiceId" />
             <input type="hidden" name="Price" value="@Model.Price" />
             <input type="hidden" name="ServiceName" value="@Model.ServiceName" />
             <input type="hidden" name="ArtistName" value="@Model.ArtistName" />

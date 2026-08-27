@@ -219,9 +219,6 @@ namespace BeautyArtists.Controllers
             return View("BookService", model);
         }
 
-        // ══════════════════════════════════
-        //  POST: Booking/ConfirmBooking
-        // ══════════════════════════════════
         [Authorize]
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -281,7 +278,6 @@ namespace BeautyArtists.Controllers
                             : userService.Artist?.UserName ?? "Pro Artist";
                         model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
                         model.CategoryName = userService.Service?.ServiceCategory?.Name;
-                        // ✅ FIXED: Check by UserServiceId
                         model.IsNewClient = await IsNewClient(currentUser.Id, model.UserServiceId);
                     }
                     return View("BookService", model);
@@ -315,7 +311,6 @@ namespace BeautyArtists.Controllers
                             : userService.Artist?.UserName ?? "Pro Artist";
                         model.ArtistProfilePicture = userService.Artist?.ArtistProfile?.ProfilePictureUrl ?? "/images/default-profile.png";
                         model.CategoryName = userService.Service?.ServiceCategory?.Name;
-                        // ✅ FIXED: Check by UserServiceId
                         model.IsNewClient = await IsNewClient(currentUser.Id, model.UserServiceId);
                     }
                     return View("BookService", model);
@@ -336,10 +331,7 @@ namespace BeautyArtists.Controllers
 
                 // ─── CALCULATE FEES ───
                 decimal servicePrice = model.Price;
-
-                // ✅ FIXED: Check by UserServiceId
                 bool isNewClient = await IsNewClient(currentUser.Id, model.UserServiceId);
-
                 decimal cardProcessingFee = CalculateCardProcessingFee(servicePrice);
                 decimal clientTotal = CalculateClientTotal(servicePrice);
                 decimal platformFee = isNewClient
@@ -381,12 +373,10 @@ namespace BeautyArtists.Controllers
                     FinalPaymentPaid = 0m,
                     IsDepositPaid = false,
 
-                    // ─── CANCELLATION/REFUND TRACKING ───
                     RefundAmount = 0m,
                     RefundDate = null,
                     IsRefunded = false,
 
-                    // ─── LIFECYCLE PROPERTIES ───
                     ConfirmationPromptSentAt = null,
                     AutoConfirmAt = null,
                     IsDisputed = false,
@@ -418,15 +408,16 @@ namespace BeautyArtists.Controllers
                 slot.IsBooked = true;
                 await _context.SaveChangesAsync();
 
-                // ─── SEND NOTIFICATIONS & EMAILS ───
+                // ─── ✅ FIXED: SEND NOTIFICATIONS & EMAILS ───
                 try
                 {
                     var serviceName = await _context.Services
-                        .Where(s => s.Id == model.UserServiceId)
-                        .Select(s => s.Name)
+                        .Where(us => us.Id == model.UserServiceId)
+                        .Select(us => us.Name)
                         .AsNoTracking()
                         .FirstOrDefaultAsync() ?? "your service";
 
+                    // ─── IN-APP NOTIFICATIONS ───
                     await _notificationService.CreateNotificationAsync(
                         slot.ArtistId,
                         "New Booking Request! 📅",
@@ -445,30 +436,108 @@ namespace BeautyArtists.Controllers
                         Url.Action("MyBookings", "Booking")
                     );
 
-                    if (!string.IsNullOrEmpty(slot.ArtistId))
+                    // ─── ✅ SEND EMAIL TO ARTIST (WITH FALLBACK) ───
+                    Console.WriteLine($"🔍 [EMAIL] Checking artist email for booking {booking.Id}");
+                    Console.WriteLine($"🔍 [EMAIL] slot.ArtistId: '{slot.ArtistId}'");
+                    Console.WriteLine($"🔍 [EMAIL] model.ArtistId: '{model.ArtistId}'");
+
+                    // Use model.ArtistId as fallback if slot.ArtistId is empty
+                    string artistIdToUse = !string.IsNullOrEmpty(slot.ArtistId)
+                        ? slot.ArtistId
+                        : model.ArtistId;
+
+                    Console.WriteLine($"🔍 [EMAIL] Using ArtistId: '{artistIdToUse}'");
+
+                    if (!string.IsNullOrEmpty(artistIdToUse))
                     {
-                        var artist = await _userManager.FindByIdAsync(slot.ArtistId);
-                        if (artist != null && !string.IsNullOrEmpty(artist.Email))
+                        var artist = await _userManager.FindByIdAsync(artistIdToUse);
+                        Console.WriteLine($"🔍 [EMAIL] Artist found: {(artist != null ? "YES" : "NO")}");
+
+                        if (artist != null)
                         {
-                            await _commService.SendBookingRequestToArtistAsync(slot.ArtistId, booking.Id);
+                            Console.WriteLine($"🔍 [EMAIL] Artist Email: '{(artist.Email ?? "NULL")}'");
+                            Console.WriteLine($"🔍 [EMAIL] Artist EmailConfirmed: {artist.EmailConfirmed}");
+
+                            if (!string.IsNullOrEmpty(artist.Email))
+                            {
+                                try
+                                {
+                                    Console.WriteLine($"📧 [EMAIL] Sending booking request to: {artist.Email}");
+                                    await _commService.SendBookingRequestToArtistAsync(artistIdToUse, booking.Id);
+                                    Console.WriteLine($"✅ [EMAIL] Booking request email sent to {artist.Email}");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"❌ [EMAIL] SendBookingRequestToArtistAsync failed: {ex.Message}");
+                                    Console.WriteLine($"📚 [EMAIL] Stack: {ex.StackTrace}");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"❌ [EMAIL] Artist email is null or empty for ArtistId: {artistIdToUse}");
+
+                                // ─── FALLBACK: Send to support email ───
+                                try
+                                {
+                                    string fallbackSubject = "🚨 New Booking - Artist Email Missing!";
+                                    string fallbackBody = $@"
+                            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #e50914; border-radius: 12px; padding: 20px; background: #0a0a0a; color: #fff;'>
+                                <h2 style='color: #e50914;'>🚨 New Booking - Artist Email Missing!</h2>
+                                <p><strong>Booking ID:</strong> {booking.Id}</p>
+                                <p><strong>Artist ID:</strong> {artistIdToUse}</p>
+                                <p><strong>Client:</strong> {currentUser.FirstName} {currentUser.LastName}</p>
+                                <p><strong>Client Email:</strong> {currentUser.Email}</p>
+                                <p><strong>Service:</strong> {serviceName}</p>
+                                <p><strong>Date:</strong> {appointmentDate:dddd, MMMM dd, yyyy}</p>
+                                <p><strong>Time:</strong> {appointmentDate:hh:mm tt}</p>
+                                <p><strong>Location:</strong> {model.SelectedLocationType}</p>
+                                <p style='color:red;'>⚠️ Artist email is missing or invalid in the database!</p>
+                                <p>Please check the artist's profile and update their email.</p>
+                            </div>";
+
+                                    await _commService.SendDirectMessageEmailAsync(
+                                        currentUser.Id,
+                                        "ignatiuslerefolo07101999@gmail.com",
+                                        fallbackSubject,
+                                        fallbackBody
+                                    );
+                                    Console.WriteLine($"✅ [EMAIL] Fallback email sent to support");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine($"❌ [EMAIL] Fallback email failed: {ex.Message}");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine($"❌ [EMAIL] Artist not found for ID: {artistIdToUse}");
                         }
                     }
+                    else
+                    {
+                        Console.WriteLine($"❌ [EMAIL] Both slot.ArtistId AND model.ArtistId are null/empty!");
+                    }
 
+                    // ─── SEND CLIENT CONFIRMATION ───
                     if (!string.IsNullOrEmpty(currentUser.Email))
                     {
                         try
                         {
+                            Console.WriteLine($"📧 [EMAIL] Sending client confirmation to: {currentUser.Email}");
                             await _commService.SendBookingConfirmationToClientAsync(currentUser.Id, booking.Id);
+                            Console.WriteLine($"✅ [EMAIL] Client confirmation email sent to {currentUser.Email}");
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"❌ Failed to send client confirmation email: {ex.Message}");
+                            Console.WriteLine($"❌ [EMAIL] Client confirmation email failed: {ex.Message}");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"❌ Notification/Email error: {ex.Message}");
+                    Console.WriteLine($"❌ [EMAIL] Notification/Email error: {ex.Message}");
+                    Console.WriteLine($"📚 [EMAIL] Stack: {ex.StackTrace}");
                 }
 
                 TempData["Success"] = booking.SelectedLocationType == LocationType.WalkIn
