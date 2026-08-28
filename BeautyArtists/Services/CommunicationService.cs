@@ -146,7 +146,7 @@ namespace BeautyArtists.Services
                 string appointmentTime = booking.AppointmentDate.ToString("hh:mm tt");
                 string locationType = booking.SelectedLocationType == LocationType.HouseCall ? "🏠 House Call" : "🏢 Walk-In";
                 string price = $"R {booking.ServicePrice:N2}";
-                string dashboardUrl = "https://beautyinredandgold-fka9avbqb8esb0at.southafricanorth-01.azurewebsites.net/Artist/MyAppointments";
+                string dashboardUrl = "https://rubior.co.za/Payment/MyAppointments";
 
                 string subject = "📅 New Booking Request!";
                 string body = $@"
@@ -180,7 +180,7 @@ namespace BeautyArtists.Services
                   font-weight: bold; 
                   font-size: 16px; 
                   display: inline-block;'>
-            👀 View in Dashboard
+            👀 View on My Appointments
         </a>
     </div>
 

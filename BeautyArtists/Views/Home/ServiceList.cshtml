@@ -3,6 +3,10 @@
     ViewData["Title"] = Model.Title;
     Layout = "~/Views/Shared/_Layout.cshtml";
     bool isAllServices = Model.Title == "All Services";
+
+    // ─── ✅ DETECT IF THIS IS AN ARTIST PROFILE VIEW ───
+    bool isArtistProfile = !string.IsNullOrEmpty(Model.ArtistName);
+
     var categories = Model.Services?.Select(s => s.Category).Distinct().OrderBy(c => c).ToList() ?? new List<string>();
     decimal maxPrice = Model.Services != null && Model.Services.Any() ? Model.Services.Max(s => s.Price) : 1000;
 
@@ -99,7 +103,7 @@
                 </select>
             </div>
 
-            @* ✅ FIXED: Price slider shows artist price (P) only ─── *@
+            @* ✅ Price slider shows artist price (P) only ─── *@
             <div class="sl-filter-group">
                 <label class="sl-filter-label">
                     Max Price: <span id="priceLabel" style="color:#FFD700">R @maxPrice.ToString("N0")</span>
@@ -220,8 +224,29 @@
                                     </div>
                                 }
 
-                                <!-- ─── ✅ FIXED: Just the artist price (P), NO markup ─── -->
+                                <!-- ─── ✅ PRICE: ONLY SHOW ON GLOBAL VIEW ─── -->
+                                @if (!isArtistProfile)
+                                {
+                                    <div class="mb-2">
+                                        <span style="color:#FFD700;font-size:1.6rem;font-weight:800;">
+                                            R @service.Price.ToString("N0")
+                                        </span>
+                                    </div>
+                                }
+
                                 <div class="d-grid gap-2">
+                                    <!-- ─── ✅ VIEW SERVICE: ONLY SHOW ON GLOBAL VIEW ─── -->
+                                    @if (!isArtistProfile)
+                                    {
+                                        <a asp-controller="Portfolio" asp-action="ArtistServicePortfolio"
+                                           asp-route-artistId="@service.ArtistId"
+                                           asp-route-serviceId="@service.UserServiceId"
+                                           class="btn btn-gradient">
+                                            View Service
+                                        </a>
+                                    }
+
+                                    <!-- ─── ✅ ARTIST CATALOGUE: ALWAYS SHOW ─── -->
                                     <div style="display: flex; gap: 8px;">
                                         <a asp-controller="Home" asp-action="Catalogue"
                                            asp-route-artistId="@service.ArtistId"
@@ -721,7 +746,7 @@
                 provSel.value = '';
                 populateCities('', '');
                 priceEl.value = priceEl.max;
-                // ✅ FIXED: Show artist price (P) only
+                // ✅ Show artist price (P) only
                 var artistPrice = parseFloat(priceEl.value);
                 priceLabel.textContent = 'R ' + artistPrice.toLocaleString('en-ZA', { maximumFractionDigits: 0 });
                 applyFilters();
@@ -735,7 +760,7 @@
             citySel.addEventListener('change', applyFilters);
             catSel.addEventListener('change', applyFilters);
 
-            // ✅ FIXED: Show artist price (P) only
+            // ✅ Show artist price (P) only
             priceEl.addEventListener('input', function() {
                 var artistPrice = parseFloat(this.value);
                 priceLabel.textContent = 'R ' + artistPrice.toLocaleString('en-ZA', { maximumFractionDigits: 0 });

@@ -321,7 +321,7 @@ namespace BeautyArtists.Controllers
             var items = await MapToReportItems(bookings);
             var sb = new StringBuilder();
 
-            sb.AppendLine("BEAUTY IN RED AND GOLD — REVENUE REPORT");
+            sb.AppendLine("RubiOr — REVENUE REPORT");
             sb.AppendLine($"Generated:,{DateTime.Now:dd MMM yyyy HH:mm}");
 
             var filters = new List<string>();
@@ -366,7 +366,7 @@ namespace BeautyArtists.Controllers
                 var sheet = package.Workbook.Worksheets.Add("Revenue Report");
 
                 // Headers & Styling
-                sheet.Cells["A1"].Value = "BEAUTY IN RED AND GOLD — REVENUE REPORT";
+                sheet.Cells["A1"].Value = "RubiOr — REVENUE REPORT";
                 sheet.Cells["A1:O1"].Merge = true;
                 sheet.Cells["A1"].Style.Font.Bold = true;
                 sheet.Cells["A1"].Style.Font.Size = 16;
@@ -436,7 +436,7 @@ namespace BeautyArtists.Controllers
 
             var sb = new StringBuilder();
             sb.Append("<html><body style='font-family:Arial;'>");
-            sb.Append("<h1 style='color:#b30000;'>BEAUTY IN RED AND GOLD</h1>");
+            sb.Append("<h1 style='color:#b30000;'>RubiOr</h1>");
             sb.Append($"<p><b>Report Generated:</b> {DateTime.Now:dd MMM yyyy HH:mm}</p>");
             sb.Append("<table border='1' cellspacing='0' cellpadding='5' style='width:100%; border-collapse:collapse;'>");
             sb.Append("<tr style='background-color:gold;'><th>ID</th><th>Date</th><th>Client</th><th>Artist</th><th>Service</th><th>Type</th><th>Service Price</th><th>4% Markup</th><th>Platform Fee</th><th>Booking Fee</th><th>Artist Net</th><th>Platform Earnings</th></tr>");
@@ -463,7 +463,7 @@ namespace BeautyArtists.Controllers
 
             var sb = new StringBuilder();
             sb.Append("<div style='text-align:center; font-family:sans-serif;'>");
-            sb.Append("<h1 style='color:red;'>BEAUTY IN RED AND GOLD</h1><h2>Revenue Report</h2>");
+            sb.Append("<h1 style='color:red;'>RubiOr</h1><h2>Revenue Report</h2>");
             sb.Append("<table style='width:100%; border:1px solid black; border-collapse:collapse;'>");
             sb.Append("<tr style='background-color:gold;'><th>Date</th><th>Client</th><th>Service</th><th>Type</th><th>Service Price</th><th>4% Markup</th><th>Platform Fee</th><th>Booking Fee</th><th>Artist Net</th><th>Platform Earnings</th></tr>");
             foreach (var item in items)
