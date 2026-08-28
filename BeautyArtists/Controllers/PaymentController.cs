@@ -74,7 +74,6 @@ namespace BeautyArtists.Controllers
         // ─── BUILD DEPOSIT EMAIL (CLIENT-FRIENDLY - NO PLATFORM FEES) ───
         private string BuildDepositEmailBody(Booking booking, decimal depositAmount, decimal finalAmount, bool isFullPayment)
         {
-            // Reload booking with all navigation properties
             var fullBooking = _context.Bookings
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Service)
@@ -337,6 +336,8 @@ namespace BeautyArtists.Controllers
                 }
 
                 string subaccount = null;
+                decimal platformFee = 0m;
+
                 if (booking.UserService?.Artist != null)
                 {
                     var artistProfile = await _context.ArtistProfiles
@@ -347,11 +348,21 @@ namespace BeautyArtists.Controllers
                         if (!artistProfile.SubaccountCode.StartsWith("TEST_SUBACCOUNT_"))
                         {
                             subaccount = artistProfile.SubaccountCode;
+
+                            // ─── ✅ CALCULATE PLATFORM FEE ───
+                            bool isNewClient = await IsNewClient(booking.CustomerId, booking.UserServiceId);
+                            platformFee = isNewClient
+                                ? booking.ServicePrice * NEW_CLIENT_COMMISSION
+                                : REPEAT_CLIENT_FLAT_FEE;
+                            platformFee = Math.Max(platformFee, MIN_PLATFORM_FEE);
+
+                            Console.WriteLine($"💰 Platform Fee: {platformFee}, IsNewClient: {isNewClient}");
                         }
                     }
                 }
 
-                var result = await _paymentService.InitializePayment(email, amount, bookingId, subaccount);
+                // ─── ✅ FIXED: Pass platformFee to InitializePaymentAsync ───
+                var result = await _paymentService.InitializePaymentAsync(email, amount, bookingId, subaccount, platformFee);
 
                 if (!result.success)
                 {
@@ -415,6 +426,8 @@ namespace BeautyArtists.Controllers
                 }
 
                 string subaccount = null;
+                decimal platformFee = 0m;
+
                 if (booking.UserService?.Artist != null)
                 {
                     var artistProfile = await _context.ArtistProfiles
@@ -423,11 +436,22 @@ namespace BeautyArtists.Controllers
                     if (artistProfile != null && !string.IsNullOrEmpty(artistProfile.SubaccountCode))
                     {
                         if (!artistProfile.SubaccountCode.StartsWith("TEST_SUBACCOUNT_"))
+                        {
                             subaccount = artistProfile.SubaccountCode;
+
+                            // ─── ✅ CALCULATE PLATFORM FEE ───
+                            bool isNewClient = await IsNewClient(booking.CustomerId, booking.UserServiceId);
+                            platformFee = isNewClient
+                                ? booking.ServicePrice * NEW_CLIENT_COMMISSION
+                                : REPEAT_CLIENT_FLAT_FEE;
+                            platformFee = Math.Max(platformFee, MIN_PLATFORM_FEE);
+
+                            Console.WriteLine($"💰 Platform Fee: {platformFee}, IsNewClient: {isNewClient}");
+                        }
                     }
                 }
 
-                var result = await _paymentService.InitializePayment(email, finalAmount, bookingId, subaccount);
+                var result = await _paymentService.InitializePaymentAsync(email, finalAmount, bookingId, subaccount, platformFee);
 
                 if (!result.success)
                 {

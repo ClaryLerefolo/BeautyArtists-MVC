@@ -11,6 +11,7 @@ namespace BeautyArtists.Services
         Task<BankValidationResult> ValidateBankAccountAsync(string bankCode, string accountNumber);
         Task<SubaccountCreationResult> CreateSubaccountAsync(string email, string bankCode, string accountNumber, string businessName, decimal percentageCharge = 0m);
         Task<List<Bank>> GetBanksAsync();
+        Task<PaymentInitResult> InitializePaymentAsync(string email, decimal amount, int bookingId, string? subaccountCode = null, decimal? platformFee = null);
     }
 
     public class Bank
@@ -34,6 +35,13 @@ namespace BeautyArtists.Services
         public string AccountHolderName { get; set; }
     }
 
+    public class PaymentInitResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public string AuthorizationUrl { get; set; }
+    }
+
     public class PaystackService : IPaystackService
     {
         private readonly HttpClient _httpClient;
@@ -42,7 +50,7 @@ namespace BeautyArtists.Services
         private readonly ILogger<PaystackService> _logger;
         private readonly string _currency;
 
-        // ─── ✅ CORRECT SOUTH AFRICAN BANK CODES ───
+        // ─── SOUTH AFRICAN BANK CODES ───
         private readonly List<Bank> _saBanks = new List<Bank>
         {
             new Bank { Name = "ABSA", Code = "632005" },
@@ -104,13 +112,11 @@ namespace BeautyArtists.Services
 
         private List<Bank> GetFallbackBanks()
         {
-            // ─── ✅ RETURN CORRECT SOUTH AFRICAN BANK CODES ───
             return _saBanks;
         }
 
         public async Task<BankValidationResult> ValidateBankAccountAsync(string bankCode, string accountNumber)
         {
-            // ─── TEST MODE ───
             if (_isTestMode)
             {
                 Console.WriteLine($"🔍 TEST MODE: Bypassing validation for {bankCode}/{accountNumber}");
@@ -122,8 +128,6 @@ namespace BeautyArtists.Services
                 };
             }
 
-            // ─── ZAR: Skip validation, return EMPTY AccountHolderName ───
-            // Paystack bank/resolve does NOT support ZAR
             if (_currency == "ZAR")
             {
                 Console.WriteLine($"🔍 ZAR MODE: Skipping bank validation for {bankCode}/{accountNumber}");
@@ -131,11 +135,10 @@ namespace BeautyArtists.Services
                 {
                     Success = true,
                     Message = "ZAR bank account - validation skipped",
-                    AccountHolderName = ""  // ← EMPTY! Artist will fill this in
+                    AccountHolderName = ""
                 };
             }
 
-            // ─── Other currencies (NGN, USD, GHS, KES) ───
             try
             {
                 var url = $"bank/resolve?account_number={accountNumber}&bank_code={bankCode}";
@@ -227,6 +230,77 @@ namespace BeautyArtists.Services
                 };
             }
         }
+
+        public async Task<PaymentInitResult> InitializePaymentAsync(string email, decimal amount, int bookingId, string? subaccountCode = null, decimal? platformFee = null)
+        {
+            try
+            {
+                Console.WriteLine($"💰 [Paystack] Initializing payment for booking {bookingId}");
+                Console.WriteLine($"💰 [Paystack] Amount: {amount}, Email: {email}");
+                Console.WriteLine($"💰 [Paystack] Subaccount: {subaccountCode ?? "None"}");
+                Console.WriteLine($"💰 [Paystack] Platform Fee: {platformFee ?? 0}");
+
+                var callbackUrl = "https://rubior.co.za/Payment/PaymentCallback";
+
+                var requestData = new Dictionary<string, object>
+                {
+                    ["email"] = email,
+                    ["amount"] = (int)(amount * 100),
+                    ["callback_url"] = callbackUrl,
+                    ["metadata"] = new { booking_id = bookingId }
+                };
+
+                if (!string.IsNullOrEmpty(subaccountCode))
+                {
+                    requestData["subaccount"] = subaccountCode;
+
+                    if (platformFee.HasValue && platformFee.Value > 0)
+                    {
+                        requestData["transaction_charge"] = (int)(platformFee.Value * 100);
+                        Console.WriteLine($"💰 [Paystack] Transaction charge set to: {platformFee.Value}");
+                    }
+                }
+
+                var content = new StringContent(
+                    JsonSerializer.Serialize(requestData),
+                    Encoding.UTF8,
+                    "application/json"
+                );
+
+                var response = await _httpClient.PostAsync("transaction/initialize", content);
+                var json = await response.Content.ReadAsStringAsync();
+
+                Console.WriteLine($"🔍 [Paystack] Response: {json}");
+
+                // ─── ✅ USE THE EXISTING PaystackInitResponse FROM PaymentService ───
+                var result = JsonSerializer.Deserialize<PaystackInitResponse>(json);
+
+                if (result?.status == true && result.data?.authorization_url != null)
+                {
+                    return new PaymentInitResult
+                    {
+                        Success = true,
+                        Message = "Payment initialized",
+                        AuthorizationUrl = result.data.authorization_url
+                    };
+                }
+
+                return new PaymentInitResult
+                {
+                    Success = false,
+                    Message = result?.message ?? "Payment initialization failed"
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ [Paystack] InitializePayment error: {ex.Message}");
+                return new PaymentInitResult
+                {
+                    Success = false,
+                    Message = $"Error: {ex.Message}"
+                };
+            }
+        }
     }
 
     // ─── PAYSTACK API RESPONSE MODELS ───
@@ -268,4 +342,7 @@ namespace BeautyArtists.Services
         public string type { get; set; }
         public bool is_deleted { get; set; }
     }
+
+    // ─── ✅ THESE ARE NOW REMOVED FROM HERE - THEY EXIST IN PaymentService.cs ───
+    // PaystackInitResponse and PaystackInitData are defined in PaymentService.cs
 }

@@ -63,7 +63,7 @@
                                 <span style="color: rgba(255,255,255,0.6);">Service Price</span>
                                 <span style="color: #fff;">R @servicePrice.ToString("N2")</span>
                             </p>
-
+                            
                             <!-- Card Processing Fee (4%) -->
                             <p style="margin: 4px 0; display: flex; justify-content: space-between;">
                                 <span style="color: rgba(255,255,255,0.5);">Card Processing Fee (4%)</span>
@@ -92,11 +92,7 @@
                                 <span style="color: #28a745; font-weight: 700;">R @depositPaid.ToString("N2")</span>
                             </p>
 
-                            <!-- Remaining Balance -->
-                            <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 1.1rem;">
-                                <span style="color: rgba(255,255,255,0.7); font-weight: 600;">Remaining Balance</span>
-                                <span style="color: #ff6600; font-weight: 800;">R @amountDue.ToString("N2")</span>
-                            </p>
+                         
 
                             <hr style="border-color: rgba(40,167,69,0.2); margin: 8px 0;">
 
@@ -106,24 +102,6 @@
                                 <strong style="color: #28a745; font-size: 1.8rem; font-weight: 800;">R @amountDue.ToString("N2")</strong>
                             </p>
                         </div>
-
-                        <!-- ─── PAYMENT BREAKDOWN ─── -->
-                        <div style="background: rgba(40,167,69,0.04); padding: 10px 15px; border-radius: 8px; margin: 10px 0; border-left: 3px solid #28a745;">
-                            <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 0.9rem;">
-                                <span style="color: rgba(255,255,255,0.5);">Deposit Paid</span>
-                                <span style="color: #28a745; font-weight: 700;">R @depositPaid.ToString("N2")</span>
-                            </p>
-                            <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 0.9rem;">
-                                <span style="color: rgba(255,255,255,0.5);">Final Payment Due</span>
-                                <span style="color: #ff6600; font-weight: 700;">R @amountDue.ToString("N2")</span>
-                            </p>
-                            <hr style="border-color: rgba(40,167,69,0.15); margin: 6px 0;">
-                            <p style="margin: 4px 0; display: flex; justify-content: space-between; font-size: 1rem;">
-                                <span style="color: rgba(255,255,255,0.6); font-weight: 600;">Total Paid</span>
-                                <span style="color: #FFD700; font-weight: 800;">R @totalAmount.ToString("N2")</span>
-                            </p>
-                        </div>
-                    </div>
 
                     <!-- ─── "I AGREE" CHECKBOX ─── -->
                     <div style="margin-top: 16px; padding: 14px 16px; background: rgba(40,167,69,0.04); border-radius: 10px; border-left: 3px solid #28a745;">

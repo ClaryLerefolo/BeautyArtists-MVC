@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,7 +12,13 @@ namespace BeautyArtists.Services
 {
     public interface IPaymentService
     {
-        Task<(bool success, string message, string authorizationUrl, string reference)> InitializePayment(string email, decimal amount, int bookingId, string subaccount = null);
+        Task<(bool success, string message, string authorizationUrl, string reference)> InitializePaymentAsync(
+            string email, 
+            decimal amount, 
+            int bookingId, 
+            string subaccount = null,
+            decimal platformFee = 0m);
+            
         Task<(bool success, string message, PaystackVerifyData data)> VerifyPayment(string reference);
     }
 
@@ -21,9 +28,12 @@ namespace BeautyArtists.Services
         private readonly ApplicationDbContext _context;
         private readonly HttpClient _httpClient;
 
-        // ─── ✅ FIXED: CORRECT PRICING CONSTANTS ───
-        private const decimal CLIENT_MARKUP_RATE = 0.04m;  // 4% card processing fee
-        private const decimal BOOKING_FEE = 5.00m;          // Flat R5 booking fee
+        // ─── PRICING CONSTANTS ───
+        private const decimal CLIENT_MARKUP_RATE = 0.04m;
+        private const decimal BOOKING_FEE = 5.00m;
+        private const decimal NEW_CLIENT_COMMISSION = 0.10m;
+        private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m;
+        private const decimal MIN_PLATFORM_FEE = 8.00m;
 
         public PaymentService(IConfiguration config, ApplicationDbContext context, IHttpClientFactory httpClientFactory)
         {
@@ -33,41 +43,42 @@ namespace BeautyArtists.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _config["Paystack:SecretKey"]);
         }
 
-        // ─── ✅ FIXED: CORRECT PRICING HELPERS ───
         private decimal CalculateCardProcessingFee(decimal servicePrice)
         {
-            return servicePrice * CLIENT_MARKUP_RATE;  // 4% of service price
+            return servicePrice * CLIENT_MARKUP_RATE;
         }
 
         private decimal CalculateClientTotal(decimal servicePrice)
         {
-            return servicePrice + CalculateCardProcessingFee(servicePrice) + BOOKING_FEE;  // P + 4% + R5
+            return servicePrice + CalculateCardProcessingFee(servicePrice) + BOOKING_FEE;
         }
 
         private decimal CalculateDepositAmount(decimal servicePrice)
         {
             decimal halfService = servicePrice / 2;
             decimal cardFee = CalculateCardProcessingFee(servicePrice);
-            return halfService + cardFee + BOOKING_FEE;  // 50% + 4% + R5
+            return halfService + cardFee + BOOKING_FEE;
         }
 
         private decimal CalculateFinalAmount(decimal servicePrice)
         {
-            return servicePrice / 2;  // 50% of service (NO FEES!)
+            return servicePrice / 2;
         }
 
-        public async Task<(bool success, string message, string authorizationUrl, string reference)> InitializePayment(
+        // ─── ✅ FIXED: InitializePaymentAsync with platformFee ───
+        public async Task<(bool success, string message, string authorizationUrl, string reference)> InitializePaymentAsync(
             string email,
             decimal amount,
             int bookingId,
-            string subaccount = null)
+            string subaccount = null,
+            decimal platformFee = 0m)
         {
             try
             {
                 int amountInCents = (int)(amount * 100);
                 string reference = GenerateReference();
 
-                // ─── FETCH BOOKING WITH ARTIST DETAILS ───
+                // ─── FETCH BOOKING ───
                 var booking = await _context.Bookings
                     .Include(b => b.UserService)
                         .ThenInclude(us => us.Artist)
@@ -81,7 +92,6 @@ namespace BeautyArtists.Services
 
                 decimal servicePrice = booking.ServicePrice;
                 decimal clientTotal = CalculateClientTotal(servicePrice);
-                decimal depositAmount = CalculateDepositAmount(servicePrice);
                 bool isDeposit = !booking.IsDepositPaid;
                 bool isFullPayment = Math.Abs(amount - clientTotal) < 0.01m;
 
@@ -89,7 +99,7 @@ namespace BeautyArtists.Services
                 Console.WriteLine($"   ServicePrice: R{servicePrice}");
                 Console.WriteLine($"   Amount Paid: R{amount}");
                 Console.WriteLine($"   Client Total: R{clientTotal}");
-                Console.WriteLine($"   Deposit Amount: R{depositAmount}");
+                Console.WriteLine($"   Platform Fee: R{platformFee}");
                 Console.WriteLine($"   IsDeposit: {isDeposit}");
                 Console.WriteLine($"   IsFullPayment: {isFullPayment}");
 
@@ -101,9 +111,9 @@ namespace BeautyArtists.Services
                     currency = "ZAR",
                     reference = reference,
                     callback_url = _config["Paystack:CallbackUrl"],
-                    split = BuildSplitObject(booking, amount)
+                    subaccount = !string.IsNullOrEmpty(subaccount) && !subaccount.StartsWith("TEST_SUBACCOUNT_") ? subaccount : null,
+                    transaction_charge = platformFee > 0 ? (int)(platformFee * 100) : 0
                 };
-
                 var json = JsonConvert.SerializeObject(requestPayload, new JsonSerializerSettings
                 {
                     NullValueHandling = NullValueHandling.Ignore
@@ -147,49 +157,41 @@ namespace BeautyArtists.Services
             }
         }
 
-        // ─── ✅ FIXED: BUILD SPLIT OBJECT ───
+        // ─── ✅ FIXED: BuildSplitObject ───
         private object BuildSplitObject(Booking booking, decimal amount)
         {
-            // Get the artist's subaccount code
             var artistSubaccount = booking.UserService?.Artist?.ArtistProfile?.SubaccountCode;
 
-            // If no subaccount, return null (no split)
             if (string.IsNullOrEmpty(artistSubaccount) || artistSubaccount.StartsWith("TEST_SUBACCOUNT_"))
             {
                 Console.WriteLine($"⚠️ No valid subaccount for artist {booking.UserService?.ArtistId}. Skipping split.");
                 return null;
             }
 
-            // ─── ✅ FIXED: CALCULATE ARTIST'S SHARE ───
             decimal servicePrice = booking.ServicePrice;
             decimal clientTotal = CalculateClientTotal(servicePrice);
-            decimal cardFee = CalculateCardProcessingFee(servicePrice);
             bool isDeposit = !booking.IsDepositPaid;
             bool isFullPayment = Math.Abs(amount - clientTotal) < 0.01m;
 
             decimal artistShare;
+            decimal platformShare;
 
             if (isDeposit && !isFullPayment)
             {
                 // DEPOSIT: Artist gets 50% of service price
-                // Platform keeps: card fee + booking fee + commission (handled separately)
-                artistShare = servicePrice / 2;  // R200.00
+                artistShare = servicePrice / 2;
+                platformShare = amount - artistShare;
             }
             else
             {
-                // FINAL or FULL PAYMENT: Artist gets 50% of service price
-                // (for full payment, the other 50% was in deposit)
-                artistShare = servicePrice / 2;  // R200.00
+                // FINAL or FULL PAYMENT: Artist gets remaining 50%
+                artistShare = servicePrice / 2;
+                platformShare = amount - artistShare;
             }
 
             int artistShareInCents = (int)(artistShare * 100);
 
-            Console.WriteLine($"💰 Split: Artist subaccount {artistSubaccount} gets R{artistShare}");
-            Console.WriteLine($"   Service Price: R{servicePrice}");
-            Console.WriteLine($"   Card Fee: R{cardFee}");
-            Console.WriteLine($"   Booking Fee: R{BOOKING_FEE}");
-            Console.WriteLine($"   Client Total: R{clientTotal}");
-            Console.WriteLine($"   IsDeposit: {isDeposit}, IsFullPayment: {isFullPayment}");
+            Console.WriteLine($"💰 Split: Artist gets R{artistShare}, Platform gets R{platformShare}");
 
             return new
             {
@@ -246,18 +248,7 @@ namespace BeautyArtists.Services
         }
     }
 
-    // ─── REQUEST MODELS ───
-    public class PaystackInitRequest
-    {
-        public string email { get; set; }
-        public int amount { get; set; }
-        public string currency { get; set; }
-        public string reference { get; set; }
-        public string callback_url { get; set; }
-        public string subaccount { get; set; }
-        public int transaction_charge { get; set; }
-    }
-
+    // ─── RESPONSE MODELS ───
     public class PaystackInitResponse
     {
         public bool status { get; set; }
