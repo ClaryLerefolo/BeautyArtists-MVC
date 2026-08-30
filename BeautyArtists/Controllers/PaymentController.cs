@@ -100,10 +100,10 @@ namespace BeautyArtists.Controllers
     <p>Your full payment of <strong style='color: #28a745;'>R{totalAmount:N2}</strong> has been received.</p>
     
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #28a745;'>
-        <p style='margin: 6px 0;'><strong style='color: #28a745;'>📋 Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
-        <p style='margin: 6px 0;'><strong style='color: #28a745;'>👤 Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
-        <p style='margin: 6px 0;'><strong style='color: #28a745;'>📅 Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
-        <p style='margin: 6px 0;'><strong style='color: #28a745;'>⏰ Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
     </div>
     
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0;'>
@@ -140,10 +140,10 @@ namespace BeautyArtists.Controllers
     <p>Your deposit of <strong style='color: #FFD700;'>R{depositAmount:N2}</strong> has been received.</p>
     
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #f0c808;'>
-        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>📋 Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
-        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>👤 Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
-        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>📅 Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
-        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>⏰ Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
     </div>
     
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0;'>
@@ -212,10 +212,10 @@ namespace BeautyArtists.Controllers
     <p>Your final payment of <strong style='color: #28a745;'>R{finalAmount:N2}</strong> has been received.</p>
     
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #28a745;'>
-        <p style='margin: 6px 0;'><strong style='color: #28a745;'>📋 Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
-        <p style='margin: 6px 0;'><strong style='color: #28a745;'>👤 Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
-        <p style='margin: 6px 0;'><strong style='color: #28a745;'>📅 Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
-        <p style='margin: 6px 0;'><strong style='color: #28a745;'>⏰ Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #28a745;'>Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
     </div>
     
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0;'>
@@ -269,9 +269,9 @@ namespace BeautyArtists.Controllers
     <p>The client <strong style='color: #FFD700;'>{clientFullName}</strong> has paid <strong style='color: #FFD700;'>R{amount:N2}</strong> for:</p>
     
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #f0c808;'>
-        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>📋 Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
-        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>📅 Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
-        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>⏰ Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
     </div>
     
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0;'>

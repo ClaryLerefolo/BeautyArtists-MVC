@@ -1521,10 +1521,10 @@ namespace BeautyArtists.Controllers
     
     <!-- SERVICE DETAILS -->
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #f0c808;'>
-        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>📋 Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
-        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>👤 Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
-        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>📅 Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
-        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>⏰ Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
+        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
+        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
+        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
+        <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
         <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>{locationDisplay}</strong></p>
     </div>
     

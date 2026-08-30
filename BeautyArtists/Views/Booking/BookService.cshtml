@@ -133,7 +133,6 @@
                     <div class="location-card" id="cardWalkIn">
                         @Html.RadioButtonFor(m => m.SelectedLocationType, LocationType.WalkIn, new { id = "locWalkIn", @class = "location-radio" })
                         <div class="card-content">
-                            <div class="card-icon">🏢</div>
                             <div class="card-text">
                                 <h3>Walk-In</h3>
                                 <p>At the artist's studio/salon.</p>
@@ -144,7 +143,6 @@
                     <div class="location-card" id="cardHouseCall">
                         @Html.RadioButtonFor(m => m.SelectedLocationType, LocationType.HouseCall, new { id = "locHouseCall", @class = "location-radio" })
                         <div class="card-content">
-                            <div class="card-icon">📍</div>
                             <div class="card-text">
                                 <h3>House Call</h3>
                                 <p>Artist travels out to your doorstep.</p>
@@ -413,7 +411,6 @@
                 <!-- ─── ADDRESS FIELDS ─── -->
                 <div class="address-highlight-wrapper" style="margin-top: 16px;">
                     <div class="address-input-container">
-                        <div class="address-icon">📍📝</div>
                         <div class="address-field-content">
                             <label class="address-label">
                                 ENTER HOUSE CALL ADDRESS

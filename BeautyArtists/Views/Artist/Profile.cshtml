@@ -357,7 +357,7 @@
                  alt="Profile"
                  onclick="openEditModal()"
                  onerror="this.src='/images/default-profile.png'" />
-            <span class="pic-hint">📸 Click to edit</span>
+            <span class="pic-hint">Click to edit</span>
         </div>
 
         @* ── PROFILE INFO ── *@
@@ -420,25 +420,25 @@
                             @if (!string.IsNullOrEmpty(Model.InstagramUrl))
                             {
                                 <a href="@Model.InstagramUrl" target="_blank" class="social-link instagram">
-                                    <span class="icon">📸</span> Instagram
+                                     Instagram
                                 </a>
                             }
                             @if (!string.IsNullOrEmpty(Model.FacebookUrl))
                             {
                                 <a href="@Model.FacebookUrl" target="_blank" class="social-link facebook">
-                                    <span class="icon">📘</span> Facebook
+                                     Facebook
                                 </a>
                             }
                             @if (!string.IsNullOrEmpty(Model.TwitterUrl))
                             {
                                 <a href="@Model.TwitterUrl" target="_blank" class="social-link twitter">
-                                    <span class="icon">🐦</span> Twitter/X
+                                     Twitter/X
                                 </a>
                             }
                             @if (!string.IsNullOrEmpty(Model.TikTokUrl))
                             {
                                 <a href="@Model.TikTokUrl" target="_blank" class="social-link tiktok">
-                                    <span class="icon">🎵</span> TikTok
+                                    TikTok
                                 </a>
                             }
                         </div>
@@ -490,7 +490,7 @@
             <div style="display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap;">
                 <button class="btn-edit" onclick="openEditModal()">✎ Edit Profile</button>
                 <a href="@Url.Action("Banking", "Artist")" class="btn-edit" style="background: linear-gradient(135deg, #f0c808, #e50914); text-decoration: none; text-align: center;">
-                    💳 Banking Details
+                     Banking Details
                 </a>
             </div>
         </div>
@@ -603,7 +603,7 @@
 
                 <div class="modal-footer-custom">
                     <button type="button" class="btn-cancel" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn-save">💾 Save Changes</button>
+                    <button type="submit" class="btn-save">Save Changes</button>
                 </div>
             </form>
 

@@ -214,15 +214,15 @@
                 };
                 string statusIcon = booking.Status switch
                 {
-                    BeautyArtists.Models.Booking.BookingStatus.Pending => "⏳",
-                    BeautyArtists.Models.Booking.BookingStatus.Accepted => isLastMinute ? "⏰" : "👍",
-                    BeautyArtists.Models.Booking.BookingStatus.Confirmed => isLastMinute ? "⏰" : "✅",
-                    BeautyArtists.Models.Booking.BookingStatus.Completed => "⭐",
-                    BeautyArtists.Models.Booking.BookingStatus.Cancelled => "❌",
-                    BeautyArtists.Models.Booking.BookingStatus.Rejected => "🚫",
-                    BeautyArtists.Models.Booking.BookingStatus.Disputed => "⚠️",
-                    BeautyArtists.Models.Booking.BookingStatus.InReview => "🔍",
-                    BeautyArtists.Models.Booking.BookingStatus.Resolved => "⚖️",
+                    BeautyArtists.Models.Booking.BookingStatus.Pending => "",
+                    BeautyArtists.Models.Booking.BookingStatus.Accepted => isLastMinute ? "" : "",
+                    BeautyArtists.Models.Booking.BookingStatus.Confirmed => isLastMinute ? "" : "",
+                    BeautyArtists.Models.Booking.BookingStatus.Completed => "",
+                    BeautyArtists.Models.Booking.BookingStatus.Cancelled => "",
+                    BeautyArtists.Models.Booking.BookingStatus.Rejected => "",
+                    BeautyArtists.Models.Booking.BookingStatus.Disputed => "",
+                    BeautyArtists.Models.Booking.BookingStatus.InReview => "",
+                    BeautyArtists.Models.Booking.BookingStatus.Resolved => "",
                     _ => "⏳"
                 };
                 string statusDisplay = booking.Status switch
@@ -504,7 +504,7 @@
                                 @if (isLastMinute && !isFullyPaid && (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted || booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed))
                                 {
                                     <span style="color: #FFD700; font-weight: 600; font-size: 0.7rem;">
-                                        ⏰ Full payment required
+                                        Full payment required
                                     </span>
                                 }
                                 else
@@ -540,7 +540,7 @@
                                            asp-action="CheckoutDeposit"
                                            asp-route-id="@booking.Id"
                                            class="mb-btn-deposit" style="background: linear-gradient(135deg, #f0c808, #e50914); color: #000;">
-                                            💳 Pay Full Amount – R @totalAmount.ToString("N2")
+                                             Pay Full Amount – R @totalAmount.ToString("N2")
                                         </a>
                                     }
                                     else
@@ -549,7 +549,7 @@
                                            asp-action="CheckoutDeposit"
                                            asp-route-id="@booking.Id"
                                            class="mb-btn-deposit">
-                                            💰 PAY DEPOSIT – R @depositAmount.ToString("N2")
+                                            PAY DEPOSIT – R @depositAmount.ToString("N2")
                                         </a>
                                         <span style="font-size:0.55rem; text-align:center; display:block; color:rgba(255,255,255,0.2);">
                                             Includes card fee & booking fee | Final: R @finalAmount.ToString("N2")
@@ -567,7 +567,7 @@
                                     if (remainingBalance <= 0 || isFullyPaid)
                                     {
                                         <span class="text-muted small" style="text-align:center; display:block; padding:4px 0; color:#28a745; font-weight:600;">
-                                            ✅ Fully Paid – No action needed
+                                             Fully Paid – No action needed
                                         </span>
                                     }
                                     else
@@ -578,7 +578,7 @@
                                                asp-action="CheckoutFinalPayment"
                                                asp-route-id="@booking.Id"
                                                class="mb-btn-final" style="background: linear-gradient(135deg, #f0c808, #e50914); color: #000;">
-                                                💳 Pay Now – R @remainingBalance.ToString("N2")
+                                                 Pay Now – R @remainingBalance.ToString("N2")
                                             </a>
                                         }
                                         else
@@ -587,7 +587,7 @@
                                                asp-action="CheckoutFinalPayment"
                                                asp-route-id="@booking.Id"
                                                class="mb-btn-final">
-                                                💳 Pay Remaining – R @remainingBalance.ToString("N2")
+                                                 Pay Remaining – R @remainingBalance.ToString("N2")
                                             </a>
                                         }
                                     }
@@ -648,7 +648,7 @@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Disputed || booking.Status == BeautyArtists.Models.Booking.BookingStatus.InReview)
                                 {
                                     <div class="alert alert-warning text-center mb-0" style="background: rgba(229, 9, 20, 0.08); border: 1px solid #e50914; color: #e50914; font-size: 0.7rem; padding: 6px 10px;">
-                                        ⚠️ This booking is under review. Please wait for admin resolution.
+                                         This booking is under review. Please wait for admin resolution.
                                     </div>
                                 }
 

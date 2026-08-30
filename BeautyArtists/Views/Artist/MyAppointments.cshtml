@@ -774,15 +774,15 @@
                                 }
                                 else if (item.Status == BookingStatus.Disputed)
                                 {
-                                    <text>⚠️ DISPUTED</text>
+                                    <text> DISPUTED</text>
                                 }
                                 else if (item.Status == BookingStatus.InReview)
                                 {
-                                    <text>⏳ IN REVIEW</text>
+                                    <text> IN REVIEW</text>
                                 }
                                 else if (item.Status == BookingStatus.Resolved)
                                 {
-                                    <text>✅ RESOLVED</text>
+                                    <text> RESOLVED</text>
                                 }
                                 else
                                 {
@@ -798,11 +798,11 @@
                                         <h5 class="mb-0" style="color: #f0c808;">@item.Customer?.FirstName @item.Customer?.LastName</h5>
                                         @if (item.SelectedLocationType == BeautyArtists.Models.LocationType.HouseCall)
                                         {
-                                            <span class="type-indicator type-housecall">🏠 House Call</span>
+                                            <span class="type-indicator type-housecall"> House Call</span>
                                         }
                                         else
                                         {
-                                            <span class="type-indicator type-walkin">💈 Walk-In</span>
+                                            <span class="type-indicator type-walkin">  Walk-In</span>
                                         }
                                     </div>
                                     <div class="small text-white-50">@item.UserService?.Service?.Name</div>
@@ -813,7 +813,7 @@
                                 {
                                     <div class="dispute-warning-box">
                                         <span style="color: #e50914; font-weight: 700; font-size: 0.75rem;">
-                                            ⚠️ DISPUTED — Under review by admin
+                                             DISPUTED — Under review by admin
                                         </span>
                                         @if (!string.IsNullOrEmpty(item.DisputeReason))
                                         {

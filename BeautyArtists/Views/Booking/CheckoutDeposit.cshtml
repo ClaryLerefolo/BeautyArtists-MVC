@@ -2,7 +2,7 @@
 @{
     ViewData["Title"] = Model.IsLastMinute ? "Pay Full Amount" : "Complete Your Deposit";
     Layout = "~/Views/Shared/_Layout.cshtml";
-    var buttonText = Model.IsLastMinute ? "💳 Pay Full Amount" : "💳 Pay 50% Deposit";
+    var buttonText = Model.IsLastMinute ? " Pay Full Amount" : " Pay 50% Deposit";
     var headerColor = Model.IsLastMinute ? "#f0c808" : "#FFD700";
     var buttonGradient = Model.IsLastMinute ? "linear-gradient(135deg, #f0c808, #e50914)" : "linear-gradient(135deg, #f0c808, #e50914)";
 
@@ -29,7 +29,7 @@
                     }
                     else
                     {
-                        <span class="client-tag repeat-client">🔄 Repeat Client</span>
+                        <span class="client-tag repeat-client"> Repeat Client</span>
                     }
                     @if (Model.IsLastMinute)
                     {
