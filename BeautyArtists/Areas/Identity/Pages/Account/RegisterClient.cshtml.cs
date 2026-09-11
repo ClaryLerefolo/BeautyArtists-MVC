@@ -95,9 +95,16 @@ namespace BeautyArtists.Areas.Identity.Pages.Account
                         protocol: Request.Scheme,
                         host: Request.Host.Value);
 
-                    // Send email via your registered SMTP service
-                    await _emailSender.SendEmailAsync(Input.Email, "Confirm your Beauty in Red and Gold Account",
-                        $"<h3>Welcome {Input.FirstName}!</h3><p>Please confirm your account by <a href='{callbackUrl}'>clicking here</a>.</p>");
+                    try
+                    {
+                        await _emailSender.SendEmailAsync(Input.Email, "Confirm your RubiOr Account",
+                            $"<h3>Welcome {Input.FirstName}!</h3><p>Please confirm your Artist account by <a href='{callbackUrl}'>clicking here</a>.</p>");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"? Email send failed for {Input.Email}: {ex.Message}");
+                        Console.WriteLine($"?? Confirmation link: {callbackUrl}");
+                    }
 
                     return RedirectToPage("RegisterConfirmation", new { email = Input.Email });
                 }

@@ -648,6 +648,7 @@ namespace BeautyArtists.Controllers
         // ═══════════════════════════════════════════════════════════
         // BANKING
         // ═══════════════════════════════════════════════════════════
+
         [HttpGet]
         public async Task<IActionResult> Banking()
         {
@@ -665,7 +666,8 @@ namespace BeautyArtists.Controllers
                 BankCode = profile.BankCode ?? "",
                 AccountHolderName = profile.AccountHolderName ?? "",
                 IsBankAccountVerified = profile.IsBankAccountVerified,
-                SubaccountCode = profile.SubaccountCode ?? "",
+                SubaccountCode = profile.SubaccountCode ?? "", // keep for display, but not used
+                RecipientCode = profile.RecipientCode ?? "",
                 Banks = banks.Select(b => new SelectListItem
                 {
                     Value = b.Code,
@@ -696,6 +698,7 @@ namespace BeautyArtists.Controllers
 
             if (profile == null) return NotFound();
 
+            // ─── 1. VALIDATE BANK ACCOUNT ───
             var validationResult = await _paystackService.ValidateBankAccountAsync(
                 model.BankCode, model.AccountNumber);
 
@@ -705,15 +708,10 @@ namespace BeautyArtists.Controllers
                 return View(model);
             }
 
-            string accountHolderName;
-            if (string.IsNullOrEmpty(validationResult.AccountHolderName))
-            {
-                accountHolderName = model.AccountHolderName;
-            }
-            else
-            {
-                accountHolderName = validationResult.AccountHolderName;
-            }
+            // ─── 2. GET ACCOUNT HOLDER NAME ───
+            string accountHolderName = string.IsNullOrEmpty(validationResult.AccountHolderName)
+                ? model.AccountHolderName
+                : validationResult.AccountHolderName;
 
             if (string.IsNullOrEmpty(accountHolderName))
             {
@@ -723,43 +721,53 @@ namespace BeautyArtists.Controllers
 
             var bankName = banks.FirstOrDefault(b => b.Code == model.BankCode)?.Name ?? "";
 
+            // ─── 3. UPDATE PROFILE WITH BANK DETAILS ───
             profile.BankName = bankName;
             profile.BankCode = model.BankCode;
             profile.AccountHolderName = accountHolderName;
             profile.IsBankAccountVerified = true;
             profile.BankAccountVerifiedDate = DateTime.UtcNow;
 
+            // ─── 4. HANDLE TEST MODE ───
             bool isTestMode = _configuration["Paystack:Mode"]?.ToLower() == "test";
 
             if (isTestMode)
             {
-                profile.SubaccountCode = "TEST_SUBACCOUNT_" + Guid.NewGuid().ToString().Substring(0, 8);
+                // ─── TEST MODE: Generate fake recipient code ───
+                profile.RecipientCode = "RCP_TEST_" + Guid.NewGuid().ToString().Substring(0, 8);
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = $"✅ Test mode: Bank account verified! (Subaccount not created in test mode)";
+                TempData["Success"] = "✅ Test mode: Bank account verified! (Recipient created for testing)";
                 return RedirectToAction(nameof(Banking));
             }
 
-            var businessName = profile.FullName ?? user.Email ?? "Artist";
-            var subaccountResult = await _paystackService.CreateSubaccountAsync(
-                email: user.Email,
-                bankCode: model.BankCode,
+            // ─── 5. LIVE MODE: CREATE TRANSFER RECIPIENT ───
+            string businessName = profile.FullName ?? user.Email ?? "Artist";
+
+            var recipientResult = await _paystackService.CreateTransferRecipientAsync(
+                name: businessName,
                 accountNumber: model.AccountNumber,
-                businessName: businessName,
-                percentageCharge: 0m
+                bankCode: model.BankCode,
+                email: user.Email
             );
 
-            if (!subaccountResult.Success)
+            if (!recipientResult.Success)
             {
-                ModelState.AddModelError("", subaccountResult.Message);
+                ModelState.AddModelError("", $"Failed to create transfer recipient: {recipientResult.Message}");
                 return View(model);
             }
 
-            profile.SubaccountCode = subaccountResult.SubaccountCode;
+            // ─── 6. SAVE RECIPIENT CODE ───
+            profile.RecipientCode = recipientResult.RecipientCode;
+
+            // ─── 7. (OPTIONAL) We no longer create subaccounts ───
+            // If you want to keep subaccount for backward compatibility, you can still create it,
+            // but we won't use it in the new flow. For simplicity, we skip it.
+            // profile.SubaccountCode = null; // or keep existing
+
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = $"✅ Bank account verified! Welcome aboard, {accountHolderName}.";
-
+            TempData["Success"] = $"✅ Bank account verified! Transfer recipient created for {accountHolderName}.";
             return RedirectToAction("Profile", "Artist");
         }
 
@@ -781,27 +789,27 @@ namespace BeautyArtists.Controllers
             if (isTestMode)
             {
                 return new List<Bank>
-                {
-                    new Bank { Name = "ABSA (Test)", Code = "000003" },
-                    new Bank { Name = "Capitec (Test)", Code = "000002" },
-                    new Bank { Name = "FNB (Test)", Code = "000001" },
-                    new Bank { Name = "Standard Bank (Test)", Code = "000004" }
-                };
+        {
+            new Bank { Name = "ABSA (Test)", Code = "000003" },
+            new Bank { Name = "Capitec (Test)", Code = "000002" },
+            new Bank { Name = "FNB (Test)", Code = "000001" },
+            new Bank { Name = "Standard Bank (Test)", Code = "000004" }
+        };
             }
 
             return new List<Bank>
-            {
-                new Bank { Name = "ABSA", Code = "632005" },
-                new Bank { Name = "Capitec", Code = "470010" },
-                new Bank { Name = "FNB", Code = "250655" },
-                new Bank { Name = "Nedbank", Code = "198765" },
-                new Bank { Name = "Standard Bank", Code = "051001" },
-                new Bank { Name = "Bank Zero", Code = "679000" },
-                new Bank { Name = "Discovery Bank", Code = "679000" },
-                new Bank { Name = "TymeBank", Code = "678910" },
-                new Bank { Name = "African Bank", Code = "430000" },
-                new Bank { Name = "Investec", Code = "580105" }
-            };
+    {
+        new Bank { Name = "ABSA", Code = "632005" },
+        new Bank { Name = "Capitec", Code = "470010" },
+        new Bank { Name = "FNB", Code = "250655" },
+        new Bank { Name = "Nedbank", Code = "198765" },
+        new Bank { Name = "Standard Bank", Code = "051001" },
+        new Bank { Name = "Bank Zero", Code = "679000" },
+        new Bank { Name = "Discovery Bank", Code = "679000" },
+        new Bank { Name = "TymeBank", Code = "678910" },
+        new Bank { Name = "African Bank", Code = "430000" },
+        new Bank { Name = "Investec", Code = "580105" }
+    };
         }
 
         [HttpGet]
@@ -821,7 +829,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ═══════════════════════════════════════════════════════════
-        // ARTIST UPDATE STATUS - FIXED with dispute block
+        // ARTIST UPDATE STATUS - COMPLETE WITH DEPOSIT DEADLINE
         // ═══════════════════════════════════════════════════════════
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -887,7 +895,17 @@ namespace BeautyArtists.Controllers
                     }
 
                     booking.Status = BookingStatus.Accepted;
-                    if (booking.AvailabilitySlot != null) booking.AvailabilitySlot.IsBooked = true;
+
+                    // ─── ✅ ADD: DEPOSIT DEADLINE (12 HOURS) ───
+                    booking.PaymentWindowOpen = true;
+                    booking.DepositDueDate = DateTime.UtcNow.AddHours(12);
+                    booking.PaymentReminder1SentAt = null;
+                    booking.PaymentReminder2SentAt = null;
+                    booking.PaymentReminder3SentAt = null;
+
+                    if (booking.AvailabilitySlot != null)
+                        booking.AvailabilitySlot.IsBooked = true;
+
                     await _context.SaveChangesAsync();
 
                     try
@@ -897,7 +915,7 @@ namespace BeautyArtists.Controllers
                             await _notificationService.CreateNotificationAsync(
                                 booking.CustomerId,
                                 "Appointment Accepted! ✅",
-                                $"Great news! {booking.UserService?.Artist?.FirstName ?? "The artist"} has ACCEPTED your appointment for {booking.UserService?.Service?.Name ?? "your service"} on {booking.AppointmentDate:MMM dd}. Pay your deposit now!",
+                                $"Great news! {booking.UserService?.Artist?.FirstName ?? "The artist"} has ACCEPTED your appointment for {booking.UserService?.Service?.Name ?? "your service"} on {booking.AppointmentDate:MMM dd}. You have 12 hours to pay your deposit!",
                                 "booking_accepted",
                                 booking.Id.ToString(),
                                 Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id })
@@ -906,19 +924,20 @@ namespace BeautyArtists.Controllers
                     }
                     catch (Exception ex) { Console.WriteLine($"In-app notification error: {ex.Message}"); }
 
+                    // ─── ✅ SEND DEPOSIT REQUIRED EMAIL ───
                     if (!string.IsNullOrEmpty(booking.Customer?.Email))
                     {
                         try
                         {
                             var depositUrl = Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme);
-                            string subject = "✅ Your Appointment Has Been Accepted!";
-                            string emailBody = BuildAcceptanceEmail(booking, depositUrl);
+                            string subject = "💰 Deposit Required Within 12 Hours";
+                            string emailBody = BuildDepositRequiredEmail(booking, depositUrl);
                             await SendBookingStatusEmail(booking, subject, emailBody);
                         }
                         catch (Exception ex) { Console.WriteLine($"Email error: {ex.Message}"); }
                     }
 
-                    TempData["Success"] = "Appointment accepted! Client has been notified to pay deposit.";
+                    TempData["Success"] = "Appointment accepted! Client has 12 hours to pay the deposit.";
                 }
                 else if (newStatus == BookingStatus.Rejected)
                 {
@@ -1105,6 +1124,14 @@ namespace BeautyArtists.Controllers
 
             booking.IsLocationShared = shareLocation;
             booking.Status = BookingStatus.Accepted;
+
+            // ─── ✅ ADD DEPOSIT DEADLINE FOR WALK-IN TOO ───
+            booking.PaymentWindowOpen = true;
+            booking.DepositDueDate = DateTime.UtcNow.AddHours(12);
+            booking.PaymentReminder1SentAt = null;
+            booking.PaymentReminder2SentAt = null;
+            booking.PaymentReminder3SentAt = null;
+
             booking.ArtistNotes = "Accepted with location sharing: " + (shareLocation ? "Yes" : "No");
 
             if (booking.AvailabilitySlot != null)
@@ -1117,7 +1144,7 @@ namespace BeautyArtists.Controllers
                 await _notificationService.CreateNotificationAsync(
                     booking.CustomerId,
                     "Appointment Accepted! ✅",
-                    $"Great news! {booking.UserService?.Artist?.FirstName} has ACCEPTED your walk‑in appointment for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd}.",
+                    $"Great news! {booking.UserService?.Artist?.FirstName} has ACCEPTED your walk‑in appointment for {booking.UserService?.Service?.Name} on {booking.AppointmentDate:MMM dd}. You have 12 hours to pay your deposit!",
                     "booking_accepted",
                     booking.Id.ToString(),
                     Url.Action("MyBookings", "Booking")
@@ -1127,12 +1154,12 @@ namespace BeautyArtists.Controllers
 
             if (!string.IsNullOrEmpty(booking.Customer?.Email))
             {
-                string subject = "✅ Your Walk-in Appointment Has Been Accepted!";
-                string emailBody = BuildAcceptanceEmail(booking, Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme));
+                string subject = "💰 Deposit Required - Walk-in Appointment Accepted!";
+                string emailBody = BuildDepositRequiredEmail(booking, Url.Action("CheckoutDeposit", "Booking", new { id = booking.Id }, Request.Scheme));
                 await _commService.SendDirectMessageEmailAsync(artistId, booking.CustomerId, subject, emailBody);
             }
 
-            TempData["Success"] = "Walk‑in appointment accepted successfully! " + (shareLocation ? "Location sharing enabled." : "Location sharing disabled.");
+            TempData["Success"] = "Walk‑in appointment accepted successfully! Client has 12 hours to pay the deposit. " + (shareLocation ? "Location sharing enabled." : "Location sharing disabled.");
             return RedirectToAction(nameof(MyAppointments));
         }
 
@@ -1445,24 +1472,18 @@ namespace BeautyArtists.Controllers
             return RedirectToAction("MyAppointments", "Artist");
         }
 
-        // ─── BUILD ACCEPTANCE EMAIL (FIXED - MATCHES MYBOOKINGS EXACTLY) ───
+        // ─── BUILD ACCEPTANCE EMAIL ───
         private string BuildAcceptanceEmail(Booking booking, string depositUrl)
         {
-            // ─── RELOAD BOOKING WITH ALL NAVIGATION PROPERTIES ───
             var fullBooking = _context.Bookings
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Service)
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Artist)
                 .Include(b => b.Customer)
-                .FirstOrDefault(b => b.Id == booking.Id);
+                .FirstOrDefault(b => b.Id == booking.Id) ?? booking;
 
-            if (fullBooking == null) fullBooking = booking;
-
-            // ─── GET SERVICE NAME ───
             var serviceName = fullBooking.UserService?.Service?.Name ?? "Unknown Service";
-
-            // ─── GET ARTIST NAME ───
             var artistFirstName = fullBooking.UserService?.Artist?.FirstName ??
                                   fullBooking.UserService?.Artist?.UserName?.Split('@')[0] ??
                                   "The artist";
@@ -1470,7 +1491,6 @@ namespace BeautyArtists.Controllers
             var artistFullName = $"{artistFirstName} {artistLastName}".Trim();
             if (string.IsNullOrEmpty(artistFullName)) artistFullName = "The artist";
 
-            // ─── USE STORED VALUES FROM BOOKING (MATCHES MYBOOKINGS EXACTLY) ───
             var servicePrice = fullBooking.ServicePrice;
             var cardFee = fullBooking.CardProcessingFee;
             var bookingFee = fullBooking.BookingFee;
@@ -1478,48 +1498,21 @@ namespace BeautyArtists.Controllers
             var depositAmount = fullBooking.DepositAmount;
             var finalAmount = fullBooking.FinalAmount;
 
-            // ─── DETERMINE IF NEW CLIENT ───
-            bool isNewClient = false;
-            if (fullBooking.CustomerId != null && fullBooking.UserService?.ArtistId != null)
-            {
-                var existingBookings = _context.Bookings
-                    .Where(b => b.CustomerId == fullBooking.CustomerId
-                                && b.UserService.ArtistId == fullBooking.UserService.ArtistId
-                                && b.Status != BookingStatus.Cancelled
-                                && b.Status != BookingStatus.Rejected
-                                && b.Id != fullBooking.Id)
-                    .Any();
-                isNewClient = !existingBookings;
-            }
-
-            // ─── CALCULATE PLATFORM FEE ───
-            decimal platformFee = isNewClient
-                ? servicePrice * NEW_CLIENT_COMMISSION
-                : REPEAT_CLIENT_FLAT_FEE;
-            platformFee = Math.Max(platformFee, MIN_PLATFORM_FEE);
-            decimal artistPayout = servicePrice - platformFee;
-            string platformFeeLabel = isNewClient ? "10%" : "R15";
-
-            string formattedDate = fullBooking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
-            string formattedTime = fullBooking.AppointmentDate.ToString("hh:mm tt");
-
-            string locationDisplay = fullBooking.SelectedLocationType == LocationType.WalkIn
+            var formattedDate = fullBooking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
+            var formattedTime = fullBooking.AppointmentDate.ToString("hh:mm tt");
+            var locationDisplay = fullBooking.SelectedLocationType == LocationType.WalkIn
                 ? "📍 Walk-In (at artist's studio)"
                 : "🏠 House Call (artist comes to you)";
-
-            string customerName = fullBooking.Customer?.FirstName ??
+            var customerName = fullBooking.Customer?.FirstName ??
                                   fullBooking.Customer?.UserName?.Split('@')[0] ??
                                   "Client";
 
             return $@"
 <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 24px; background: #0a0a0a; color: #fff;'>
-    
-    <!-- HEADER -->
     <h2 style='color: #f0c808; margin-top: 0; font-size: 24px;'>✨ Appointment Accepted! ✨</h2>
     <p style='color: rgba(255,255,255,0.7);'>Dear {customerName},</p>
     <p style='color: rgba(255,255,255,0.8);'>Great news! <strong style='color: #FFD700;'>{artistFullName}</strong> has ACCEPTED your appointment request.</p>
     
-    <!-- SERVICE DETAILS -->
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #f0c808;'>
         <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
         <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>Artist:</strong> <span style='color: #fff;'>{artistFullName}</span></p>
@@ -1528,10 +1521,8 @@ namespace BeautyArtists.Controllers
         <p style='margin: 6px 0; color: rgba(255,255,255,0.6);'><strong style='color: #f0c808;'>{locationDisplay}</strong></p>
     </div>
     
-    <!-- PRICE BREAKDOWN (EXACTLY LIKE MYBOOKINGS) -->
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0;'>
         <p style='margin: 0 0 10px 0; color: rgba(255,255,255,0.4); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;'>Price Breakdown</p>
-        
         <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
             <span style='color: rgba(255,255,255,0.6);'>Service Price:</span>
             <span style='color: #fff; font-weight: 600;'>R {servicePrice:N2}</span>
@@ -1555,8 +1546,6 @@ namespace BeautyArtists.Controllers
         </p>
     </div>
 
-    
-    <!-- DEPOSIT BREAKDOWN (USES booking.DepositAmount & booking.FinalAmount) -->
     <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #FFD700;'>
         <p style='margin: 0 0 4px 0; color: rgba(255,255,255,0.4); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; font-weight: 700;'>Payment Schedule</p>
         <p style='margin: 6px 0; display: flex; justify-content: space-between;'>
@@ -1569,20 +1558,88 @@ namespace BeautyArtists.Controllers
         </p>
     </div>
     
-    <!-- PAYMENT BUTTON -->
+    <div style='background: rgba(229, 9, 20, 0.1); padding: 12px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #e50914;'>
+        <p style='margin: 0; font-size: 13px; color: #ff8888;'>
+            <strong>⚠️ IMPORTANT:</strong> You have <strong style='color: #f0c808;'>12 hours</strong> to pay your deposit. If you don't pay within 12 hours, your booking will be <strong style='color: #ff5555;'>automatically cancelled</strong>.
+        </p>
+        <p style='margin: 6px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.3);'>
+            Reminder emails will be sent every 4 hours.
+        </p>
+    </div>
+    
     <div style='text-align: center; margin: 25px 0 15px 0;'>
         <a href='{depositUrl}' style='background: linear-gradient(135deg, #f0c808, #e50914); color: #000; padding: 14px 40px; text-decoration: none; border-radius: 50px; font-weight: 800; font-size: 16px; display: inline-block; letter-spacing: 0.5px; text-transform: uppercase; border: none; cursor: pointer;'>
             💰 Pay Deposit Now
         </a>
     </div>
     
-    <!-- FOOTER -->
     <hr style='border-color: #2a2a2a; margin-top: 20px;'>
     <p style='font-size: 12px; color: rgba(255,255,255,0.2); text-align: center; margin: 8px 0;'>
         Thank you for choosing RubiOr! ✨
     </p>
     <p style='font-size: 10px; color: rgba(255,255,255,0.12); text-align: center; margin: 4px 0;'>
         This is an automated message. Please do not reply to this email.
+    </p>
+</div>";
+        }
+
+        // ─── ✅ NEW: BUILD DEPOSIT REQUIRED EMAIL ───
+        private string BuildDepositRequiredEmail(Booking booking, string depositUrl)
+        {
+            var fullBooking = _context.Bookings
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Service)
+                .Include(b => b.UserService)
+                    .ThenInclude(us => us.Artist)
+                .Include(b => b.Customer)
+                .FirstOrDefault(b => b.Id == booking.Id) ?? booking;
+
+            var serviceName = fullBooking.UserService?.Service?.Name ?? "your service";
+            var artistFullName = $"{fullBooking.UserService?.Artist?.FirstName ?? ""} {fullBooking.UserService?.Artist?.LastName ?? ""}".Trim() ?? "The artist";
+            var formattedDate = fullBooking.AppointmentDate.ToString("dddd, MMMM dd, yyyy");
+            var formattedTime = fullBooking.AppointmentDate.ToString("hh:mm tt");
+            var depositAmount = fullBooking.DepositAmount;
+            var totalAmount = fullBooking.TotalAmount;
+            var customerName = fullBooking.Customer?.FirstName ?? "Client";
+            var deadline = DateTime.UtcNow.AddHours(12).ToString("dddd, MMMM dd, yyyy 'at' hh:mm tt");
+
+            return $@"
+<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 2px solid #f0c808; border-radius: 12px; padding: 24px; background: #0a0a0a; color: #fff;'>
+    <h2 style='color: #f0c808; margin-top: 0;'>💰 Deposit Required Within 12 Hours</h2>
+    
+    <p>Dear <strong>{customerName}</strong>,</p>
+    
+    <p>Your appointment with <strong style='color: #FFD700;'>{artistFullName}</strong> has been <strong style='color: #f0c808;'>ACCEPTED</strong>!</p>
+    
+    <p>To confirm your booking, you must pay the deposit of <strong style='color: #FFD700;'>R{depositAmount:N2}</strong> within <strong style='color: #FFD700;'>12 hours</strong>.</p>
+    
+    <div style='background: #1a1a1a; padding: 16px; border-radius: 10px; margin: 16px 0; border-left: 4px solid #e50914;'>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>⏰ Deadline:</strong> <span style='color: #fff;'>{deadline}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>💰 Deposit Amount:</strong> <span style='color: #FFD700;'>R{depositAmount:N2}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>📋 Service:</strong> <span style='color: #fff;'>{serviceName}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>📅 Date:</strong> <span style='color: #fff;'>{formattedDate}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>⏰ Time:</strong> <span style='color: #fff;'>{formattedTime}</span></p>
+        <p style='margin: 6px 0;'><strong style='color: #f0c808;'>💳 Total:</strong> <span style='color: #FFD700;'>R{totalAmount:N2}</span></p>
+    </div>
+    
+    <div style='background: rgba(229, 9, 20, 0.12); padding: 12px 16px; border-radius: 8px; margin: 16px 0; border-left: 4px solid #e50914;'>
+        <p style='margin: 0; font-size: 13px; color: #ff8888;'>
+            <strong>⚠️ Important:</strong> If you don't pay within 12 hours, your booking will be <strong style='color: #ff5555;'>automatically cancelled</strong> and the slot will be released.
+        </p>
+        <p style='margin: 6px 0 0 0; font-size: 12px; color: rgba(255,255,255,0.3);'>
+            You will receive reminder emails every 4 hours.
+        </p>
+    </div>
+    
+    <div style='text-align: center; margin: 25px 0;'>
+        <a href='{depositUrl}' style='background: linear-gradient(135deg, #f0c808, #e50914); color: #000; padding: 14px 40px; text-decoration: none; border-radius: 50px; font-weight: 800; font-size: 16px; display: inline-block; letter-spacing: 1px;'>
+            💰 Pay Deposit Now
+        </a>
+    </div>
+    
+    <hr style='border-color: #2a2a2a;'>
+    <p style='font-size: 11px; color: rgba(255,255,255,0.2); text-align: center;'>
+        © {DateTime.Now.Year} RubiOr
     </p>
 </div>";
         }
@@ -1599,6 +1656,7 @@ namespace BeautyArtists.Controllers
 
             return !existingBookings;
         }
+
         private decimal CalculateArtistPayout(decimal artistPrice, bool isNewClient)
         {
             decimal platformFee = isNewClient

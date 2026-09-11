@@ -19,6 +19,8 @@ namespace BeautyArtists.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ICommunicationService _commService;
         private readonly INotificationService _notificationService;
+        private readonly IPaystackService _paystackService;
+
 
         // ─── PRICING CONSTANTS ───
         private const decimal CLIENT_MARKUP_RATE = 0.04m;      // 4% card processing fee
@@ -27,12 +29,15 @@ namespace BeautyArtists.Controllers
         private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m; // R15 for repeat clients
         private const decimal MIN_PLATFORM_FEE = 8.00m;        // Minimum fee floor
 
-        public BookingController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ICommunicationService commService, INotificationService notificationService)
+        private static readonly TimeZoneInfo SAST = TimeZoneInfo.FindSystemTimeZoneById("South Africa Standard Time");
+        public BookingController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, ICommunicationService commService, INotificationService notificationService, IPaystackService paystackService)
         {
             _context = context;
             _userManager = userManager;
             _commService = commService;
             _notificationService = notificationService;
+            _paystackService = paystackService;
+
         }
 
         // ─── ✅ FIXED: Check if client is new to THIS SPECIFIC SERVICE ───
@@ -1532,29 +1537,50 @@ namespace BeautyArtists.Controllers
                 var artistProfile = await _context.ArtistProfiles
                     .FirstOrDefaultAsync(p => p.UserId == booking.UserService.ArtistId);
 
-                if (artistProfile == null || string.IsNullOrEmpty(artistProfile.SubaccountCode))
+                if (artistProfile == null || string.IsNullOrEmpty(artistProfile.RecipientCode))
                 {
-                    Console.WriteLine($"⚠️ No subaccount for artist {booking.UserService.ArtistId}");
+                    Console.WriteLine($"⚠️ No recipient code for artist {booking.UserService.ArtistId}");
                     return;
                 }
 
-                decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
+                // Calculate net payout (service price minus platform commission)
+                decimal artistNetPayout = booking.ServicePrice - booking.PlatformCommission;
 
-                if (totalPaid <= 0)
+                if (artistNetPayout <= 0)
                 {
-                    Console.WriteLine($"⚠️ No payment found for booking {booking.Id}");
+                    Console.WriteLine($"⚠️ Artist payout is zero or negative for booking {booking.Id}");
                     return;
                 }
 
-                booking.ArtistTotalEarned = totalPaid;
+                int amountInCents = (int)(artistNetPayout * 100);
+                string reference = $"PAYOUT_{booking.Id}_{DateTime.UtcNow:yyyyMMddHHmmss}";
 
-                await _context.SaveChangesAsync();
+                var result = await _paystackService.InitiateTransferAsync(
+                    recipientCode: artistProfile.RecipientCode,
+                    amountInCents: amountInCents,
+                    reference: reference,
+                    reason: $"Payout for booking #{booking.Id} – {booking.UserService?.Service?.Name ?? "Service"}"
+                );
 
-                Console.WriteLine($"✅ Released R{totalPaid} to artist {booking.UserService.ArtistId}");
+                if (result.Success)
+                {
+                    booking.ArtistTotalEarned = artistNetPayout;
+                    booking.FundsReleasedAt = DateTime.UtcNow;
+                    booking.IsFundsReleased = true;
+                    await _context.SaveChangesAsync();
+
+                    Console.WriteLine($"✅ Transfer initiated: {result.TransferCode} for R{artistNetPayout} to artist {booking.UserService.ArtistId}");
+                }
+                else
+                {
+                    Console.WriteLine($"❌ Transfer failed: {result.Message}");
+                    // Log only – booking remains completed, but transfer failed.
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ ReleaseFundsToArtist error: {ex.Message}");
+                // Do not throw – we don't want to break the confirmation flow.
             }
         }
     }

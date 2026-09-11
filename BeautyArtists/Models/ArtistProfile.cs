@@ -55,7 +55,8 @@ namespace BeautyArtists.Models
 
         public string? BankCode { get; set; }
         public string? AccountHolderName { get; set; }     // e.g., "Clary"
-        public string? SubaccountCode { get; set; }        // e.g., "ACCT_xxxxxxxxxx" (from Paystack)
+        public string? SubaccountCode { get; set; }       // e.g., "ACCT_xxxxxxxxxx" (from Paystack)
+        public string? RecipientCode { get; set; }    // for transfers after confirmation.
         public bool IsBankAccountVerified { get; set; }    // true = verified & subaccount created
         public DateTime? BankAccountVerifiedDate { get; set; }
         public string? StudioAddress { get; set; }          // e.g. "123 Main St, Sandton"

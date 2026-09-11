@@ -21,6 +21,7 @@ namespace BeautyArtists.Models.ViewModels
 
         public bool IsBankAccountVerified { get; set; }
         public string? SubaccountCode { get; set; }
+        public string? RecipientCode { get; set; }
 
         public List<SelectListItem> Banks { get; set; } = new();
     }

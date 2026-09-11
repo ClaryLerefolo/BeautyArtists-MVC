@@ -133,6 +133,13 @@ namespace BeautyArtists.Models
         public string? DisputeDescription { get; set; }
         public string? AdminNotes { get; set; }
 
+        // ─── DEPOSIT PAYMENT WINDOW ───
+        public DateTime? DepositDueDate { get; set; }        // When deposit must be paid by
+        public bool PaymentWindowOpen { get; set; }          // Is the payment window still open?
+        public DateTime? PaymentReminder1SentAt { get; set; } // 4-hour reminder sent?
+        public DateTime? PaymentReminder2SentAt { get; set; } // 8-hour reminder sent?
+        public DateTime? PaymentReminder3SentAt { get; set; } // 11-hour reminder sent?
+
 
         public enum BookingStatus
         {

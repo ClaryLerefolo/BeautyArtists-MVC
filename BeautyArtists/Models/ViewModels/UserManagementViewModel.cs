@@ -8,10 +8,11 @@
 
         public string FullName { get; set; }
 
-        public string Role {  get; set; }
+        public string Role { get; set; }
 
         public bool IsDeactivated { get; set; }
 
+        public bool IsEmailConfirmed { get; set; }   //
         public List<Service> Services { get; set; }
         public List<UserManagementViewModel> Users { get; set; }
     }

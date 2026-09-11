@@ -12,6 +12,10 @@ namespace BeautyArtists.Services
         Task<SubaccountCreationResult> CreateSubaccountAsync(string email, string bankCode, string accountNumber, string businessName, decimal percentageCharge = 0m);
         Task<List<Bank>> GetBanksAsync();
         Task<PaymentInitResult> InitializePaymentAsync(string email, decimal amount, int bookingId, string? subaccountCode = null, decimal? platformFee = null);
+
+        // ─── NEW: TRANSFER METHODS ───
+        Task<TransferRecipientResult> CreateTransferRecipientAsync(string name, string accountNumber, string bankCode, string email);
+        Task<TransferResult> InitiateTransferAsync(string recipientCode, int amountInCents, string reference, string reason);
     }
 
     public class Bank
@@ -40,6 +44,23 @@ namespace BeautyArtists.Services
         public bool Success { get; set; }
         public string Message { get; set; }
         public string AuthorizationUrl { get; set; }
+    }
+
+    // ─── NEW: TRANSFER RESULT DTOs ───
+    public class TransferRecipientResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public string RecipientCode { get; set; }
+        public string AccountHolderName { get; set; }
+    }
+
+    public class TransferResult
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public string TransferCode { get; set; }
+        public string Reference { get; set; }
     }
 
     public class PaystackService : IPaystackService
@@ -73,16 +94,27 @@ namespace BeautyArtists.Services
             _currency = configuration["Paystack:Currency"] ?? "ZAR";
             _logger = logger;
             _httpClient.BaseAddress = new Uri("https://api.paystack.co/");
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_secretKey}");
 
+            // ✅ LOG THE KEY (first 8 chars) TO CONFIRM IT'S LOADED
+            Console.WriteLine($"🔑 SecretKey loaded: {_secretKey.Substring(0, Math.Min(_secretKey.Length, 8))}...");
             Console.WriteLine($"🔍 Paystack Mode: {(_isTestMode ? "TEST" : "LIVE")}");
             Console.WriteLine($"🔍 Currency: {_currency}");
+        }
+
+        // ─── HELPER TO SET AUTH HEADER ───
+        private void SetAuthHeader()
+        {
+            if (_httpClient.DefaultRequestHeaders.Contains("Authorization"))
+                _httpClient.DefaultRequestHeaders.Remove("Authorization");
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_secretKey.Trim()}");
         }
 
         public async Task<List<Bank>> GetBanksAsync()
         {
             try
             {
+                SetAuthHeader(); // ✅ ADDED
+
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
                 var response = await _httpClient.GetAsync("bank?country=south-africa", cts.Token);
                 var json = await response.Content.ReadAsStringAsync();
@@ -114,12 +146,23 @@ namespace BeautyArtists.Services
         {
             return _saBanks;
         }
-
         public async Task<BankValidationResult> ValidateBankAccountAsync(string bankCode, string accountNumber)
         {
+            // ─── SKIP VALIDATION FOR ZAR ───
+            if (_currency == "ZAR")
+            {
+                Console.WriteLine($"🔍 ZAR MODE: Skipping bank validation for {bankCode}/{accountNumber}");
+                return new BankValidationResult
+                {
+                    Success = true,
+                    Message = "ZAR bank account - validation skipped (verified on recipient creation)",
+                    AccountHolderName = "" // We'll let the artist enter their name manually
+                };
+            }
+
+            // ─── TEST MODE BYPASS ───
             if (_isTestMode)
             {
-                Console.WriteLine($"🔍 TEST MODE: Bypassing validation for {bankCode}/{accountNumber}");
                 return new BankValidationResult
                 {
                     Success = true,
@@ -128,26 +171,19 @@ namespace BeautyArtists.Services
                 };
             }
 
-            if (_currency == "ZAR")
-            {
-                Console.WriteLine($"🔍 ZAR MODE: Skipping bank validation for {bankCode}/{accountNumber}");
-                return new BankValidationResult
-                {
-                    Success = true,
-                    Message = "ZAR bank account - validation skipped",
-                    AccountHolderName = ""
-                };
-            }
-
+            // ─── VALIDATE FOR OTHER CURRENCIES (NGN, USD, GHS, KES) ───
             try
             {
+                SetAuthHeader(); // Ensure auth header is set
+
                 var url = $"bank/resolve?account_number={accountNumber}&bank_code={bankCode}";
-                Console.WriteLine($"🔍 LIVE MODE: Validating {url}");
+                Console.WriteLine($"🔍 Validating {url}");
 
                 var response = await _httpClient.GetAsync(url);
                 var json = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"🔍 Paystack Response: {json}");
 
+                // ─── DESERIALIZE RESPONSE ───
                 var result = JsonSerializer.Deserialize<PaystackApiResponse>(json);
 
                 if (result?.status == true && result.data != null)
@@ -186,6 +222,8 @@ namespace BeautyArtists.Services
         {
             try
             {
+                SetAuthHeader(); // ✅ ADDED
+
                 var payload = new
                 {
                     business_name = businessName,
@@ -193,7 +231,8 @@ namespace BeautyArtists.Services
                     account_number = accountNumber,
                     percentage_charge = (float)percentageCharge,
                     description = $"Subaccount for {businessName} (Email: {email})",
-                    currency = _currency
+                    currency = _currency,
+                    active = true
                 };
 
                 var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
@@ -235,6 +274,8 @@ namespace BeautyArtists.Services
         {
             try
             {
+                SetAuthHeader(); // ✅ ADDED
+
                 Console.WriteLine($"💰 [Paystack] Initializing payment for booking {bookingId}");
                 Console.WriteLine($"💰 [Paystack] Amount: {amount}, Email: {email}");
                 Console.WriteLine($"💰 [Paystack] Subaccount: {subaccountCode ?? "None"}");
@@ -272,7 +313,6 @@ namespace BeautyArtists.Services
 
                 Console.WriteLine($"🔍 [Paystack] Response: {json}");
 
-                // ─── ✅ USE THE EXISTING PaystackInitResponse FROM PaymentService ───
                 var result = JsonSerializer.Deserialize<PaystackInitResponse>(json);
 
                 if (result?.status == true && result.data?.authorization_url != null)
@@ -295,6 +335,119 @@ namespace BeautyArtists.Services
             {
                 Console.WriteLine($"❌ [Paystack] InitializePayment error: {ex.Message}");
                 return new PaymentInitResult
+                {
+                    Success = false,
+                    Message = $"Error: {ex.Message}"
+                };
+            }
+        }
+
+        // ─── NEW: CREATE TRANSFER RECIPIENT ───
+        public async Task<TransferRecipientResult> CreateTransferRecipientAsync(
+            string name,
+            string accountNumber,
+            string bankCode,
+            string email)
+        {
+            try
+            {
+                SetAuthHeader(); // ✅ ADDED
+
+                var payload = new
+                {
+                    type = "basa",
+                    name = name,
+                    account_number = accountNumber,
+                    bank_code = bankCode,
+                    currency = _currency,
+                    email = email
+                };
+
+                var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync("transferrecipient", content);
+                var json = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation($"Transfer recipient response: {json}");
+
+                var result = JsonSerializer.Deserialize<PaystackTransferRecipientResponse>(json);
+
+                if (result?.status == true && result.data != null)
+                {
+                    return new TransferRecipientResult
+                    {
+                        Success = true,
+                        Message = "Recipient created successfully",
+                        RecipientCode = result.data.recipient_code,
+                        AccountHolderName = result.data.name
+                    };
+                }
+
+                return new TransferRecipientResult
+                {
+                    Success = false,
+                    Message = result?.message ?? "Failed to create transfer recipient"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"CreateTransferRecipient error: {ex.Message}");
+                return new TransferRecipientResult
+                {
+                    Success = false,
+                    Message = $"Error: {ex.Message}"
+                };
+            }
+        }
+
+        // ─── NEW: INITIATE TRANSFER ───
+        public async Task<TransferResult> InitiateTransferAsync(
+            string recipientCode,
+            int amountInCents,
+            string reference,
+            string reason)
+        {
+            try
+            {
+                SetAuthHeader(); // ✅ ADDED
+
+                var payload = new
+                {
+                    source = "balance",
+                    amount = amountInCents,
+                    recipient = recipientCode,
+                    reason = reason,
+                    reference = reference
+                };
+
+                var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync("transfer", content);
+                var json = await response.Content.ReadAsStringAsync();
+
+                _logger.LogInformation($"Transfer response: {json}");
+
+                var result = JsonSerializer.Deserialize<PaystackTransferResponse>(json);
+
+                if (result?.status == true && result.data != null)
+                {
+                    return new TransferResult
+                    {
+                        Success = true,
+                        Message = "Transfer initiated successfully",
+                        TransferCode = result.data.transfer_code,
+                        Reference = result.data.reference
+                    };
+                }
+
+                return new TransferResult
+                {
+                    Success = false,
+                    Message = result?.message ?? "Failed to initiate transfer"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"InitiateTransfer error: {ex.Message}");
+                return new TransferResult
                 {
                     Success = false,
                     Message = $"Error: {ex.Message}"
@@ -343,6 +496,41 @@ namespace BeautyArtists.Services
         public bool is_deleted { get; set; }
     }
 
-    // ─── ✅ THESE ARE NOW REMOVED FROM HERE - THEY EXIST IN PaymentService.cs ───
-    // PaystackInitResponse and PaystackInitData are defined in PaymentService.cs
+    // ─── TRANSFER RECIPIENT RESPONSE ───
+    public class PaystackTransferRecipientResponse
+    {
+        public bool status { get; set; }
+        public string message { get; set; }
+        public TransferRecipientData data { get; set; }
+    }
+
+    public class TransferRecipientData
+    {
+        public string recipient_code { get; set; }
+        public string name { get; set; }
+        public string account_number { get; set; }
+        public string bank_code { get; set; }
+        public string currency { get; set; }
+        public string email { get; set; }
+    }
+
+    // ─── TRANSFER RESPONSE ───
+    public class PaystackTransferResponse
+    {
+        public bool status { get; set; }
+        public string message { get; set; }
+        public TransferData data { get; set; }
+    }
+
+    public class TransferData
+    {
+        public string transfer_code { get; set; }
+        public string reference { get; set; }
+        public int amount { get; set; }
+        public string currency { get; set; }
+        public string status { get; set; }
+        public string recipient { get; set; }
+    }
+
+    // ─── PaystackInitResponse and PaystackInitData are defined in PaymentService.cs ───
 }

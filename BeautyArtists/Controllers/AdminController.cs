@@ -9,6 +9,9 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using static BeautyArtists.Models.Booking;
+using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Text;
 
 namespace BeautyArtists.Controllers
 {
@@ -19,7 +22,8 @@ namespace BeautyArtists.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _hostEnvironment;
         private readonly ICommunicationService _commService;
-
+        private readonly IPaystackService _paystackService;  
+        private readonly IEmailSender _emailSender;
         // ─── PRICING CONSTANTS ───
         private const decimal CLIENT_MARKUP_RATE = 0.04m;
         private const decimal BOOKING_FEE = 5.00m;
@@ -27,12 +31,20 @@ namespace BeautyArtists.Controllers
         private const decimal REPEAT_CLIENT_FLAT_FEE = 15.00m;
         private const decimal MIN_PLATFORM_FEE = 8.00m;
 
-        public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment hostEnvironment, ICommunicationService commService)
+        public AdminController(
+            ApplicationDbContext context,
+            UserManager<ApplicationUser> userManager,
+            IWebHostEnvironment hostEnvironment,
+            ICommunicationService commService,
+            IPaystackService paystackService,
+            IEmailSender emailSender) 
         {
             _context = context;
             _userManager = userManager;
             _hostEnvironment = hostEnvironment;
             _commService = commService;
+            _paystackService = paystackService;  
+            _emailSender = emailSender;
         }
 
         // ─── ✅ FIXED: Check by SPECIFIC SERVICE (UserServiceId) ───
@@ -96,7 +108,6 @@ namespace BeautyArtists.Controllers
             decimal total = 0m;
             foreach (var booking in completedBookings)
             {
-                // ✅ FIXED: Check by UserServiceId
                 bool isNew = await IsNewClient(booking.CustomerId, booking.UserServiceId);
                 decimal platformFee = GetPlatformFee(booking.ServicePrice, isNew);
                 decimal markup = booking.ServicePrice * CLIENT_MARKUP_RATE;
@@ -132,7 +143,6 @@ namespace BeautyArtists.Controllers
                     };
                 }
 
-                // ✅ FIXED: Check by UserServiceId
                 bool isNew = await IsNewClient(booking.CustomerId, booking.UserServiceId);
                 decimal platformFee = GetPlatformFee(booking.ServicePrice, isNew);
                 decimal markup = booking.ServicePrice * CLIENT_MARKUP_RATE;
@@ -158,7 +168,9 @@ namespace BeautyArtists.Controllers
                     FullName = $"{user.FirstName} {user.LastName}",
                     Email = user.Email,
                     Role = role,
-                    IsDeactivated = isDeactivated
+                    IsDeactivated = isDeactivated,
+                    IsEmailConfirmed = user.EmailConfirmed  
+
                 });
             }
             var allServices = await _context.Services.ToListAsync();
@@ -741,7 +753,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ══════════════════════════════════
-        //  HELPER: Release funds to artist
+        //  ✅ FIXED: Release funds to artist (uses RecipientCode + Paystack transfer)
         // ══════════════════════════════════
         private async Task ReleaseFundsToArtist(Booking booking)
         {
@@ -750,32 +762,48 @@ namespace BeautyArtists.Controllers
                 var artistProfile = await _context.ArtistProfiles
                     .FirstOrDefaultAsync(p => p.UserId == booking.UserService.ArtistId);
 
-                if (artistProfile == null || string.IsNullOrEmpty(artistProfile.SubaccountCode))
+                if (artistProfile == null || string.IsNullOrEmpty(artistProfile.RecipientCode))
                 {
-                    Console.WriteLine($"⚠️ No subaccount for artist {booking.UserService.ArtistId}");
+                    Console.WriteLine($"⚠️ No recipient code for artist {booking.UserService.ArtistId}");
                     return;
                 }
 
-                decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
+                // Net payout = service price minus platform commission
+                decimal artistNetPayout = booking.ServicePrice - booking.PlatformCommission;
 
-                if (totalPaid <= 0)
+                if (artistNetPayout <= 0)
                 {
-                    Console.WriteLine($"⚠️ No payment found for booking {booking.Id}");
+                    Console.WriteLine($"⚠️ Artist payout is zero or negative for booking {booking.Id}");
                     return;
                 }
 
-                booking.ArtistTotalEarned = totalPaid;
-                booking.FundsReleasedAt = DateTime.UtcNow;
-                booking.IsFundsReleased = true;
+                int amountInCents = (int)(artistNetPayout * 100);
+                string reference = $"DISPUTE_RELEASE_{booking.Id}_{DateTime.UtcNow:yyyyMMddHHmmss}";
 
-                await _context.SaveChangesAsync();
+                var result = await _paystackService.InitiateTransferAsync(
+                    recipientCode: artistProfile.RecipientCode,
+                    amountInCents: amountInCents,
+                    reference: reference,
+                    reason: $"Dispute resolved in artist's favour — booking #{booking.Id}"
+                );
 
-                Console.WriteLine($"✅ Released R{totalPaid} to artist {booking.UserService.ArtistId}");
+                if (result.Success)
+                {
+                    booking.ArtistTotalEarned = artistNetPayout;
+                    booking.FundsReleasedAt = DateTime.UtcNow;
+                    booking.IsFundsReleased = true;
+                    await _context.SaveChangesAsync();
+
+                    Console.WriteLine($"✅ Dispute payout sent: {result.TransferCode} — R{artistNetPayout} to artist {booking.UserService.ArtistId}");
+                }
+                else
+                {
+                    Console.WriteLine($"❌ Dispute payout failed: {result.Message}");
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ ReleaseFundsToArtist error: {ex.Message}");
-                throw;
+                Console.WriteLine($"❌ ReleaseFundsToArtist (admin) error: {ex.Message}");
             }
         }
 
@@ -813,7 +841,7 @@ namespace BeautyArtists.Controllers
         }
 
         // ══════════════════════════════════
-        //  HELPER: Partial split funds
+        //  ✅ FIXED: Partial split (uses RecipientCode + Paystack transfer)
         // ══════════════════════════════════
         private async Task PartialSplitFunds(Booking booking, decimal refundAmount)
         {
@@ -822,6 +850,7 @@ namespace BeautyArtists.Controllers
                 decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
                 decimal artistAmount = totalPaid - refundAmount;
 
+                // ─── Refund part to client ───
                 if (refundAmount > 0)
                 {
                     booking.RefundAmount = refundAmount;
@@ -829,16 +858,39 @@ namespace BeautyArtists.Controllers
                     booking.IsRefunded = true;
                 }
 
+                // ─── Release remaining to artist via Paystack ───
                 if (artistAmount > 0)
                 {
                     var artistProfile = await _context.ArtistProfiles
                         .FirstOrDefaultAsync(p => p.UserId == booking.UserService.ArtistId);
 
-                    if (artistProfile != null && !string.IsNullOrEmpty(artistProfile.SubaccountCode))
+                    if (artistProfile == null || string.IsNullOrEmpty(artistProfile.RecipientCode))
                     {
-                        booking.ArtistTotalEarned = artistAmount;
-                        booking.FundsReleasedAt = DateTime.UtcNow;
-                        booking.IsFundsReleased = true;
+                        Console.WriteLine($"⚠️ No recipient code for artist {booking.UserService.ArtistId}");
+                    }
+                    else
+                    {
+                        int amountInCents = (int)(artistAmount * 100);
+                        string reference = $"DISPUTE_SPLIT_{booking.Id}_{DateTime.UtcNow:yyyyMMddHHmmss}";
+
+                        var result = await _paystackService.InitiateTransferAsync(
+                            recipientCode: artistProfile.RecipientCode,
+                            amountInCents: amountInCents,
+                            reference: reference,
+                            reason: $"Partial split payout for booking #{booking.Id}"
+                        );
+
+                        if (result.Success)
+                        {
+                            booking.ArtistTotalEarned = artistAmount;
+                            booking.FundsReleasedAt = DateTime.UtcNow;
+                            booking.IsFundsReleased = true;
+                            Console.WriteLine($"✅ Partial split payout sent: {result.TransferCode} — R{artistAmount} to artist");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"❌ Partial split payout failed: {result.Message}");
+                        }
                     }
                 }
 
@@ -854,7 +906,6 @@ namespace BeautyArtists.Controllers
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ PartialSplitFunds error: {ex.Message}");
-                throw;
             }
         }
 
@@ -919,6 +970,53 @@ namespace BeautyArtists.Controllers
             {
                 Console.WriteLine($"❌ SendResolutionEmails error: {ex.Message}");
             }
+        }
+        // ══════════════════════════════════
+        //  RESEND CONFIRMATION EMAIL
+        // ══════════════════════════════════
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResendConfirmation(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null)
+            {
+                TempData["Error"] = "User not found.";
+                return RedirectToAction(nameof(ManageUsers));
+            }
+
+            if (user.EmailConfirmed)
+            {
+                TempData["Error"] = "This account is already confirmed.";
+                return RedirectToAction(nameof(ManageUsers));
+            }
+
+            try
+            {
+                var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+
+                var callbackUrl = Url.Page(
+                    "/Account/ConfirmEmail",
+                    pageHandler: null,
+                    values: new { area = "Identity", userId = user.Id, code = code },
+                    protocol: Request.Scheme,
+                    host: Request.Host.Value);
+
+                await _emailSender.SendEmailAsync(
+                    user.Email,
+                    "Confirm your Beauty in Red and Gold Account",
+                    $"<h3>Welcome back!</h3><p>Please confirm your account by <a href='{callbackUrl}'>clicking here</a>.</p>");
+
+                TempData["Success"] = $"Confirmation email resent to {user.Email}.";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ ResendConfirmation failed for {user.Email}: {ex.Message}");
+                TempData["Error"] = "Failed to send confirmation email. Check the logs.";
+            }
+
+            return RedirectToAction(nameof(ManageUsers));
         }
     }
 }

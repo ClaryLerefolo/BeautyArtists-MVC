@@ -1,8 +1,5 @@
 ﻿@model BeautyArtists.Models.ViewModels.UserManagementViewModel
 
-
-
-
 @{
     ViewData["Title"] = "Manage Users";
     var searchTerm = Context.Request.Query["search"].ToString();
@@ -22,7 +19,339 @@
 }
 
 @section Styles {
-<style>
+    <style>
+        .mu-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .mu-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
+
+        /* ── MINI STATS ── */
+        .mu-stats {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .mu-stat {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 12px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 130px;
+        }
+
+        .mu-stat-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(255,215,0,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: #FFD700;
+            flex-shrink: 0;
+        }
+
+        .mu-stat-num {
+            display: block;
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: #FFD700;
+            line-height: 1;
+        }
+
+        .mu-stat-label {
+            display: block;
+            font-size: 0.62rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.3);
+            margin-top: 2px;
+        }
+
+        /* ── FILTER BAR ── */
+        .mu-filter-bar {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .mu-search-wrap {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+            .mu-search-wrap i {
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: rgba(255,215,0,0.4);
+                font-size: 0.85rem;
+                pointer-events: none;
+            }
+
+        .mu-search-input {
+            width: 100%;
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 8px !important;
+            color: #fff !important;
+            padding: 8px 12px 8px 36px !important;
+            font-size: 0.83rem;
+            transition: border-color 0.2s;
+        }
+
+            .mu-search-input:focus {
+                outline: none;
+                border-color: rgba(255,215,0,0.4) !important;
+                background: rgba(255,215,0,0.03) !important;
+                box-shadow: none !important;
+            }
+
+            .mu-search-input::placeholder {
+                color: rgba(255,255,255,0.25) !important;
+            }
+
+        .mu-select {
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 8px !important;
+            color: #fff !important;
+            padding: 8px 14px !important;
+            font-size: 0.83rem;
+            min-width: 140px;
+        }
+
+            .mu-select option {
+                background: #111;
+                color: #fff;
+            }
+
+        .mu-filter-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 20px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+            .mu-filter-btn:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                box-shadow: 0 0 16px rgba(255,215,0,0.25);
+            }
+
+        .mu-danger-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 18px;
+            border-radius: 8px;
+            background: rgba(179,0,0,0.15);
+            border: 1px solid rgba(179,0,0,0.3);
+            color: #ff6666;
+            font-weight: 700;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+            .mu-danger-btn:hover {
+                background: rgba(179,0,0,0.3);
+                color: #ff8888;
+            }
+
+        /* ── TABLE ── */
+        .mu-table-wrap {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .mu-table-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(255,215,0,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .mu-table-title {
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.5);
+        }
+
+            .mu-table-title i {
+                color: #FFD700;
+                margin-right: 8px;
+            }
+
+        .mu-count {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 2px 10px;
+        }
+
+        .mu-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            .mu-table thead tr {
+                background: rgba(255,215,0,0.04);
+                border-bottom: 1px solid rgba(255,215,0,0.08);
+            }
+
+            .mu-table th {
+                padding: 11px 20px;
+                font-size: 0.68rem;
+                font-weight: 700;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                color: rgba(255,215,0,0.4);
+            }
+
+            .mu-table td {
+                padding: 12px 20px;
+                font-size: 0.83rem;
+                color: rgba(255,255,255,0.65);
+                border-bottom: 1px solid rgba(255,255,255,0.04);
+                vertical-align: middle;
+            }
+
+            .mu-table tr:last-child td {
+                border-bottom: none;
+            }
+
+            .mu-table tbody tr:hover td {
+                background: rgba(255,215,0,0.02);
+            }
+
+        .mu-name {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .mu-email {
+            color: rgba(255,255,255,0.4);
+            font-size: 0.8rem;
+        }
+
+        /* Role badges */
+        .mu-role {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .mu-role-admin {
+            background: rgba(179,0,0,0.2);
+            color: #ff6666;
+            border: 1px solid rgba(179,0,0,0.35);
+        }
+
+        .mu-role-artist {
+            background: rgba(255,215,0,0.12);
+            color: #FFD700;
+            border: 1px solid rgba(255,215,0,0.25);
+        }
+
+        .mu-role-client {
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.55);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Action buttons */
+        .mu-btn-details {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(255,215,0,0.1);
+            color: #FFD700;
+            border: 1px solid rgba(255,215,0,0.2);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .mu-btn-details:hover {
+                background: rgba(255,215,0,0.18);
+                color: #FFD700;
+                border-color: rgba(255,215,0,0.4);
+            }
+
+        .mu-btn-delete {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(179,0,0,0.12);
+            color: #ff6666;
+            border: 1px solid rgba(179,0,0,0.25);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+            .mu-btn-delete:hover {
+                background: rgba(179,0,0,0.25);
+                color: #ff8888;
+                border-color: rgba(179,0,0,0.4);
+            }
 
         .mu-btn-activate {
             display: inline-flex;
@@ -39,202 +368,62 @@
             transition: all 0.2s;
             text-decoration: none;
         }
-    .mu-eyebrow {
-        font-size: 0.6rem; font-weight: 700; letter-spacing: 4px;
-        text-transform: uppercase; color: rgba(255,215,0,0.35);
-        display: block; margin-bottom: 4px;
-    }
-    .mu-heading {
-        font-size: 1.5rem; font-weight: 900; color: #FFD700;
-        margin: 0 0 24px;
-    }
 
-    /* ── MINI STATS ── */
-    .mu-stats {
-        display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;
-    }
-    .mu-stat {
-        background: #0b0b0b;
-        border: 1px solid rgba(255,215,0,0.1);
-        border-radius: 12px; padding: 14px 20px;
-        display: flex; align-items: center; gap: 12px;
-        min-width: 130px;
-    }
-    .mu-stat-icon {
-        width: 32px; height: 32px; border-radius: 8px;
-        background: rgba(255,215,0,0.08);
-        display: flex; align-items: center; justify-content: center;
-        font-size: 0.9rem; color: #FFD700; flex-shrink: 0;
-    }
-    .mu-stat-num {
-        display: block; font-size: 1.3rem; font-weight: 900; color: #FFD700; line-height: 1;
-    }
-    .mu-stat-label {
-        display: block; font-size: 0.62rem; font-weight: 700;
-        letter-spacing: 2px; text-transform: uppercase;
-        color: rgba(255,255,255,0.3); margin-top: 2px;
-    }
+            .mu-btn-activate:hover {
+                background: rgba(40,167,69,0.22);
+                color: #3cdd6b;
+            }
 
-    /* ── FILTER BAR ── */
-    .mu-filter-bar {
-        background: #0b0b0b;
-        border: 1px solid rgba(255,215,0,0.1);
-        border-radius: 14px; padding: 16px 20px;
-        margin-bottom: 20px;
-        display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
-    }
-    .mu-search-wrap {
-        flex: 1; min-width: 200px; position: relative;
-    }
-    .mu-search-wrap i {
-        position: absolute; left: 12px; top: 50%;
-        transform: translateY(-50%);
-        color: rgba(255,215,0,0.4); font-size: 0.85rem;
-        pointer-events: none;
-    }
-    .mu-search-input {
-        width: 100%; background: rgba(255,255,255,0.04) !important;
-        border: 1px solid rgba(255,215,0,0.15) !important;
-        border-radius: 8px !important; color: #fff !important;
-        padding: 8px 12px 8px 36px !important; font-size: 0.83rem;
-        transition: border-color 0.2s;
-    }
-    .mu-search-input:focus {
-        outline: none; border-color: rgba(255,215,0,0.4) !important;
-        background: rgba(255,215,0,0.03) !important;
-        box-shadow: none !important;
-    }
-    .mu-search-input::placeholder { color: rgba(255,255,255,0.25) !important; }
-    .mu-select {
-        background: rgba(255,255,255,0.04) !important;
-        border: 1px solid rgba(255,215,0,0.15) !important;
-        border-radius: 8px !important; color: #fff !important;
-        padding: 8px 14px !important; font-size: 0.83rem;
-        min-width: 140px;
-    }
-    .mu-select option { background: #111; color: #fff; }
-    .mu-filter-btn {
-        display: inline-flex; align-items: center; gap: 7px;
-        padding: 8px 20px; border-radius: 8px;
-        background: linear-gradient(135deg, #b30000, #FFD700);
-        color: #000; font-weight: 800; font-size: 0.78rem;
-        letter-spacing: 1px; text-transform: uppercase;
-        border: none; cursor: pointer; transition: all 0.2s; white-space: nowrap;
-    }
-    .mu-filter-btn:hover {
-        background: linear-gradient(135deg, #FFD700, #b30000);
-        box-shadow: 0 0 16px rgba(255,215,0,0.25);
-    }
-    .mu-danger-btn {
-        display: inline-flex; align-items: center; gap: 7px;
-        padding: 8px 18px; border-radius: 8px;
-        background: rgba(179,0,0,0.15);
-        border: 1px solid rgba(179,0,0,0.3);
-        color: #ff6666; font-weight: 700; font-size: 0.78rem;
-        cursor: pointer; transition: all 0.2s; white-space: nowrap;
-    }
-    .mu-danger-btn:hover { background: rgba(179,0,0,0.3); color: #ff8888; }
+        .mu-btn-disabled {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.06);
+            cursor: not-allowed;
+        }
+        /* ✅ NEW: Resend button */
+        .mu-btn-resend {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(255,165,0,0.12);
+            color: #ffa500;
+            border: 1px solid rgba(255,165,0,0.28);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
 
-    /* ── TABLE ── */
-    .mu-table-wrap {
-        background: #0b0b0b;
-        border: 1px solid rgba(255,215,0,0.1);
-        border-radius: 16px; overflow: hidden;
-    }
-    .mu-table-header {
-        padding: 14px 20px;
-        border-bottom: 1px solid rgba(255,215,0,0.08);
-        display: flex; align-items: center; justify-content: space-between;
-    }
-    .mu-table-title {
-        font-size: 0.75rem; font-weight: 800; letter-spacing: 2px;
-        text-transform: uppercase; color: rgba(255,255,255,0.5);
-    }
-    .mu-table-title i { color: #FFD700; margin-right: 8px; }
-    .mu-count {
-        font-size: 0.7rem; color: rgba(255,255,255,0.25);
-        background: rgba(255,255,255,0.05);
-        border-radius: 20px; padding: 2px 10px;
-    }
-    .mu-table {
-        width: 100%; border-collapse: collapse;
-    }
-    .mu-table thead tr {
-        background: rgba(255,215,0,0.04);
-        border-bottom: 1px solid rgba(255,215,0,0.08);
-    }
-    .mu-table th {
-        padding: 11px 20px; font-size: 0.68rem; font-weight: 700;
-        letter-spacing: 2px; text-transform: uppercase;
-        color: rgba(255,215,0,0.4);
-    }
-    .mu-table td {
-        padding: 12px 20px; font-size: 0.83rem;
-        color: rgba(255,255,255,0.65);
-        border-bottom: 1px solid rgba(255,255,255,0.04);
-        vertical-align: middle;
-    }
-    .mu-table tr:last-child td { border-bottom: none; }
-    .mu-table tbody tr:hover td { background: rgba(255,215,0,0.02); }
-    .mu-name { color: #fff; font-weight: 600; }
-    .mu-email { color: rgba(255,255,255,0.4); font-size: 0.8rem; }
+            .mu-btn-resend:hover {
+                background: rgba(255,165,0,0.25);
+                color: #ffc04d;
+                border-color: rgba(255,165,0,0.5);
+            }
 
-    /* Role badges */
-    .mu-role {
-        display: inline-flex; align-items: center; gap: 5px;
-        font-size: 0.68rem; font-weight: 700; padding: 3px 10px;
-        border-radius: 20px; letter-spacing: 1px; text-transform: uppercase;
-    }
-    .mu-role-admin {
-        background: rgba(179,0,0,0.2); color: #ff6666;
-        border: 1px solid rgba(179,0,0,0.35);
-    }
-    .mu-role-artist {
-        background: rgba(255,215,0,0.12); color: #FFD700;
-        border: 1px solid rgba(255,215,0,0.25);
-    }
-    .mu-role-client {
-        background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.55);
-        border: 1px solid rgba(255,255,255,0.1);
-    }
+        /* Empty state */
+        .mu-empty {
+            padding: 48px 20px;
+            text-align: center;
+            color: rgba(255,255,255,0.25);
+            font-size: 0.85rem;
+        }
 
-    /* Action buttons */
-    .mu-btn-details {
-        display: inline-flex; align-items: center; gap: 5px;
-        padding: 5px 12px; border-radius: 7px; font-size: 0.75rem; font-weight: 700;
-        background: rgba(255,215,0,0.1); color: #FFD700;
-        border: 1px solid rgba(255,215,0,0.2);
-        text-decoration: none; transition: all 0.2s;
-    }
-    .mu-btn-details:hover {
-        background: rgba(255,215,0,0.18); color: #FFD700;
-        border-color: rgba(255,215,0,0.4);
-    }
-    .mu-btn-delete {
-        display: inline-flex; align-items: center; gap: 5px;
-        padding: 5px 12px; border-radius: 7px; font-size: 0.75rem; font-weight: 700;
-        background: rgba(179,0,0,0.12); color: #ff6666;
-        border: 1px solid rgba(179,0,0,0.25);
-        cursor: pointer; transition: all 0.2s;
-    }
-    .mu-btn-delete:hover {
-        background: rgba(179,0,0,0.25); color: #ff8888;
-        border-color: rgba(179,0,0,0.4);
-    }
-    .mu-btn-disabled {
-        display: inline-flex; align-items: center; gap: 5px;
-        padding: 5px 12px; border-radius: 7px; font-size: 0.75rem; font-weight: 700;
-        background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.2);
-        border: 1px solid rgba(255,255,255,0.06); cursor: not-allowed;
-    }
-
-    /* Empty state */
-    .mu-empty {
-        padding: 48px 20px; text-align: center;
-        color: rgba(255,255,255,0.25); font-size: 0.85rem;
-    }
-    .mu-empty i { font-size: 2rem; color: rgba(255,215,0,0.15); display: block; margin-bottom: 12px; }
-</style>
+            .mu-empty i {
+                font-size: 2rem;
+                color: rgba(255,215,0,0.15);
+                display: block;
+                margin-bottom: 12px;
+            }
+    </style>
 }
 
 <span class="mu-eyebrow">Administration</span>
@@ -244,12 +433,9 @@
 <div class="mu-stats">
     <div class="mu-stat">
         <div class="mu-stat-icon"><i class="bi bi-people-fill"></i></div>
-        <div class="mu-stat">
-            <div class="mu-stat-icon"><i class="bi bi-people-fill"></i></div>
-            <div>
-                <span class="mu-stat-num">@Model.Users.Count</span>
-                <span class="mu-stat-label">Total Users</span>
-            </div>
+        <div>
+            <span class="mu-stat-num">@Model.Users.Count</span>
+            <span class="mu-stat-label">Total Users</span>
         </div>
     </div>
     <div class="mu-stat">
@@ -285,6 +471,7 @@
                class="mu-search-input" placeholder="Search by name or email..." />
     </div>
     <select name="role" class="mu-select">
+        <option value="" selected="@(string.IsNullOrEmpty(roleFilter) ? "selected" : null)">All Roles</option>
         <option value="Admin" selected="@(roleFilter == "Admin" ? "selected" : null)">Admin</option>
         <option value="Artist" selected="@(roleFilter == "Artist" ? "selected" : null)">Artist</option>
         <option value="Client" selected="@(roleFilter == "Client" ? "selected" : null)">Client</option>
@@ -292,13 +479,18 @@
     <button type="submit" class="mu-filter-btn">
         <i class="bi bi-funnel-fill"></i> Filter
     </button>
-    <form asp-action="DeletePromotedAdmins" method="post" style="margin:0">
+</form>
+
+@* ── DELETE PROMOTED ADMINS (moved OUT of the filter form) ── *@
+<div style="margin-bottom: 16px;">
+    <form asp-action="DeletePromotedAdmins" method="post" style="margin:0;display:inline-block;">
+        @Html.AntiForgeryToken()
         <button type="submit" class="mu-danger-btn"
-                onclick="return confirm('Delete all promoted admins?')">
+                onclick="return confirm('Delete all promoted admins? This cannot be undone.')">
             <i class="bi bi-trash3-fill"></i> Delete Promoted Admins
         </button>
     </form>
-</form>
+</div>
 
 @* ── TABLE ── *@
 <div class="mu-table-wrap">
@@ -359,10 +551,23 @@
                                     <i class="bi bi-eye-fill"></i> Details
                                 </a>
 
+                                @* ✅ RESEND CONFIRMATION (only for unconfirmed users, if property exists) *@
+                                @if (!user.IsEmailConfirmed)
+                                {
+                                    <form asp-action="ResendConfirmation" asp-route-id="@user.Id" method="post" style="margin:0">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="mu-btn-resend"
+                                                onclick="return confirm('Send a new confirmation email to @user.Email?')">
+                                            <i class="bi bi-envelope-fill"></i> Resend
+                                        </button>
+                                    </form>
+                                }
+
                                 @if (user.Role != "Admin")
                                 {
                                     @* --- DEACTIVATE / ACTIVATE TOGGLE --- *@
                                     <form asp-action="ToggleUserStatus" asp-route-id="@user.Id" method="post" style="margin:0">
+                                        @Html.AntiForgeryToken()
                                         @if (user.IsDeactivated)
                                         {
                                             <button type="submit" class="mu-btn-activate">
@@ -379,6 +584,7 @@
 
                                     @* --- PERMANENT DELETE --- *@
                                     <form asp-action="DeleteUser" asp-route-id="@user.Id" method="post" style="margin:0">
+                                        @Html.AntiForgeryToken()
                                         <button type="submit" class="mu-btn-delete"
                                                 onclick="return confirm('Delete @user.FullName? This cannot be undone.')">
                                             <i class="bi bi-trash3-fill"></i> Delete
@@ -399,35 +605,3 @@
         </table>
     }
 </div>
-@section Scripts {
-    <script>
-        // THE BRIDGE: Now it works because Model.Services actually exists!
-        const provinceData = {};
-        @if (Model.Services != null)
-        {
-                foreach (var group in Model.Services.GroupBy(s => s.Province).Where(g => !string.IsNullOrEmpty(g.Key)))
-                {
-                        <text>
-                        provinceData["@Html.Raw(group.Key)"] = [
-                            @Html.Raw(string.Join(",", group.Select(s => $"\"{s.City}\"").Distinct()))
-                        ];
-                        </text>
-                }
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            // Populate Province Dropdown
-            const provSel = document.getElementById('filterProvince');
-            if (provSel) {
-                Object.keys(provinceData).forEach(p => {
-                    const opt = document.createElement('option');
-                    opt.value = p;
-                    opt.textContent = p;
-                    provSel.appendChild(opt);
-                });
-            }
-
-            // Your Toggle logic here...
-        });
-    </script>
-}

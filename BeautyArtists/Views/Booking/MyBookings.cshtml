@@ -11,7 +11,7 @@
     var rejected = bookingsList.Count(b => b.Status == BeautyArtists.Models.Booking.BookingStatus.Rejected);
 
     // ── Get filter values from ViewBag (set by controller) ──
-    var selectedMonth = ViewBag.SelectedMonth as string;      // "yyyy-MM"
+    var selectedMonth = ViewBag.SelectedMonth as string;
     var startDate = ViewBag.StartDate as DateTime?;
     var endDate = ViewBag.EndDate as DateTime?;
     var selectedStatus = ViewBag.SelectedStatus as string;
@@ -199,6 +199,12 @@
                 double daysUntilAppointment = (booking.AppointmentDate.Date - DateTime.Now.Date).TotalDays;
                 bool isLastMinute = daysUntilAppointment < 2 && !isFullyPaid;
 
+                // ─── DEPOSIT DEADLINE ───
+                bool isAwaitingDeposit = booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted
+                && !booking.IsDepositPaid
+                && booking.PaymentWindowOpen
+                && booking.DepositDueDate.HasValue;
+
                 string statusClass = booking.Status switch
                 {
                     BeautyArtists.Models.Booking.BookingStatus.Pending => "status-pending",
@@ -214,21 +220,21 @@
                 };
                 string statusIcon = booking.Status switch
                 {
-                    BeautyArtists.Models.Booking.BookingStatus.Pending => "",
-                    BeautyArtists.Models.Booking.BookingStatus.Accepted => isLastMinute ? "" : "",
-                    BeautyArtists.Models.Booking.BookingStatus.Confirmed => isLastMinute ? "" : "",
-                    BeautyArtists.Models.Booking.BookingStatus.Completed => "",
-                    BeautyArtists.Models.Booking.BookingStatus.Cancelled => "",
-                    BeautyArtists.Models.Booking.BookingStatus.Rejected => "",
-                    BeautyArtists.Models.Booking.BookingStatus.Disputed => "",
-                    BeautyArtists.Models.Booking.BookingStatus.InReview => "",
-                    BeautyArtists.Models.Booking.BookingStatus.Resolved => "",
+                    BeautyArtists.Models.Booking.BookingStatus.Pending => "⏳",
+                    BeautyArtists.Models.Booking.BookingStatus.Accepted => isLastMinute ? "⏰" : "👍",
+                    BeautyArtists.Models.Booking.BookingStatus.Confirmed => isLastMinute ? "⏰" : "✅",
+                    BeautyArtists.Models.Booking.BookingStatus.Completed => "⭐",
+                    BeautyArtists.Models.Booking.BookingStatus.Cancelled => "❌",
+                    BeautyArtists.Models.Booking.BookingStatus.Rejected => "🚫",
+                    BeautyArtists.Models.Booking.BookingStatus.Disputed => "⚠️",
+                    BeautyArtists.Models.Booking.BookingStatus.InReview => "🔍",
+                    BeautyArtists.Models.Booking.BookingStatus.Resolved => "⚖️",
                     _ => "⏳"
                 };
                 string statusDisplay = booking.Status switch
                 {
                     BeautyArtists.Models.Booking.BookingStatus.Pending => "AWAITING ARTIST RESPONSE",
-                    BeautyArtists.Models.Booking.BookingStatus.Accepted => isLastMinute ? "LAST MINUTE" : "ACCEPTED - AWAITING FULL PAYMENT",
+                    BeautyArtists.Models.Booking.BookingStatus.Accepted => isLastMinute ? "LAST MINUTE" : "ACCEPTED - AWAITING DEPOSIT",
                     BeautyArtists.Models.Booking.BookingStatus.Confirmed => isLastMinute ? "LAST MINUTE" : "CONFIRMED",
                     BeautyArtists.Models.Booking.BookingStatus.Rejected => "REJECTED",
                     BeautyArtists.Models.Booking.BookingStatus.Disputed => "DISPUTED",
@@ -499,12 +505,12 @@
                                 <span>Final: R @finalAmount.ToString("N2")</span>
                             </div>
 
-                            <!-- ─── ✅ PAYMENT STATUS (ONLY HERE - NO RED WARNINGS) ─── -->
+                            <!-- ─── ✅ PAYMENT STATUS ─── -->
                             <div style="text-align: center; padding: 4px 0; border-bottom: 1px solid rgba(255,215,0,0.05);">
                                 @if (isLastMinute && !isFullyPaid && (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted || booking.Status == BeautyArtists.Models.Booking.BookingStatus.Confirmed))
                                 {
                                     <span style="color: #FFD700; font-weight: 600; font-size: 0.7rem;">
-                                        Full payment required
+                                        ⏰ Full payment required
                                     </span>
                                 }
                                 else
@@ -530,6 +536,60 @@
                                 }
                             </div>
 
+                            @* ─── ✅ DEPOSIT DEADLINE COUNTDOWN TIMER ─── *@
+                            @if (isAwaitingDeposit)
+                            {
+                                var timeRemaining = (booking.DepositDueDate.Value - DateTime.UtcNow);
+                                var isUrgent = timeRemaining.TotalHours < 2;
+                                var totalSeconds = (int)timeRemaining.TotalSeconds;
+                                if (totalSeconds < 0) totalSeconds = 0;
+
+                                <div style="margin-top: 6px; padding: 10px 14px; background: @(isUrgent ? "rgba(229, 9, 20, 0.15)" : "rgba(255,215,0,0.06)"); border-radius: 8px; border-left: 4px solid @(isUrgent ? "#e50914" : "#f0c808");">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                                        <div>
+                                            <span style="color: @(isUrgent ? "#ff5555" : "#FFD700"); font-weight: 700; font-size: 0.75rem;">
+                                                @if (isUrgent)
+                                                {
+                                                    <span>⚠️ URGENT:</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>⏰</span>
+                                                }
+                                                <span id="depositTimerLabel_@booking.Id" style="font-weight: 700;">Time remaining:</span>
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span id="depositTimer_@booking.Id" style="color: @(isUrgent ? "#ff5555" : "#FFD700"); font-weight: 800; font-size: 1.1rem; font-family: monospace;">
+                                                @{
+                                                    if (timeRemaining.TotalSeconds > 0)
+                                                    {
+                                                        var ts = timeRemaining;
+                                                        <text>@ts.Hours.ToString("D2"):@ts.Minutes.ToString("D2"):@ts.Seconds.ToString("D2")</text>
+                                                    }
+                                                    else
+                                                    {
+                                                        <text>EXPIRED</text>
+                                                    }
+                                                }
+                                            </span>
+                                        </div>
+                                    </div>
+                                    @if (isUrgent)
+                                    {
+                                        <div style="margin-top: 6px;">
+                                            <a asp-controller="Booking" asp-action="CheckoutDeposit" asp-route-id="@booking.Id"
+                                               style="display: inline-block; background: #e50914; color: #fff; padding: 4px 16px; border-radius: 20px; font-weight: 700; font-size: 0.7rem; text-decoration: none;">
+                                                PAY NOW - URGENT
+                                            </a>
+                                        </div>
+                                    }
+                                    <div style="margin-top: 4px; font-size: 0.6rem; color: rgba(255,255,255,0.25);">
+                                        Deadline: @booking.DepositDueDate.Value.ToString("MMM dd, HH:mm")
+                                    </div>
+                                </div>
+                            }
+
                             <div class="mb-actions">
                                 @* ── PAYMENT BUTTON FOR ACCEPTED STATUS ── *@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted && !booking.IsDepositPaid)
@@ -540,7 +600,7 @@
                                            asp-action="CheckoutDeposit"
                                            asp-route-id="@booking.Id"
                                            class="mb-btn-deposit" style="background: linear-gradient(135deg, #f0c808, #e50914); color: #000;">
-                                             Pay Full Amount – R @totalAmount.ToString("N2")
+                                            💳 Pay Full Amount – R @totalAmount.ToString("N2")
                                         </a>
                                     }
                                     else
@@ -549,7 +609,7 @@
                                            asp-action="CheckoutDeposit"
                                            asp-route-id="@booking.Id"
                                            class="mb-btn-deposit">
-                                            PAY DEPOSIT – R @depositAmount.ToString("N2")
+                                            💰 PAY DEPOSIT – R @depositAmount.ToString("N2")
                                         </a>
                                         <span style="font-size:0.55rem; text-align:center; display:block; color:rgba(255,255,255,0.2);">
                                             Includes card fee & booking fee | Final: R @finalAmount.ToString("N2")
@@ -567,7 +627,7 @@
                                     if (remainingBalance <= 0 || isFullyPaid)
                                     {
                                         <span class="text-muted small" style="text-align:center; display:block; padding:4px 0; color:#28a745; font-weight:600;">
-                                             Fully Paid – No action needed
+                                            ✅ Fully Paid – No action needed
                                         </span>
                                     }
                                     else
@@ -578,7 +638,7 @@
                                                asp-action="CheckoutFinalPayment"
                                                asp-route-id="@booking.Id"
                                                class="mb-btn-final" style="background: linear-gradient(135deg, #f0c808, #e50914); color: #000;">
-                                                 Pay Now – R @remainingBalance.ToString("N2")
+                                                💳 Pay Now – R @remainingBalance.ToString("N2")
                                             </a>
                                         }
                                         else
@@ -587,7 +647,7 @@
                                                asp-action="CheckoutFinalPayment"
                                                asp-route-id="@booking.Id"
                                                class="mb-btn-final">
-                                                 Pay Remaining – R @remainingBalance.ToString("N2")
+                                                💳 Pay Remaining – R @remainingBalance.ToString("N2")
                                             </a>
                                         }
                                     }
@@ -648,7 +708,7 @@
                                 @if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Disputed || booking.Status == BeautyArtists.Models.Booking.BookingStatus.InReview)
                                 {
                                     <div class="alert alert-warning text-center mb-0" style="background: rgba(229, 9, 20, 0.08); border: 1px solid #e50914; color: #e50914; font-size: 0.7rem; padding: 6px 10px;">
-                                         This booking is under review. Please wait for admin resolution.
+                                        ⚠️ This booking is under review. Please wait for admin resolution.
                                     </div>
                                 }
 
@@ -773,7 +833,6 @@
         var panel = document.getElementById('filterPanel');
         var badge = document.getElementById('filterActiveBadge');
 
-        // Check if any filter is active (if ViewBag has values)
         var hasActiveFilter = '@(string.IsNullOrEmpty(selectedMonth) && !startDate.HasValue && !endDate.HasValue && string.IsNullOrEmpty(selectedStatus) ? "false" : "true")' === 'true';
         if (hasActiveFilter) {
             badge.style.display = 'inline';
@@ -787,14 +846,63 @@
             }
         });
 
-        // Auto-open if filters are active
         if (hasActiveFilter) {
             panel.style.display = 'block';
         }
     });
+
+    // ─── ✅ FIXED COUNTDOWN TIMER (UNIX TIMESTAMPS) ───
+    function updateAllTimers() {
+        @foreach (var item in Model.Bookings)
+        {
+                var booking = item.Booking;
+                if (booking.Status == BeautyArtists.Models.Booking.BookingStatus.Accepted
+                                && !booking.IsDepositPaid
+                                && booking.PaymentWindowOpen
+                                && booking.DepositDueDate.HasValue)
+                {
+            var timestamp = ((DateTimeOffset)DateTime.SpecifyKind(booking.DepositDueDate.Value, DateTimeKind.Utc)).ToUnixTimeSeconds();
+                    <text>
+                        updateSingleTimer(@booking.Id, @timestamp);
+                        </text>
+                }
+        }
+    }
+
+    function updateSingleTimer(bookingId, timestamp) {
+        var timerElement = document.getElementById('depositTimer_' + bookingId);
+        var labelElement = document.getElementById('depositTimerLabel_' + bookingId);
+        if (!timerElement) return;
+
+        var now = Math.floor(Date.now() / 1000);
+        var diff = timestamp - now;
+
+        if (diff <= 0) {
+            timerElement.textContent = 'EXPIRED';
+            timerElement.style.color = '#e50914';
+            if (labelElement) labelElement.textContent = 'Deposit deadline passed';
+            return;
+        }
+
+        var hours = Math.floor(diff / 3600);
+        var mins = Math.floor((diff % 3600) / 60);
+        var secs = diff % 60;
+        timerElement.textContent =
+            String(hours).padStart(2, '0') + ':' +
+            String(mins).padStart(2, '0') + ':' +
+            String(secs).padStart(2, '0');
+    }
+
+    // ─── UPDATE EVERY SECOND ───
+    setInterval(updateAllTimers, 1000);
+    updateAllTimers();
 </script>
 
+
+
 <style>
+    /* ─── ALL YOUR EXISTING CSS HERE ─── */
+    /* (Keep all the CSS you already have, I didn't change any of it) */
     .mb-page {
         background: #000;
         min-height: 100vh;

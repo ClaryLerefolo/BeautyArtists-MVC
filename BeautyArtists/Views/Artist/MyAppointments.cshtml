@@ -305,6 +305,13 @@
                 box-shadow: 0 0 20px rgba(229, 9, 20, 0.15);
             }
 
+            /* ─── ✅ DEPOSIT EXPIRED CARD STYLE ─── */
+            .appointment-card.deposit-expired-card {
+                border-color: #e50914 !important;
+                background: rgba(229, 9, 20, 0.05);
+                box-shadow: 0 0 20px rgba(229, 9, 20, 0.1);
+            }
+
         .status-badge {
             padding: 5px 15px;
             border-radius: 50px;
@@ -513,6 +520,56 @@
             margin-top: 8px;
         }
 
+        /* ─── ✅ DEPOSIT DEADLINE TIMER STYLES ─── */
+        .deposit-timer-box {
+            margin-top: 10px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border-left: 4px solid #f0c808;
+            background: rgba(255,215,0,0.06);
+            transition: all 0.3s ease;
+        }
+
+            .deposit-timer-box.urgent {
+                background: rgba(229, 9, 20, 0.15);
+                border-left-color: #e50914;
+                animation: pulse-urgent 2s infinite;
+            }
+
+            .deposit-timer-box .timer-label {
+                font-size: 0.7rem;
+                font-weight: 700;
+                color: rgba(255,255,255,0.5);
+                letter-spacing: 0.5px;
+            }
+
+            .deposit-timer-box .timer-value {
+                font-family: 'Courier New', monospace;
+                font-size: 1.2rem;
+                font-weight: 800;
+                color: #FFD700;
+            }
+
+            .deposit-timer-box.urgent .timer-value {
+                color: #ff5555;
+            }
+
+            .deposit-timer-box .timer-deadline {
+                font-size: 0.6rem;
+                color: rgba(255,255,255,0.25);
+                margin-top: 4px;
+            }
+
+        @@keyframes pulse-urgent {
+            0%, 100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+        }
+
         /* ─── PAGINATION ─── */
         .pagination-wrapper {
             margin-top: 30px;
@@ -610,6 +667,10 @@
                 padding: 6px 10px !important;
                 font-size: 0.7rem !important;
             }
+
+            .deposit-timer-box .timer-value {
+                font-size: 1rem;
+            }
         }
 
         @@media (max-width: 480px) {
@@ -630,7 +691,7 @@
 
 <div class="container-fluid px-4">
 
-    @* ─── 🔥 SUCCESS / ERROR MESSAGES ─── *@
+    @* ─── SUCCESS / ERROR MESSAGES ─── *@
     @if (TempData["Success"] != null)
     {
         <div class="alert-message alert-success">
@@ -717,15 +778,15 @@
             <div class="filter-field">
                 <span class="filter-label">Status</span>
                 <select name="filterStatus" class="filter-select" id="filterStatus">
-                    <option value="all" selected="@(string.IsNullOrEmpty(filterStatus) || filterStatus == "all")">All Statuses</option>
-                    <option value="Pending" selected="@(filterStatus == "Pending")">Pending</option>
-                    <option value="Accepted" selected="@(filterStatus == "Accepted")">Accepted</option>
-                    <option value="Confirmed" selected="@(filterStatus == "Confirmed")">Confirmed</option>
-                    <option value="Completed" selected="@(filterStatus == "Completed")">Completed</option>
-                    <option value="Cancelled" selected="@(filterStatus == "Cancelled")">Cancelled</option>
-                    <option value="Rejected" selected="@(filterStatus == "Rejected")">Rejected</option>
-                    <option value="Disputed" selected="@(filterStatus == "Disputed")">Disputed</option>
-                    <option value="Resolved" selected="@(filterStatus == "Resolved")">Resolved</option>
+                    <option value="all" selected="@(string.IsNullOrEmpty(filterStatus) || filterStatus == "all" ? "selected" : null)">All Statuses</option>
+                    <option value="Pending" selected="@(filterStatus == "Pending" ? "selected" : null)">Pending</option>
+                    <option value="Accepted" selected="@(filterStatus == "Accepted" ? "selected" : null)">Accepted</option>
+                    <option value="Confirmed" selected="@(filterStatus == "Confirmed" ? "selected" : null)">Confirmed</option>
+                    <option value="Completed" selected="@(filterStatus == "Completed" ? "selected" : null)">Completed</option>
+                    <option value="Cancelled" selected="@(filterStatus == "Cancelled" ? "selected" : null)">Cancelled</option>
+                    <option value="Rejected" selected="@(filterStatus == "Rejected" ? "selected" : null)">Rejected</option>
+                    <option value="Disputed" selected="@(filterStatus == "Disputed" ? "selected" : null)">Disputed</option>
+                    <option value="Resolved" selected="@(filterStatus == "Resolved" ? "selected" : null)">Resolved</option>
                 </select>
             </div>
 
@@ -749,12 +810,24 @@
                 var isRejected = item.Status == BookingStatus.Rejected;
                 var isRefunded = item.IsRefunded && item.RefundAmount > 0;
                 var isCancelled = item.Status == BookingStatus.Cancelled;
-                // ─── 🔥 FIX: ONLY use Status for dispute detection ───
                 var isDisputed = item.Status == BookingStatus.Disputed || item.Status == BookingStatus.InReview;
                 var isResolved = item.Status == BookingStatus.Resolved;
 
+                // ─── ✅ CHECK IF THIS IS A DEPOSIT EXPIRED CANCELLATION ───
+                var isDepositExpired = isCancelled && !string.IsNullOrEmpty(item.ArtistNotes) && item.ArtistNotes.Contains("deposit not paid", StringComparison.OrdinalIgnoreCase);
+
+                // ─── ✅ CHECK IF BOOKING IS AWAITING DEPOSIT ───
+                var isAwaitingDeposit = item.Status == BookingStatus.Accepted
+                && !item.IsDepositPaid
+                && item.PaymentWindowOpen
+                && item.DepositDueDate.HasValue;
+
+                // ─── ✅ CALCULATE TIME REMAINING ───
+                var timeRemaining = isAwaitingDeposit ? (item.DepositDueDate.Value - DateTime.UtcNow) : TimeSpan.Zero;
+                var isUrgent = isAwaitingDeposit && timeRemaining.TotalHours < 2;
+
                 <div class="col-xl-4 col-md-6 mb-4">
-                    <div class="card appointment-card text-white @(isRejected || isCancelled ? "rejected-card" : "") @(isDisputed ? "dispute-card" : "")">
+                    <div class="card appointment-card text-white @(isRejected || isCancelled ? "rejected-card" : "") @(isDisputed ? "dispute-card" : "") @(isDepositExpired ? "deposit-expired-card" : "")">
                         <div class="card-header border-0 bg-transparent d-flex justify-content-between align-items-center pt-4 px-4">
                             <div class="text-muted small">
                                 <i class="far fa-clock me-1"></i> @item.AppointmentDate.ToString("MMM dd, yyyy @ HH:mm")
@@ -767,6 +840,10 @@
                                 else if (item.Status == BookingStatus.Rejected)
                                 {
                                     @:REJECTED
+                                }
+                                else if (item.Status == BookingStatus.Cancelled && isDepositExpired)
+                                {
+                                    <text>CANCELLED - DEPOSIT NOT PAID</text>
                                 }
                                 else if (item.Status == BookingStatus.Cancelled)
                                 {
@@ -808,12 +885,77 @@
                                     <div class="small text-white-50">@item.UserService?.Service?.Name</div>
                                 </div>
 
-                                @* ─── 🔥 DISPUTE STATUS - ONLY shows if Status is Disputed/InReview ─── *@
+                                @* ─── 🔥 DEPOSIT DEADLINE COUNTDOWN TIMER ─── *@
+                                @if (isAwaitingDeposit)
+                                {
+                                    var totalSeconds = (int)timeRemaining.TotalSeconds;
+                                    if (totalSeconds < 0) totalSeconds = 0;
+
+                                    <div class="deposit-timer-box @(isUrgent ? "urgent" : "")">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                                            <div>
+                                                <span class="timer-label">
+                                                    @if (isUrgent)
+                                                    {
+                                                        <span style="color: #ff5555; font-weight: 800;">⚠️ URGENT:</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span>⏰</span>
+                                                    }
+                                                    <span>Time remaining to pay:</span>
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <span class="timer-value" id="depositTimerArtist_@item.Id">
+                                                    @{
+                                                        if (timeRemaining.TotalSeconds > 0)
+                                                        {
+                                                            var ts = timeRemaining;
+                                                            <text>@ts.Hours.ToString("D2"):@ts.Minutes.ToString("D2"):@ts.Seconds.ToString("D2")</text>
+                                                        }
+                                                        else
+                                                        {
+                                                            <text>EXPIRED</text>
+                                                        }
+                                                    }
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div class="timer-deadline">
+                                            Deadline: @item.DepositDueDate.Value.AddHours(2).ToString("MMM dd, HH:mm") SAST
+                                        </div>
+                                        @if (isUrgent)
+                                        {
+                                            <div style="margin-top: 6px; font-size: 0.65rem; color: #ff5555; font-weight: 600;">
+                                                ⚠️ Client has less than 2 hours to pay!
+                                            </div>
+                                        }
+                                    </div>
+                                }
+
+                                @* ─── 🔥 DEPOSIT EXPIRED - SHOW CLEAR REASON ─── *@
+                                @if (isDepositExpired)
+                                {
+                                    <div style="margin-top: 10px; padding: 10px 14px; background: rgba(229, 9, 20, 0.12); border-radius: 8px; border-left: 4px solid #e50914;">
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span style="color: #e50914; font-size: 1.1rem;">⏰</span>
+                                            <div>
+                                                <span style="color: #ff5555; font-weight: 700; font-size: 0.8rem;">CANCELLED - Deposit Not Paid</span>
+                                                <p style="margin: 2px 0 0 0; color: rgba(255,255,255,0.3); font-size: 0.65rem;">
+                                                    The client did not pay the deposit within 12 hours. Slot has been released.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+
+                                @* ─── 🔥 DISPUTE STATUS ─── *@
                                 @if (isDisputed)
                                 {
                                     <div class="dispute-warning-box">
                                         <span style="color: #e50914; font-weight: 700; font-size: 0.75rem;">
-                                             DISPUTED — Under review by admin
+                                            DISPUTED — Under review by admin
                                         </span>
                                         @if (!string.IsNullOrEmpty(item.DisputeReason))
                                         {
@@ -906,7 +1048,7 @@
                                     </div>
                                 }
 
-                                @if (!string.IsNullOrEmpty(item.ArtistNotes))
+                                @if (!string.IsNullOrEmpty(item.ArtistNotes) && !isDepositExpired)
                                 {
                                     <div class="note-box mb-3 p-2 rounded" style="background: rgba(241, 196, 15, 0.05); border: 1px dashed rgba(241, 196, 15, 0.2);">
                                         <small class="text-warning d-block text-uppercase" style="font-size: 0.6rem; font-weight: bold;">Your Note to Client:</small>
@@ -975,6 +1117,10 @@
                                         {
                                             <span class="text-muted fw-bold">NO PAYMENT MADE</span>
                                         }
+                                        else if (isCancelled && isDepositExpired)
+                                        {
+                                            <span class="text-danger fw-bold"><i class="fas fa-clock me-1"></i> DEPOSIT EXPIRED</span>
+                                        }
                                         else if (isCancelled)
                                         {
                                             <span class="text-muted fw-bold">—</span>
@@ -1028,8 +1174,8 @@
                                                     <input type="hidden" name="transportCost" id="confirm-transport-@item.Id" value="0" />
                                                     <button type="submit" class="btn btn-success w-100 fw-bold"
                                                             onclick="document.getElementById('confirm-note-@item.Id').value = document.getElementById('note-@item.Id').value;
-                                                                                                                                                                                                                                                         var tInput = document.getElementById('transport-@item.Id');
-                                                                                                                                                                                                                                                         if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
+                                                                                                                                                         var tInput = document.getElementById('transport-@item.Id');
+                                                                                                                                                         if(tInput) { document.getElementById('confirm-transport-@item.Id').value = tInput.value || 0; }">
                                                         <i class="fas fa-check me-1"></i> ACCEPT
                                                     </button>
                                                 </form>
@@ -1061,6 +1207,17 @@
                                         <div class="d-flex gap-2">
                                             <div class="alert alert-info text-center flex-fill mb-0" style="background: rgba(23, 162, 184, 0.15); border: 1px solid #17a2b8; color: #17a2b8;">
                                                 <i class="fas fa-clock me-2"></i> Awaiting client's 50% deposit...
+                                                @if (item.DepositDueDate.HasValue && item.PaymentWindowOpen)
+                                                {
+                                                    <br />
+                                                    <span style="font-size: 0.65rem; color: rgba(255,255,255,0.5);">
+                                                        Deadline: @item.DepositDueDate.Value.ToString("MMM dd, HH:mm")
+                                                        @if (isUrgent)
+                                                        {
+                                                            <span style="color: #ff5555; font-weight: 700;"> ⚠️ URGENT - less than 2 hours!</span>
+                                                        }
+                                                    </span>
+                                                }
                                             </div>
                                             <form asp-action="CancelByArtist" method="post" style="flex: 0 0 auto;">
                                                 @Html.AntiForgeryToken()
@@ -1108,17 +1265,7 @@
                                 @* ─── REJECTED STATUS ─── *@
                                 else if (item.Status == BookingStatus.Rejected)
                                 {
-                                    <div class="alert alert-secondary text-center mb-0" style="background: rgba(108, 117, 125, 0.15); border: 1px solid #6c757d; color: #6c757d;">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        @if (isRefunded)
-                                        {
-                                            <text>Booking rejected — client refunded <strong>R @item.RefundAmount.ToString("N2")</strong></text>
-                                        }
-                                        else
-                                        {
-                                            <text>Booking rejected — no payment was made</text>
-                                        }
-                                    </div>
+                                   
                                 }
                                 @* ─── DISPUTED / IN REVIEW ─── *@
                                 else if (item.Status == BookingStatus.Disputed || item.Status == BookingStatus.InReview)
@@ -1155,6 +1302,7 @@
                                     </div>
                                 }
                         
+
                                 <div class="booked-date">
                                     <i class="far fa-calendar-alt me-1"></i> Booked @item.BookingDate.ToString("dd MMM yyyy")
                                 </div>
@@ -1173,7 +1321,7 @@
         }
     </div>
 
-    @* ─── 🔥 PAGINATION ─── *@
+    @* ─── PAGINATION ─── *@
     @if (totalPages > 1)
     {
         <div class="pagination-wrapper">
@@ -1238,24 +1386,95 @@
         </div>
     }
 </div>
-
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const toggleBtn = document.getElementById('filterToggleBtn');
-        const filterBar = document.getElementById('filterBar');
+    document.addEventListener('DOMContentLoaded', function () {
+        // ─── 1. FILTER TOGGLE ───
+        (function setupToggle() {
+            var toggleBtn = document.getElementById('filterToggleBtn');
+            var filterBar = document.getElementById('filterBar');
+            if (!toggleBtn || !filterBar) {
+                console.warn('Filter toggle elements not found');
+                return;
+            }
 
-        // Check if any filters are active, if so keep open
-        @if (hasFilters)
-        {
-                <text>
-                    filterBar.classList.add('open');
-                    toggleBtn.classList.add('open');
-                </text>
-        }
+            var hasFilters = @Json.Serialize(hasFilters);
+            if (hasFilters) {
+                filterBar.classList.add('open');
+                toggleBtn.classList.add('open');
+            }
 
-        toggleBtn.addEventListener('click', function() {
-            filterBar.classList.toggle('open');
-            toggleBtn.classList.toggle('open');
-        });
+            toggleBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                filterBar.classList.toggle('open');
+                toggleBtn.classList.toggle('open');
+            });
+        })();
+
+        // ─── 2. COUNTDOWN TIMERS (USING UNIX TIMESTAMPS) ───
+        (function setupTimers() {
+            try {
+                var bookings = [
+                    @foreach (var item in bookingsList)
+                    {
+                            if (item.Status == BookingStatus.Accepted
+                                            && !item.IsDepositPaid
+                                            && item.PaymentWindowOpen
+                                            && item.DepositDueDate.HasValue)
+                            {
+                            var timestamp = ((DateTimeOffset)DateTime.SpecifyKind(item.DepositDueDate.Value, DateTimeKind.Utc)).ToUnixTimeSeconds();
+                                <text>
+                                    { id: @item.Id, timestamp: @timestamp },
+                                    </text>
+                            }
+                    }
+                ];
+
+                function updateTimer(bookingId, timestamp) {
+                    try {
+                        var timerEl = document.getElementById('depositTimerArtist_' + bookingId);
+                        if (!timerEl) return;
+
+                        var now = Math.floor(Date.now() / 1000);
+                        var diff = timestamp - now;
+
+                        if (diff <= 0) {
+                            timerEl.textContent = 'EXPIRED';
+                            timerEl.style.color = '#e50914';
+                            var box = timerEl.closest('.deposit-timer-box');
+                            if (box) {
+                                box.classList.add('urgent');
+                                var label = box.querySelector('.timer-label');
+                                if (label) label.innerHTML = '<span style="color:#ff5555;font-weight:800;">⏰ EXPIRED</span>';
+                            }
+                            return;
+                        }
+
+                        var hours = Math.floor(diff / 3600);
+                        var mins = Math.floor((diff % 3600) / 60);
+                        var secs = diff % 60;
+                        timerEl.textContent =
+                            String(hours).padStart(2, '0') + ':' +
+                            String(mins).padStart(2, '0') + ':' +
+                            String(secs).padStart(2, '0');
+
+                        var box = timerEl.closest('.deposit-timer-box');
+                        if (box) {
+                            if (hours < 2) box.classList.add('urgent');
+                            else box.classList.remove('urgent');
+                        }
+                    } catch (e) {
+                        // ignore per-timer errors
+                    }
+                }
+
+                bookings.forEach(function (b) { updateTimer(b.id, b.timestamp); });
+
+                setInterval(function () {
+                    bookings.forEach(function (b) { updateTimer(b.id, b.timestamp); });
+                }, 1000);
+            } catch (e) {
+                console.warn('Timer setup failed:', e);
+            }
+        })();
     });
 </script>
