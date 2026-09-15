@@ -60,12 +60,11 @@ builder.Services.AddHttpClient<IPaystackService, PaystackService>();
 builder.Services.AddScoped<DepositReminderJob>();
 builder.Services.AddScoped<DepositExpiryJob>();
 
-// ??? ? HANGFIRE ???
+// ??? HANGFIRE ???
 builder.Services.AddHangfire(config =>
     config.UseSqlServerStorage(connectionString));
 
 builder.Services.AddHangfireServer();
-
 
 // ??? OTHER ???
 builder.Services.AddHttpClient();
@@ -91,7 +90,7 @@ builder.Services.Configure<IISServerOptions>(options =>
 
 var app = builder.Build();
 
-// ??? SEED ROLES ???
+// ??? SEED ROLES + ADMIN ONLY ???
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
@@ -107,7 +106,7 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    // Seed Admin
+    // ??? Seed Admin ONLY ???
     string adminEmail = "admin@example.com";
     string adminPassword = "Admin@123";
 
@@ -125,52 +124,6 @@ using (var scope = app.Services.CreateScope())
         if (createAdminResult.Succeeded)
         {
             await userManager.AddToRoleAsync(newAdmin, "Admin");
-        }
-    }
-
-    // Seed Demo Artist
-    string artistEmail = "artist@example.com";
-    string artistPassword = "Artist@123";
-
-    var artistUser = await userManager.FindByEmailAsync(artistEmail);
-    if (artistUser == null)
-    {
-        var newArtist = new ApplicationUser
-        {
-            UserName = artistEmail,
-            Email = artistEmail,
-            FirstName = "Test",
-            LastName = "Artist",
-            EmailConfirmed = true
-        };
-
-        var createArtistResult = await userManager.CreateAsync(newArtist, artistPassword);
-        if (createArtistResult.Succeeded)
-        {
-            await userManager.AddToRoleAsync(newArtist, "Artist");
-        }
-    }
-
-    // Seed Demo Client
-    string clientEmail = "client@example.com";
-    string clientPassword = "Client@123";
-
-    var clientUser = await userManager.FindByEmailAsync(clientEmail);
-    if (clientUser == null)
-    {
-        var newClient = new ApplicationUser
-        {
-            UserName = clientEmail,
-            Email = clientEmail,
-            FirstName = "Test",
-            LastName = "Client",
-            EmailConfirmed = true
-        };
-
-        var createClientResult = await userManager.CreateAsync(newClient, clientPassword);
-        if (createClientResult.Succeeded)
-        {
-            await userManager.AddToRoleAsync(newClient, "Client");
         }
     }
 }
@@ -194,7 +147,6 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// ??? ? HANGFIRE DASHBOARD ???
 app.UseHangfireDashboard("/hangfire");
 
 app.MapControllerRoute(
@@ -202,19 +154,20 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapRazorPages();
 
-// ??? ? SCHEDULE REMINDER JOB ???
+// ??? SCHEDULE BACKGROUND JOBS ???
 using (var scope = app.Services.CreateScope())
 {
     var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+
     recurringJobManager.AddOrUpdate<DepositReminderJob>(
         "deposit-reminders",
         job => job.SendReminders(),
-Cron.Hourly);
-    // ??? EXPIRY / CANCELLATION JOB (every 10 seconds for testing) ???
+        Cron.Hourly);
+
     recurringJobManager.AddOrUpdate<DepositExpiryJob>(
         "deposit-expiry",
         job => job.CancelExpiredBookings(),
-Cron.Hourly);
+        Cron.Hourly);
 }
 
 app.Run();

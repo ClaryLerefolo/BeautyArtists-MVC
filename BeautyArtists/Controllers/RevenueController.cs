@@ -16,7 +16,7 @@ namespace BeautyArtists.Controllers
     {
         private readonly ApplicationDbContext _context;
 
-        // ─── ✅ NEW FEE STRUCTURE ───
+        // ─── FEE STRUCTURE ───
         private const decimal CLIENT_MARKUP = 0.04m;      // 4% added to client
         private const decimal BOOKING_FEE = 5.00m;        // R5 booking fee
         private const decimal COMMISSION_NEW = 0.10m;      // 10% for new clients
@@ -28,7 +28,6 @@ namespace BeautyArtists.Controllers
             _context = context;
         }
 
-        // ─── HELPER: Check if client is new ───
         private async Task<bool> IsNewClient(string artistId, string customerId)
         {
             var existingBookings = await _context.Bookings
@@ -40,36 +39,26 @@ namespace BeautyArtists.Controllers
             return !existingBookings;
         }
 
-        // ─── HELPER: Calculate platform fee (10% or R15) ───
         private decimal GetPlatformFee(decimal servicePrice, bool isNewClient)
         {
-            // NEW client: 10% of artist price (no cap)
-            // REPEAT client: R15 flat fee
             var platformFee = isNewClient ? servicePrice * COMMISSION_NEW : COMMISSION_REPEAT;
-
-            // Safeguard: Minimum R8
             if (platformFee < MIN_COMMISSION)
                 platformFee = MIN_COMMISSION;
-
             return platformFee;
         }
 
-        // ─── HELPER: Calculate what artist actually gets ───
         private decimal GetArtistPayout(decimal servicePrice, bool isNewClient)
         {
             var platformFee = GetPlatformFee(servicePrice, isNewClient);
             return servicePrice - platformFee;
         }
 
-        // ─── HELPER: Calculate client total ───
         private decimal GetClientTotal(decimal servicePrice, bool isNewClient)
         {
-            // Client pays: Artist Price + 4% markup + R5 booking fee
             var markedUpPrice = servicePrice + (servicePrice * CLIENT_MARKUP);
             return markedUpPrice + BOOKING_FEE;
         }
 
-        // ─── SHARED: build filtered bookings ───
         private async Task<List<Booking>> GetFilteredBookings(
             string? filterProvince, string? filterArtistId,
             string? filterStatus, string? filterServiceId,
@@ -104,7 +93,6 @@ namespace BeautyArtists.Controllers
             return await query.OrderByDescending(b => b.AppointmentDate).ToListAsync();
         }
 
-        // ─── MAP to report items using ViewModel ───
         private async Task<List<BookingReportItem>> MapToReportItems(List<Booking> bookings)
         {
             var items = new List<BookingReportItem>();
@@ -129,19 +117,13 @@ namespace BeautyArtists.Controllers
                     Province = b.UserService?.Artist?.ArtistProfile?.Province ?? "—",
                     Status = b.Status.ToString(),
                     ClientType = isNew ? "New" : "Repeat",
-
-                    // ─── NEW BREAKDOWN ───
-                    ServicePrice = b.ServicePrice,                      // Artist's price (100%)
-                    ClientMarkup = markupAmount,                        // 4% markup (platform earns)
-                    BookingFee = BOOKING_FEE,                           // R5 (platform earns)
-                    ClientTotal = clientTotal,                          // What client pays
-                    PlatformFee = platformFee,                          // 10% or R15 (platform earns)
-                    ArtistNet = artistPayout,                           // What artist actually gets
-
-                    // ─── PLATFORM EARNINGS ───
+                    ServicePrice = b.ServicePrice,
+                    ClientMarkup = markupAmount,
+                    BookingFee = BOOKING_FEE,
+                    ClientTotal = clientTotal,
+                    PlatformFee = platformFee,
+                    ArtistNet = artistPayout,
                     PlatformEarnings = markupAmount + platformFee + BOOKING_FEE,
-
-                    // ─── For backward compatibility ───
                     Amount = b.Status == Booking.BookingStatus.Completed ? artistPayout : 0m
                 });
             }
@@ -149,7 +131,6 @@ namespace BeautyArtists.Controllers
             return items;
         }
 
-        // ─── POPULATE DROPDOWNS ───
         private async Task PopulateDropdowns(List<Booking> allBookings)
         {
             ViewBag.Provinces = allBookings
@@ -168,12 +149,13 @@ namespace BeautyArtists.Controllers
         }
 
         // ══════════════════════════════════
-        //  GET: Revenue/Index
+        //  GET: Revenue/Index  (paginated + filtered totals)
         // ══════════════════════════════════
         public async Task<IActionResult> Index(
             string? filterProvince, string? filterArtistId,
             string? filterStatus, string? filterServiceId,
-            DateTime? filterFrom, DateTime? filterTo)
+            DateTime? filterFrom, DateTime? filterTo,
+            int page = 1, int pageSize = 20)
         {
             var filtered = await GetFilteredBookings(
                 filterProvince, filterArtistId, filterStatus,
@@ -188,7 +170,6 @@ namespace BeautyArtists.Controllers
             var now = DateTime.Now;
             var completed = allBookings.Where(b => b.Status == Booking.BookingStatus.Completed).ToList();
 
-            // ─── CALCULATE EARNINGS ───
             decimal totalArtistPayout = 0m;
             decimal totalPlatformEarnings = 0m;
             decimal totalClientPaid = 0m;
@@ -207,7 +188,6 @@ namespace BeautyArtists.Controllers
                 totalPlatformEarnings += (b.ServicePrice * CLIENT_MARKUP) + GetPlatformFee(b.ServicePrice, isNew) + BOOKING_FEE;
             }
 
-            // ─── MONTHLY BREAKDOWN ───
             decimal monthArtistPayout = 0m;
             foreach (var b in completed.Where(b => b.AppointmentDate.Month == now.Month && b.AppointmentDate.Year == now.Year))
             {
@@ -222,6 +202,28 @@ namespace BeautyArtists.Controllers
                 weekArtistPayout += GetArtistPayout(b.ServicePrice, isNew);
             }
 
+            // ─── MAP FILTERED BOOKINGS ───
+            var allFilteredItems = await MapToReportItems(filtered);
+
+            // ─── FILTERED TOTALS (full filtered set, not just page) ───
+            ViewBag.FilteredTotalServicePrice = allFilteredItems.Sum(i => i.ServicePrice);
+            ViewBag.FilteredTotalMarkup = allFilteredItems.Sum(i => i.ClientMarkup);
+            ViewBag.FilteredTotalPlatformFee = allFilteredItems.Sum(i => i.PlatformFee);
+            ViewBag.FilteredTotalArtistNet = allFilteredItems.Sum(i => i.ArtistNet);
+            ViewBag.FilteredTotalPlatformEarnings = allFilteredItems.Sum(i => i.PlatformEarnings);
+
+            // ─── PAGINATE ───
+            int totalCount = allFilteredItems.Count;
+            int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            if (totalPages < 1) totalPages = 1;
+            if (page < 1) page = 1;
+            if (page > totalPages) page = totalPages;
+
+            var pagedItems = allFilteredItems
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
             // ─── BUILD MODEL ───
             var model = new RevenueViewModel
             {
@@ -232,12 +234,10 @@ namespace BeautyArtists.Controllers
                 FilterFrom = filterFrom,
                 FilterTo = filterTo,
 
-                // ─── REVENUE TOTALS ───
                 TotalRevenue = totalArtistPayout,
                 MonthRevenue = monthArtistPayout,
                 WeekRevenue = weekArtistPayout,
 
-                // ─── PLATFORM EARNINGS ───
                 TotalPlatformEarnings = totalPlatformEarnings,
                 TotalClientPaid = totalClientPaid,
                 TotalMarkupEarned = totalMarkup,
@@ -247,7 +247,6 @@ namespace BeautyArtists.Controllers
                 TotalBookings = allBookings.Count,
                 CompletedBookings = completed.Count,
 
-                // ─── TOP SERVICES ───
                 TopServices = filtered
                     .GroupBy(b => b.UserService?.Service?.Name ?? "Unknown")
                     .Select(g => new ServiceRevenueItem
@@ -259,7 +258,6 @@ namespace BeautyArtists.Controllers
                     })
                     .OrderByDescending(s => s.TotalRevenue).Take(8).ToList(),
 
-                // ─── TOP ARTISTS ───
                 TopArtists = filtered
                     .GroupBy(b => b.UserService?.ArtistId ?? "unknown")
                     .Select(g => new ArtistRevenueItem
@@ -274,7 +272,6 @@ namespace BeautyArtists.Controllers
                     })
                     .OrderByDescending(a => a.TotalRevenue).Take(8).ToList(),
 
-                // ─── BOOKINGS BY PROVINCE ───
                 BookingsByProvince = filtered
                     .GroupBy(b => b.UserService?.Artist?.ArtistProfile?.Province ?? "Unknown")
                     .Select(g => new ProvinceBookingItem
@@ -286,7 +283,6 @@ namespace BeautyArtists.Controllers
                     })
                     .OrderByDescending(p => p.TotalRevenue).ToList(),
 
-                // ─── MONTHLY TREND ───
                 MonthlyTrend = allBookings
                     .Where(b => b.AppointmentDate >= now.AddMonths(-11))
                     .GroupBy(b => new { b.AppointmentDate.Year, b.AppointmentDate.Month })
@@ -299,8 +295,15 @@ namespace BeautyArtists.Controllers
                     })
                     .OrderBy(m => m.Month).ToList(),
 
-                FilteredBookings = await MapToReportItems(filtered)
+                FilteredBookings = pagedItems
             };
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.TotalCount = totalCount;
+            ViewBag.PageSize = pageSize;
+            ViewBag.ShowingFrom = totalCount == 0 ? 0 : ((page - 1) * pageSize) + 1;
+            ViewBag.ShowingTo = Math.Min(page * pageSize, totalCount);
 
             await PopulateDropdowns(allBookings);
             return View(model);
@@ -365,7 +368,6 @@ namespace BeautyArtists.Controllers
             {
                 var sheet = package.Workbook.Worksheets.Add("Revenue Report");
 
-                // Headers & Styling
                 sheet.Cells["A1"].Value = "RubiOr — REVENUE REPORT";
                 sheet.Cells["A1:O1"].Merge = true;
                 sheet.Cells["A1"].Style.Font.Bold = true;
@@ -373,7 +375,6 @@ namespace BeautyArtists.Controllers
 
                 sheet.Cells["A2"].Value = $"Generated: {DateTime.Now:dd MMM yyyy HH:mm}";
 
-                // Column Headers
                 string[] headers = {
                     "Booking ID", "Date", "Time", "Client", "Artist", "Service",
                     "Province", "Status", "Client Type", "Service Price",
@@ -456,6 +457,9 @@ namespace BeautyArtists.Controllers
             return File(Encoding.UTF8.GetBytes(sb.ToString()), "application/msword", $"Report_{DateTime.Now:yyyyMMdd}.doc");
         }
 
+        // ══════════════════════════════════
+        //  GET: Revenue/DownloadPdf
+        // ══════════════════════════════════
         public async Task<IActionResult> DownloadPdf(string? filterProvince, string? filterArtistId, string? filterStatus, string? filterServiceId, DateTime? filterFrom, DateTime? filterTo)
         {
             var bookings = await GetFilteredBookings(filterProvince, filterArtistId, filterStatus, filterServiceId, filterFrom, filterTo);

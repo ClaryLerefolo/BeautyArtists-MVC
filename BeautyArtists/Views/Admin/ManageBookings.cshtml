@@ -3,23 +3,24 @@
 @{
     ViewData["Title"] = "Manage Bookings";
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
+
     var bookingsList = Model.ToList();
-    var pending = bookingsList.Count(b => b.Status == BookingStatus.Pending);
-    var accepted = bookingsList.Count(b => b.Status == BookingStatus.Accepted);
-    var confirmed = bookingsList.Count(b => b.Status == BookingStatus.Confirmed);
-    var completed = bookingsList.Count(b => b.Status == BookingStatus.Completed);
-    var cancelled = bookingsList.Count(b => b.Status == BookingStatus.Cancelled);
-    var rejected = bookingsList.Count(b => b.Status == BookingStatus.Rejected);
-    var topService = bookingsList
-        .GroupBy(b => b.UserService?.Service?.Name ?? "Unknown")
-        .OrderByDescending(g => g.Count())
-        .Select(g => g.Key).FirstOrDefault() ?? "—";
-    var topArtist = bookingsList
-        .GroupBy(b => !string.IsNullOrEmpty(b.UserService?.Artist?.FirstName)
-            ? $"{b.UserService.Artist.FirstName} {b.UserService.Artist.LastName}".Trim()
-            : "Unknown")
-        .OrderByDescending(g => g.Count())
-        .Select(g => g.Key).FirstOrDefault() ?? "—";
+
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var totalCount = ViewBag.TotalCount as int? ?? 0;
+    var showingFrom = ViewBag.ShowingFrom as int? ?? 0;
+    var showingTo = ViewBag.ShowingTo as int? ?? 0;
+    var searchTerm = ViewBag.Search as string ?? "";
+    var statusFilter = ViewBag.Status as string ?? "";
+
+    var totalAll = ViewBag.TotalAll as int? ?? 0;
+    var totalPending = ViewBag.TotalPending as int? ?? 0;
+    var totalConfirmed = ViewBag.TotalConfirmed as int? ?? 0;
+    var totalCompleted = ViewBag.TotalCompleted as int? ?? 0;
+    var totalCancelled = ViewBag.TotalCancelled as int? ?? 0;
+    var topService = ViewBag.TopService as string ?? "—";
+    var topArtist = ViewBag.TopArtist as string ?? "—";
 }
 
 @section Styles {
@@ -46,19 +47,7 @@
             display: grid;
             grid-template-columns: repeat(7, 1fr);
             gap: 12px;
-            margin-bottom: 24px;
-        }
-
-        @@media (max-width: 1200px) {
-            .bk-stats {
-                grid-template-columns: repeat(4, 1fr);
-            }
-        }
-
-        @@media (max-width: 768px) {
-            .bk-stats {
-                grid-template-columns: repeat(2, 1fr);
-            }
+            margin-bottom: 20px;
         }
 
         .bk-stat {
@@ -66,6 +55,7 @@
             border: 1px solid rgba(255,215,0,0.1);
             border-radius: 12px;
             padding: 14px 16px;
+            min-width: 0;
         }
 
         .bk-stat-num {
@@ -75,6 +65,7 @@
             color: #FFD700;
             line-height: 1;
             margin-bottom: 3px;
+            word-break: break-word;
         }
 
         .bk-stat-label {
@@ -102,10 +93,6 @@
             color: #ff5555;
         }
 
-        .bk-stat.rejected .bk-stat-num {
-            color: #ff8c00;
-        }
-
         .bk-stat.top {
             border-color: rgba(255,215,0,0.2);
         }
@@ -119,12 +106,120 @@
                 text-overflow: ellipsis;
             }
 
+        /* ── FILTER BAR ── */
+        .bk-filter-bar {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .bk-search-wrap {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+            .bk-search-wrap i {
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: rgba(255,215,0,0.4);
+                font-size: 0.85rem;
+                pointer-events: none;
+            }
+
+        .bk-search-input {
+            width: 100%;
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 8px !important;
+            color: #fff !important;
+            padding: 8px 12px 8px 36px !important;
+            font-size: 0.83rem;
+        }
+
+            .bk-search-input:focus {
+                outline: none !important;
+                border-color: rgba(255,215,0,0.4) !important;
+                background: rgba(255,215,0,0.03) !important;
+                box-shadow: none !important;
+            }
+
+            .bk-search-input::placeholder {
+                color: rgba(255,255,255,0.25) !important;
+            }
+
+        .bk-select {
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 8px !important;
+            color: #fff !important;
+            padding: 8px 14px !important;
+            font-size: 0.83rem;
+            min-width: 150px;
+        }
+
+            .bk-select option {
+                background: #111;
+                color: #fff;
+            }
+
+        .bk-filter-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 20px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+            .bk-filter-btn:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                box-shadow: 0 0 16px rgba(255,215,0,0.25);
+            }
+
+        .bk-clear-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 18px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.45);
+            font-weight: 700;
+            font-size: 0.78rem;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+            .bk-clear-btn:hover {
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.75);
+            }
+
         /* ── TABLE PANEL ── */
         .bk-panel {
             background: #0b0b0b;
             border: 1px solid rgba(255,215,0,0.1);
             border-radius: 16px;
             overflow: hidden;
+            margin-bottom: 20px;
         }
 
         .bk-panel-header {
@@ -133,6 +228,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .bk-panel-title {
@@ -157,14 +254,9 @@
         }
 
         /* ── TABLE ── */
-        .bk-table-wrap {
-            overflow-x: auto;
-        }
-
         .bk-table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 760px;
         }
 
             .bk-table thead tr {
@@ -179,6 +271,7 @@
                 text-transform: uppercase;
                 color: rgba(255,215,0,0.4);
                 border-bottom: 1px solid rgba(255,215,0,0.07);
+                text-align: left;
                 white-space: nowrap;
             }
 
@@ -201,6 +294,7 @@
         .bk-date {
             color: rgba(255,255,255,0.4);
             font-size: 0.78rem;
+            white-space: nowrap;
         }
 
         .bk-client {
@@ -262,16 +356,34 @@
                 border: 1px solid rgba(255,140,0,0.2);
             }
 
+            .bk-badge.Accepted {
+                background: rgba(23,162,184,0.12);
+                color: #17a2b8;
+                border: 1px solid rgba(23,162,184,0.25);
+            }
+
+            .bk-badge.Disputed,
+            .bk-badge.InReview {
+                background: rgba(229,9,20,0.12);
+                color: #ff5555;
+                border: 1px solid rgba(229,9,20,0.25);
+            }
+
+            .bk-badge.Resolved {
+                background: rgba(40,167,69,0.12);
+                color: #28a745;
+                border: 1px solid rgba(40,167,69,0.25);
+            }
+
         /* Override select */
         .bk-override-select {
             background: rgba(255,255,255,0.04) !important;
             border: 1px solid rgba(255,215,0,0.15) !important;
             border-radius: 8px !important;
             color: rgba(255,255,255,0.6) !important;
-            padding: 5px 10px !important;
+            padding: 6px 10px !important;
             font-size: 0.75rem;
             cursor: pointer;
-            transition: border-color 0.2s;
             min-width: 150px;
         }
 
@@ -299,6 +411,232 @@
                 display: block;
                 margin-bottom: 12px;
             }
+
+        /* ── PAGINATION ── */
+        .bk-pager {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 16px 20px;
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 14px;
+        }
+
+        .bk-pager-info {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.35);
+        }
+
+            .bk-pager-info strong {
+                color: #FFD700;
+                font-weight: 700;
+            }
+
+        .bk-pager-controls {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .bk-page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 7px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,215,0,0.1);
+            color: rgba(255,255,255,0.6);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .bk-page-btn:hover {
+                background: rgba(255,215,0,0.1);
+                color: #FFD700;
+                border-color: rgba(255,215,0,0.3);
+            }
+
+            .bk-page-btn.active {
+                background: #FFD700;
+                color: #000;
+                border-color: #FFD700;
+                box-shadow: 0 0 12px rgba(255,215,0,0.25);
+            }
+
+            .bk-page-btn.disabled {
+                opacity: 0.3;
+                pointer-events: none;
+                cursor: not-allowed;
+            }
+
+        .bk-page-ellipsis {
+            padding: 0 6px;
+            color: rgba(255,255,255,0.25);
+            font-size: 0.8rem;
+        }
+
+        /* ══════════════════════════════════
+                   RESPONSIVE
+                   ══════════════════════════════════ */
+        @@media (max-width: 1200px) {
+            .bk-stats {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @@media (max-width: 900px) {
+            .bk-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Mobile: table becomes cards */
+        @@media (max-width: 720px) {
+            .mb-heading {
+                font-size: 1.25rem;
+                margin-bottom: 18px;
+            }
+
+            .bk-stats {
+                gap: 8px;
+                margin-bottom: 16px;
+            }
+
+            .bk-stat {
+                padding: 12px 14px;
+            }
+
+            .bk-stat-num {
+                font-size: 1.2rem;
+            }
+
+            .bk-stat-label {
+                font-size: 0.55rem;
+                letter-spacing: 1.5px;
+            }
+
+            .bk-stat.top .bk-stat-num {
+                font-size: 0.75rem;
+            }
+            /* Filter bar stacks */
+            .bk-filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 14px;
+                gap: 10px;
+            }
+
+            .bk-search-wrap,
+            .bk-select,
+            .bk-filter-btn,
+            .bk-clear-btn {
+                width: 100%;
+                min-width: 0;
+                justify-content: center;
+            }
+            /* Hide table headers */
+            .bk-table thead {
+                display: none;
+            }
+
+            .bk-table,
+            .bk-table tbody,
+            .bk-table tr,
+            .bk-table td {
+                display: block;
+                width: 100%;
+            }
+
+                .bk-table tr {
+                    background: #0f0f0f;
+                    border: 1px solid rgba(255,215,0,0.1);
+                    border-radius: 14px;
+                    padding: 16px;
+                    margin: 12px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                }
+
+                    .bk-table tr:last-child {
+                        margin-bottom: 12px;
+                    }
+
+                .bk-table td {
+                    padding: 10px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.05);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 12px;
+                    font-size: 0.83rem;
+                    text-align: right;
+                }
+
+                    .bk-table td:first-child {
+                        padding-top: 0;
+                    }
+
+                    .bk-table td:last-child {
+                        border-bottom: none;
+                        padding-bottom: 0;
+                        flex-direction: column;
+                        align-items: stretch;
+                        text-align: left;
+                        padding-top: 12px;
+                        margin-top: 4px;
+                        border-top: 1px solid rgba(255,215,0,0.1);
+                    }
+
+                    .bk-table td::before {
+                        content: attr(data-label);
+                        font-size: 0.6rem;
+                        font-weight: 700;
+                        letter-spacing: 1.5px;
+                        text-transform: uppercase;
+                        color: rgba(255,215,0,0.4);
+                        text-align: left;
+                        flex-shrink: 0;
+                        padding-top: 2px;
+                    }
+
+                    .bk-table td:last-child::before {
+                        margin-bottom: 8px;
+                        display: block;
+                    }
+            /* Override select becomes full-width in card */
+            .bk-override-select {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .bk-table td form {
+                width: 100%;
+                margin: 0;
+            }
+            /* Pager stacks */
+            .bk-pager {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 14px;
+            }
+
+            .bk-pager-info {
+                text-align: center;
+            }
+
+            .bk-pager-controls {
+                justify-content: center;
+            }
+        }
     </style>
 }
 
@@ -308,23 +646,23 @@
 @* ── STATS ── *@
 <div class="bk-stats">
     <div class="bk-stat">
-        <span class="bk-stat-num">@bookingsList.Count</span>
+        <span class="bk-stat-num">@totalAll</span>
         <span class="bk-stat-label">Total</span>
     </div>
     <div class="bk-stat pending">
-        <span class="bk-stat-num">@pending</span>
+        <span class="bk-stat-num">@totalPending</span>
         <span class="bk-stat-label">Pending</span>
     </div>
     <div class="bk-stat confirmed">
-        <span class="bk-stat-num">@confirmed</span>
+        <span class="bk-stat-num">@totalConfirmed</span>
         <span class="bk-stat-label">Confirmed</span>
     </div>
     <div class="bk-stat completed">
-        <span class="bk-stat-num">@completed</span>
+        <span class="bk-stat-num">@totalCompleted</span>
         <span class="bk-stat-label">Completed</span>
     </div>
     <div class="bk-stat cancelled">
-        <span class="bk-stat-num">@cancelled</span>
+        <span class="bk-stat-num">@totalCancelled</span>
         <span class="bk-stat-label">Cancelled</span>
     </div>
     <div class="bk-stat top">
@@ -337,6 +675,36 @@
     </div>
 </div>
 
+@* ── FILTER BAR ── *@
+<form method="get" class="bk-filter-bar">
+    <div class="bk-search-wrap">
+        <i class="bi bi-search"></i>
+        <input type="text" name="search" value="@searchTerm"
+               class="bk-search-input"
+               placeholder="Search by ID, client, or service..." />
+    </div>
+
+    <select name="status" class="bk-select">
+        <option value="" selected="@(string.IsNullOrEmpty(statusFilter) ? "selected" : null)">All Statuses</option>
+        <option value="Pending" selected="@(statusFilter == "Pending" ? "selected" : null)">Pending</option>
+        <option value="Accepted" selected="@(statusFilter == "Accepted" ? "selected" : null)">Accepted</option>
+        <option value="Confirmed" selected="@(statusFilter == "Confirmed" ? "selected" : null)">Confirmed</option>
+        <option value="Completed" selected="@(statusFilter == "Completed" ? "selected" : null)">Completed</option>
+        <option value="Cancelled" selected="@(statusFilter == "Cancelled" ? "selected" : null)">Cancelled</option>
+        <option value="Rejected" selected="@(statusFilter == "Rejected" ? "selected" : null)">Rejected</option>
+        <option value="Disputed" selected="@(statusFilter == "Disputed" ? "selected" : null)">Disputed</option>
+        <option value="Resolved" selected="@(statusFilter == "Resolved" ? "selected" : null)">Resolved</option>
+    </select>
+
+    <button type="submit" class="bk-filter-btn">
+        <i class="bi bi-funnel-fill"></i> Filter
+    </button>
+
+    <a asp-action="ManageBookings" class="bk-clear-btn">
+        <i class="bi bi-x-lg"></i> Clear
+    </a>
+</form>
+
 @* ── TABLE ── *@
 <div class="bk-panel">
     <div class="bk-panel-header">
@@ -344,7 +712,7 @@
             <i class="bi bi-calendar-check-fill"></i> All Bookings
         </span>
         <span class="bk-count">
-            @bookingsList.Count booking@(bookingsList.Count != 1 ? "s" : "")
+            @totalCount booking@(totalCount != 1 ? "s" : "")
         </span>
     </div>
 
@@ -352,69 +720,118 @@
     {
         <div class="bk-empty">
             <i class="bi bi-calendar-x"></i>
-            No bookings yet.
+            No bookings match your filters.
         </div>
     }
     else
     {
-        <div class="bk-table-wrap">
-            <table class="bk-table">
-                <thead>
-                    <tr>
-                        <th>Date &amp; Time</th>
-                        <th>Client</th>
-                        <th>Artist</th>
-                        <th>Service</th>
-                        <th>Status</th>
-                        <th>Override</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var item in bookingsList.OrderByDescending(b => b.AppointmentDate))
-                    {
-                        string statusName = item.Status.ToString();
-                        string artistName = !string.IsNullOrEmpty(item.UserService?.Artist?.FirstName)
-                        ? $"{item.UserService.Artist.FirstName} {item.UserService.Artist.LastName}".Trim()
-                        : item.UserService?.Artist?.UserName ?? "—";
+        <table class="bk-table">
+            <thead>
+                <tr>
+                    <th>Date &amp; Time</th>
+                    <th>Client</th>
+                    <th>Artist</th>
+                    <th>Service</th>
+                    <th>Status</th>
+                    <th>Override</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in bookingsList.OrderByDescending(b => b.AppointmentDate))
+                {
+                    string statusName = item.Status.ToString();
+                    string artistName = !string.IsNullOrEmpty(item.UserService?.Artist?.FirstName)
+                    ? $"{item.UserService.Artist.FirstName} {item.UserService.Artist.LastName}".Trim()
+                    : item.UserService?.Artist?.UserName ?? "—";
 
-                        <tr>
-                            <td class="bk-date">
-                                @item.AppointmentDate.ToString("dd MMM yyyy")<br />
-                                <span style="font-size:0.72rem;color:rgba(255,255,255,0.3)">
-                                    @item.AppointmentDate.ToString("HH:mm")
-                                </span>
-                            </td>
-                            <td class="bk-client">
-                                @item.Customer?.FirstName @item.Customer?.LastName
-                            </td>
-                            <td class="bk-artist">@artistName</td>
-                            <td class="bk-service">
-                                @(item.UserService?.Service?.Name ?? "—")
-                            </td>
-                            <td>
-                                <span class="bk-badge @statusName">
-                                    @statusName
-                                </span>
-                            </td>
-                            <td>
-                                <form asp-action="AdminOverride" method="post">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="bookingId" value="@item.Id" />
-                                    <select name="newStatus" class="bk-override-select"
-                                            onchange="this.form.submit()">
-                                        <option selected disabled>Override...</option>
-                                        <option value="Pending">Set Pending</option>
-                                        <option value="Confirmed">Confirm</option>
-                                        <option value="Cancelled">Cancel</option>
-                                        <option value="Rejected">Reject</option>
-                                        <option value="Completed">Complete</option>
-                                    </select>
-                                </form>
-                            </td>
-                        </tr>
+                    <tr>
+                        <td class="bk-date" data-label="Date &amp; Time">
+                            @item.AppointmentDate.ToString("dd MMM yyyy")<br />
+                            <span style="font-size:0.72rem;color:rgba(255,255,255,0.3)">
+                                @item.AppointmentDate.ToString("HH:mm")
+                            </span>
+                        </td>
+                        <td class="bk-client" data-label="Client">
+                            @item.Customer?.FirstName @item.Customer?.LastName
+                        </td>
+                        <td class="bk-artist" data-label="Artist">@artistName</td>
+                        <td class="bk-service" data-label="Service">
+                            @(item.UserService?.Service?.Name ?? "—")
+                        </td>
+                        <td data-label="Status">
+                            <span class="bk-badge @statusName">
+                                @statusName
+                            </span>
+                        </td>
+                        <td data-label="Override">
+                            <form asp-action="AdminOverride" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="bookingId" value="@item.Id" />
+                                <select name="newStatus" class="bk-override-select"
+                                        onchange="if(confirm('Change status for booking #@item.Id?')) this.form.submit(); else this.value='';">
+                                    <option value="" selected disabled>Override...</option>
+                                    <option value="Pending">Set Pending</option>
+                                    <option value="Accepted">Set Accepted</option>
+                                    <option value="Confirmed">Confirm</option>
+                                    <option value="Cancelled">Cancel</option>
+                                    <option value="Rejected">Reject</option>
+                                    <option value="Completed">Complete</option>
+                                </select>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    @* ── PAGINATION ── *@
+    @if (totalPages > 1)
+    {
+        <div class="bk-pager">
+            <div class="bk-pager-info">
+                Showing <strong>@showingFrom</strong> – <strong>@showingTo</strong> of <strong>@totalCount</strong>
+            </div>
+            <div class="bk-pager-controls">
+                @{
+                    var prevDisabled = currentPage <= 1;
+                    var nextDisabled = currentPage >= totalPages;
+                }
+
+                <a class="bk-page-btn @(prevDisabled ? "disabled" : "")"
+                   asp-action="ManageBookings"
+                   asp-route-page="@(currentPage - 1)"
+                   asp-route-search="@searchTerm"
+                   asp-route-status="@statusFilter">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    if (i == 1 || i == totalPages || Math.Abs(i - currentPage) <= 1)
+                    {
+                        <a class="bk-page-btn @(i == currentPage ? "active" : "")"
+                           asp-action="ManageBookings"
+                           asp-route-page="@i"
+                           asp-route-search="@searchTerm"
+                           asp-route-status="@statusFilter">
+                            @i
+                        </a>
                     }
-                </tbody>
-            </table>
+                    else if (i == currentPage - 2 || i == currentPage + 2)
+                    {
+                        <span class="bk-page-ellipsis">…</span>
+                    }
+                }
+
+                <a class="bk-page-btn @(nextDisabled ? "disabled" : "")"
+                   asp-action="ManageBookings"
+                   asp-route-page="@(currentPage + 1)"
+                   asp-route-search="@searchTerm"
+                   asp-route-status="@statusFilter">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
         </div>
     }
 </div>

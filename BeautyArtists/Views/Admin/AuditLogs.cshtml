@@ -2,22 +2,367 @@
 @{
     ViewData["Title"] = "Audit Logs";
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
+
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var totalCount = ViewBag.TotalCount as int? ?? 0;
+    var showingFrom = ViewBag.ShowingFrom as int? ?? 0;
+    var showingTo = ViewBag.ShowingTo as int? ?? 0;
+    var logsList = Model.ToList();
 }
 
-<div style="background:#0b0b0b; border:1px solid rgba(255,215,0,0.1); border-radius:16px; padding:24px;">
-    <h4 style="color:#FFD700; font-weight:800; margin-bottom:20px;">
-        <i class="bi bi-journal-text me-2"></i> Audit Logs
-    </h4>
+@section Styles {
+    <style>
+        /* ── HEADERS ── */
+        .al-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
 
-    @if (!Model.Any())
+        .al-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
+
+        /* ── TABLE WRAP ── */
+        .al-table-wrap {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .al-table-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(255,215,0,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .al-table-title {
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.5);
+        }
+
+            .al-table-title i {
+                color: #FFD700;
+                margin-right: 8px;
+            }
+
+        .al-count {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 2px 10px;
+        }
+
+        .al-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            .al-table thead tr {
+                background: rgba(255,215,0,0.04);
+                border-bottom: 1px solid rgba(255,215,0,0.08);
+            }
+
+            .al-table th {
+                padding: 11px 20px;
+                font-size: 0.68rem;
+                font-weight: 700;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                color: rgba(255,215,0,0.4);
+                text-align: left;
+            }
+
+            .al-table td {
+                padding: 12px 20px;
+                font-size: 0.83rem;
+                color: rgba(255,255,255,0.65);
+                border-bottom: 1px solid rgba(255,255,255,0.04);
+                vertical-align: top;
+            }
+
+            .al-table tr:last-child td {
+                border-bottom: none;
+            }
+
+            .al-table tbody tr:hover td {
+                background: rgba(255,215,0,0.02);
+            }
+
+        .al-time {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+
+        .al-artist {
+            color: #fff;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .al-badge {
+            background: rgba(179,0,0,0.2);
+            color: #FFD700;
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(179,0,0,0.3);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            display: inline-block;
+            line-height: 1.4;
+        }
+
+        .al-desc {
+            color: rgba(255,255,255,0.4);
+            font-size: 0.82rem;
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        /* ── EMPTY STATE ── */
+        .al-empty {
+            padding: 48px 20px;
+            text-align: center;
+            color: rgba(255,255,255,0.25);
+            font-size: 0.85rem;
+        }
+
+            .al-empty i {
+                font-size: 2rem;
+                color: rgba(255,215,0,0.15);
+                display: block;
+                margin-bottom: 12px;
+            }
+
+        /* ── PAGINATION ── */
+        .al-pager {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255,215,0,0.08);
+            background: rgba(255,215,0,0.02);
+        }
+
+        .al-pager-info {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.35);
+        }
+
+            .al-pager-info strong {
+                color: #FFD700;
+                font-weight: 700;
+            }
+
+        .al-pager-controls {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .al-page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 7px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,215,0,0.1);
+            color: rgba(255,255,255,0.6);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .al-page-btn:hover {
+                background: rgba(255,215,0,0.1);
+                color: #FFD700;
+                border-color: rgba(255,215,0,0.3);
+            }
+
+            .al-page-btn.active {
+                background: #FFD700;
+                color: #000;
+                border-color: #FFD700;
+                box-shadow: 0 0 12px rgba(255,215,0,0.25);
+            }
+
+            .al-page-btn.disabled {
+                opacity: 0.3;
+                pointer-events: none;
+                cursor: not-allowed;
+            }
+
+        .al-page-ellipsis {
+            padding: 0 6px;
+            color: rgba(255,255,255,0.25);
+            font-size: 0.8rem;
+        }
+
+        /* ══════════════════════════════════════════════
+               MOBILE RESPONSIVE  (<= 768px)
+               Table turns into stacked cards
+               ══════════════════════════════════════════════ */
+        @@media (max-width: 768px) {
+            .al-heading {
+                font-size: 1.25rem;
+                margin-bottom: 18px;
+            }
+            /* Hide table headers */
+            .al-table thead {
+                display: none;
+            }
+
+            .al-table,
+            .al-table tbody,
+            .al-table tr,
+            .al-table td {
+                display: block;
+                width: 100%;
+            }
+
+            .al-table {
+                padding: 0;
+            }
+
+                .al-table tr {
+                    background: #0f0f0f;
+                    border: 1px solid rgba(255,215,0,0.1);
+                    border-radius: 14px;
+                    padding: 16px;
+                    margin: 12px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                }
+
+                    .al-table tr:last-child {
+                        margin-bottom: 12px;
+                    }
+
+                .al-table td {
+                    padding: 10px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.05);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 12px;
+                    font-size: 0.83rem;
+                    text-align: right;
+                }
+
+                    .al-table td:first-child {
+                        padding-top: 0;
+                    }
+
+                    .al-table td:last-child {
+                        border-bottom: none;
+                        padding-bottom: 0;
+                        flex-direction: column;
+                        align-items: stretch;
+                        text-align: left;
+                        padding-top: 12px;
+                        margin-top: 4px;
+                        border-top: 1px solid rgba(255,215,0,0.08);
+                    }
+                    /* Label before each value */
+                    .al-table td::before {
+                        content: attr(data-label);
+                        font-size: 0.6rem;
+                        font-weight: 700;
+                        letter-spacing: 1.5px;
+                        text-transform: uppercase;
+                        color: rgba(255,215,0,0.4);
+                        text-align: left;
+                        flex-shrink: 0;
+                        padding-top: 2px;
+                    }
+
+                    .al-table td:last-child::before {
+                        margin-bottom: 8px;
+                        display: block;
+                    }
+
+            .al-artist, .al-time {
+                white-space: normal;
+            }
+
+            .al-pager {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 14px;
+            }
+
+            .al-pager-info {
+                text-align: center;
+            }
+
+            .al-pager-controls {
+                justify-content: center;
+            }
+
+            .al-table-header {
+                padding: 12px 16px;
+            }
+        }
+
+        @@media (max-width: 480px) {
+            .al-table tr {
+                padding: 14px;
+                margin: 10px;
+            }
+        }
+    </style>
+}
+
+<span class="al-eyebrow">Administration</span>
+<h1 class="al-heading">Audit Logs</h1>
+
+<div class="al-table-wrap">
+    <div class="al-table-header">
+        <span class="al-table-title">
+            <i class="bi bi-journal-text"></i> Activity Log
+        </span>
+        <span class="al-count">@totalCount record@(totalCount != 1 ? "s" : "")</span>
+    </div>
+
+    @if (!logsList.Any())
     {
-        <p style="color:rgba(255,255,255,0.3)">No activity logged yet.</p>
+        <div class="al-empty">
+            <i class="bi bi-journal-x"></i>
+            No activity logged yet.
+        </div>
     }
     else
     {
-        <table class="table table-dark table-hover">
+        <table class="al-table">
             <thead>
-                <tr style="color:#FFD700">
+                <tr>
                     <th>Timestamp</th>
                     <th>Artist</th>
                     <th>Action</th>
@@ -25,26 +370,68 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var log in Model)
+                @foreach (var log in logsList)
                 {
                     <tr>
-                        <td style="color:rgba(255,255,255,0.5); font-size:0.82rem">
+                        <td class="al-time" data-label="Timestamp">
                             @log.Timestamp.ToString("dd MMM yyyy HH:mm")
                         </td>
-                        <td>@log.Artist?.FirstName @log.Artist?.LastName</td>
-                        <td>
-                            <span style="background:rgba(179,0,0,0.2); color:#FFD700;
-                                                 font-size:0.72rem; padding:3px 10px; border-radius:20px;
-                                                 border:1px solid rgba(179,0,0,0.3)">
-                                @log.Action
-                            </span>
+                        <td class="al-artist" data-label="Artist">
+                            @log.Artist?.FirstName @log.Artist?.LastName
                         </td>
-                        <td style="color:rgba(255,255,255,0.4); font-size:0.82rem">
+                        <td data-label="Action">
+                            <span class="al-badge">@log.Action</span>
+                        </td>
+                        <td class="al-desc" data-label="Description">
                             @log.Description
                         </td>
                     </tr>
                 }
             </tbody>
         </table>
+    }
+
+    @* ── PAGINATION ── *@
+    @if (totalPages > 1)
+    {
+        <div class="al-pager">
+            <div class="al-pager-info">
+                Showing <strong>@showingFrom</strong> – <strong>@showingTo</strong> of <strong>@totalCount</strong>
+            </div>
+            <div class="al-pager-controls">
+                @{
+                    var prevDisabled = currentPage <= 1;
+                    var nextDisabled = currentPage >= totalPages;
+                }
+
+                <a class="al-page-btn @(prevDisabled ? "disabled" : "")"
+                   asp-action="AuditLogs"
+                   asp-route-page="@(currentPage - 1)">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    if (i == 1 || i == totalPages || Math.Abs(i - currentPage) <= 1)
+                    {
+                        <a class="al-page-btn @(i == currentPage ? "active" : "")"
+                           asp-action="AuditLogs"
+                           asp-route-page="@i">
+                            @i
+                        </a>
+                    }
+                    else if (i == currentPage - 2 || i == currentPage + 2)
+                    {
+                        <span class="al-page-ellipsis">…</span>
+                    }
+                }
+
+                <a class="al-page-btn @(nextDisabled ? "disabled" : "")"
+                   asp-action="AuditLogs"
+                   asp-route-page="@(currentPage + 1)">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </div>
     }
 </div>

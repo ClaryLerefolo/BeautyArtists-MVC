@@ -2,44 +2,727 @@
 @{
     ViewData["Title"] = "Manage Services";
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
+
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var totalCount = ViewBag.TotalCount as int? ?? 0;
+    var showingFrom = ViewBag.ShowingFrom as int? ?? 0;
+    var showingTo = ViewBag.ShowingTo as int? ?? 0;
+    var searchTerm = ViewBag.Search as string ?? "";
+
+    var servicesList = Model ?? new List<BeautyArtists.Models.Service>();
 }
 
-<div class="container mt-5">
-    <h1 class="text-warning fw-bold mb-4">Service Management</h1>
+@section Styles {
+    <style>
+        .ms-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
 
-    <a class="btn btn-danger mb-3" asp-action="CreateService">Add New Service</a>
+        .ms-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
 
-    <table class="table table-dark table-bordered table-hover">
-        <thead class="table-light">
-            <tr>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Category</th>
-                <th>Duration</th>
-                <th>Base Price</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
+        .ms-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
 
-            @using System.Globalization
+        .ms-count {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.35);
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 4px 14px;
+            border: 1px solid rgba(255,255,255,0.07);
+        }
 
-            @foreach (var service in Model)
-            {
-                <tr>
-                    <td class="text-warning">@service.Name</td>
-                    <td>@service.Description</td>
-                    <td>@service.Duration</td>
-                    <td>@service.BasePrice.ToString("C", new CultureInfo("en-ZA"))</td>
-                    <td>
-                        <a class="btn btn-sm btn-warning text-dark" asp-action="EditService" asp-route-id="@service.Id">Edit</a>
-                        <form asp-action="DeleteService" asp-route-id="@service.Id" method="post" class="d-inline">
-                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this service?');">Delete</button>
-                        </form>
-                    </td>
-                </tr>
+            .ms-count strong {
+                color: #FFD700;
+                font-weight: 800;
             }
-        </tbody>
-    </table>
+
+        .ms-add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 24px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+            .ms-add-btn:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                color: #000;
+                box-shadow: 0 0 20px rgba(255,215,0,0.3);
+                transform: translateY(-2px);
+            }
+
+        /* ── FILTER BAR ── */
+        .ms-filter-bar {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .ms-search-wrap {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+            .ms-search-wrap i {
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: rgba(255,215,0,0.4);
+                font-size: 0.85rem;
+                pointer-events: none;
+            }
+
+        .ms-search-input {
+            width: 100%;
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 8px !important;
+            color: #fff !important;
+            padding: 8px 12px 8px 36px !important;
+            font-size: 0.83rem;
+        }
+
+            .ms-search-input:focus {
+                outline: none !important;
+                border-color: rgba(255,215,0,0.4) !important;
+                background: rgba(255,215,0,0.03) !important;
+                box-shadow: none !important;
+            }
+
+            .ms-search-input::placeholder {
+                color: rgba(255,255,255,0.25) !important;
+            }
+
+        .ms-filter-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 20px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+            .ms-filter-btn:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                box-shadow: 0 0 16px rgba(255,215,0,0.25);
+            }
+
+        .ms-clear-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 18px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.45);
+            font-weight: 700;
+            font-size: 0.78rem;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+            .ms-clear-btn:hover {
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.75);
+            }
+
+        /* ── TABLE PANEL ── */
+        .ms-panel {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .ms-panel-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(255,215,0,0.07);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .ms-panel-title {
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.5);
+        }
+
+            .ms-panel-title i {
+                color: #FFD700;
+                margin-right: 7px;
+            }
+
+        /* ── TABLE ── */
+        .ms-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+            .ms-table thead tr {
+                background: rgba(255,215,0,0.04);
+            }
+
+            .ms-table th {
+                padding: 11px 16px;
+                font-size: 0.65rem;
+                font-weight: 700;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+                color: rgba(255,215,0,0.4);
+                border-bottom: 1px solid rgba(255,215,0,0.07);
+                text-align: left;
+                white-space: nowrap;
+            }
+
+            .ms-table td {
+                padding: 12px 16px;
+                font-size: 0.83rem;
+                color: rgba(255,255,255,0.65);
+                border-bottom: 1px solid rgba(255,255,255,0.04);
+                vertical-align: middle;
+            }
+
+            .ms-table tr:last-child td {
+                border-bottom: none;
+            }
+
+            .ms-table tbody tr:hover td {
+                background: rgba(255,215,0,0.02);
+            }
+
+        .ms-name {
+            color: #FFD700;
+            font-weight: 700;
+        }
+
+        .ms-desc {
+            color: rgba(255,255,255,0.45);
+            font-size: 0.8rem;
+            max-width: 320px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .ms-category {
+            display: inline-flex;
+            align-items: center;
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            background: rgba(255,215,0,0.1);
+            color: #FFD700;
+            border: 1px solid rgba(255,215,0,0.2);
+            white-space: nowrap;
+        }
+
+        .ms-duration {
+            color: rgba(255,255,255,0.55);
+            font-size: 0.82rem;
+            white-space: nowrap;
+        }
+
+        .ms-price {
+            color: #FFD700;
+            font-weight: 800;
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+
+        /* Action buttons */
+        .ms-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .ms-btn-edit {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(255,215,0,0.1);
+            color: #FFD700;
+            border: 1px solid rgba(255,215,0,0.2);
+            text-decoration: none;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+            .ms-btn-edit:hover {
+                background: rgba(255,215,0,0.2);
+                color: #FFD700;
+                border-color: rgba(255,215,0,0.4);
+            }
+
+        .ms-btn-delete {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            background: rgba(179,0,0,0.12);
+            color: #ff6666;
+            border: 1px solid rgba(179,0,0,0.25);
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+            .ms-btn-delete:hover {
+                background: rgba(179,0,0,0.25);
+                color: #ff8888;
+                border-color: rgba(179,0,0,0.4);
+            }
+
+        /* Empty */
+        .ms-empty {
+            padding: 56px 20px;
+            text-align: center;
+            color: rgba(255,255,255,0.25);
+            font-size: 0.85rem;
+        }
+
+            .ms-empty i {
+                font-size: 2rem;
+                color: rgba(255,215,0,0.12);
+                display: block;
+                margin-bottom: 12px;
+            }
+
+        /* ── PAGINATION ── */
+        .ms-pager {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 16px 20px;
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 14px;
+        }
+
+        .ms-pager-info {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.35);
+        }
+
+            .ms-pager-info strong {
+                color: #FFD700;
+                font-weight: 700;
+            }
+
+        .ms-pager-controls {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .ms-page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 7px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,215,0,0.1);
+            color: rgba(255,255,255,0.6);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .ms-page-btn:hover {
+                background: rgba(255,215,0,0.1);
+                color: #FFD700;
+                border-color: rgba(255,215,0,0.3);
+            }
+
+            .ms-page-btn.active {
+                background: #FFD700;
+                color: #000;
+                border-color: #FFD700;
+                box-shadow: 0 0 12px rgba(255,215,0,0.25);
+            }
+
+            .ms-page-btn.disabled {
+                opacity: 0.3;
+                pointer-events: none;
+                cursor: not-allowed;
+            }
+
+        .ms-page-ellipsis {
+            padding: 0 6px;
+            color: rgba(255,255,255,0.25);
+            font-size: 0.8rem;
+        }
+
+        /* ══════════════════════════════════
+                   MOBILE (<= 720px)
+                   ══════════════════════════════════ */
+        @@media (max-width: 720px) {
+            .ms-heading {
+                font-size: 1.25rem;
+                margin-bottom: 18px;
+            }
+
+            .ms-topbar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+
+            .ms-add-btn {
+                justify-content: center;
+                width: 100%;
+            }
+
+            .ms-count {
+                text-align: center;
+            }
+
+            .ms-filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 14px;
+                gap: 10px;
+            }
+
+            .ms-search-wrap,
+            .ms-filter-btn,
+            .ms-clear-btn {
+                width: 100%;
+                min-width: 0;
+                justify-content: center;
+            }
+            /* Hide table headers */
+            .ms-table thead {
+                display: none;
+            }
+
+            .ms-table,
+            .ms-table tbody,
+            .ms-table tr,
+            .ms-table td {
+                display: block;
+                width: 100%;
+            }
+
+                .ms-table tr {
+                    background: #0f0f0f;
+                    border: 1px solid rgba(255,215,0,0.1);
+                    border-radius: 14px;
+                    padding: 16px;
+                    margin: 12px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                }
+
+                    .ms-table tr:last-child {
+                        margin-bottom: 12px;
+                    }
+
+                .ms-table td {
+                    padding: 10px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.05);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-start;
+                    gap: 12px;
+                    font-size: 0.83rem;
+                    text-align: right;
+                }
+
+                    .ms-table td:first-child {
+                        padding-top: 0;
+                    }
+
+                    .ms-table td:last-child {
+                        border-bottom: none;
+                        padding-bottom: 0;
+                        flex-direction: column;
+                        align-items: stretch;
+                        text-align: left;
+                        padding-top: 14px;
+                        margin-top: 6px;
+                        border-top: 1px solid rgba(255,215,0,0.1);
+                    }
+
+                    .ms-table td::before {
+                        content: attr(data-label);
+                        font-size: 0.6rem;
+                        font-weight: 700;
+                        letter-spacing: 1.5px;
+                        text-transform: uppercase;
+                        color: rgba(255,215,0,0.4);
+                        text-align: left;
+                        flex-shrink: 0;
+                        padding-top: 2px;
+                    }
+
+                    .ms-table td:last-child::before {
+                        margin-bottom: 10px;
+                        display: block;
+                    }
+
+            .ms-desc {
+                max-width: none;
+                white-space: normal;
+                text-align: right;
+            }
+            /* Actions stack */
+            .ms-actions {
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+            }
+
+                .ms-actions > *,
+                .ms-actions > form > * {
+                    width: 100%;
+                }
+
+                .ms-actions form {
+                    margin: 0 !important;
+                    width: 100%;
+                }
+
+            .ms-btn-edit,
+            .ms-btn-delete {
+                width: 100%;
+                justify-content: center;
+                padding: 10px 12px;
+                font-size: 0.78rem;
+            }
+            /* Pager stacks */
+            .ms-pager {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 14px;
+            }
+
+            .ms-pager-info {
+                text-align: center;
+            }
+
+            .ms-pager-controls {
+                justify-content: center;
+            }
+        }
+    </style>
+}
+
+<div class="container-fluid px-4">
+
+    <span class="ms-eyebrow">Administration</span>
+    <h1 class="ms-heading">Service Management</h1>
+
+    @* ── TOP BAR ── *@
+    <div class="ms-topbar">
+        <span class="ms-count">
+            <strong>@totalCount</strong> service@(totalCount != 1 ? "s" : "") total
+        </span>
+        <a asp-action="CreateService" class="ms-add-btn">
+            <i class="bi bi-plus-lg"></i> Add New Service
+        </a>
+    </div>
+
+    @* ── FILTER BAR ── *@
+    <form method="get" class="ms-filter-bar">
+        <div class="ms-search-wrap">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" value="@searchTerm"
+                   class="ms-search-input"
+                   placeholder="Search by name or description..." />
+        </div>
+
+        <button type="submit" class="ms-filter-btn">
+            <i class="bi bi-funnel-fill"></i> Filter
+        </button>
+
+        <a asp-action="ManageServices" class="ms-clear-btn">
+            <i class="bi bi-x-lg"></i> Clear
+        </a>
+    </form>
+
+    @* ── TABLE ── *@
+    <div class="ms-panel">
+        <div class="ms-panel-header">
+            <span class="ms-panel-title">
+                <i class="bi bi-grid-3x3-gap-fill"></i> All Services
+            </span>
+        </div>
+
+        @if (!servicesList.Any())
+        {
+            <div class="ms-empty">
+                <i class="bi bi-inbox"></i>
+                No services found.
+            </div>
+        }
+        else
+        {
+            <table class="ms-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th>Duration</th>
+                        <th>Base Price</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @using System.Globalization
+                @foreach (var service in servicesList)
+                    {
+                        <tr>
+                            <td class="ms-name" data-label="Name">@service.Name</td>
+                            <td class="ms-desc" data-label="Description">
+                                @(string.IsNullOrEmpty(service.Description) ? "—" : service.Description)
+                            </td>
+                            <td data-label="Category">
+                                <span class="ms-category">
+                                    @(service.ServiceCategory?.Name ?? "—")
+                                </span>
+                            </td>
+                            <td class="ms-duration" data-label="Duration">
+                                @service.Duration min@(service.Duration != 1 ? "s" : "")
+                            </td>
+                            <td class="ms-price" data-label="Base Price">
+                                @service.BasePrice.ToString("C", new CultureInfo("en-ZA"))
+                            </td>
+                            <td data-label="Actions">
+                                <div class="ms-actions">
+                                    <a class="ms-btn-edit" asp-action="EditService" asp-route-id="@service.Id">
+                                        <i class="bi bi-pencil-fill"></i> Edit
+                                    </a>
+                                    <form asp-action="DeleteService" asp-route-id="@service.Id" method="post" style="margin:0;">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="ms-btn-delete"
+                                                onclick="return confirm('Delete @service.Name? This cannot be undone.');">
+                                            <i class="bi bi-trash3-fill"></i> Delete
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    @* ── PAGINATION ── *@
+    @if (totalPages > 1)
+    {
+        <div class="ms-pager">
+            <div class="ms-pager-info">
+                Showing <strong>@showingFrom</strong> – <strong>@showingTo</strong> of <strong>@totalCount</strong>
+            </div>
+            <div class="ms-pager-controls">
+                @{
+                    var prevDisabled = currentPage <= 1;
+                    var nextDisabled = currentPage >= totalPages;
+                }
+
+                <a class="ms-page-btn @(prevDisabled ? "disabled" : "")"
+                   asp-action="ManageServices"
+                   asp-route-page="@(currentPage - 1)"
+                   asp-route-search="@searchTerm">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    if (i == 1 || i == totalPages || Math.Abs(i - currentPage) <= 1)
+                    {
+                        <a class="ms-page-btn @(i == currentPage ? "active" : "")"
+                           asp-action="ManageServices"
+                           asp-route-page="@i"
+                           asp-route-search="@searchTerm">
+                            @i
+                        </a>
+                    }
+                    else if (i == currentPage - 2 || i == currentPage + 2)
+                    {
+                        <span class="ms-page-ellipsis">…</span>
+                    }
+                }
+
+                <a class="ms-page-btn @(nextDisabled ? "disabled" : "")"
+                   asp-action="ManageServices"
+                   asp-route-page="@(currentPage + 1)"
+                   asp-route-search="@searchTerm">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+    }
 </div>
- 

@@ -2,24 +2,24 @@
 
 @{
     ViewData["Title"] = "Manage Users";
-    var searchTerm = Context.Request.Query["search"].ToString();
-    var roleFilter = Context.Request.Query["role"].ToString();
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
-    var filtered = Model.Users
-            .Where(u => string.IsNullOrEmpty(searchTerm) ||
-                   u.FullName.ToLower().Contains(searchTerm.ToLower()) ||
-                   u.Email.ToLower().Contains(searchTerm.ToLower()))
-            .Where(u => string.IsNullOrEmpty(roleFilter) || u.Role == roleFilter)
-            .OrderBy(u => u.Role)
-            .ToList();
 
-    int totalAdmins = Model.Users.Count(u => u.Role == "Admin");
-    int totalArtists = Model.Users.Count(u => u.Role == "Artist");
-    int totalClients = Model.Users.Count(u => u.Role == "Client");
+    var searchTerm = ViewBag.Search as string ?? "";
+    var roleFilter = ViewBag.Role as string ?? "";
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var totalCount = ViewBag.TotalCount as int? ?? 0;
+    var showingFrom = ViewBag.ShowingFrom as int? ?? 0;
+    var showingTo = ViewBag.ShowingTo as int? ?? 0;
+    int totalUsers = ViewBag.TotalUsers as int? ?? 0;
+    int totalAdmins = ViewBag.TotalAdmins as int? ?? 0;
+    int totalArtists = ViewBag.TotalArtists as int? ?? 0;
+    int totalClients = ViewBag.TotalClients as int? ?? 0;
 }
 
 @section Styles {
     <style>
+        /* ── HEADERS ── */
         .mu-eyebrow {
             font-size: 0.6rem;
             font-weight: 700;
@@ -39,21 +39,20 @@
 
         /* ── MINI STATS ── */
         .mu-stats {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 12px;
             margin-bottom: 24px;
-            flex-wrap: wrap;
         }
 
         .mu-stat {
             background: #0b0b0b;
             border: 1px solid rgba(255,215,0,0.1);
             border-radius: 12px;
-            padding: 14px 20px;
+            padding: 14px 18px;
             display: flex;
             align-items: center;
             gap: 12px;
-            min-width: 130px;
         }
 
         .mu-stat-icon {
@@ -124,7 +123,6 @@
             color: #fff !important;
             padding: 8px 12px 8px 36px !important;
             font-size: 0.83rem;
-            transition: border-color 0.2s;
         }
 
             .mu-search-input:focus {
@@ -167,7 +165,6 @@
             text-transform: uppercase;
             border: none;
             cursor: pointer;
-            transition: all 0.2s;
             white-space: nowrap;
         }
 
@@ -188,7 +185,6 @@
             font-weight: 700;
             font-size: 0.78rem;
             cursor: pointer;
-            transition: all 0.2s;
             white-space: nowrap;
         }
 
@@ -197,12 +193,13 @@
                 color: #ff8888;
             }
 
-        /* ── TABLE ── */
+        /* ── TABLE WRAP ── */
         .mu-table-wrap {
             background: #0b0b0b;
             border: 1px solid rgba(255,215,0,0.1);
             border-radius: 16px;
             overflow: hidden;
+            margin-bottom: 20px;
         }
 
         .mu-table-header {
@@ -211,6 +208,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
         }
 
         .mu-table-title {
@@ -251,6 +250,7 @@
                 letter-spacing: 2px;
                 text-transform: uppercase;
                 color: rgba(255,215,0,0.4);
+                text-align: left;
             }
 
             .mu-table td {
@@ -277,9 +277,10 @@
         .mu-email {
             color: rgba(255,255,255,0.4);
             font-size: 0.8rem;
+            word-break: break-all;
         }
 
-        /* Role badges */
+        /* ── ROLE BADGES ── */
         .mu-role {
             display: inline-flex;
             align-items: center;
@@ -310,8 +311,12 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* Action buttons */
-        .mu-btn-details {
+        /* ── ACTION BUTTONS ── */
+        .mu-btn-details,
+        .mu-btn-delete,
+        .mu-btn-activate,
+        .mu-btn-resend,
+        .mu-btn-disabled {
             display: inline-flex;
             align-items: center;
             gap: 5px;
@@ -319,11 +324,15 @@
             border-radius: 7px;
             font-size: 0.75rem;
             font-weight: 700;
+            text-decoration: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .mu-btn-details {
             background: rgba(255,215,0,0.1);
             color: #FFD700;
             border: 1px solid rgba(255,215,0,0.2);
-            text-decoration: none;
-            transition: all 0.2s;
         }
 
             .mu-btn-details:hover {
@@ -333,18 +342,9 @@
             }
 
         .mu-btn-delete {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 5px 12px;
-            border-radius: 7px;
-            font-size: 0.75rem;
-            font-weight: 700;
             background: rgba(179,0,0,0.12);
             color: #ff6666;
             border: 1px solid rgba(179,0,0,0.25);
-            cursor: pointer;
-            transition: all 0.2s;
         }
 
             .mu-btn-delete:hover {
@@ -354,19 +354,9 @@
             }
 
         .mu-btn-activate {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 5px 12px;
-            border-radius: 7px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            background: rgba(40, 167, 69, 0.12);
+            background: rgba(40,167,69,0.12);
             color: #28a745;
-            border: 1px solid rgba(40, 167, 69, 0.25);
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
+            border: 1px solid rgba(40,167,69,0.25);
         }
 
             .mu-btn-activate:hover {
@@ -374,33 +364,10 @@
                 color: #3cdd6b;
             }
 
-        .mu-btn-disabled {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 5px 12px;
-            border-radius: 7px;
-            font-size: 0.75rem;
-            font-weight: 700;
-            background: rgba(255,255,255,0.04);
-            color: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.06);
-            cursor: not-allowed;
-        }
-        /* ✅ NEW: Resend button */
         .mu-btn-resend {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            padding: 5px 12px;
-            border-radius: 7px;
-            font-size: 0.75rem;
-            font-weight: 700;
             background: rgba(255,165,0,0.12);
             color: #ffa500;
             border: 1px solid rgba(255,165,0,0.28);
-            cursor: pointer;
-            transition: all 0.2s;
         }
 
             .mu-btn-resend:hover {
@@ -409,7 +376,21 @@
                 border-color: rgba(255,165,0,0.5);
             }
 
-        /* Empty state */
+        .mu-btn-disabled {
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.06);
+            cursor: not-allowed;
+        }
+
+        .mu-actions-wrap {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        /* ── EMPTY STATE ── */
         .mu-empty {
             padding: 48px 20px;
             text-align: center;
@@ -423,6 +404,253 @@
                 display: block;
                 margin-bottom: 12px;
             }
+
+        /* ── PAGINATION ── */
+        .mu-pager {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255,215,0,0.08);
+            background: rgba(255,215,0,0.02);
+        }
+
+        .mu-pager-info {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.35);
+        }
+
+            .mu-pager-info strong {
+                color: #FFD700;
+                font-weight: 700;
+            }
+
+        .mu-pager-controls {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .mu-page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 7px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,215,0,0.1);
+            color: rgba(255,255,255,0.6);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .mu-page-btn:hover {
+                background: rgba(255,215,0,0.1);
+                color: #FFD700;
+                border-color: rgba(255,215,0,0.3);
+            }
+
+            .mu-page-btn.active {
+                background: #FFD700;
+                color: #000;
+                border-color: #FFD700;
+                box-shadow: 0 0 12px rgba(255,215,0,0.25);
+            }
+
+            .mu-page-btn.disabled {
+                opacity: 0.3;
+                pointer-events: none;
+                cursor: not-allowed;
+            }
+
+        .mu-page-ellipsis {
+            padding: 0 6px;
+            color: rgba(255,255,255,0.25);
+            font-size: 0.8rem;
+        }
+
+        /* ══════════════════════════════════════════════
+               MOBILE RESPONSIVE  (<= 768px)
+               Table turns into stacked cards
+               ══════════════════════════════════════════════ */
+        @@media (max-width: 768px) {
+            .mu-heading {
+                font-size: 1.25rem;
+                margin-bottom: 18px;
+            }
+            /* Stats stack full-width */
+            .mu-stats {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+
+            .mu-stat {
+                padding: 12px 14px;
+            }
+
+            .mu-stat-num {
+                font-size: 1.1rem;
+            }
+            /* Filter bar stacks everything */
+            .mu-filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 14px;
+                gap: 10px;
+            }
+
+            .mu-search-wrap,
+            .mu-select,
+            .mu-filter-btn,
+            .mu-danger-btn {
+                width: 100%;
+                min-width: 0;
+                justify-content: center;
+            }
+            /* Hide table headers */
+            .mu-table thead {
+                display: none;
+            }
+            /* Table rows become cards */
+            .mu-table,
+            .mu-table tbody,
+            .mu-table tr,
+            .mu-table td {
+                display: block;
+                width: 100%;
+            }
+
+            .mu-table {
+                padding: 0;
+            }
+
+                .mu-table tr {
+                    background: #0f0f0f;
+                    border: 1px solid rgba(255,215,0,0.1);
+                    border-radius: 14px;
+                    padding: 16px;
+                    margin: 12px;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                }
+
+                    .mu-table tr:last-child {
+                        margin-bottom: 12px;
+                    }
+
+                .mu-table td {
+                    padding: 10px 0;
+                    border-bottom: 1px solid rgba(255,255,255,0.05);
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    gap: 12px;
+                    font-size: 0.83rem;
+                    text-align: right;
+                }
+
+                    .mu-table td:first-child {
+                        padding-top: 0;
+                    }
+
+                    .mu-table td:last-child {
+                        border-bottom: none;
+                        padding-bottom: 0;
+                        flex-direction: column;
+                        align-items: stretch;
+                        text-align: left;
+                        padding-top: 14px;
+                        margin-top: 6px;
+                        border-top: 1px solid rgba(255,215,0,0.1);
+                    }
+                    /* Show the label before the value */
+                    .mu-table td::before {
+                        content: attr(data-label);
+                        font-size: 0.6rem;
+                        font-weight: 700;
+                        letter-spacing: 1.5px;
+                        text-transform: uppercase;
+                        color: rgba(255,215,0,0.4);
+                        text-align: left;
+                        flex-shrink: 0;
+                    }
+
+                    .mu-table td:last-child::before {
+                        margin-bottom: 10px;
+                        display: block;
+                    }
+
+            .mu-name {
+                font-size: 0.95rem;
+            }
+            /* Actions stack vertically, full width */
+            .mu-actions-wrap {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+            }
+
+                .mu-actions-wrap > *,
+                .mu-actions-wrap > form > *,
+                .mu-actions-wrap > a,
+                .mu-actions-wrap > span {
+                    width: 100%;
+                }
+
+                .mu-actions-wrap > form {
+                    margin: 0 !important;
+                    width: 100%;
+                }
+
+                    .mu-actions-wrap > form > button {
+                        width: 100%;
+                        justify-content: center;
+                        padding: 10px 12px;
+                    }
+
+            .mu-btn-details,
+            .mu-btn-delete,
+            .mu-btn-activate,
+            .mu-btn-resend,
+            .mu-btn-disabled {
+                width: 100%;
+                justify-content: center;
+                padding: 10px 12px;
+                font-size: 0.78rem;
+            }
+            /* Pager stacks */
+            .mu-pager {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 14px;
+            }
+
+            .mu-pager-info {
+                text-align: center;
+            }
+
+            .mu-pager-controls {
+                justify-content: center;
+            }
+
+            .mu-table-header {
+                padding: 12px 16px;
+            }
+        }
+
+        @@media (max-width: 420px) {
+            .mu-stats {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 }
 
@@ -434,7 +662,7 @@
     <div class="mu-stat">
         <div class="mu-stat-icon"><i class="bi bi-people-fill"></i></div>
         <div>
-            <span class="mu-stat-num">@Model.Users.Count</span>
+            <span class="mu-stat-num">@totalUsers</span>
             <span class="mu-stat-label">Total Users</span>
         </div>
     </div>
@@ -481,7 +709,7 @@
     </button>
 </form>
 
-@* ── DELETE PROMOTED ADMINS (moved OUT of the filter form) ── *@
+@* ── DELETE PROMOTED ADMINS ── *@
 <div style="margin-bottom: 16px;">
     <form asp-action="DeletePromotedAdmins" method="post" style="margin:0;display:inline-block;">
         @Html.AntiForgeryToken()
@@ -498,10 +726,10 @@
         <span class="mu-table-title">
             <i class="bi bi-people-fill"></i> Users
         </span>
-        <span class="mu-count">@filtered.Count result@(filtered.Count != 1 ? "s" : "")</span>
+        <span class="mu-count">@totalCount result@(totalCount != 1 ? "s" : "")</span>
     </div>
 
-    @if (!filtered.Any())
+    @if (!Model.Users.Any())
     {
         <div class="mu-empty">
             <i class="bi bi-person-x"></i>
@@ -520,41 +748,34 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var user in filtered)
+                @foreach (var user in Model.Users)
                 {
                     <tr>
-                        <td class="mu-name">@user.FullName</td>
-                        <td class="mu-email">@user.Email</td>
-                        <td>
+                        <td class="mu-name" data-label="Name">@user.FullName</td>
+                        <td class="mu-email" data-label="Email">@user.Email</td>
+                        <td data-label="Role">
                             @if (user.Role == "Admin")
                             {
-                                <span class="mu-role mu-role-admin">
-                                    <i class="bi bi-shield-fill"></i> Admin
-                                </span>
+                                <span class="mu-role mu-role-admin"><i class="bi bi-shield-fill"></i> Admin</span>
                             }
                             else if (user.Role == "Artist")
                             {
-                                <span class="mu-role mu-role-artist">
-                                    <i class="bi bi-scissors"></i> Artist
-                                </span>
+                                <span class="mu-role mu-role-artist"><i class="bi bi-scissors"></i> Artist</span>
                             }
                             else
                             {
-                                <span class="mu-role mu-role-client">
-                                    <i class="bi bi-person-fill"></i> Client
-                                </span>
+                                <span class="mu-role mu-role-client"><i class="bi bi-person-fill"></i> Client</span>
                             }
                         </td>
-                        <td>
-                            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <td data-label="Actions">
+                            <div class="mu-actions-wrap">
                                 <a class="mu-btn-details" asp-action="UserDetails" asp-route-id="@user.Id">
                                     <i class="bi bi-eye-fill"></i> Details
                                 </a>
 
-                                @* ✅ RESEND CONFIRMATION (only for unconfirmed users, if property exists) *@
                                 @if (!user.IsEmailConfirmed)
                                 {
-                                    <form asp-action="ResendConfirmation" asp-route-id="@user.Id" method="post" style="margin:0">
+                                    <form asp-action="ResendConfirmation" asp-route-id="@user.Id" method="post">
                                         @Html.AntiForgeryToken()
                                         <button type="submit" class="mu-btn-resend"
                                                 onclick="return confirm('Send a new confirmation email to @user.Email?')">
@@ -565,8 +786,7 @@
 
                                 @if (user.Role != "Admin")
                                 {
-                                    @* --- DEACTIVATE / ACTIVATE TOGGLE --- *@
-                                    <form asp-action="ToggleUserStatus" asp-route-id="@user.Id" method="post" style="margin:0">
+                                    <form asp-action="ToggleUserStatus" asp-route-id="@user.Id" method="post">
                                         @Html.AntiForgeryToken()
                                         @if (user.IsDeactivated)
                                         {
@@ -576,14 +796,14 @@
                                         }
                                         else
                                         {
-                                            <button type="submit" class="mu-btn-delete" style="background: rgba(255,165,0,0.12); color: #ffa500; border-color: rgba(255,165,0,0.25);">
+                                            <button type="submit" class="mu-btn-delete"
+                                                    style="background: rgba(255,165,0,0.12); color: #ffa500; border-color: rgba(255,165,0,0.25);">
                                                 <i class="bi bi-person-x-fill"></i> Deactivate
                                             </button>
                                         }
                                     </form>
 
-                                    @* --- PERMANENT DELETE --- *@
-                                    <form asp-action="DeleteUser" asp-route-id="@user.Id" method="post" style="margin:0">
+                                    <form asp-action="DeleteUser" asp-route-id="@user.Id" method="post">
                                         @Html.AntiForgeryToken()
                                         <button type="submit" class="mu-btn-delete"
                                                 onclick="return confirm('Delete @user.FullName? This cannot be undone.')">
@@ -603,5 +823,55 @@
                 }
             </tbody>
         </table>
+    }
+
+    @* ── PAGINATION ── *@
+    @if (totalPages > 1)
+    {
+        <div class="mu-pager">
+            <div class="mu-pager-info">
+                Showing <strong>@showingFrom</strong> – <strong>@showingTo</strong> of <strong>@totalCount</strong>
+            </div>
+            <div class="mu-pager-controls">
+                @{
+                    var prevDisabled = currentPage <= 1;
+                    var nextDisabled = currentPage >= totalPages;
+                }
+
+                <a class="mu-page-btn @(prevDisabled ? "disabled" : "")"
+                   asp-action="ManageUsers"
+                   asp-route-page="@(currentPage - 1)"
+                   asp-route-search="@searchTerm"
+                   asp-route-role="@roleFilter">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+
+                @for (int i = 1; i <= totalPages; i++)
+                {
+                    if (i == 1 || i == totalPages || Math.Abs(i - currentPage) <= 1)
+                    {
+                        <a class="mu-page-btn @(i == currentPage ? "active" : "")"
+                           asp-action="ManageUsers"
+                           asp-route-page="@i"
+                           asp-route-search="@searchTerm"
+                           asp-route-role="@roleFilter">
+                            @i
+                        </a>
+                    }
+                    else if (i == currentPage - 2 || i == currentPage + 2)
+                    {
+                        <span class="mu-page-ellipsis">…</span>
+                    }
+                }
+
+                <a class="mu-page-btn @(nextDisabled ? "disabled" : "")"
+                   asp-action="ManageUsers"
+                   asp-route-page="@(currentPage + 1)"
+                   asp-route-search="@searchTerm"
+                   asp-route-role="@roleFilter">
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </div>
     }
 </div>

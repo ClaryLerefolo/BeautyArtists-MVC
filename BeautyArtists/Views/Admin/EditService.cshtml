@@ -1,48 +1,343 @@
 ﻿@model BeautyArtists.Models.ViewModels.ServiceViewModel
-
-
 @{
-    ViewData["Title"] = "Create Service";
+    ViewData["Title"] = "Edit Service";
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
 }
 
-<div class="container mt-5">
-    <h2 class="text-warning">Create New Service</h2>
-<form asp-action="EditService" method="post">
+@section Styles {
+    <style>
+        .es-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
 
-    @if (Model.Id != 0)
-    {
-        <input type="hidden" asp-for="Id" />
-    }
+        .es-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
 
-    <div class="mb-3">
-        <label asp-for="Name"></label>
-        <input asp-for="Name" class="form-control" />
-        <span asp-validation-for="Name" class="text-danger"></span>
+        .es-card {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.12);
+            border-radius: 18px;
+            overflow: hidden;
+            max-width: 640px;
+            width: 100%;
+        }
+
+        .es-card-header {
+            background: linear-gradient(135deg, #0a0000, #150500);
+            border-bottom: 1px solid rgba(255,215,0,0.08);
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .es-card-header-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: #000;
+            flex-shrink: 0;
+        }
+
+        .es-card-header-title {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #FFD700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .es-card-header-sub {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.3);
+            margin: 2px 0 0;
+        }
+
+        .es-card-body {
+            padding: 24px;
+        }
+
+        .es-field {
+            margin-bottom: 20px;
+        }
+
+        .es-label {
+            display: block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.5);
+            margin-bottom: 7px;
+        }
+
+        .es-input,
+        .es-textarea,
+        .es-select {
+            width: 100%;
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 10px !important;
+            color: #fff !important;
+            padding: 11px 14px !important;
+            font-size: 0.88rem;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+            .es-input:focus,
+            .es-textarea:focus,
+            .es-select:focus {
+                outline: none !important;
+                border-color: rgba(255,215,0,0.4) !important;
+                background: rgba(255,215,0,0.03) !important;
+                box-shadow: none !important;
+            }
+
+            .es-input::placeholder,
+            .es-textarea::placeholder {
+                color: rgba(255,255,255,0.2);
+            }
+
+        .es-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .es-select option {
+            background: #111;
+            color: #fff;
+        }
+
+        .es-validation {
+            font-size: 0.78rem;
+            color: #ff5555;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .es-check-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            background: rgba(255,215,0,0.04);
+            border: 1px solid rgba(255,215,0,0.12);
+            border-radius: 10px;
+            margin-bottom: 22px;
+        }
+
+        .es-check-input {
+            width: 18px;
+            height: 18px;
+            accent-color: #FFD700;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .es-check-label {
+            font-size: 0.83rem;
+            color: rgba(255,255,255,0.7);
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .es-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .es-btn-save {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+        }
+
+            .es-btn-save:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                box-shadow: 0 0 20px rgba(255,215,0,0.3);
+                transform: translateY(-1px);
+            }
+
+        .es-btn-cancel {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.45);
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            flex: 1;
+        }
+
+            .es-btn-cancel:hover {
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.75);
+            }
+
+        @@media (max-width: 600px) {
+            .es-heading {
+                font-size: 1.25rem;
+                margin-bottom: 18px;
+            }
+
+            .es-card {
+                border-radius: 14px;
+            }
+
+            .es-card-header {
+                padding: 16px 18px;
+            }
+
+            .es-card-header-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 0.8rem;
+            }
+
+            .es-card-header-title {
+                font-size: 0.8rem;
+            }
+
+            .es-card-header-sub {
+                font-size: 0.65rem;
+            }
+
+            .es-card-body {
+                padding: 18px;
+            }
+
+            .es-field {
+                margin-bottom: 16px;
+            }
+
+            .es-input, .es-textarea, .es-select {
+                font-size: 0.85rem;
+                padding: 10px 12px !important;
+            }
+
+            .es-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .es-btn-save, .es-btn-cancel {
+                width: 100%;
+                padding: 12px;
+                font-size: 0.78rem;
+            }
+        }
+    </style>
+}
+
+<div class="container-fluid px-4">
+
+    <span class="es-eyebrow">Administration</span>
+    <h1 class="es-heading">Edit Service</h1>
+
+    <div class="es-card">
+        <div class="es-card-header">
+            <div class="es-card-header-icon">
+                <i class="bi bi-pencil-fill"></i>
+            </div>
+            <div>
+                <p class="es-card-header-title">Update Service</p>
+                <p class="es-card-header-sub">Modify the details below</p>
+            </div>
+        </div>
+
+        <div class="es-card-body">
+            <form asp-action="EditService" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+
+                @if (Model.Id != 0)
+                {
+                    <input type="hidden" asp-for="Id" />
+                }
+
+                <div class="es-field">
+                    <label asp-for="Name" class="es-label">Service Name</label>
+                    <input asp-for="Name" class="es-input" placeholder="e.g. Full Body Massage" />
+                    <span asp-validation-for="Name" class="es-validation"></span>
+                </div>
+
+                <div class="es-field">
+                    <label asp-for="Description" class="es-label">Description</label>
+                    <textarea asp-for="Description" class="es-textarea"
+                              placeholder="Describe what this service includes..."></textarea>
+                    <span asp-validation-for="Description" class="es-validation"></span>
+                </div>
+
+                <div class="es-field">
+                    <label asp-for="BasePrice" class="es-label">Base Price (R)</label>
+                    <input asp-for="BasePrice" class="es-input" type="number" step="0.01" min="0"
+                           placeholder="e.g. 250.00" />
+                    <span asp-validation-for="BasePrice" class="es-validation"></span>
+                </div>
+
+                <div class="es-field">
+                    <label asp-for="CategoryId" class="es-label">Category</label>
+                    <select asp-for="CategoryId" asp-items="Model.Categories" class="es-select">
+                        <option value="">Select a category...</option>
+                    </select>
+                    <span asp-validation-for="CategoryId" class="es-validation"></span>
+                </div>
+
+                <div class="es-check-wrap">
+                    <input asp-for="IsFeatured" class="es-check-input" type="checkbox" id="isFeatured" />
+                    <label class="es-check-label" for="isFeatured">
+                        Featured on homepage
+                    </label>
+                </div>
+
+                <div class="es-actions">
+                    <button type="submit" class="es-btn-save">
+                        <i class="bi bi-check-lg"></i> Save Changes
+                    </button>
+                    <a asp-action="ManageServices" asp-controller="Admin" class="es-btn-cancel">
+                        <i class="bi bi-x-lg"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
     </div>
+</div>
 
-    <div class="mb-3">
-        <label asp-for="Description"></label>
-        <textarea asp-for="Description" class="form-control"></textarea>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="BasePrice"></label>
-        <input asp-for="BasePrice" class="form-control" />
-        <span asp-validation-for="BasePrice" class="text-danger"></span>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="CategoryId"></label>
-        <select asp-for="CategoryId" asp-items="Model.Categories" class="form-control"></select>
-        <span asp-validation-for="CategoryId" class="text-danger"></span>
-    </div>
-
-    <div class="form-check mb-3">
-        <input asp-for="IsFeatured" class="form-check-input" />
-        <label asp-for="IsFeatured" class="form-check-label"></label>
-    </div>
-
-    <button type="submit" class="btn btn-primary">Save</button>
-        <a asp-action="Services" class="btn btn-secondary ms-2">Cancel</a>
-</form>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

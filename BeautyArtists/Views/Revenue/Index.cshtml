@@ -7,7 +7,18 @@
     var maxProvince = Model.BookingsByProvince.Any() ? Model.BookingsByProvince.Max(p => p.BookingCount) : 1;
     var maxMonth = Model.MonthlyTrend.Any() ? Model.MonthlyTrend.Max(m => m.TotalRevenue) : 1;
 
-    // Build query string to pass filters to download link
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var totalCount = ViewBag.TotalCount as int? ?? 0;
+    var showingFrom = ViewBag.ShowingFrom as int? ?? 0;
+    var showingTo = ViewBag.ShowingTo as int? ?? 0;
+
+    var filteredTotalServicePrice = ViewBag.FilteredTotalServicePrice as decimal? ?? 0m;
+    var filteredTotalMarkup = ViewBag.FilteredTotalMarkup as decimal? ?? 0m;
+    var filteredTotalPlatformFee = ViewBag.FilteredTotalPlatformFee as decimal? ?? 0m;
+    var filteredTotalArtistNet = ViewBag.FilteredTotalArtistNet as decimal? ?? 0m;
+    var filteredTotalPlatformEarnings = ViewBag.FilteredTotalPlatformEarnings as decimal? ?? 0m;
+
     var qs = new System.Text.StringBuilder("?");
     if (!string.IsNullOrEmpty(Model.FilterProvince)) qs.Append($"filterProvince={Uri.EscapeDataString(Model.FilterProvince)}&");
     if (!string.IsNullOrEmpty(Model.FilterArtistId)) qs.Append($"filterArtistId={Uri.EscapeDataString(Model.FilterArtistId)}&");
@@ -22,7 +33,6 @@
 
 @section Styles {
     <style>
-        /* DROPDOWN CONTAINER */
         .rv-dropdown {
             position: relative;
             display: inline-block;
@@ -78,24 +88,11 @@
             margin: 0 0 24px;
         }
 
-        /* STAT CARDS */
         .rv-stats {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 14px;
-            margin-bottom: 28px;
-        }
-
-        @@media (max-width: 1100px) {
-            .rv-stats {
-                grid-template-columns: repeat(3,1fr);
-            }
-        }
-
-        @@media (max-width: 640px) {
-            .rv-stats {
-                grid-template-columns: repeat(2,1fr);
-            }
+            margin-bottom: 24px;
         }
 
         .rv-stat {
@@ -106,6 +103,7 @@
             position: relative;
             overflow: hidden;
             transition: border-color 0.2s, transform 0.2s;
+            min-width: 0;
         }
 
             .rv-stat:hover {
@@ -149,6 +147,7 @@
             color: #FFD700;
             line-height: 1;
             margin-bottom: 4px;
+            word-break: break-word;
         }
 
         .rv-stat-label {
@@ -178,7 +177,34 @@
             color: #FFD700;
         }
 
-        /* FILTER BAR */
+        .rv-fee-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .rv-fee-card {
+            background: #0b0b0b;
+            border-radius: 10px;
+            padding: 12px 16px;
+            border: 1px solid rgba(255,215,0,0.05);
+            min-width: 0;
+        }
+
+        .rv-fee-label {
+            font-size: 0.55rem;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.2);
+            letter-spacing: 1px;
+        }
+
+        .rv-fee-value {
+            font-size: 1.2rem;
+            font-weight: 800;
+            word-break: break-word;
+        }
+
         .rv-filter-bar {
             background: #0b0b0b;
             border: 1px solid rgba(255,215,0,0.1);
@@ -199,27 +225,16 @@
 
         .rv-filter-grid {
             display: grid;
-            grid-template-columns: repeat(6,1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 10px;
             align-items: end;
-        }
-
-        @@media (max-width:1100px) {
-            .rv-filter-grid {
-                grid-template-columns: repeat(3,1fr);
-            }
-        }
-
-        @@media (max-width:640px) {
-            .rv-filter-grid {
-                grid-template-columns: repeat(2,1fr);
-            }
         }
 
         .rv-filter-field {
             display: flex;
             flex-direction: column;
             gap: 5px;
+            min-width: 0;
         }
 
         .rv-filter-label {
@@ -297,7 +312,6 @@
                 color: rgba(255,255,255,0.7);
             }
 
-        /* DOWNLOAD BUTTON */
         .rv-download-btn {
             display: inline-flex;
             align-items: center;
@@ -313,27 +327,20 @@
             text-transform: uppercase;
             text-decoration: none;
             transition: all 0.2s;
+            white-space: nowrap;
         }
 
             .rv-download-btn:hover {
                 background: rgba(0,200,83,0.22);
                 border-color: rgba(0,200,83,0.5);
-                color: #00c853;
                 box-shadow: 0 0 16px rgba(0,200,83,0.2);
             }
 
-        /* CHARTS */
         .rv-charts {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 20px;
             margin-bottom: 24px;
-        }
-
-        @@media (max-width:900px) {
-            .rv-charts {
-                grid-template-columns: 1fr;
-            }
         }
 
         .rv-panel {
@@ -349,6 +356,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
         .rv-panel-title {
@@ -368,7 +377,6 @@
             padding: 16px 20px;
         }
 
-        /* BAR CHART */
         .rv-bar-row {
             display: flex;
             align-items: center;
@@ -411,7 +419,6 @@
             flex-shrink: 0;
         }
 
-        /* MONTHLY CHART */
         .rv-month-chart {
             display: flex;
             align-items: flex-end;
@@ -452,9 +459,22 @@
             white-space: nowrap;
         }
 
-        /* TABLE */
+        .rv-month-values {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+        }
+
+            .rv-month-values span {
+                font-size: 0.6rem;
+                color: rgba(255,215,0,0.3);
+                flex: 1;
+                text-align: center;
+            }
+
         .rv-table-wrap {
             overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .rv-table {
@@ -476,6 +496,7 @@
                 color: rgba(255,215,0,0.4);
                 border-bottom: 1px solid rgba(255,215,0,0.07);
                 text-align: left;
+                white-space: nowrap;
             }
 
                 .rv-table th.text-end {
@@ -522,11 +543,6 @@
             font-weight: 800;
         }
 
-        .rv-platform-fee {
-            color: #ff6600;
-            font-weight: 700;
-        }
-
         .rv-province-badge {
             display: inline-block;
             font-size: 0.65rem;
@@ -536,6 +552,7 @@
             background: rgba(255,215,0,0.08);
             border: 1px solid rgba(255,215,0,0.15);
             color: rgba(255,215,0,0.6);
+            white-space: nowrap;
         }
 
         .rv-status-badge {
@@ -545,6 +562,7 @@
             padding: 2px 8px;
             border-radius: 20px;
             text-transform: uppercase;
+            white-space: nowrap;
         }
 
         .rv-status-Completed {
@@ -617,6 +635,7 @@
             padding: 2px 8px;
             border-radius: 12px;
             display: inline-block;
+            white-space: nowrap;
         }
 
             .rv-client-type.new {
@@ -631,392 +650,751 @@
                 border: 1px solid rgba(40,167,69,0.2);
             }
 
-        .rv-fee-breakdown {
-            font-size: 0.6rem;
+        .rv-pager {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 16px 20px;
+            border-top: 1px solid rgba(255,215,0,0.08);
+            background: rgba(255,215,0,0.02);
+        }
+
+        .rv-pager-info {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.35);
+        }
+
+            .rv-pager-info strong {
+                color: #FFD700;
+                font-weight: 700;
+            }
+
+        .rv-pager-controls {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .rv-page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 7px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,215,0,0.1);
+            color: rgba(255,255,255,0.6);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .rv-page-btn:hover {
+                background: rgba(255,215,0,0.1);
+                color: #FFD700;
+                border-color: rgba(255,215,0,0.3);
+            }
+
+            .rv-page-btn.active {
+                background: #FFD700;
+                color: #000;
+                border-color: #FFD700;
+                box-shadow: 0 0 12px rgba(255,215,0,0.25);
+            }
+
+            .rv-page-btn.disabled {
+                opacity: 0.3;
+                pointer-events: none;
+                cursor: not-allowed;
+            }
+
+        .rv-page-ellipsis {
+            padding: 0 6px;
             color: rgba(255,255,255,0.25);
-            display: block;
-            line-height: 1.3;
+            font-size: 0.8rem;
+        }
+
+        @@media (max-width: 1100px) {
+            .rv-stats {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .rv-filter-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .rv-fee-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @@media (max-width: 900px) {
+            .rv-charts {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @@media (max-width: 720px) {
+            .rv-heading {
+                font-size: 1.25rem;
+                margin-bottom: 18px;
+            }
+
+            .rv-stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .rv-stat {
+                padding: 14px 12px;
+            }
+
+            .rv-stat-num {
+                font-size: 1.2rem;
+            }
+
+            .rv-stat-label {
+                font-size: 0.55rem;
+                letter-spacing: 1.5px;
+            }
+
+            .rv-stat-icon {
+                width: 28px;
+                height: 28px;
+                font-size: 0.8rem;
+                margin-bottom: 8px;
+            }
+
+            .rv-fee-row {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                margin-bottom: 18px;
+            }
+
+            .rv-fee-card {
+                padding: 10px 12px;
+            }
+
+            .rv-fee-value {
+                font-size: 1rem;
+            }
+
+            .rv-filter-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .rv-filter-bar {
+                padding: 14px;
+            }
+
+            .rv-panel-header {
+                padding: 12px 16px;
+            }
+
+            .rv-panel-body {
+                padding: 14px 16px;
+            }
+
+            .rv-panel-title {
+                font-size: 0.7rem;
+            }
+
+            .rv-bar-label {
+                min-width: 100px;
+                max-width: 100px;
+                font-size: 0.72rem;
+            }
+
+            .rv-bar-count {
+                min-width: 40px;
+                font-size: 0.7rem;
+            }
+
+            .rv-table {
+                min-width: 0;
+            }
+
+                .rv-table thead {
+                    display: none;
+                }
+
+                .rv-table, .rv-table tbody, .rv-table tr, .rv-table td {
+                    display: block;
+                    width: 100%;
+                }
+
+                    .rv-table tr {
+                        background: #0f0f0f;
+                        border: 1px solid rgba(255,215,0,0.1);
+                        border-radius: 14px;
+                        padding: 16px;
+                        margin: 12px;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                    }
+
+                        .rv-table tr:last-child {
+                            margin-bottom: 12px;
+                        }
+
+                    .rv-table td {
+                        padding: 8px 0;
+                        border-bottom: 1px solid rgba(255,255,255,0.05);
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-start;
+                        gap: 12px;
+                        font-size: 0.8rem;
+                        text-align: right;
+                    }
+
+                        .rv-table td:first-child {
+                            padding-top: 0;
+                        }
+
+                        .rv-table td:last-child {
+                            border-bottom: none;
+                            padding-bottom: 0;
+                            padding-top: 10px;
+                            margin-top: 4px;
+                            border-top: 1px solid rgba(255,215,0,0.1);
+                        }
+
+                        .rv-table td::before {
+                            content: attr(data-label);
+                            font-size: 0.6rem;
+                            font-weight: 700;
+                            letter-spacing: 1.5px;
+                            text-transform: uppercase;
+                            color: rgba(255,215,0,0.4);
+                            text-align: left;
+                            flex-shrink: 0;
+                            padding-top: 2px;
+                        }
+
+                        .rv-table td.text-end {
+                            text-align: right;
+                        }
+
+                    .rv-table tfoot {
+                        display: none;
+                    }
+
+            .rv-pager {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 14px;
+            }
+
+            .rv-pager-info {
+                text-align: center;
+            }
+
+            .rv-pager-controls {
+                justify-content: center;
+            }
+
+            .rv-panel-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .rv-download-btn {
+                justify-content: center;
+                width: 100%;
+            }
+
+            .rv-dropdown {
+                width: 100%;
+            }
+
+            .rv-dropdown-content {
+                right: auto;
+                left: 0;
+                width: 100%;
+            }
+        }
+
+        @@media (max-width: 480px) {
+            .rv-stats {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            .rv-stat-num {
+                font-size: 1.05rem;
+            }
+
+            .rv-fee-row {
+                grid-template-columns: 1fr;
+            }
+
+            .rv-filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .rv-charts {
+                gap: 14px;
+            }
+
+            .rv-month-chart {
+                height: 90px;
+            }
+
+            .rv-month-label {
+                font-size: 0.5rem;
+            }
+
+            .rv-month-values span {
+                font-size: 0.5rem;
+            }
         }
     </style>
 }
 
-<span class="rv-eyebrow">Administration</span>
-<h1 class="rv-heading">Revenue &amp; Reports</h1>
+<div class="container-fluid px-4">
 
-@* ── ✅ NEW PLATFORM STAT CARDS ── *@
-<div class="rv-stats">
-    <div class="rv-stat revenue">
-        <div class="rv-stat-icon"><i class="bi bi-currency-exchange"></i></div>
-        <span class="rv-stat-num">R @Model.TotalRevenue.ToString("N0")</span>
-        <span class="rv-stat-label">Artist Payouts</span>
-    </div>
-    <div class="rv-stat platform">
-        <div class="rv-stat-icon"><i class="bi bi-piggy-bank"></i></div>
-        <span class="rv-stat-num">R @Model.TotalPlatformEarnings.ToString("N0")</span>
-        <span class="rv-stat-label">Platform Earnings</span>
-    </div>
-    <div class="rv-stat revenue">
-        <div class="rv-stat-icon"><i class="bi bi-people"></i></div>
-        <span class="rv-stat-num">R @Model.TotalClientPaid.ToString("N0")</span>
-        <span class="rv-stat-label">Client Total Paid</span>
-    </div>
-    <div class="rv-stat">
-        <div class="rv-stat-icon"><i class="bi bi-calendar-check-fill"></i></div>
-        <span class="rv-stat-num">@Model.TotalBookings</span>
-        <span class="rv-stat-label">Total Bookings</span>
-    </div>
-    <div class="rv-stat">
-        <div class="rv-stat-icon"><i class="bi bi-check-circle-fill"></i></div>
-        <span class="rv-stat-num">@Model.CompletedBookings</span>
-        <span class="rv-stat-label">Completed</span>
-    </div>
-</div>
+    <span class="rv-eyebrow">Administration</span>
+    <h1 class="rv-heading">Revenue &amp; Reports</h1>
 
-@* ── FEE BREAKDOWN ROW ── *@
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;">
-    <div style="background:#0b0b0b;border-radius:10px;padding:12px 16px;border:1px solid rgba(255,215,0,0.05);">
-        <span style="font-size:0.55rem;text-transform:uppercase;color:rgba(255,255,255,0.2);letter-spacing:1px;">4% Markup</span>
-        <div style="font-size:1.2rem;font-weight:800;color:#FFD700;">R @Model.TotalMarkupEarned.ToString("N0")</div>
-    </div>
-    <div style="background:#0b0b0b;border-radius:10px;padding:12px 16px;border:1px solid rgba(255,215,0,0.05);">
-        <span style="font-size:0.55rem;text-transform:uppercase;color:rgba(255,255,255,0.2);letter-spacing:1px;">10% / R15 Commission</span>
-        <div style="font-size:1.2rem;font-weight:800;color:#ff6600;">R @Model.TotalCommissionEarned.ToString("N0")</div>
-    </div>
-    <div style="background:#0b0b0b;border-radius:10px;padding:12px 16px;border:1px solid rgba(255,215,0,0.05);">
-        <span style="font-size:0.55rem;text-transform:uppercase;color:rgba(255,255,255,0.2);letter-spacing:1px;">Booking Fees (R5)</span>
-        <div style="font-size:1.2rem;font-weight:800;color:#17a2b8;">R @Model.TotalBookingFeesEarned.ToString("N0")</div>
-    </div>
-    <div style="background:#0b0b0b;border-radius:10px;padding:12px 16px;border:1px solid rgba(255,215,0,0.05);">
-        <span style="font-size:0.55rem;text-transform:uppercase;color:rgba(255,255,255,0.2);letter-spacing:1px;">Month Revenue</span>
-        <div style="font-size:1.2rem;font-weight:800;color:#00c853;">R @Model.MonthRevenue.ToString("N0")</div>
-    </div>
-</div>
-
-@* ── ACTIVE FILTER PILLS ── *@
-@{
-    bool hasFilters = !string.IsNullOrEmpty(Model.FilterProvince)
-                   || !string.IsNullOrEmpty(Model.FilterArtistId)
-                   || !string.IsNullOrEmpty(Model.FilterStatus)
-                   || !string.IsNullOrEmpty(Model.FilterServiceId)
-                   || Model.FilterFrom.HasValue
-                   || Model.FilterTo.HasValue;
-}
-@if (hasFilters)
-{
-    <div class="rv-active-filters">
-        <span style="font-size:0.65rem;color:rgba(255,255,255,0.3);align-self:center;">Active filters:</span>
-        @if (!string.IsNullOrEmpty(Model.FilterProvince))
-        {
-            <span class="rv-filter-pill"><i class="bi bi-geo-alt-fill"></i> @Model.FilterProvince</span>
-        }
-        @if (!string.IsNullOrEmpty(Model.FilterStatus))
-        {
-            <span class="rv-filter-pill"><i class="bi bi-circle-fill"></i> @Model.FilterStatus</span>
-        }
-        @if (Model.FilterFrom.HasValue)
-        {
-            <span class="rv-filter-pill"><i class="bi bi-calendar"></i> From @Model.FilterFrom.Value.ToString("dd MMM yyyy")</span>
-        }
-        @if (Model.FilterTo.HasValue)
-        {
-            <span class="rv-filter-pill"><i class="bi bi-calendar"></i> To @Model.FilterTo.Value.ToString("dd MMM yyyy")</span>
-        }
-        @if (!string.IsNullOrEmpty(Model.FilterArtistId))
-        {
-            <span class="rv-filter-pill"><i class="bi bi-person-fill"></i> Artist filtered</span>
-        }
-        @if (!string.IsNullOrEmpty(Model.FilterServiceId))
-        {
-            <span class="rv-filter-pill"><i class="bi bi-scissors"></i> Service filtered</span>
-        }
-    </div>
-}
-
-@* ── FILTER BAR ── *@
-<div class="rv-filter-bar">
-    <span class="rv-filter-title"><i class="bi bi-funnel-fill me-2"></i>Filter Report</span>
-    <form method="get" asp-controller="Revenue" asp-action="Index">
-        <div class="rv-filter-grid">
-            <div class="rv-filter-field">
-                <span class="rv-filter-label">Province</span>
-                <select name="filterProvince" class="rv-filter-select">
-                    <option value="">All Provinces</option>
-                    @foreach (var p in ViewBag.Provinces as List<string> ?? new())
-                    {
-                        <option value="@p" selected="@(Model.FilterProvince == p ? "selected" : null)">@p</option>
-                    }
-                </select>
-            </div>
-            <div class="rv-filter-field">
-                <span class="rv-filter-label">Artist</span>
-                <select name="filterArtistId" class="rv-filter-select">
-                    <option value="">All Artists</option>
-                    @foreach (var a in ViewBag.Artists as IEnumerable<dynamic> ?? new List<dynamic>())
-                    {
-                        <option value="@a.Id" selected="@(Model.FilterArtistId == (string)a.Id.ToString() ? "selected" : null)">@a.Name</option>
-                    }
-                </select>
-            </div>
-            <div class="rv-filter-field">
-                <span class="rv-filter-label">Service</span>
-                <select name="filterServiceId" class="rv-filter-select">
-                    <option value="">All Services</option>
-                    @foreach (var s in ViewBag.Services as IEnumerable<dynamic> ?? new List<dynamic>())
-                    {
-                        <option value="@s.Id" selected="@(Model.FilterServiceId == (string)s.Id.ToString() ? "selected" : null)">@s.Name</option>
-                    }
-                </select>
-            </div>
-            <div class="rv-filter-field">
-                <span class="rv-filter-label">Status</span>
-                <select name="filterStatus" class="rv-filter-select">
-                    <option value="">All Statuses</option>
-                    <option value="Pending" selected="@(Model.FilterStatus == "Pending" ? "selected" : null)">Pending</option>
-                    <option value="Confirmed" selected="@(Model.FilterStatus == "Confirmed" ? "selected" : null)">Confirmed</option>
-                    <option value="Completed" selected="@(Model.FilterStatus == "Completed" ? "selected" : null)">Completed</option>
-                    <option value="Cancelled" selected="@(Model.FilterStatus == "Cancelled" ? "selected" : null)">Cancelled</option>
-                    <option value="Rejected" selected="@(Model.FilterStatus == "Rejected" ? "selected" : null)">Rejected</option>
-                </select>
-            </div>
-            <div class="rv-filter-field">
-                <span class="rv-filter-label">From Date</span>
-                <input type="date" name="filterFrom" class="rv-filter-input"
-                       value="@Model.FilterFrom?.ToString("yyyy-MM-dd")" />
-            </div>
-            <div class="rv-filter-field">
-                <span class="rv-filter-label">To Date</span>
-                <input type="date" name="filterTo" class="rv-filter-input"
-                       value="@Model.FilterTo?.ToString("yyyy-MM-dd")" />
-            </div>
+    <div class="rv-stats">
+        <div class="rv-stat revenue">
+            <div class="rv-stat-icon"><i class="bi bi-currency-exchange"></i></div>
+            <span class="rv-stat-num">R @Model.TotalRevenue.ToString("N0")</span>
+            <span class="rv-stat-label">Artist Payouts</span>
         </div>
-        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-            <button type="submit" class="rv-filter-btn" style="max-width:160px;">
-                <i class="bi bi-search"></i> Apply Filters
-            </button>
-            <a asp-controller="Revenue" asp-action="Index" class="rv-clear-btn" style="max-width:140px;">
-                <i class="bi bi-x-lg"></i> Clear
-            </a>
+        <div class="rv-stat platform">
+            <div class="rv-stat-icon"><i class="bi bi-piggy-bank"></i></div>
+            <span class="rv-stat-num">R @Model.TotalPlatformEarnings.ToString("N0")</span>
+            <span class="rv-stat-label">Platform Earnings</span>
         </div>
-    </form>
-</div>
+        <div class="rv-stat revenue">
+            <div class="rv-stat-icon"><i class="bi bi-people"></i></div>
+            <span class="rv-stat-num">R @Model.TotalClientPaid.ToString("N0")</span>
+            <span class="rv-stat-label">Client Total Paid</span>
+        </div>
+        <div class="rv-stat">
+            <div class="rv-stat-icon"><i class="bi bi-calendar-check-fill"></i></div>
+            <span class="rv-stat-num">@Model.TotalBookings</span>
+            <span class="rv-stat-label">Total Bookings</span>
+        </div>
+        <div class="rv-stat">
+            <div class="rv-stat-icon"><i class="bi bi-check-circle-fill"></i></div>
+            <span class="rv-stat-num">@Model.CompletedBookings</span>
+            <span class="rv-stat-label">Completed</span>
+        </div>
+    </div>
 
-@* ── CHARTS ── *@
-<div class="rv-charts">
-    <div class="rv-panel">
-        <div class="rv-panel-header">
-            <span class="rv-panel-title"><i class="bi bi-scissors"></i> Top Services</span>
+    <div class="rv-fee-row">
+        <div class="rv-fee-card">
+            <span class="rv-fee-label">4% Markup</span>
+            <div class="rv-fee-value" style="color:#FFD700;">R @Model.TotalMarkupEarned.ToString("N0")</div>
         </div>
-        <div class="rv-panel-body">
-            @if (!Model.TopServices.Any())
+        <div class="rv-fee-card">
+            <span class="rv-fee-label">10% / R15 Commission</span>
+            <div class="rv-fee-value" style="color:#ff6600;">R @Model.TotalCommissionEarned.ToString("N0")</div>
+        </div>
+        <div class="rv-fee-card">
+            <span class="rv-fee-label">Booking Fees (R5)</span>
+            <div class="rv-fee-value" style="color:#17a2b8;">R @Model.TotalBookingFeesEarned.ToString("N0")</div>
+        </div>
+        <div class="rv-fee-card">
+            <span class="rv-fee-label">Month Revenue</span>
+            <div class="rv-fee-value" style="color:#00c853;">R @Model.MonthRevenue.ToString("N0")</div>
+        </div>
+    </div>
+
+    @{
+        bool hasFilters = !string.IsNullOrEmpty(Model.FilterProvince)
+        || !string.IsNullOrEmpty(Model.FilterArtistId)
+        || !string.IsNullOrEmpty(Model.FilterStatus)
+        || !string.IsNullOrEmpty(Model.FilterServiceId)
+        || Model.FilterFrom.HasValue
+        || Model.FilterTo.HasValue;
+    }
+    @if (hasFilters)
+    {
+        <div class="rv-active-filters">
+            <span style="font-size:0.65rem;color:rgba(255,255,255,0.3);align-self:center;">Active filters:</span>
+            @if (!string.IsNullOrEmpty(Model.FilterProvince))
             {
-                <div class="rv-empty"><i class="bi bi-bar-chart"></i>No data</div>
+                <span class="rv-filter-pill"><i class="bi bi-geo-alt-fill"></i> @Model.FilterProvince</span>
             }
-            else
+            @if (!string.IsNullOrEmpty(Model.FilterStatus))
             {
-                @foreach (var s in Model.TopServices)
+                <span class="rv-filter-pill"><i class="bi bi-circle-fill"></i> @Model.FilterStatus</span>
+            }
+            @if (Model.FilterFrom.HasValue)
+            {
+                <span class="rv-filter-pill"><i class="bi bi-calendar"></i> From @Model.FilterFrom.Value.ToString("dd MMM yyyy")</span>
+            }
+            @if (Model.FilterTo.HasValue)
+            {
+                <span class="rv-filter-pill"><i class="bi bi-calendar"></i> To @Model.FilterTo.Value.ToString("dd MMM yyyy")</span>
+            }
+            @if (!string.IsNullOrEmpty(Model.FilterArtistId))
+            {
+                <span class="rv-filter-pill"><i class="bi bi-person-fill"></i> Artist filtered</span>
+            }
+            @if (!string.IsNullOrEmpty(Model.FilterServiceId))
+            {
+                <span class="rv-filter-pill"><i class="bi bi-scissors"></i> Service filtered</span>
+            }
+        </div>
+    }
+
+    <div class="rv-filter-bar">
+        <span class="rv-filter-title"><i class="bi bi-funnel-fill me-2"></i>Filter Report</span>
+        <form method="get" asp-controller="Revenue" asp-action="Index">
+            <div class="rv-filter-grid">
+                <div class="rv-filter-field">
+                    <span class="rv-filter-label">Province</span>
+                    <select name="filterProvince" class="rv-filter-select">
+                        <option value="">All Provinces</option>
+                        @foreach (var p in ViewBag.Provinces as List<string> ?? new())
+                        {
+                            <option value="@p" selected="@(Model.FilterProvince == p ? "selected" : null)">@p</option>
+                        }
+                    </select>
+                </div>
+                <div class="rv-filter-field">
+                    <span class="rv-filter-label">Artist</span>
+                    <select name="filterArtistId" class="rv-filter-select">
+                        <option value="">All Artists</option>
+                        @foreach (var a in ViewBag.Artists as IEnumerable<dynamic> ?? new List<dynamic>())
+                        {
+                            <option value="@a.Id" selected="@(Model.FilterArtistId == (string)a.Id.ToString() ? "selected" : null)">@a.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="rv-filter-field">
+                    <span class="rv-filter-label">Service</span>
+                    <select name="filterServiceId" class="rv-filter-select">
+                        <option value="">All Services</option>
+                        @foreach (var s in ViewBag.Services as IEnumerable<dynamic> ?? new List<dynamic>())
+                        {
+                            <option value="@s.Id" selected="@(Model.FilterServiceId == (string)s.Id.ToString() ? "selected" : null)">@s.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="rv-filter-field">
+                    <span class="rv-filter-label">Status</span>
+                    <select name="filterStatus" class="rv-filter-select">
+                        <option value="">All Statuses</option>
+                        <option value="Pending" selected="@(Model.FilterStatus == "Pending" ? "selected" : null)">Pending</option>
+                        <option value="Confirmed" selected="@(Model.FilterStatus == "Confirmed" ? "selected" : null)">Confirmed</option>
+                        <option value="Completed" selected="@(Model.FilterStatus == "Completed" ? "selected" : null)">Completed</option>
+                        <option value="Cancelled" selected="@(Model.FilterStatus == "Cancelled" ? "selected" : null)">Cancelled</option>
+                        <option value="Rejected" selected="@(Model.FilterStatus == "Rejected" ? "selected" : null)">Rejected</option>
+                    </select>
+                </div>
+                <div class="rv-filter-field">
+                    <span class="rv-filter-label">From Date</span>
+                    <input type="date" name="filterFrom" class="rv-filter-input"
+                           value="@Model.FilterFrom?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="rv-filter-field">
+                    <span class="rv-filter-label">To Date</span>
+                    <input type="date" name="filterTo" class="rv-filter-input"
+                           value="@Model.FilterTo?.ToString("yyyy-MM-dd")" />
+                </div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+                <button type="submit" class="rv-filter-btn" style="max-width:160px;">
+                    <i class="bi bi-search"></i> Apply Filters
+                </button>
+                <a asp-controller="Revenue" asp-action="Index" class="rv-clear-btn" style="max-width:140px;">
+                    <i class="bi bi-x-lg"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="rv-charts">
+        <div class="rv-panel">
+            <div class="rv-panel-header">
+                <span class="rv-panel-title"><i class="bi bi-scissors"></i> Top Services</span>
+            </div>
+            <div class="rv-panel-body">
+                @if (!Model.TopServices.Any())
                 {
-                    var pct = maxService > 0 ? (int)((s.BookingCount / (double)maxService) * 100) : 0;
-                    <div class="rv-bar-row">
-                        <span class="rv-bar-label" title="@s.ServiceName">@s.ServiceName</span>
-                        <div class="rv-bar-track"><div class="rv-bar-fill" style="width:@pct%"></div></div>
-                        <span class="rv-bar-count">@s.BookingCount</span>
-                    </div>
+                    <div class="rv-empty"><i class="bi bi-bar-chart"></i>No data</div>
                 }
-            }
-        </div>
-    </div>
-    <div class="rv-panel">
-        <div class="rv-panel-header">
-            <span class="rv-panel-title"><i class="bi bi-person-fill"></i> Top Artists</span>
-        </div>
-        <div class="rv-panel-body">
-            @if (!Model.TopArtists.Any())
-            {
-                <div class="rv-empty"><i class="bi bi-bar-chart"></i>No data</div>
-            }
-            else
-            {
-                @foreach (var a in Model.TopArtists)
+                else
                 {
-                    var pct = maxArtist > 0 ? (int)((a.BookingCount / (double)maxArtist) * 100) : 0;
-                    <div class="rv-bar-row">
-                        <span class="rv-bar-label" title="@a.ArtistName">@a.ArtistName</span>
-                        <div class="rv-bar-track"><div class="rv-bar-fill" style="width:@pct%"></div></div>
-                        <span class="rv-bar-count">@a.BookingCount</span>
-                    </div>
-                }
-            }
-        </div>
-    </div>
-    <div class="rv-panel">
-        <div class="rv-panel-header">
-            <span class="rv-panel-title"><i class="bi bi-geo-alt-fill"></i> Bookings by Province</span>
-        </div>
-        <div class="rv-panel-body">
-            @if (!Model.BookingsByProvince.Any())
-            {
-                <div class="rv-empty"><i class="bi bi-geo"></i>No data</div>
-            }
-            else
-            {
-                @foreach (var p in Model.BookingsByProvince)
-                {
-                    var pct = maxProvince > 0 ? (int)((p.BookingCount / (double)maxProvince) * 100) : 0;
-                    <div class="rv-bar-row">
-                        <span class="rv-bar-label">@p.Province</span>
-                        <div class="rv-bar-track"><div class="rv-bar-fill" style="width:@pct%"></div></div>
-                        <span class="rv-bar-count">@p.BookingCount</span>
-                    </div>
-                }
-            }
-        </div>
-    </div>
-    <div class="rv-panel">
-        <div class="rv-panel-header">
-            <span class="rv-panel-title"><i class="bi bi-graph-up-arrow"></i> Monthly Trend</span>
-        </div>
-        <div class="rv-panel-body">
-            @if (!Model.MonthlyTrend.Any())
-            {
-                <div class="rv-empty"><i class="bi bi-graph-up"></i>No data</div>
-            }
-            else
-            {
-                <div class="rv-month-chart">
-                    @foreach (var m in Model.MonthlyTrend)
+                    @foreach (var s in Model.TopServices)
                     {
-                        var h = maxMonth > 0 ? (int)((double)m.TotalRevenue / (double)maxMonth * 100) : 0;
-                        <div class="rv-month-col" title="@m.Month — R @m.TotalRevenue.ToString("N0")">
-                            <div class="rv-month-bar-wrap">
-                                <div class="rv-month-bar" style="height:@h%"></div>
-                            </div>
-                            <span class="rv-month-label">@m.Month.Split(' ')[0]</span>
+                        var pct = maxService > 0 ? (int)((s.BookingCount / (double)maxService) * 100) : 0;
+                        <div class="rv-bar-row">
+                            <span class="rv-bar-label" title="@s.ServiceName">@s.ServiceName</span>
+                            <div class="rv-bar-track"><div class="rv-bar-fill" style="width:@pct%"></div></div>
+                            <span class="rv-bar-count">@s.BookingCount</span>
                         </div>
                     }
-                </div>
-                <div style="display:flex;justify-content:space-between;margin-top:8px;">
-                    @foreach (var m in Model.MonthlyTrend)
-                    {
-                        <span style="font-size:0.6rem;color:rgba(255,215,0,0.3);flex:1;text-align:center;">
-                            R@((m.TotalRevenue / 1000).ToString("0"))k
-                        </span>
-                    }
-                </div>
-            }
+                }
+            </div>
         </div>
-    </div>
-</div>
-
-@* ── REPORT TABLE WITH DOWNLOAD ── *@
-<div class="rv-panel">
-    <div class="rv-panel-header">
-        <span class="rv-panel-title">
-            <i class="bi bi-table"></i> Booking Report
-        </span>
-        <div style="display:flex;align-items:center;gap:12px;">
-            <span style="font-size:0.7rem;color:rgba(255,255,255,0.25);">
-                @Model.FilteredBookings.Count record@(Model.FilteredBookings.Count != 1 ? "s" : "")
-            </span>
-
-            <div class="rv-dropdown">
-                <a href="javascript:void(0)" class="rv-download-btn">
-                    <i class="bi bi-file-earmark-arrow-down-fill"></i>
-                    Export Report <i class="bi bi-chevron-down ms-1" style="font-size: 0.6rem;"></i>
-                </a>
-                <div class="rv-dropdown-content">
-                    <a href="@getDownloadUrl("Pdf")" class="rv-dropdown-item"><i class="bi bi-file-pdf me-2 text-danger"></i> PDF Document</a>
-                    <a href="@getDownloadUrl("Excel")" class="rv-dropdown-item"><i class="bi bi-file-excel me-2 text-success"></i> Excel Sheet</a>
-                    <a href="@getDownloadUrl("Word")" class="rv-dropdown-item"><i class="bi bi-file-word me-2 text-primary"></i> Word Doc</a>
-                    <hr style="margin: 0; border-color: rgba(255,215,0,0.1);" />
-                    <a href="@downloadUrl" class="rv-dropdown-item"><i class="bi bi-filetype-csv me-2" style="color: #00c853;"></i> CSV (Legacy)</a>
-                </div>
+        <div class="rv-panel">
+            <div class="rv-panel-header">
+                <span class="rv-panel-title"><i class="bi bi-person-fill"></i> Top Artists</span>
+            </div>
+            <div class="rv-panel-body">
+                @if (!Model.TopArtists.Any())
+                {
+                    <div class="rv-empty"><i class="bi bi-bar-chart"></i>No data</div>
+                }
+                else
+                {
+                    @foreach (var a in Model.TopArtists)
+                    {
+                        var pct = maxArtist > 0 ? (int)((a.BookingCount / (double)maxArtist) * 100) : 0;
+                        <div class="rv-bar-row">
+                            <span class="rv-bar-label" title="@a.ArtistName">@a.ArtistName</span>
+                            <div class="rv-bar-track"><div class="rv-bar-fill" style="width:@pct%"></div></div>
+                            <span class="rv-bar-count">@a.BookingCount</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+        <div class="rv-panel">
+            <div class="rv-panel-header">
+                <span class="rv-panel-title"><i class="bi bi-geo-alt-fill"></i> Bookings by Province</span>
+            </div>
+            <div class="rv-panel-body">
+                @if (!Model.BookingsByProvince.Any())
+                {
+                    <div class="rv-empty"><i class="bi bi-geo"></i>No data</div>
+                }
+                else
+                {
+                    @foreach (var p in Model.BookingsByProvince)
+                    {
+                        var pct = maxProvince > 0 ? (int)((p.BookingCount / (double)maxProvince) * 100) : 0;
+                        <div class="rv-bar-row">
+                            <span class="rv-bar-label">@p.Province</span>
+                            <div class="rv-bar-track"><div class="rv-bar-fill" style="width:@pct%"></div></div>
+                            <span class="rv-bar-count">@p.BookingCount</span>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+        <div class="rv-panel">
+            <div class="rv-panel-header">
+                <span class="rv-panel-title"><i class="bi bi-graph-up-arrow"></i> Monthly Trend</span>
+            </div>
+            <div class="rv-panel-body">
+                @if (!Model.MonthlyTrend.Any())
+                {
+                    <div class="rv-empty"><i class="bi bi-graph-up"></i>No data</div>
+                }
+                else
+                {
+                    <div class="rv-month-chart">
+                        @foreach (var m in Model.MonthlyTrend)
+                        {
+                            var h = maxMonth > 0 ? (int)((double)m.TotalRevenue / (double)maxMonth * 100) : 0;
+                            <div class="rv-month-col" title="@m.Month — R @m.TotalRevenue.ToString("N0")">
+                                <div class="rv-month-bar-wrap">
+                                    <div class="rv-month-bar" style="height:@h%"></div>
+                                </div>
+                                <span class="rv-month-label">@m.Month.Split(' ')[0]</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="rv-month-values">
+                        @foreach (var m in Model.MonthlyTrend)
+                        {
+                            <span>R@((m.TotalRevenue / 1000).ToString("0"))k</span>
+                        }
+                    </div>
+                }
             </div>
         </div>
     </div>
 
-    @if (!Model.FilteredBookings.Any())
-    {
-        <div class="rv-empty">
-            <i class="bi bi-inbox"></i> No bookings match your filters.
+    <div class="rv-panel">
+        <div class="rv-panel-header">
+            <span class="rv-panel-title">
+                <i class="bi bi-table"></i> Booking Report
+            </span>
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                <span style="font-size:0.7rem;color:rgba(255,255,255,0.25);white-space:nowrap;">
+                    @totalCount record@(totalCount != 1 ? "s" : "")
+                </span>
+
+                <div class="rv-dropdown">
+                    <a href="javascript:void(0)" class="rv-download-btn">
+                        <i class="bi bi-file-earmark-arrow-down-fill"></i>
+                        Export Report <i class="bi bi-chevron-down ms-1" style="font-size: 0.6rem;"></i>
+                    </a>
+                    <div class="rv-dropdown-content">
+                        <a href="@getDownloadUrl("Pdf")" class="rv-dropdown-item"><i class="bi bi-file-pdf me-2 text-danger"></i> PDF Document</a>
+                        <a href="@getDownloadUrl("Excel")" class="rv-dropdown-item"><i class="bi bi-file-excel me-2 text-success"></i> Excel Sheet</a>
+                        <a href="@getDownloadUrl("Word")" class="rv-dropdown-item"><i class="bi bi-file-word me-2 text-primary"></i> Word Doc</a>
+                        <hr style="margin: 0; border-color: rgba(255,215,0,0.1);" />
+                        <a href="@downloadUrl" class="rv-dropdown-item"><i class="bi bi-filetype-csv me-2" style="color: #00c853;"></i> CSV (Legacy)</a>
+                    </div>
+                </div>
+            </div>
         </div>
-    }
-    else
-    {
-        <div class="rv-table-wrap">
-            <table class="rv-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Date</th>
-                        <th>Client</th>
-                        <th>Type</th>
-                        <th>Artist</th>
-                        <th>Service</th>
-                        <th>Province</th>
-                        <th class="text-end">Service Price</th>
-                        <th class="text-end">4% Markup</th>
-                        <th class="text-end">Platform Fee</th>
-                        <th class="text-end">Artist Net</th>
-                        <th class="text-end">Platform Earnings</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var b in Model.FilteredBookings)
-                    {
+
+        @if (!Model.FilteredBookings.Any())
+        {
+            <div class="rv-empty">
+                <i class="bi bi-inbox"></i> No bookings match your filters.
+            </div>
+        }
+        else
+        {
+            <div class="rv-table-wrap">
+                <table class="rv-table">
+                    <thead>
                         <tr>
-                            <td class="rv-id">@b.BookingId</td>
-                            <td style="white-space:nowrap;color:rgba(255,255,255,0.4);font-size:0.78rem;">
-                                @b.AppointmentDate.ToString("dd MMM yyyy")<br />
-                                <span style="font-size:0.7rem;color:rgba(255,255,255,0.25)">
-                                    @b.AppointmentDate.ToString("HH:mm")
-                                </span>
-                            </td>
-                            <td class="rv-client">@b.ClientName</td>
-                            <td>
-                                @if (b.ClientType == "New")
-                                {
-                                    <span class="rv-client-type new">⭐ New</span>
-                                }
-                                else
-                                {
-                                    <span class="rv-client-type repeat">🔄 Repeat</span>
-                                }
-                            </td>
-                            <td class="rv-artist">@b.ArtistName</td>
-                            <td>@b.ServiceName</td>
-                            <td><span class="rv-province-badge">@b.Province</span></td>
-                            <td class="text-end" style="color:#fff;">R @b.ServicePrice.ToString("N2")</td>
-                            <td class="text-end" style="color:#FFD700;">R @b.ClientMarkup.ToString("N2")</td>
-                            <td class="text-end" style="color:#ff6600;">R @b.PlatformFee.ToString("N2")</td>
-                            <td class="text-end rv-amount">R @b.ArtistNet.ToString("N2")</td>
-                            <td class="text-end" style="color:#FFD700;font-weight:700;">R @b.PlatformEarnings.ToString("N2")</td>
-                            <td><span class="rv-status-badge rv-status-@b.Status">@b.Status</span></td>
+                            <th>#</th>
+                            <th>Date</th>
+                            <th>Client</th>
+                            <th>Type</th>
+                            <th>Artist</th>
+                            <th>Service</th>
+                            <th>Province</th>
+                            <th class="text-end">Service Price</th>
+                            <th class="text-end">4% Markup</th>
+                            <th class="text-end">Platform Fee</th>
+                            <th class="text-end">Artist Net</th>
+                            <th class="text-end">Platform Earnings</th>
+                            <th>Status</th>
                         </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var b in Model.FilteredBookings)
+                        {
+                            <tr>
+                                <td class="rv-id" data-label="ID">@b.BookingId</td>
+                                <td data-label="Date" style="white-space:nowrap;color:rgba(255,255,255,0.4);font-size:0.78rem;">
+                                    @b.AppointmentDate.ToString("dd MMM yyyy")<br />
+                                    <span style="font-size:0.7rem;color:rgba(255,255,255,0.25)">
+                                        @b.AppointmentDate.ToString("HH:mm")
+                                    </span>
+                                </td>
+                                <td class="rv-client" data-label="Client">@b.ClientName</td>
+                                <td data-label="Type">
+                                    @if (b.ClientType == "New")
+                                    {
+                                        <span class="rv-client-type new">⭐ New</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="rv-client-type repeat">🔄 Repeat</span>
+                                    }
+                                </td>
+                                <td class="rv-artist" data-label="Artist">@b.ArtistName</td>
+                                <td data-label="Service">@b.ServiceName</td>
+                                <td data-label="Province"><span class="rv-province-badge">@b.Province</span></td>
+                                <td class="text-end" data-label="Service Price" style="color:#fff;">R @b.ServicePrice.ToString("N2")</td>
+                                <td class="text-end" data-label="4% Markup" style="color:#FFD700;">R @b.ClientMarkup.ToString("N2")</td>
+                                <td class="text-end" data-label="Platform Fee" style="color:#ff6600;">R @b.PlatformFee.ToString("N2")</td>
+                                <td class="text-end rv-amount" data-label="Artist Net">R @b.ArtistNet.ToString("N2")</td>
+                                <td class="text-end" data-label="Platform Earnings" style="color:#FFD700;font-weight:700;">R @b.PlatformEarnings.ToString("N2")</td>
+                                <td data-label="Status"><span class="rv-status-badge rv-status-@b.Status">@b.Status</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr style="border-top:2px solid rgba(255,215,0,0.2);">
+                            <td colspan="7" style="padding:12px 16px;font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);">
+                                Filtered Totals
+                            </td>
+                            <td class="text-end" style="padding:12px 16px;font-weight:800;color:#fff;">
+                                R @filteredTotalServicePrice.ToString("N2")
+                            </td>
+                            <td class="text-end" style="padding:12px 16px;font-weight:800;color:#FFD700;">
+                                R @filteredTotalMarkup.ToString("N2")
+                            </td>
+                            <td class="text-end" style="padding:12px 16px;font-weight:800;color:#ff6600;">
+                                R @filteredTotalPlatformFee.ToString("N2")
+                            </td>
+                            <td class="text-end" style="padding:12px 16px;font-weight:900;color:#00c853;">
+                                R @filteredTotalArtistNet.ToString("N2")
+                            </td>
+                            <td class="text-end" style="padding:12px 16px;font-weight:900;color:#FFD700;">
+                                R @filteredTotalPlatformEarnings.ToString("N2")
+                            </td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        }
+
+        @if (totalPages > 1)
+        {
+            <div class="rv-pager">
+                <div class="rv-pager-info">
+                    Showing <strong>@showingFrom</strong> – <strong>@showingTo</strong> of <strong>@totalCount</strong>
+                </div>
+                <div class="rv-pager-controls">
+                    @{
+                        var prevDisabled = currentPage <= 1;
+                        var nextDisabled = currentPage >= totalPages;
                     }
-                </tbody>
-                <tfoot>
-                    <tr style="border-top:2px solid rgba(255,215,0,0.2);">
-                        <td colspan="7" style="padding:12px 16px;font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);">Totals</td>
-                        <td class="text-end" style="padding:12px 16px;font-size:0.85rem;font-weight:800;color:#fff;">
-                            R @Model.FilteredBookings.Sum(b => b.ServicePrice).ToString("N2")
-                        </td>
-                        <td class="text-end" style="padding:12px 16px;font-size:0.85rem;font-weight:800;color:#FFD700;">
-                            R @Model.FilteredBookings.Sum(b => b.ClientMarkup).ToString("N2")
-                        </td>
-                        <td class="text-end" style="padding:12px 16px;font-size:0.85rem;font-weight:800;color:#ff6600;">
-                            R @Model.FilteredBookings.Sum(b => b.PlatformFee).ToString("N2")
-                        </td>
-                        <td class="text-end" style="padding:12px 16px;font-size:0.9rem;font-weight:900;color:#00c853;">
-                            R @Model.FilteredBookings.Sum(b => b.ArtistNet).ToString("N2")
-                        </td>
-                        <td class="text-end" style="padding:12px 16px;font-size:0.9rem;font-weight:900;color:#FFD700;">
-                            R @Model.FilteredBookings.Sum(b => b.PlatformEarnings).ToString("N2")
-                        </td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
-    }
+
+                    <a class="rv-page-btn @(prevDisabled ? "disabled" : "")"
+                       asp-action="Index"
+                       asp-route-page="@(currentPage - 1)"
+                       asp-route-filterProvince="@Model.FilterProvince"
+                       asp-route-filterArtistId="@Model.FilterArtistId"
+                       asp-route-filterStatus="@Model.FilterStatus"
+                       asp-route-filterServiceId="@Model.FilterServiceId"
+                       asp-route-filterFrom="@Model.FilterFrom?.ToString("yyyy-MM-dd")"
+                       asp-route-filterTo="@Model.FilterTo?.ToString("yyyy-MM-dd")">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+
+                    @for (int i = 1; i <= totalPages; i++)
+                    {
+                        if (i == 1 || i == totalPages || Math.Abs(i - currentPage) <= 1)
+                        {
+                            <a class="rv-page-btn @(i == currentPage ? "active" : "")"
+                               asp-action="Index"
+                               asp-route-page="@i"
+                               asp-route-filterProvince="@Model.FilterProvince"
+                               asp-route-filterArtistId="@Model.FilterArtistId"
+                               asp-route-filterStatus="@Model.FilterStatus"
+                               asp-route-filterServiceId="@Model.FilterServiceId"
+                               asp-route-filterFrom="@Model.FilterFrom?.ToString("yyyy-MM-dd")"
+                               asp-route-filterTo="@Model.FilterTo?.ToString("yyyy-MM-dd")">
+                                @i
+                            </a>
+                        }
+                        else if (i == currentPage - 2 || i == currentPage + 2)
+                        {
+                            <span class="rv-page-ellipsis">…</span>
+                        }
+                    }
+
+                    <a class="rv-page-btn @(nextDisabled ? "disabled" : "")"
+                       asp-action="Index"
+                       asp-route-page="@(currentPage + 1)"
+                       asp-route-filterProvince="@Model.FilterProvince"
+                       asp-route-filterArtistId="@Model.FilterArtistId"
+                       asp-route-filterStatus="@Model.FilterStatus"
+                       asp-route-filterServiceId="@Model.FilterServiceId"
+                       asp-route-filterFrom="@Model.FilterFrom?.ToString("yyyy-MM-dd")"
+                       asp-route-filterTo="@Model.FilterTo?.ToString("yyyy-MM-dd")">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+        }
+    </div>
+
 </div>

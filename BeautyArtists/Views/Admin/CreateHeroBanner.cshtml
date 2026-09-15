@@ -30,6 +30,7 @@
             border-radius: 18px;
             overflow: hidden;
             max-width: 620px;
+            width: 100%;
         }
 
         .cb-card-header {
@@ -147,6 +148,7 @@
             font-size: 0.8rem;
             font-weight: 700;
             transition: all 0.2s;
+            text-align: center;
         }
 
             .cb-file-btn:hover {
@@ -177,6 +179,7 @@
         .cb-btn-save {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
             padding: 11px 28px;
             border-radius: 999px;
@@ -189,6 +192,7 @@
             border: none;
             cursor: pointer;
             transition: all 0.2s;
+            flex: 1;
         }
 
             .cb-btn-save:hover {
@@ -200,6 +204,7 @@
         .cb-btn-cancel {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
             padding: 11px 24px;
             border-radius: 999px;
@@ -210,6 +215,78 @@
             font-size: 0.8rem;
             text-decoration: none;
             transition: all 0.2s;
+            flex: 1;
+        }
+
+            .cb-btn-cancel:hover {
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.7);
+            }
+
+        /* ══════════════════════════════════
+                   MOBILE (<= 600px)
+                   ══════════════════════════════════ */
+        @@media (max-width: 600px) {
+            .cb-heading {
+                font-size: 1.25rem;
+                margin-bottom: 18px;
+            }
+
+            .cb-card {
+                border-radius: 14px;
+            }
+
+            .cb-card-header {
+                padding: 16px 18px;
+            }
+
+            .cb-card-header-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 0.8rem;
+            }
+
+            .cb-card-header-title {
+                font-size: 0.8rem;
+            }
+
+            .cb-card-header-sub {
+                font-size: 0.65rem;
+            }
+
+            .cb-card-body {
+                padding: 18px;
+            }
+
+            .cb-field {
+                margin-bottom: 18px;
+            }
+
+            .cb-input {
+                font-size: 0.85rem;
+                padding: 10px 12px !important;
+            }
+
+            .cb-img-section {
+                padding: 14px;
+            }
+
+            .cb-file-btn {
+                font-size: 0.75rem;
+                padding: 12px 14px;
+            }
+            /* Stack actions vertically, full width */
+            .cb-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .cb-btn-save,
+            .cb-btn-cancel {
+                width: 100%;
+                padding: 12px;
+                font-size: 0.78rem;
+            }
         }
     </style>
 }

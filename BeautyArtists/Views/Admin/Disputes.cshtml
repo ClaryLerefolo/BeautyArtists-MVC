@@ -2,130 +2,776 @@
 @{
     ViewData["Title"] = "Disputes";
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    var disputeList = Model.ToList();
+
+    var currentPage = ViewBag.CurrentPage as int? ?? 1;
+    var totalPages = ViewBag.TotalPages as int? ?? 1;
+    var totalCount = ViewBag.TotalCount as int? ?? 0;
+    var showingFrom = ViewBag.ShowingFrom as int? ?? 0;
+    var showingTo = ViewBag.ShowingTo as int? ?? 0;
+    var total = ViewBag.Total as int? ?? 0;
+    var pending = ViewBag.Pending as int? ?? 0;
+    var resolved = ViewBag.Resolved as int? ?? 0;
+    var selectedStatus = ViewBag.SelectedStatus as string ?? "";
+    var searchQuery = ViewBag.SearchQuery as string ?? "";
 }
 
-<div class="container-fluid py-4">
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 24px;">
+@section Styles {
+    <style>
+        .dp-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .dp-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 4px;
+        }
+
+        .dp-subheading {
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.35);
+            margin: 0;
+        }
+
+        .dp-topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        /* ── STAT PILLS ── */
+        .dp-stats {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .dp-stat {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+            .dp-stat strong {
+                font-weight: 900;
+            }
+
+        .dp-stat-total {
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.6);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+            .dp-stat-total strong {
+                color: #fff;
+            }
+
+        .dp-stat-pending {
+            background: rgba(229,9,20,0.12);
+            color: #ff5555;
+            border: 1px solid rgba(229,9,20,0.25);
+        }
+
+        .dp-stat-resolved {
+            background: rgba(40,167,69,0.12);
+            color: #28a745;
+            border: 1px solid rgba(40,167,69,0.25);
+        }
+
+        /* ── FILTER BAR ── */
+        .dp-filter-bar {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 14px;
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .dp-search-wrap {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+        }
+
+            .dp-search-wrap i {
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                color: rgba(255,215,0,0.4);
+                font-size: 0.85rem;
+                pointer-events: none;
+            }
+
+        .dp-search-input {
+            width: 100%;
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 8px !important;
+            color: #fff !important;
+            padding: 8px 12px 8px 36px !important;
+            font-size: 0.83rem;
+        }
+
+            .dp-search-input:focus {
+                outline: none !important;
+                border-color: rgba(255,215,0,0.4) !important;
+                background: rgba(255,215,0,0.03) !important;
+                box-shadow: none !important;
+            }
+
+            .dp-search-input::placeholder {
+                color: rgba(255,255,255,0.25) !important;
+            }
+
+        .dp-select {
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 8px !important;
+            color: #fff !important;
+            padding: 8px 14px !important;
+            font-size: 0.83rem;
+            min-width: 150px;
+        }
+
+            .dp-select option {
+                background: #111;
+                color: #fff;
+            }
+
+        .dp-filter-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 20px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.78rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+            .dp-filter-btn:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                box-shadow: 0 0 16px rgba(255,215,0,0.25);
+            }
+
+        .dp-clear-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 8px 18px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.45);
+            font-weight: 700;
+            font-size: 0.78rem;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+            .dp-clear-btn:hover {
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.75);
+            }
+
+        /* ── DISPUTE CARDS ── */
+        .dp-grid {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .dp-card {
+            background: #0b0b0b;
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            transition: border-color 0.2s;
+        }
+
+            .dp-card:hover {
+                border-color: rgba(255,215,0,0.35) !important;
+            }
+
+        .dp-card-pending {
+            border: 1px solid rgba(240,200,8,0.25);
+        }
+
+        .dp-card-urgent {
+            border: 1px solid rgba(229,9,20,0.4);
+            background: rgba(229,9,20,0.03);
+        }
+
+        .dp-card-resolved {
+            border: 1px solid rgba(40,167,69,0.25);
+        }
+
+        /* ── CARD MAIN ── */
+        .dp-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .dp-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .dp-id {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #FFD700;
+            margin: 0;
+        }
+
+        .dp-badge {
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 3px 10px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+        .dp-badge-pending {
+            background: #f0c808;
+            color: #000;
+        }
+
+        .dp-badge-urgent {
+            background: #e50914;
+            color: #fff;
+        }
+
+        .dp-badge-resolved {
+            background: #28a745;
+            color: #fff;
+        }
+
+        .dp-resolved-time {
+            color: rgba(255,255,255,0.25);
+            font-size: 0.7rem;
+        }
+
+        /* ── INFO GRID ── */
+        .dp-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 16px;
+            margin-bottom: 12px;
+        }
+
+        .dp-info-item {
+            display: flex;
+            gap: 6px;
+            font-size: 0.83rem;
+            min-width: 0;
+        }
+
+        .dp-info-label {
+            color: rgba(255,255,255,0.3);
+            font-weight: 700;
+            font-size: 0.68rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .dp-info-value {
+            color: rgba(255,255,255,0.7);
+            word-break: break-word;
+            min-width: 0;
+        }
+
+            .dp-info-value.gold {
+                color: #FFD700;
+                font-weight: 700;
+            }
+
+            .dp-info-value.ruby {
+                color: #ff5555;
+                font-weight: 600;
+            }
+
+        /* ── DESCRIPTION ── */
+        .dp-desc {
+            background: rgba(255,255,255,0.03);
+            border-left: 3px solid rgba(255,215,0,0.2);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-style: italic;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 10px;
+            word-break: break-word;
+        }
+
+        .dp-admin-note {
+            font-size: 0.75rem;
+            color: rgba(40,167,69,0.7);
+            margin: 0;
+        }
+
+            .dp-admin-note strong {
+                color: rgba(40,167,69,0.9);
+            }
+
+        /* ── ACTION ── */
+        .dp-action {
+            flex-shrink: 0;
+        }
+
+        .dp-review-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 22px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.78rem;
+            letter-spacing: 0.5px;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+            .dp-review-btn:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                box-shadow: 0 0 16px rgba(255,215,0,0.3);
+                color: #000;
+                transform: translateY(-1px);
+            }
+
+        .dp-resolved-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 22px;
+            border-radius: 10px;
+            background: rgba(40,167,69,0.12);
+            color: #28a745;
+            border: 1px solid rgba(40,167,69,0.3);
+            font-weight: 700;
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+
+        /* ── EMPTY ── */
+        .dp-empty {
+            text-align: center;
+            padding: 60px 20px;
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.08);
+            border-radius: 14px;
+        }
+
+        .dp-empty-icon {
+            font-size: 2.5rem;
+            color: rgba(40,167,69,0.4);
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        .dp-empty h4 {
+            color: rgba(255,255,255,0.5);
+            font-weight: 700;
+            margin: 0 0 6px;
+        }
+
+        .dp-empty p {
+            color: rgba(255,255,255,0.25);
+            font-size: 0.85rem;
+            margin: 0;
+        }
+
+        /* ── PAGINATION ── */
+        .dp-pager {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            padding: 16px 20px;
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.1);
+            border-radius: 14px;
+        }
+
+        .dp-pager-info {
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.35);
+        }
+
+            .dp-pager-info strong {
+                color: #FFD700;
+                font-weight: 700;
+            }
+
+        .dp-pager-controls {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .dp-page-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 7px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,215,0,0.1);
+            color: rgba(255,255,255,0.6);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+            .dp-page-btn:hover {
+                background: rgba(255,215,0,0.1);
+                color: #FFD700;
+                border-color: rgba(255,215,0,0.3);
+            }
+
+            .dp-page-btn.active {
+                background: #FFD700;
+                color: #000;
+                border-color: #FFD700;
+                box-shadow: 0 0 12px rgba(255,215,0,0.25);
+            }
+
+            .dp-page-btn.disabled {
+                opacity: 0.3;
+                pointer-events: none;
+                cursor: not-allowed;
+            }
+
+        .dp-page-ellipsis {
+            padding: 0 6px;
+            color: rgba(255,255,255,0.25);
+            font-size: 0.8rem;
+        }
+
+        /* ══════════════════════════════════
+                   MOBILE (<= 720px)
+                   ══════════════════════════════════ */
+        @@media (max-width: 720px) {
+            .dp-heading {
+                font-size: 1.25rem;
+            }
+
+            .dp-subheading {
+                font-size: 0.78rem;
+            }
+
+            .dp-topbar {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+
+            .dp-stats {
+                width: 100%;
+            }
+
+            .dp-stat {
+                flex: 1;
+                justify-content: center;
+                min-width: 0;
+            }
+            /* Filter bar stacks */
+            .dp-filter-bar {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 14px;
+                gap: 10px;
+            }
+
+            .dp-search-wrap,
+            .dp-select,
+            .dp-filter-btn,
+            .dp-clear-btn {
+                width: 100%;
+                min-width: 0;
+                justify-content: center;
+            }
+            /* Card stacks */
+            .dp-card {
+                flex-direction: column;
+                padding: 16px;
+                gap: 14px;
+            }
+
+            .dp-info {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            .dp-action {
+                width: 100%;
+            }
+
+            .dp-review-btn,
+            .dp-resolved-badge {
+                width: 100%;
+                justify-content: center;
+            }
+            /* Pager stacks */
+            .dp-pager {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 14px;
+            }
+
+            .dp-pager-info {
+                text-align: center;
+            }
+
+            .dp-pager-controls {
+                justify-content: center;
+            }
+        }
+    </style>
+}
+
+<div class="container-fluid px-4">
+
+    @* ── TOP BAR ── *@
+    <div class="dp-topbar">
         <div>
-            <h2 style="color: #FFD700; font-weight: 800; margin: 0;">⚠️ Booking Disputes</h2>
-            <p style="color: rgba(255,255,255,0.3); margin: 0;">Manage disputes raised by clients. Target resolution: 24 hours.</p>
+            <span class="dp-eyebrow">Administration</span>
+            <h1 class="dp-heading">Booking Disputes</h1>
+            <p class="dp-subheading">Manage disputes raised by clients · Target resolution: 24 hours</p>
         </div>
-        <div style="display: flex; gap: 8px;">
-            <span style="padding: 6px 14px; background: rgba(255,255,255,0.05); border-radius: 20px; color: rgba(255,255,255,0.5); font-size: 0.75rem;">
-                Total: <strong style="color: #fff;">@ViewBag.Total</strong>
+
+        <div class="dp-stats">
+            <span class="dp-stat dp-stat-total">
+                Total: <strong>@total</strong>
             </span>
-            <span style="padding: 6px 14px; background: rgba(229,9,20,0.15); border-radius: 20px; color: #e50914; font-size: 0.75rem;">
-                Pending: <strong>@ViewBag.Pending</strong>
+            <span class="dp-stat dp-stat-pending">
+                <i class="bi bi-hourglass-split"></i> Pending: <strong>@pending</strong>
             </span>
-            <span style="padding: 6px 14px; background: rgba(40,167,69,0.15); border-radius: 20px; color: #28a745; font-size: 0.75rem;">
-                Resolved: <strong>@ViewBag.Resolved</strong>
+            <span class="dp-stat dp-stat-resolved">
+                <i class="bi bi-check-circle-fill"></i> Resolved: <strong>@resolved</strong>
             </span>
         </div>
     </div>
 
-    <!-- ─── FILTERS ─── -->
-    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px;">
-        <form method="get" style="display: flex; gap: 12px; flex-wrap: wrap; flex: 1;">
-            <select name="status" style="background: #1a1a1a; border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; color: #fff; padding: 8px 14px;">
-                <option value="">All Status</option>
-                <option value="pending" selected="@(ViewBag.SelectedStatus == "pending")">Pending</option>
-                <option value="resolved" selected="@(ViewBag.SelectedStatus == "resolved")">Resolved</option>
-            </select>
-            <input type="text" name="search" placeholder="Search by ID, client, or service..."
-                   style="flex: 1; min-width: 200px; background: #1a1a1a; border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; color: #fff; padding: 8px 14px;"
-                   value="@ViewBag.SearchQuery" />
-            <button type="submit" style="padding: 8px 20px; background: #FFD700; color: #000; font-weight: 700; border: none; border-radius: 8px; cursor: pointer;">
-                Filter
-            </button>
-            <a asp-action="Disputes" style="padding: 8px 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.4); border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center;">
-                Clear
-            </a>
-        </form>
-    </div>
+    @* ── FILTER BAR ── *@
+    <form method="get" class="dp-filter-bar">
+        <div class="dp-search-wrap">
+            <i class="bi bi-search"></i>
+            <input type="text" name="search" value="@searchQuery"
+                   class="dp-search-input"
+                   placeholder="Search by ID, client, or service..." />
+        </div>
 
-    @if (!Model.Any())
+        <select name="status" class="dp-select">
+            <option value="" selected="@(string.IsNullOrEmpty(selectedStatus) ? "selected" : null)">All Status</option>
+            <option value="pending" selected="@(selectedStatus == "pending" ? "selected" : null)">Pending</option>
+            <option value="resolved" selected="@(selectedStatus == "resolved" ? "selected" : null)">Resolved</option>
+        </select>
+
+        <button type="submit" class="dp-filter-btn">
+            <i class="bi bi-funnel-fill"></i> Filter
+        </button>
+
+        <a asp-action="Disputes" class="dp-clear-btn">
+            <i class="bi bi-x-lg"></i> Clear
+        </a>
+    </form>
+
+    @* ── DISPUTE LIST ── *@
+    @if (!disputeList.Any())
     {
-        <div style="text-align: center; padding: 60px 20px; background: #0b0b0b; border-radius: 12px;">
-            <p style="font-size: 2rem; margin-bottom: 10px;">✅</p>
-            <h4 style="color: rgba(255,255,255,0.5);">No disputes to review</h4>
-            <p style="color: rgba(255,255,255,0.2);">All clear!</p>
+        <div class="dp-empty">
+            <i class="bi bi-check-circle-fill dp-empty-icon"></i>
+            <h4>No disputes to review</h4>
+            <p>All clear!</p>
         </div>
     }
     else
     {
-        <div style="display: grid; gap: 16px;">
-            @foreach (var dispute in Model)
+        <div class="dp-grid">
+            @foreach (var dispute in disputeList)
             {
                 var timeElapsed = DateTime.UtcNow - (dispute.DisputeRaisedAt ?? DateTime.UtcNow);
                 var isUrgent = timeElapsed.TotalHours > 20;
                 var isResolved = dispute.AdminReviewedAt != null;
+                var totalPaid = dispute.DepositPaid + dispute.FinalPaymentPaid;
 
-                <div style="background: #0b0b0b; border: 1px solid @(isResolved ? "rgba(40,167,69,0.3)" : (isUrgent ? "#e50914" : "rgba(255,215,0,0.2)")); border-radius: 12px; padding: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
-                        <div style="flex: 1;">
-                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                                <h4 style="color: #FFD700; margin: 0;">Booking #@dispute.Id</h4>
-                                <span style="padding: 2px 10px; border-radius: 20px; background: @(isResolved ? "#28a745" : (isUrgent ? "#e50914" : "#f0c808")); color: @(isResolved || isUrgent ? "#fff" : "#000"); font-size: 0.65rem; font-weight: 700; text-transform: uppercase;">
-                                    @(isResolved ? "Resolved" : (isUrgent ? "Urgent" : "Pending"))
-                                </span>
-                                @if (isResolved)
-                                {
-                                    <span style="color: rgba(255,255,255,0.2); font-size: 0.7rem;">
-                                        Resolved: @dispute.AdminReviewedAt?.ToString("dd MMM yyyy HH:mm")
-                                    </span>
-                                }
-                            </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 8px;">
-                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
-                                    <strong style="color: rgba(255,255,255,0.3);">Client:</strong> @dispute.Customer?.FirstName @dispute.Customer?.LastName
-                                </p>
-                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
-                                    <strong style="color: rgba(255,255,255,0.3);">Artist:</strong> @dispute.UserService?.Artist?.FirstName @dispute.UserService?.Artist?.LastName
-                                </p>
-                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
-                                    <strong style="color: rgba(255,255,255,0.3);">Service:</strong> @dispute.UserService?.Service?.Name
-                                </p>
-                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
-                                    <strong style="color: rgba(255,255,255,0.3);">Amount:</strong> <span style="color: #FFD700;">R@((dispute.DepositPaid + dispute.FinalPaymentPaid).ToString("N2"))</span>
-                                </p>
-                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
-                                    <strong style="color: rgba(255,255,255,0.3);">Reason:</strong> <span style="color: #e50914;">@dispute.DisputeReason</span>
-                                </p>
-                                <p style="margin: 2px 0; color: rgba(255,255,255,0.5); font-size: 0.85rem;">
-                                    <strong style="color: rgba(255,255,255,0.3);">Raised:</strong> @dispute.DisputeRaisedAt?.ToString("dd MMM yyyy HH:mm")
-                                </p>
-                            </div>
-                            @if (!string.IsNullOrEmpty(dispute.DisputeDescription))
+                var cardClass = isResolved ? "dp-card-resolved" : (isUrgent ? "dp-card-urgent" : "dp-card-pending");
+                var badgeClass = isResolved ? "dp-badge-resolved" : (isUrgent ? "dp-badge-urgent" : "dp-badge-pending");
+                var badgeText = isResolved ? "Resolved" : (isUrgent ? "Urgent" : "Pending");
+
+                <div class="dp-card @cardClass">
+                    <div class="dp-main">
+
+                        @* ── HEADER ── *@
+                        <div class="dp-card-header">
+                            <h4 class="dp-id">Booking #@dispute.Id</h4>
+                            <span class="dp-badge @badgeClass">@badgeText</span>
+                            @if (isResolved)
                             {
-                                <p style="margin: 6px 0 0 0; color: rgba(255,255,255,0.3); font-size: 0.8rem; font-style: italic; background: #1a1a1a; padding: 8px 12px; border-radius: 6px;">
-                                    "@dispute.DisputeDescription"
-                                </p>
-                            }
-                            @if (!string.IsNullOrEmpty(dispute.AdminNotes))
-                            {
-                                <p style="margin: 4px 0 0 0; color: rgba(40,167,69,0.6); font-size: 0.75rem;">
-                                    <strong>Admin Note:</strong> @dispute.AdminNotes
-                                </p>
-                            }
-                        </div>
-                        <div style="text-align: right; min-width: 100px;">
-                            @if (!isResolved)
-                            {
-                                <a asp-action="DisputeDetail" asp-route-id="@dispute.Id"
-                                   style="display: inline-block; padding: 8px 24px; background: #FFD700; color: #000; font-weight: 700; border: none; border-radius: 8px; text-decoration: none;">
-                                    Review →
-                                </a>
-                            }
-                            else
-                            {
-                                <span style="display: inline-block; padding: 8px 24px; background: rgba(40,167,69,0.15); color: #28a745; font-weight: 700; border: 1px solid rgba(40,167,69,0.3); border-radius: 8px;">
-                                    ✅ Resolved
+                                <span class="dp-resolved-time">
+                                    Resolved: @dispute.AdminReviewedAt?.ToString("dd MMM yyyy HH:mm")
                                 </span>
                             }
                         </div>
+
+                        @* ── INFO ── *@
+                        <div class="dp-info">
+                            <div class="dp-info-item">
+                                <span class="dp-info-label">Client</span>
+                                <span class="dp-info-value">@dispute.Customer?.FirstName @dispute.Customer?.LastName</span>
+                            </div>
+                            <div class="dp-info-item">
+                                <span class="dp-info-label">Artist</span>
+                                <span class="dp-info-value">@dispute.UserService?.Artist?.FirstName @dispute.UserService?.Artist?.LastName</span>
+                            </div>
+                            <div class="dp-info-item">
+                                <span class="dp-info-label">Service</span>
+                                <span class="dp-info-value">@dispute.UserService?.Service?.Name</span>
+                            </div>
+                            <div class="dp-info-item">
+                                <span class="dp-info-label">Amount</span>
+                                <span class="dp-info-value gold">R@(totalPaid.ToString("N2"))</span>
+                            </div>
+                            <div class="dp-info-item">
+                                <span class="dp-info-label">Reason</span>
+                                <span class="dp-info-value ruby">@dispute.DisputeReason</span>
+                            </div>
+                            <div class="dp-info-item">
+                                <span class="dp-info-label">Raised</span>
+                                <span class="dp-info-value">@dispute.DisputeRaisedAt?.ToString("dd MMM yyyy HH:mm")</span>
+                            </div>
+                        </div>
+
+                        @* ── DESCRIPTION ── *@
+                        @if (!string.IsNullOrEmpty(dispute.DisputeDescription))
+                        {
+                            <div class="dp-desc">"@dispute.DisputeDescription"</div>
+                        }
+
+                        @* ── ADMIN NOTE ── *@
+                        @if (!string.IsNullOrEmpty(dispute.AdminNotes))
+                        {
+                            <p class="dp-admin-note">
+                                <strong>Admin Note:</strong> @dispute.AdminNotes
+                            </p>
+                        }
+                    </div>
+
+                    @* ── ACTION ── *@
+                    <div class="dp-action">
+                        @if (!isResolved)
+                        {
+                            <a asp-action="DisputeDetail" asp-route-id="@dispute.Id" class="dp-review-btn">
+                                <i class="bi bi-arrow-right"></i> Review
+                            </a>
+                        }
+                        else
+                        {
+                            <span class="dp-resolved-badge">
+                                <i class="bi bi-check-circle-fill"></i> Resolved
+                            </span>
+                        }
                     </div>
                 </div>
             }
         </div>
+
+        @* ── PAGINATION ── *@
+        @if (totalPages > 1)
+        {
+            <div class="dp-pager">
+                <div class="dp-pager-info">
+                    Showing <strong>@showingFrom</strong> – <strong>@showingTo</strong> of <strong>@totalCount</strong>
+                </div>
+                <div class="dp-pager-controls">
+                    @{
+                        var prevDisabled = currentPage <= 1;
+                        var nextDisabled = currentPage >= totalPages;
+                    }
+
+                    <a class="dp-page-btn @(prevDisabled ? "disabled" : "")"
+                       asp-action="Disputes"
+                       asp-route-page="@(currentPage - 1)"
+                       asp-route-search="@searchQuery"
+                       asp-route-status="@selectedStatus">
+                        <i class="bi bi-chevron-left"></i>
+                    </a>
+
+                    @for (int i = 1; i <= totalPages; i++)
+                    {
+                        if (i == 1 || i == totalPages || Math.Abs(i - currentPage) <= 1)
+                        {
+                            <a class="dp-page-btn @(i == currentPage ? "active" : "")"
+                               asp-action="Disputes"
+                               asp-route-page="@i"
+                               asp-route-search="@searchQuery"
+                               asp-route-status="@selectedStatus">
+                                @i
+                            </a>
+                        }
+                        else if (i == currentPage - 2 || i == currentPage + 2)
+                        {
+                            <span class="dp-page-ellipsis">…</span>
+                        }
+                    }
+
+                    <a class="dp-page-btn @(nextDisabled ? "disabled" : "")"
+                       asp-action="Disputes"
+                       asp-route-page="@(currentPage + 1)"
+                       asp-route-search="@searchQuery"
+                       asp-route-status="@selectedStatus">
+                        <i class="bi bi-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+        }
     }
 </div>

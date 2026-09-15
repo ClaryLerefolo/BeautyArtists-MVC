@@ -45,6 +45,7 @@
             border-radius: 18px;
             overflow: hidden;
             max-width: 680px;
+            width: 100%;
         }
 
         .ud-card-top {
@@ -77,12 +78,14 @@
             color: #FFD700;
             margin: 0 0 6px;
             text-shadow: 0 0 12px rgba(255,215,0,0.2);
+            word-break: break-word;
         }
 
         .ud-email {
             font-size: 0.83rem;
             color: rgba(255,255,255,0.4);
             margin: 0;
+            word-break: break-word;
         }
 
         /* Role badge */
@@ -147,6 +150,11 @@
             flex-shrink: 0;
         }
 
+        .ud-row-content {
+            flex: 1;
+            min-width: 0;
+        }
+
         .ud-row-label {
             font-size: 0.68rem;
             font-weight: 700;
@@ -160,6 +168,7 @@
             font-size: 0.88rem;
             color: #fff;
             font-weight: 500;
+            word-break: break-word;
         }
 
         /* ── ACTIONS ── */
@@ -168,11 +177,13 @@
             gap: 10px;
             margin-top: 24px;
             flex-wrap: wrap;
+            max-width: 680px;
         }
 
         .ud-btn-back {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
             padding: 10px 22px;
             border-radius: 999px;
@@ -196,6 +207,7 @@
         .ud-btn-delete {
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
             padding: 10px 22px;
             border-radius: 999px;
@@ -215,77 +227,149 @@
                 border-color: rgba(179,0,0,0.5);
                 color: #ff8888;
             }
+
+        /* ══════════════════════════════════
+                   MOBILE (<= 640px)
+                   ══════════════════════════════════ */
+        @@media (max-width: 640px) {
+            .ud-heading {
+                font-size: 1.25rem;
+                margin-bottom: 18px;
+            }
+
+            .ud-card {
+                border-radius: 14px;
+            }
+            /* Profile header stacks */
+            .ud-card-top {
+                flex-direction: column;
+                text-align: center;
+                padding: 24px 18px;
+                gap: 16px;
+            }
+
+            .ud-avatar {
+                width: 64px;
+                height: 64px;
+                font-size: 1.5rem;
+            }
+
+            .ud-name {
+                font-size: 1.1rem;
+            }
+
+            .ud-email {
+                font-size: 0.78rem;
+            }
+            /* Rows get tighter padding */
+            .ud-row {
+                padding: 12px 18px;
+                gap: 12px;
+            }
+
+            .ud-row-icon {
+                width: 30px;
+                height: 30px;
+                font-size: 0.8rem;
+            }
+
+            .ud-row-value {
+                font-size: 0.83rem;
+            }
+            /* Actions stack vertically */
+            .ud-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+                .ud-actions > *,
+                .ud-actions > form {
+                    width: 100%;
+                    margin: 0 !important;
+                }
+
+            .ud-btn-back,
+            .ud-btn-delete {
+                width: 100%;
+                padding: 12px;
+                font-size: 0.78rem;
+            }
+        }
     </style>
 }
 
-<span class="ud-eyebrow">Administration</span>
-<h1 class="ud-heading">User Details</h1>
+<div class="container-fluid px-4">
 
-<div class="ud-card">
+    <span class="ud-eyebrow">Administration</span>
+    <h1 class="ud-heading">User Details</h1>
 
-    @* Profile header *@
-    <div class="ud-card-top">
-        <div class="ud-avatar">@initial</div>
-        <div>
-            <p class="ud-name">@Model.FullName</p>
-            <p class="ud-email">@Model.Email</p>
-            <span class="mu-role @roleClass">
-                <i class="bi @roleIcon"></i> @Model.Role
-            </span>
-        </div>
-    </div>
+    <div class="ud-card">
 
-    @* Info rows *@
-    <div class="ud-card-body">
-        <div class="ud-row">
-            <div class="ud-row-icon"><i class="bi bi-person-fill"></i></div>
+        @* Profile header *@
+        <div class="ud-card-top">
+            <div class="ud-avatar">@initial</div>
             <div>
-                <div class="ud-row-label">Full Name</div>
-                <div class="ud-row-value">@Model.FullName</div>
+                <p class="ud-name">@Model.FullName</p>
+                <p class="ud-email">@Model.Email</p>
+                <span class="mu-role @roleClass">
+                    <i class="bi @roleIcon"></i> @Model.Role
+                </span>
             </div>
         </div>
-        <div class="ud-row">
-            <div class="ud-row-icon"><i class="bi bi-envelope-fill"></i></div>
-            <div>
-                <div class="ud-row-label">Email Address</div>
-                <div class="ud-row-value">@Model.Email</div>
+
+        @* Info rows *@
+        <div class="ud-card-body">
+            <div class="ud-row">
+                <div class="ud-row-icon"><i class="bi bi-person-fill"></i></div>
+                <div class="ud-row-content">
+                    <div class="ud-row-label">Full Name</div>
+                    <div class="ud-row-value">@Model.FullName</div>
+                </div>
             </div>
-        </div>
-        <div class="ud-row">
-            <div class="ud-row-icon"><i class="bi bi-shield-lock-fill"></i></div>
-            <div>
-                <div class="ud-row-label">Platform Role</div>
-                <div class="ud-row-value">
-                    <span class="mu-role @roleClass">
-                        <i class="bi @roleIcon"></i> @Model.Role
-                    </span>
+            <div class="ud-row">
+                <div class="ud-row-icon"><i class="bi bi-envelope-fill"></i></div>
+                <div class="ud-row-content">
+                    <div class="ud-row-label">Email Address</div>
+                    <div class="ud-row-value">@Model.Email</div>
+                </div>
+            </div>
+            <div class="ud-row">
+                <div class="ud-row-icon"><i class="bi bi-shield-lock-fill"></i></div>
+                <div class="ud-row-content">
+                    <div class="ud-row-label">Platform Role</div>
+                    <div class="ud-row-value">
+                        <span class="mu-role @roleClass">
+                            <i class="bi @roleIcon"></i> @Model.Role
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="ud-row">
+                <div class="ud-row-icon"><i class="bi bi-person-badge-fill"></i></div>
+                <div class="ud-row-content">
+                    <div class="ud-row-label">User ID</div>
+                    <div class="ud-row-value" style="font-size:0.75rem; color:rgba(255,255,255,0.3); font-family:monospace;">
+                        @Model.Id
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="ud-row">
-            <div class="ud-row-icon"><i class="bi bi-person-badge-fill"></i></div>
-            <div>
-                <div class="ud-row-label">User ID</div>
-                <div class="ud-row-value" style="font-size:0.75rem; color:rgba(255,255,255,0.3); font-family:monospace;">
-                    @Model.Id
-                </div>
-            </div>
-        </div>
     </div>
-</div>
 
-@* Actions *@
-<div class="ud-actions">
-    <a href="@Url.Action("ManageUsers", "Admin")" class="ud-btn-back">
-        <i class="bi bi-arrow-left"></i> Back to Users
-    </a>
-    @if (Model.Role != "Admin")
-    {
-        <form asp-action="DeleteUser" asp-route-id="@Model.Id" method="post" style="margin:0">
-            <button type="submit" class="ud-btn-delete"
-                    onclick="return confirm('Delete @Model.FullName? This cannot be undone.')">
-                <i class="bi bi-trash3-fill"></i> Delete User
-            </button>
-        </form>
-    }
+    @* Actions *@
+    <div class="ud-actions">
+        <a href="@Url.Action("ManageUsers", "Admin")" class="ud-btn-back">
+            <i class="bi bi-arrow-left"></i> Back to Users
+        </a>
+        @if (Model.Role != "Admin")
+        {
+            <form asp-action="DeleteUser" asp-route-id="@Model.Id" method="post" style="margin:0">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="ud-btn-delete"
+                        onclick="return confirm('Delete @Model.FullName? This cannot be undone.')">
+                    <i class="bi bi-trash3-fill"></i> Delete User
+                </button>
+            </form>
+        }
+    </div>
 </div>

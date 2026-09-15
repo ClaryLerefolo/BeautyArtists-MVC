@@ -1,47 +1,344 @@
 ﻿@model BeautyArtists.Models.ViewModels.ServiceViewModel
 @{
-    ViewData["Title"] = "Create Service";
+    ViewData["Title"] = Model.Id != 0 ? "Edit Service" : "Create Service";
     Layout = "~/Views/Shared/_AdminLayout.cshtml";
+    var isEdit = Model.Id != 0;
 }
 
-<div class="container mt-5">
-    <h2 class="text-warning">Create New Service</h2>
-
-    <form asp-action="CreateService" method="post">
-
-        @if (Model.Id != 0)
-        {
-            <input type="hidden" asp-for="Id" />
+@section Styles {
+    <style>
+        .cs-eyebrow {
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.35);
+            display: block;
+            margin-bottom: 4px;
         }
 
-        <div class="mb-3">
-            <label asp-for="Name"></label>
-            <input asp-for="Name" class="form-control" />
-            <span asp-validation-for="Name" class="text-danger"></span>
+        .cs-heading {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #FFD700;
+            margin: 0 0 24px;
+        }
+
+        .cs-card {
+            background: #0b0b0b;
+            border: 1px solid rgba(255,215,0,0.12);
+            border-radius: 18px;
+            overflow: hidden;
+            max-width: 640px;
+            width: 100%;
+        }
+
+        .cs-card-header {
+            background: linear-gradient(135deg, #0a0000, #150500);
+            border-bottom: 1px solid rgba(255,215,0,0.08);
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .cs-card-header-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            color: #000;
+            flex-shrink: 0;
+        }
+
+        .cs-card-header-title {
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: #FFD700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .cs-card-header-sub {
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.3);
+            margin: 2px 0 0;
+        }
+
+        .cs-card-body {
+            padding: 24px;
+        }
+
+        .cs-field {
+            margin-bottom: 20px;
+        }
+
+        .cs-label {
+            display: block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: rgba(255,215,0,0.5);
+            margin-bottom: 7px;
+        }
+
+        .cs-input,
+        .cs-textarea,
+        .cs-select {
+            width: 100%;
+            background: rgba(255,255,255,0.04) !important;
+            border: 1px solid rgba(255,215,0,0.15) !important;
+            border-radius: 10px !important;
+            color: #fff !important;
+            padding: 11px 14px !important;
+            font-size: 0.88rem;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+            .cs-input:focus,
+            .cs-textarea:focus,
+            .cs-select:focus {
+                outline: none !important;
+                border-color: rgba(255,215,0,0.4) !important;
+                background: rgba(255,215,0,0.03) !important;
+                box-shadow: none !important;
+            }
+
+            .cs-input::placeholder,
+            .cs-textarea::placeholder {
+                color: rgba(255,255,255,0.2);
+            }
+
+        .cs-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .cs-select option {
+            background: #111;
+            color: #fff;
+        }
+
+        .cs-validation {
+            font-size: 0.78rem;
+            color: #ff5555;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .cs-check-wrap {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            background: rgba(255,215,0,0.04);
+            border: 1px solid rgba(255,215,0,0.12);
+            border-radius: 10px;
+            margin-bottom: 22px;
+        }
+
+        .cs-check-input {
+            width: 18px;
+            height: 18px;
+            accent-color: #FFD700;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .cs-check-label {
+            font-size: 0.83rem;
+            color: rgba(255,255,255,0.7);
+            font-weight: 600;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .cs-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .cs-btn-save {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 28px;
+            border-radius: 999px;
+            background: linear-gradient(135deg, #b30000, #FFD700);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+        }
+
+            .cs-btn-save:hover {
+                background: linear-gradient(135deg, #FFD700, #b30000);
+                box-shadow: 0 0 20px rgba(255,215,0,0.3);
+                transform: translateY(-1px);
+            }
+
+        .cs-btn-cancel {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.45);
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-decoration: none;
+            transition: all 0.2s;
+            flex: 1;
+        }
+
+            .cs-btn-cancel:hover {
+                background: rgba(255,255,255,0.08);
+                color: rgba(255,255,255,0.75);
+            }
+
+        @@media (max-width: 600px) {
+            .cs-heading {
+                font-size: 1.25rem;
+                margin-bottom: 18px;
+            }
+
+            .cs-card {
+                border-radius: 14px;
+            }
+
+            .cs-card-header {
+                padding: 16px 18px;
+            }
+
+            .cs-card-header-icon {
+                width: 32px;
+                height: 32px;
+                font-size: 0.8rem;
+            }
+
+            .cs-card-header-title {
+                font-size: 0.8rem;
+            }
+
+            .cs-card-header-sub {
+                font-size: 0.65rem;
+            }
+
+            .cs-card-body {
+                padding: 18px;
+            }
+
+            .cs-field {
+                margin-bottom: 16px;
+            }
+
+            .cs-input, .cs-textarea, .cs-select {
+                font-size: 0.85rem;
+                padding: 10px 12px !important;
+            }
+
+            .cs-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .cs-btn-save, .cs-btn-cancel {
+                width: 100%;
+                padding: 12px;
+                font-size: 0.78rem;
+            }
+        }
+    </style>
+}
+
+<div class="container-fluid px-4">
+
+    <span class="cs-eyebrow">Administration</span>
+    <h1 class="cs-heading">@(isEdit ? "Edit Service" : "Create New Service")</h1>
+
+    <div class="cs-card">
+        <div class="cs-card-header">
+            <div class="cs-card-header-icon">
+                <i class="bi bi-@(isEdit ? "pencil-fill" : "plus-lg")"></i>
+            </div>
+            <div>
+                <p class="cs-card-header-title">@(isEdit ? "Update Service" : "New Service")</p>
+                <p class="cs-card-header-sub">@(isEdit ? "Modify the details below" : "Fill in the details to add a service")</p>
+            </div>
         </div>
 
-        <div class="mb-3">
-            <label asp-for="Description"></label>
-            <textarea asp-for="Description" class="form-control"></textarea>
-        </div>
+        <div class="cs-card-body">
+            <form asp-action="@(isEdit ? "EditService" : "CreateService")" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
 
-        <div class="mb-3">
-            <label asp-for="BasePrice"></label>
-            <input asp-for="BasePrice" class="form-control" />
-            <span asp-validation-for="BasePrice" class="text-danger"></span>
-        </div>
+                @if (isEdit)
+                {
+                    <input type="hidden" asp-for="Id" />
+                }
 
-        <div class="mb-3">
-            <label asp-for="CategoryId"></label>
-            <select asp-for="CategoryId" asp-items="Model.Categories" class="form-control"></select>
-            <span asp-validation-for="CategoryId" class="text-danger"></span>
-        </div>
+                <div class="cs-field">
+                    <label asp-for="Name" class="cs-label">Service Name</label>
+                    <input asp-for="Name" class="cs-input" placeholder="e.g. Full Body Massage" />
+                    <span asp-validation-for="Name" class="cs-validation"></span>
+                </div>
 
-        <div class="form-check mb-3">
-            <input asp-for="IsFeatured" class="form-check-input" />
-            <label asp-for="IsFeatured" class="form-check-label"></label>
-        </div>
+                <div class="cs-field">
+                    <label asp-for="Description" class="cs-label">Description</label>
+                    <textarea asp-for="Description" class="cs-textarea"
+                              placeholder="Describe what this service includes..."></textarea>
+                    <span asp-validation-for="Description" class="cs-validation"></span>
+                </div>
 
-        <button type="submit" class="btn btn-primary">Save</button>
-    </form>
+                <div class="cs-field">
+                    <label asp-for="BasePrice" class="cs-label">Base Price (R)</label>
+                    <input asp-for="BasePrice" class="cs-input" type="number" step="0.01" min="0"
+                           placeholder="e.g. 250.00" />
+                    <span asp-validation-for="BasePrice" class="cs-validation"></span>
+                </div>
+
+                <div class="cs-field">
+                    <label asp-for="CategoryId" class="cs-label">Category</label>
+                    <select asp-for="CategoryId" asp-items="Model.Categories" class="cs-select">
+                        <option value="">Select a category...</option>
+                    </select>
+                    <span asp-validation-for="CategoryId" class="cs-validation"></span>
+                </div>
+
+                <div class="cs-check-wrap">
+                    <input asp-for="IsFeatured" class="cs-check-input" type="checkbox" id="isFeatured" />
+                    <label class="cs-check-label" for="isFeatured">
+                        Featured on homepage
+                    </label>
+                </div>
+
+                <div class="cs-actions">
+                    <button type="submit" class="cs-btn-save">
+                        <i class="bi bi-check-lg"></i> @(isEdit ? "Save Changes" : "Create Service")
+                    </button>
+                    <a asp-action="ManageServices" asp-controller="Admin" class="cs-btn-cancel">
+                        <i class="bi bi-x-lg"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

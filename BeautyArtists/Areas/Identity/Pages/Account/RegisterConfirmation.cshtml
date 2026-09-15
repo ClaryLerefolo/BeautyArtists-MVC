@@ -1,0 +1,352 @@
+﻿@page
+@model BeautyArtists.Areas.Identity.Pages.Account.RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Register Confirmation";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="rc-page">
+    <div class="rc-bg"></div>
+
+    <div class="container rc-container">
+        <div class="rc-card">
+
+            @if (!string.IsNullOrEmpty(Model.StatusMessage))
+            {
+                <div style="background: rgba(201,168,76,0.1); border: 1px solid rgba(201,168,76,0.3); color: #C9A84C; padding: 10px 16px; border-radius: 8px; font-size: 0.8rem; margin-bottom: 24px; text-align: center;">
+                    @Model.StatusMessage
+                </div>
+            }
+
+            <div class="rc-icon">
+                <svg width="42" height="42" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="1.6"
+                     stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                </svg>
+            </div>
+
+            <span class="rc-eyebrow">Almost There</span>
+            <h1 class="rc-title">Check Your Email</h1>
+            <p class="rc-subtitle">
+                We've sent a confirmation link to <strong>@Model.Email</strong>.
+                Click the link inside to activate your RubiOr account.
+            </p>
+
+            <div class="rc-notice">
+                <div class="rc-notice-head">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                    </svg>
+                    <span>Email not in your inbox?</span>
+                </div>
+
+                <p class="rc-notice-intro">
+                    Your RubiOr confirmation email may be in your <strong>Spam / Junk</strong> folder.
+                </p>
+
+                <ol class="rc-steps">
+                    <li>
+                        <span class="rc-step-num">1</span>
+                        <div>
+                            <strong>Check Spam / Junk</strong>
+                            <p>Look for an email from RubiOr.</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="rc-step-num">2</span>
+                        <div>
+                            <strong>Tap "Report not spam"</strong>
+                            <p>If the email content or link is hidden, tap "Report not spam".</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="rc-step-num">3</span>
+                        <div>
+                            <strong>Open the email again</strong>
+                            <p>The "Confirm Email" link should now appear.</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="rc-step-num">4</span>
+                        <div>
+                            <strong>Confirm your email</strong>
+                            <p>Tap "Confirm Email" to complete your registration.</p>
+                        </div>
+                    </li>
+                </ol>
+
+                <div class="rc-notice-tip">
+                    <strong>Still can't find it?</strong>
+                    Check <em>Promotions</em>, <em>Updates</em> or <em>Other</em> — or search your inbox for <strong>"RubiOr"</strong>.
+                </div>
+
+                <div class="rc-warning">
+                    Please do not create another account. Your confirmation email may simply be in your Spam / Junk folder.
+                </div>
+            </div>
+
+            <form method="post" class="rc-resend-form">
+                <button type="submit" class="rc-resend-btn"
+                        asp-page-handler="ResendEmail"
+                        asp-route-email="@Model.Email">
+                    Resend Confirmation Email
+                </button>
+            </form>
+
+            <p class="rc-help">
+                Wrong email?
+                <a asp-page="/Account/RegisterChoice">Try registering again</a>
+            </p>
+
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <style>
+        .rc-page {
+            background: #000;
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+        }
+
+        .rc-bg {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background: radial-gradient(ellipse at 20% 30%, rgba(139, 0, 0, 0.14) 0%, transparent 55%), radial-gradient(ellipse at 80% 70%, rgba(201, 168, 76, 0.06) 0%, transparent 55%);
+            pointer-events: none;
+        }
+
+        .rc-container {
+            position: relative;
+            z-index: 1;
+            padding: 60px 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .rc-card {
+            background: #0b0b0b;
+            border: 1px solid rgba(201, 168, 76, 0.18);
+            border-radius: 20px;
+            padding: 48px 40px;
+            max-width: 520px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .rc-icon {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 22px;
+            border-radius: 50%;
+            background: rgba(201, 168, 76, 0.08);
+            border: 1px solid rgba(201, 168, 76, 0.25);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #C9A84C;
+        }
+
+        .rc-eyebrow {
+            display: block;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: rgba(201, 168, 76, 0.4);
+            margin-bottom: 10px;
+        }
+
+        .rc-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: #C9A84C;
+            margin: 0 0 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .rc-subtitle {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.55);
+            margin: 0 0 28px;
+        }
+
+            .rc-subtitle strong {
+                color: #eaeaea;
+                font-weight: 600;
+            }
+
+        .rc-notice {
+            text-align: left;
+            background: rgba(201, 168, 76, 0.04);
+            border: 1px solid rgba(201, 168, 76, 0.15);
+            border-radius: 14px;
+            padding: 22px 22px 20px;
+            margin: 0 0 24px;
+        }
+
+        .rc-notice-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #C9A84C;
+            letter-spacing: 0.3px;
+            margin-bottom: 12px;
+        }
+
+        .rc-notice-intro {
+            font-size: 0.82rem;
+            line-height: 1.55;
+            color: rgba(255, 255, 255, 0.55);
+            margin: 0 0 18px;
+        }
+
+            .rc-notice-intro strong {
+                color: #eaeaea;
+            }
+
+        .rc-steps {
+            list-style: none;
+            padding: 0;
+            margin: 0 0 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+            .rc-steps li {
+                display: flex;
+                gap: 12px;
+                align-items: flex-start;
+            }
+
+        .rc-step-num {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(201, 168, 76, 0.12);
+            border: 1px solid rgba(201, 168, 76, 0.3);
+            color: #C9A84C;
+            font-size: 0.7rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 2px;
+        }
+
+        .rc-steps li strong {
+            display: block;
+            font-size: 0.82rem;
+            color: #eaeaea;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .rc-steps li p {
+            margin: 0;
+            font-size: 0.78rem;
+            color: rgba(255, 255, 255, 0.45);
+            line-height: 1.5;
+        }
+
+        .rc-notice-tip {
+            font-size: 0.78rem;
+            line-height: 1.55;
+            color: rgba(255, 255, 255, 0.5);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 14px;
+            margin-bottom: 14px;
+        }
+
+            .rc-notice-tip strong {
+                color: #C9A84C;
+                font-weight: 600;
+            }
+
+            .rc-notice-tip em {
+                color: rgba(255, 255, 255, 0.7);
+                font-style: normal;
+            }
+
+        .rc-warning {
+            font-size: 0.78rem;
+            line-height: 1.5;
+            color: #ff8888;
+            background: rgba(139, 0, 0, 0.1);
+            border-left: 3px solid #8B0000;
+            padding: 10px 14px;
+            border-radius: 6px;
+        }
+
+        .rc-resend-form {
+            margin: 0 0 18px;
+        }
+
+        .rc-resend-btn {
+            display: inline-block;
+            width: 100%;
+            padding: 13px;
+            background: #C9A84C;
+            color: #000;
+            font-weight: 800;
+            font-size: 0.8rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+
+            .rc-resend-btn:hover {
+                background: #b8973f;
+                box-shadow: 0 0 24px rgba(201, 168, 76, 0.25);
+            }
+
+        .rc-help {
+            font-size: 0.78rem;
+            color: rgba(255, 255, 255, 0.3);
+            margin: 0;
+        }
+
+            .rc-help a {
+                color: #C9A84C;
+                text-decoration: none;
+                font-weight: 600;
+            }
+
+                .rc-help a:hover {
+                    text-decoration: underline;
+                }
+
+        @@media (max-width: 560px) {
+            .rc-card {
+                padding: 36px 24px;
+            }
+
+            .rc-title {
+                font-size: 1.5rem;
+            }
+
+            .rc-notice {
+                padding: 18px 16px;
+            }
+        }
+    </style>
+}

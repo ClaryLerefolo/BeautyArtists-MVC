@@ -22,8 +22,9 @@ namespace BeautyArtists.Controllers
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _hostEnvironment;
         private readonly ICommunicationService _commService;
-        private readonly IPaystackService _paystackService;  
+        private readonly IPaystackService _paystackService;
         private readonly IEmailSender _emailSender;
+
         // ─── PRICING CONSTANTS ───
         private const decimal CLIENT_MARKUP_RATE = 0.04m;
         private const decimal BOOKING_FEE = 5.00m;
@@ -37,17 +38,17 @@ namespace BeautyArtists.Controllers
             IWebHostEnvironment hostEnvironment,
             ICommunicationService commService,
             IPaystackService paystackService,
-            IEmailSender emailSender) 
+            IEmailSender emailSender)
         {
             _context = context;
             _userManager = userManager;
             _hostEnvironment = hostEnvironment;
             _commService = commService;
-            _paystackService = paystackService;  
+            _paystackService = paystackService;
             _emailSender = emailSender;
         }
 
-        // ─── ✅ FIXED: Check by SPECIFIC SERVICE (UserServiceId) ───
+        // ─── HELPERS ───
         private async Task<bool> IsNewClient(string customerId, int userServiceId)
         {
             var existingBookings = await _context.Bookings
@@ -60,7 +61,6 @@ namespace BeautyArtists.Controllers
             return !existingBookings;
         }
 
-        // ─── HELPER: Calculate platform fee ───
         private decimal GetPlatformFee(decimal servicePrice, bool isNewClient)
         {
             var platformFee = isNewClient
@@ -70,18 +70,19 @@ namespace BeautyArtists.Controllers
             return Math.Max(platformFee, MIN_PLATFORM_FEE);
         }
 
-        // ─── HELPER: Calculate artist payout ───
         private decimal GetArtistPayout(decimal servicePrice, bool isNewClient)
         {
             return servicePrice - GetPlatformFee(servicePrice, isNewClient);
         }
 
-        // ─── HELPER: Calculate client total ───
         private decimal GetClientTotal(decimal servicePrice)
         {
             return (servicePrice * (1 + CLIENT_MARKUP_RATE)) + BOOKING_FEE;
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // DASHBOARD
+        // ═══════════════════════════════════════════════════════════
         public async Task<IActionResult> Index()
         {
             var model = new AdminDashboardViewModel
@@ -97,7 +98,6 @@ namespace BeautyArtists.Controllers
             return View("Index", model);
         }
 
-        // ─── ✅ FIXED: Calculate total platform earnings using UserServiceId ───
         private async Task<decimal> CalculateTotalPlatformEarnings()
         {
             var completedBookings = await _context.Bookings
@@ -117,7 +117,6 @@ namespace BeautyArtists.Controllers
             return total;
         }
 
-        // ─── ✅ FIXED: Calculate revenue per artist using UserServiceId ───
         private async Task<List<AdminDashboardViewModel.ArtistRevenue>> CalculateRevenuePerArtist()
         {
             var completedBookings = await _context.Bookings
@@ -152,14 +151,16 @@ namespace BeautyArtists.Controllers
             return result.Values.ToList();
         }
 
-        public async Task<IActionResult> ManageUsers(string search)
+        // ═══════════════════════════════════════════════════════════
+        // MANAGE USERS - paginated
+        // ═══════════════════════════════════════════════════════════
+        public async Task<IActionResult> ManageUsers(string search, string role, int page = 1, int pageSize = 10)
         {
             var users = await _userManager.Users.ToListAsync();
             var userList = new List<UserManagementViewModel>();
             foreach (var user in users)
             {
-                var role = (await _userManager.GetRolesAsync(user)).FirstOrDefault() ?? "None";
-
+                var userRole = (await _userManager.GetRolesAsync(user)).FirstOrDefault() ?? "None";
                 bool isDeactivated = user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.Now;
 
                 userList.Add(new UserManagementViewModel
@@ -167,13 +168,17 @@ namespace BeautyArtists.Controllers
                     Id = user.Id,
                     FullName = $"{user.FirstName} {user.LastName}",
                     Email = user.Email,
-                    Role = role,
+                    Role = userRole,
                     IsDeactivated = isDeactivated,
-                    IsEmailConfirmed = user.EmailConfirmed  
-
+                    IsEmailConfirmed = user.EmailConfirmed
                 });
             }
             var allServices = await _context.Services.ToListAsync();
+
+            int totalAdmins = userList.Count(u => u.Role == "Admin");
+            int totalArtists = userList.Count(u => u.Role == "Artist");
+            int totalClients = userList.Count(u => u.Role == "Client");
+            int totalUsers = userList.Count;
 
             if (!string.IsNullOrEmpty(search))
             {
@@ -182,11 +187,45 @@ namespace BeautyArtists.Controllers
                     u.Email.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
             }
 
+            if (!string.IsNullOrEmpty(role))
+            {
+                userList = userList.Where(u => u.Role == role).ToList();
+            }
+
+            userList = userList
+                .OrderBy(u => u.Role == "Admin" ? 0 : u.Role == "Artist" ? 1 : u.Role == "Client" ? 2 : 3)
+                .ThenBy(u => u.FullName)
+                .ToList();
+
+            int totalCount = userList.Count;
+            int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            if (totalPages < 1) totalPages = 1;
+            if (page < 1) page = 1;
+            if (page > totalPages) page = totalPages;
+
+            var paged = userList
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
             var masterModel = new UserManagementViewModel
             {
-                Users = userList,
+                Users = paged,
                 Services = allServices
             };
+
+            ViewBag.Search = search;
+            ViewBag.Role = role;
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.TotalCount = totalCount;
+            ViewBag.PageSize = pageSize;
+            ViewBag.ShowingFrom = totalCount == 0 ? 0 : ((page - 1) * pageSize) + 1;
+            ViewBag.ShowingTo = Math.Min(page * pageSize, totalCount);
+            ViewBag.TotalUsers = totalUsers;
+            ViewBag.TotalAdmins = totalAdmins;
+            ViewBag.TotalArtists = totalArtists;
+            ViewBag.TotalClients = totalClients;
 
             return View(masterModel);
         }
@@ -226,7 +265,8 @@ namespace BeautyArtists.Controllers
                 Id = user.Id,
                 FullName = $"{user.FirstName} {user.LastName}",
                 Email = user.Email,
-                Role = role
+                Role = role,
+                IsEmailConfirmed = user.EmailConfirmed
             };
 
             return View(model);
@@ -243,8 +283,16 @@ namespace BeautyArtists.Controllers
                 return RedirectToAction(nameof(ManageUsers));
             }
 
-            await _userManager.DeleteAsync(user);
-            TempData["Success"] = "User deleted successfully.";
+            var result = await _userManager.DeleteAsync(user);
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(" • ", result.Errors.Select(e => e.Description));
+                TempData["Error"] = $"Could not delete user: {errors}";
+                return RedirectToAction(nameof(ManageUsers));
+            }
+
+            TempData["Success"] = $"User {user.Email} deleted successfully.";
             return RedirectToAction(nameof(ManageUsers));
         }
 
@@ -270,30 +318,107 @@ namespace BeautyArtists.Controllers
             return RedirectToAction("Index", "Admin");
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // RESEND CONFIRMATION EMAIL
+        // ═══════════════════════════════════════════════════════════
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResendConfirmation(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null)
+            {
+                TempData["Error"] = "User not found.";
+                return RedirectToAction(nameof(ManageUsers));
+            }
+
+            if (user.EmailConfirmed)
+            {
+                TempData["Error"] = "This account is already confirmed.";
+                return RedirectToAction(nameof(ManageUsers));
+            }
+
+            try
+            {
+                var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+                code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+
+                var callbackUrl = Url.Page(
+                    "/Account/ConfirmEmail",
+                    pageHandler: null,
+                    values: new { area = "Identity", userId = user.Id, code = code },
+                    protocol: Request.Scheme,
+                    host: Request.Host.Value);
+
+                await _emailSender.SendEmailAsync(
+                    user.Email,
+                    "Confirm your RubiOr Account",
+                    $"<h3>Welcome back!</h3><p>Please confirm your account by <a href='{callbackUrl}'>clicking here</a>.</p>");
+
+                TempData["Success"] = $"Confirmation email resent to {user.Email}.";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ ResendConfirmation failed for {user.Email}: {ex.Message}");
+                TempData["Error"] = "Failed to send confirmation email. Check the logs.";
+            }
+
+            return RedirectToAction(nameof(ManageUsers));
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // MANAGE SERVICES - paginated
+        // ═══════════════════════════════════════════════════════════
+        public async Task<IActionResult> ManageServices(string search, int page = 1, int pageSize = 10)
+        {
+            var query = _context.Services
+                .Include(s => s.ServiceCategory)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+            {
+                query = query.Where(s =>
+                    s.Name.Contains(search) ||
+                    (s.Description != null && s.Description.Contains(search)));
+            }
+
+            int totalCount = await query.CountAsync();
+            int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            if (totalPages < 1) totalPages = 1;
+            if (page < 1) page = 1;
+            if (page > totalPages) page = totalPages;
+
+            var services = await query
+                .OrderBy(s => s.Name)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            ViewBag.Search = search;
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.TotalCount = totalCount;
+            ViewBag.ShowingFrom = totalCount == 0 ? 0 : ((page - 1) * pageSize) + 1;
+            ViewBag.ShowingTo = Math.Min(page * pageSize, totalCount);
+
+            return View(services);
+        }
+
         public IActionResult CreateService()
         {
             var model = new ServiceViewModel
             {
                 Categories = _context.ServiceCategories
-                .OrderBy(c => c.Name)
-                .Select(c => new SelectListItem
-                {
-                    Value = c.Id.ToString(),
-                    Text = c.Name
-                })
-                .ToList()
+                    .OrderBy(c => c.Name)
+                    .Select(c => new SelectListItem
+                    {
+                        Value = c.Id.ToString(),
+                        Text = c.Name
+                    })
+                    .ToList()
             };
 
             return View(model);
-        }
-
-        public async Task<IActionResult> ManageServices()
-        {
-            var services = await _context.Services
-                .Include(s => s.ServiceCategory)
-                .OrderBy(s => s.Name)
-                .ToListAsync();
-            return View(services);
         }
 
         [HttpPost]
@@ -400,13 +525,13 @@ namespace BeautyArtists.Controllers
                 CategoryId = service.CategoryId,
                 IsFeatured = service.IsFeatured,
                 Categories = _context.ServiceCategories
-                .OrderBy(c => c.Name)
-                .Select(c => new SelectListItem
-                {
-                    Value = c.Id.ToString(),
-                    Text = c.Name
-                })
-                .ToList()
+                    .OrderBy(c => c.Name)
+                    .Select(c => new SelectListItem
+                    {
+                        Value = c.Id.ToString(),
+                        Text = c.Name
+                    })
+                    .ToList()
             };
 
             return View(model);
@@ -418,6 +543,9 @@ namespace BeautyArtists.Controllers
             return View();
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // ACTIVITY LOG
+        // ═══════════════════════════════════════════════════════════
         private async Task LogActivity(string artistId, string message)
         {
             var log = new ActivityLog
@@ -432,16 +560,38 @@ namespace BeautyArtists.Controllers
             await _context.SaveChangesAsync();
         }
 
-        public async Task<IActionResult> AuditLogs()
+        // ═══════════════════════════════════════════════════════════
+        // AUDIT LOGS - paginated
+        // ═══════════════════════════════════════════════════════════
+        public async Task<IActionResult> AuditLogs(int page = 1, int pageSize = 20)
         {
-            var logs = await _context.ActivityLogs
+            var query = _context.ActivityLogs
                 .Include(a => a.Artist)
-                .OrderByDescending(l => l.Timestamp)
+                .OrderByDescending(l => l.Timestamp);
+
+            int totalCount = await query.CountAsync();
+            int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            if (totalPages < 1) totalPages = 1;
+            if (page < 1) page = 1;
+            if (page > totalPages) page = totalPages;
+
+            var logs = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.TotalCount = totalCount;
+            ViewBag.ShowingFrom = totalCount == 0 ? 0 : ((page - 1) * pageSize) + 1;
+            ViewBag.ShowingTo = Math.Min(page * pageSize, totalCount);
 
             return View(logs);
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // BOOKING DETAILS
+        // ═══════════════════════════════════════════════════════════
         public async Task<IActionResult> BookingDetails(int id)
         {
             var booking = await _context.Bookings
@@ -457,18 +607,91 @@ namespace BeautyArtists.Controllers
             return View(booking);
         }
 
-        public async Task<IActionResult> ManageBookings()
+        // ═══════════════════════════════════════════════════════════
+        // MANAGE BOOKINGS - paginated + search/status filters
+        // ═══════════════════════════════════════════════════════════
+        public async Task<IActionResult> ManageBookings(
+       string search,
+       string status,
+       int page = 1,
+       int pageSize = 10)
         {
-            var allBookings = await _context.Bookings
+            var query = _context.Bookings
                 .Include(b => b.Customer)
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Service)
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Artist)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(search))
+            {
+                query = query.Where(b =>
+                    b.Id.ToString().Contains(search) ||
+                    (b.Customer != null && (b.Customer.FirstName + " " + b.Customer.LastName).Contains(search)) ||
+                    (b.UserService != null && b.UserService.Service != null && b.UserService.Service.Name.Contains(search)));
+            }
+
+            if (!string.IsNullOrEmpty(status) && Enum.TryParse<BookingStatus>(status, true, out var statusEnum))
+            {
+                query = query.Where(b => b.Status == statusEnum);
+            }
+
+            // ─── STATS (across the filtered set) ───
+            int totalAll = await query.CountAsync();
+            int totalPending = await query.CountAsync(b => b.Status == BookingStatus.Pending);
+            int totalConfirmed = await query.CountAsync(b => b.Status == BookingStatus.Confirmed);
+            int totalCompleted = await query.CountAsync(b => b.Status == BookingStatus.Completed);
+            int totalCancelled = await query.CountAsync(b => b.Status == BookingStatus.Cancelled);
+
+            var topServiceGroup = await query
+                .Where(b => b.UserService != null && b.UserService.Service != null)
+                .GroupBy(b => b.UserService.Service.Name)
+                .Select(g => new { Name = g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .FirstOrDefaultAsync();
+
+            var topArtistGroup = await query
+                .Where(b => b.UserService != null && b.UserService.Artist != null)
+                .GroupBy(b => new { b.UserService.Artist.FirstName, b.UserService.Artist.LastName })
+                .Select(g => new
+                {
+                    Name = (g.Key.FirstName + " " + g.Key.LastName).Trim(),
+                    Count = g.Count()
+                })
+                .OrderByDescending(x => x.Count)
+                .FirstOrDefaultAsync();
+
+            int totalCount = totalAll;
+            int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            if (totalPages < 1) totalPages = 1;
+            if (page < 1) page = 1;
+            if (page > totalPages) page = totalPages;
+
+            var bookings = await query
                 .OrderByDescending(b => b.AppointmentDate)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            return View(allBookings);
+            ViewBag.Search = search;
+            ViewBag.Status = status;
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.TotalCount = totalCount;
+            ViewBag.ShowingFrom = totalCount == 0 ? 0 : ((page - 1) * pageSize) + 1;
+            ViewBag.ShowingTo = Math.Min(page * pageSize, totalCount);
+
+            // ─── STATS FOR VIEW ───
+            ViewBag.TotalAll = totalAll;
+            ViewBag.TotalPending = totalPending;
+            ViewBag.TotalConfirmed = totalConfirmed;
+            ViewBag.TotalCompleted = totalCompleted;
+            ViewBag.TotalCancelled = totalCancelled;
+            ViewBag.TopService = topServiceGroup?.Name ?? "—";
+            ViewBag.TopArtist = topArtistGroup?.Name ?? "—";
+
+            return View(bookings);
         }
 
         [HttpPost]
@@ -536,9 +759,31 @@ namespace BeautyArtists.Controllers
             return RedirectToAction(nameof(ManageBookings));
         }
 
-        public async Task<IActionResult> HeroBanners()
+        // ═══════════════════════════════════════════════════════════
+        // HERO BANNERS - paginated
+        // ═══════════════════════════════════════════════════════════
+        public async Task<IActionResult> HeroBanners(int page = 1, int pageSize = 10)
         {
-            return View(await _context.HeroBanners.ToListAsync());
+            var query = _context.HeroBanners.AsQueryable();
+
+            int totalCount = await query.CountAsync();
+            int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            if (totalPages < 1) totalPages = 1;
+            if (page < 1) page = 1;
+            if (page > totalPages) page = totalPages;
+
+            var banners = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.TotalCount = totalCount;
+            ViewBag.ShowingFrom = totalCount == 0 ? 0 : ((page - 1) * pageSize) + 1;
+            ViewBag.ShowingTo = Math.Min(page * pageSize, totalCount);
+
+            return View(banners);
         }
 
         [HttpGet]
@@ -609,11 +854,38 @@ namespace BeautyArtists.Controllers
             await _context.SaveChangesAsync();
             return RedirectToAction(nameof(HeroBanners));
         }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteHeroBanner(int id)
+        {
+            var banner = await _context.HeroBanners.FindAsync(id);
+            if (banner == null)
+            {
+                TempData["Error"] = "Banner not found.";
+                return RedirectToAction(nameof(HeroBanners));
+            }
 
-        // ══════════════════════════════════
-        //  DISPUTES - List all disputes
-        // ══════════════════════════════════
-        public async Task<IActionResult> Disputes(string status = null, string search = null)
+            if (!string.IsNullOrEmpty(banner.ImagePath))
+            {
+                var filePath = Path.Combine(_hostEnvironment.WebRootPath, banner.ImagePath.TrimStart('/'));
+                if (System.IO.File.Exists(filePath))
+                    System.IO.File.Delete(filePath);
+            }
+
+            _context.HeroBanners.Remove(banner);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Banner deleted successfully.";
+            return RedirectToAction(nameof(HeroBanners));
+        }
+        // ═══════════════════════════════════════════════════════════
+        // DISPUTES - paginated
+        // ═══════════════════════════════════════════════════════════
+        public async Task<IActionResult> Disputes(
+            string status = null,
+            string search = null,
+            int page = 1,
+            int pageSize = 10)
         {
             var query = _context.Bookings
                 .Include(b => b.Customer)
@@ -621,7 +893,8 @@ namespace BeautyArtists.Controllers
                     .ThenInclude(us => us.Service)
                 .Include(b => b.UserService)
                     .ThenInclude(us => us.Artist)
-                .Where(b => b.IsDisputed);
+                .Where(b => b.IsDisputed)
+                .AsQueryable();
 
             if (!string.IsNullOrEmpty(status))
             {
@@ -641,22 +914,37 @@ namespace BeautyArtists.Controllers
                 );
             }
 
+            int totalCount = await query.CountAsync();
+            int totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+            if (totalPages < 1) totalPages = 1;
+            if (page < 1) page = 1;
+            if (page > totalPages) page = totalPages;
+
             var disputes = await query
                 .OrderByDescending(b => b.DisputeRaisedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            ViewBag.Total = disputes.Count;
-            ViewBag.Pending = disputes.Count(b => b.AdminReviewedAt == null);
-            ViewBag.Resolved = disputes.Count(b => b.AdminReviewedAt != null);
+            // Stat counts on the full set (not just current page)
+            var allDisputesCount = await _context.Bookings.CountAsync(b => b.IsDisputed);
+            var pendingCount = await _context.Bookings.CountAsync(b => b.IsDisputed && b.AdminReviewedAt == null);
+            var resolvedCount = await _context.Bookings.CountAsync(b => b.IsDisputed && b.AdminReviewedAt != null);
+
+            ViewBag.Total = allDisputesCount;
+            ViewBag.Pending = pendingCount;
+            ViewBag.Resolved = resolvedCount;
             ViewBag.SelectedStatus = status;
             ViewBag.SearchQuery = search;
+            ViewBag.CurrentPage = page;
+            ViewBag.TotalPages = totalPages;
+            ViewBag.TotalCount = totalCount;
+            ViewBag.ShowingFrom = totalCount == 0 ? 0 : ((page - 1) * pageSize) + 1;
+            ViewBag.ShowingTo = Math.Min(page * pageSize, totalCount);
 
             return View(disputes);
         }
 
-        // ══════════════════════════════════
-        //  DISPUTE DETAIL - View specific dispute
-        // ══════════════════════════════════
         public async Task<IActionResult> DisputeDetail(int id)
         {
             var booking = await _context.Bookings
@@ -679,9 +967,6 @@ namespace BeautyArtists.Controllers
             return View(booking);
         }
 
-        // ══════════════════════════════════
-        //  RESOLVE DISPUTE - Apply resolution
-        // ══════════════════════════════════
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> ResolveDispute(int id, string resolution, decimal amount = 0, string adminNotes = null)
@@ -752,9 +1037,7 @@ namespace BeautyArtists.Controllers
             return RedirectToAction("Disputes");
         }
 
-        // ══════════════════════════════════
-        //  ✅ FIXED: Release funds to artist (uses RecipientCode + Paystack transfer)
-        // ══════════════════════════════════
+        // ─── DISPUTE HELPERS ───
         private async Task ReleaseFundsToArtist(Booking booking)
         {
             try
@@ -768,7 +1051,6 @@ namespace BeautyArtists.Controllers
                     return;
                 }
 
-                // Net payout = service price minus platform commission
                 decimal artistNetPayout = booking.ServicePrice - booking.PlatformCommission;
 
                 if (artistNetPayout <= 0)
@@ -807,9 +1089,6 @@ namespace BeautyArtists.Controllers
             }
         }
 
-        // ══════════════════════════════════
-        //  HELPER: Refund funds to client
-        // ══════════════════════════════════
         private async Task RefundFundsToClient(Booking booking)
         {
             try
@@ -840,9 +1119,6 @@ namespace BeautyArtists.Controllers
             }
         }
 
-        // ══════════════════════════════════
-        //  ✅ FIXED: Partial split (uses RecipientCode + Paystack transfer)
-        // ══════════════════════════════════
         private async Task PartialSplitFunds(Booking booking, decimal refundAmount)
         {
             try
@@ -850,7 +1126,6 @@ namespace BeautyArtists.Controllers
                 decimal totalPaid = booking.DepositPaid + booking.FinalPaymentPaid;
                 decimal artistAmount = totalPaid - refundAmount;
 
-                // ─── Refund part to client ───
                 if (refundAmount > 0)
                 {
                     booking.RefundAmount = refundAmount;
@@ -858,7 +1133,6 @@ namespace BeautyArtists.Controllers
                     booking.IsRefunded = true;
                 }
 
-                // ─── Release remaining to artist via Paystack ───
                 if (artistAmount > 0)
                 {
                     var artistProfile = await _context.ArtistProfiles
@@ -909,9 +1183,6 @@ namespace BeautyArtists.Controllers
             }
         }
 
-        // ══════════════════════════════════
-        //  HELPER: Send resolution EMAILS
-        // ══════════════════════════════════
         private async Task SendResolutionEmails(Booking booking, string resolution, decimal amount)
         {
             try
@@ -924,7 +1195,6 @@ namespace BeautyArtists.Controllers
                     _ => "The dispute has been resolved."
                 };
 
-                // ─── EMAIL TO CLIENT ───
                 if (booking.Customer != null && !string.IsNullOrEmpty(booking.Customer.Email))
                 {
                     string clientSubject = "Dispute Resolved";
@@ -945,7 +1215,6 @@ namespace BeautyArtists.Controllers
                     await _commService.SendDirectMessageEmailAsync(booking.UserService.ArtistId, booking.CustomerId, clientSubject, clientBody);
                 }
 
-                // ─── EMAIL TO ARTIST ───
                 if (booking.UserService?.Artist != null && !string.IsNullOrEmpty(booking.UserService.Artist.Email))
                 {
                     string artistSubject = "Dispute Resolved";
@@ -970,53 +1239,6 @@ namespace BeautyArtists.Controllers
             {
                 Console.WriteLine($"❌ SendResolutionEmails error: {ex.Message}");
             }
-        }
-        // ══════════════════════════════════
-        //  RESEND CONFIRMATION EMAIL
-        // ══════════════════════════════════
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ResendConfirmation(string id)
-        {
-            var user = await _userManager.FindByIdAsync(id);
-            if (user == null)
-            {
-                TempData["Error"] = "User not found.";
-                return RedirectToAction(nameof(ManageUsers));
-            }
-
-            if (user.EmailConfirmed)
-            {
-                TempData["Error"] = "This account is already confirmed.";
-                return RedirectToAction(nameof(ManageUsers));
-            }
-
-            try
-            {
-                var code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-                code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-
-                var callbackUrl = Url.Page(
-                    "/Account/ConfirmEmail",
-                    pageHandler: null,
-                    values: new { area = "Identity", userId = user.Id, code = code },
-                    protocol: Request.Scheme,
-                    host: Request.Host.Value);
-
-                await _emailSender.SendEmailAsync(
-                    user.Email,
-                    "Confirm your Beauty in Red and Gold Account",
-                    $"<h3>Welcome back!</h3><p>Please confirm your account by <a href='{callbackUrl}'>clicking here</a>.</p>");
-
-                TempData["Success"] = $"Confirmation email resent to {user.Email}.";
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"❌ ResendConfirmation failed for {user.Email}: {ex.Message}");
-                TempData["Error"] = "Failed to send confirmation email. Check the logs.";
-            }
-
-            return RedirectToAction(nameof(ManageUsers));
         }
     }
 }
