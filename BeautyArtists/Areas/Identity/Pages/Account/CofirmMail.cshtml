@@ -1,0 +1,10 @@
+﻿@page
+@model BeautyArtists.Areas.Identity.Pages.Account.ConfirmEmailModel
+@{
+    ViewData["Title"] = "Confirm Email";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h1>@ViewData["Title"]</h1>
+<p>@Model.StatusMessage</p>
+<a asp-controller="Home" asp-action="Index" class="btn btn-primary">Go to Home</a>

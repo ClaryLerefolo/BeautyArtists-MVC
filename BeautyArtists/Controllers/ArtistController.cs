@@ -12,6 +12,9 @@ using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Net.Mail;
 using System.Security.Claims;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.ImageSharp.Formats.Jpeg;
 using static BeautyArtists.Models.Booking;
 
 namespace BeautyArtists.Controllers
@@ -411,17 +414,10 @@ namespace BeautyArtists.Controllers
 
             try
             {
-                if (ImageFile != null && ImageFile.Length > 0)
-                {
-                    var uploadDir = Path.Combine(_env.WebRootPath, "uploads/services");
-                    if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
-
-                    var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(ImageFile.FileName)}";
-                    var filePath = Path.Combine(uploadDir, fileName);
-                    using (var stream = new FileStream(filePath, FileMode.Create))
-                        await ImageFile.CopyToAsync(stream);
-                    model.ImagePath = "/uploads/services/" + fileName;
-                }
+             if (ImageFile != null && ImageFile.Length > 0)
+{
+    model.ImagePath = await SaveServiceImageAsync(ImageFile);
+}
 
                 _context.UserServices.Add(model);
                 await _context.SaveChangesAsync();
@@ -459,21 +455,26 @@ namespace BeautyArtists.Controllers
 
             if (ImageFile != null && ImageFile.Length > 0)
             {
-                if (!string.IsNullOrEmpty(existingService.ImagePath))
+                var oldImagePath = existingService.ImagePath;
+
+                // Save the new optimized image first
+                var newImagePath = await SaveServiceImageAsync(ImageFile);
+
+                // Delete the old image only after the new one was successfully saved
+                if (!string.IsNullOrEmpty(oldImagePath))
                 {
-                    var oldPath = Path.Combine(_env.WebRootPath, existingService.ImagePath.TrimStart('/'));
-                    if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
+                    var oldPath = Path.Combine(
+                        _env.WebRootPath,
+                        oldImagePath.TrimStart('/')
+                    );
+
+                    if (System.IO.File.Exists(oldPath))
+                    {
+                        System.IO.File.Delete(oldPath);
+                    }
                 }
 
-                var uploadDir = Path.Combine(_env.WebRootPath, "uploads/services");
-                if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
-                var fileName = $"{Guid.NewGuid()}_{Path.GetFileName(ImageFile.FileName)}";
-                var filePath = Path.Combine(uploadDir, fileName);
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                {
-                    await ImageFile.CopyToAsync(stream);
-                }
-                existingService.ImagePath = "/uploads/services/" + fileName;
+                existingService.ImagePath = newImagePath;
             }
 
             await _context.SaveChangesAsync();
@@ -507,7 +508,43 @@ namespace BeautyArtists.Controllers
                 return BadRequest("Could not delete service.");
             }
         }
+        private async Task<string> SaveServiceImageAsync(IFormFile imageFile)
+        {
+            var uploadDir = Path.Combine(_env.WebRootPath, "uploads", "services");
 
+            if (!Directory.Exists(uploadDir))
+            {
+                Directory.CreateDirectory(uploadDir);
+            }
+
+            // Always save processed service images as JPEG
+            var fileName = $"{Guid.NewGuid():N}.jpg";
+            var filePath = Path.Combine(uploadDir, fileName);
+
+            using var inputStream = imageFile.OpenReadStream();
+
+            using var image = await Image.LoadAsync(inputStream);
+
+            // Correct phone-camera orientation
+            image.Mutate(x => x.AutoOrient());
+
+            // Resize large images while maintaining aspect ratio
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Mode = ResizeMode.Max,
+                Size = new Size(1200, 1200)
+            }));
+
+            // Compress the image
+            var encoder = new JpegEncoder
+            {
+                Quality = 80
+            };
+
+            await image.SaveAsJpegAsync(filePath, encoder);
+
+            return "/uploads/services/" + fileName;
+        }
         private async Task LogActivity(string artistId, string message)
         {
             var log = new ActivityLog
